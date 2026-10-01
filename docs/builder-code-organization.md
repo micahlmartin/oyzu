@@ -45,6 +45,7 @@ src/
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
       ant/runtime/            # Native Ant metadata and JDK archive integration
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
+    java/repository_preparation.rs # Shared sandbox/broker lifecycle for native repository capture
     docker/                   # Container builder
     helm/
       metadata.rs             # Chart discovery and contained local dependency order
@@ -91,7 +92,7 @@ Artifact names are owned strings, and artifacts can override the target-level ve
 
 Native report intent can also identify a module and a contained file/glob under the task's working directory. Maven uses this to attribute Surefire and JaCoCo reports to reactor modules without adding Maven branches to the planner or collector. Shared report formats include native JaCoCo aggregate line counters. Prepared input snapshots include the entire acquired tree, even native coordinate directories named `target`; source checkout exclusion rules do not apply to repositories.
 
-Gradle uses the same interface with its own composite metadata and native initialization scripts. Included builds export their own evaluated models. Preparation captures repository files through the shared broker; the offline lifecycle resolves a local file repository with a fresh private Gradle home. Mutable daemon/dependency caches are not prepared inputs. Maven and Gradle share only the Maven-layout file inventory, while their acquisition and native model semantics stay in separate adapters.
+Gradle uses the same interface with its own composite metadata and native initialization scripts. Included builds export their own evaluated models. Preparation captures repository files through the shared broker; the offline lifecycle resolves a local file repository with a fresh private Gradle home. Mutable daemon/dependency caches are not prepared inputs. Maven and Gradle share the Maven-layout file inventory and the Rust repository-preparation lifecycle. That lifecycle owns temporary workspace cleanup, scoped broker lifetime, sandbox invocation and prepared-tree capture. Each manager supplies explicit commands, runtime assets, environment and source routes; native acquisition semantics, metadata validation and planning stay in its own adapter. No manager switch is needed in the shared lifecycle.
 
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 
@@ -108,3 +109,11 @@ Materialization is a shared graph responsibility. Its planner resolves logical a
 Implement the trait in the ecosystem module and register it once in `builders/mod.rs`. Put native inference and version projection in that adapter, reuse task constructors and shared report formats, and declare exact output identities before execution. Add native scenario verification for its artifacts and failure behavior. Do not add a new manager switch to the shared engine, let native acquisition contact arbitrary sources, or manufacture successful results for missing integrations.
 
 Tests cover unique registrations, native ownership ambiguity, required prepared inputs, typed Python output/report intent and preservation of explicit task overrides. Existing discovery, hook, bundle and native CI scenario tests remain the behavior checks across this structural change. Cross-platform runtime support must still be demonstrated independently.
+
+## Encapsulation as builders grow
+
+Use private child modules by default and the narrowest useful visibility (`pub(super)` or `pub(in crate::builders)`) for implementation seams. The engine depends on the `Builder` contract, never a concrete manager's metadata or runtime modules. Keep native representations inside their ecosystem and convert them to shared intent at that boundary.
+
+Extract shared behavior when multiple implementations have the same responsibility and invariants. Place it at their nearest common owner: Maven repository operations belong under Java, while scheduling, integrity verification and sandbox enforcement belong to the shared engine. Similar-looking native commands alone do not justify merging adapters. Prefer concrete types and small functions; introduce another trait only when there are distinct implementations or an actual substitution boundary.
+
+Keep this as one crate while module privacy provides the needed separation. Separate crates become useful when a component has independent reuse, dependency or release requirements. A future external plugin interface needs its own versioning and isolation design; the internal Rust trait does not promise that interface.
