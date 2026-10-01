@@ -86,7 +86,8 @@ def main():
             else:
                 result = subprocess.run(["docker", "run", "--rm", "--network=none", "--mount",
                                          f"type=bind,source={path},target=/app,readonly",
-                                         "--entrypoint", "/app", "golang:1.24-bookworm"], capture_output=True, text=True, check=True)
+                                         "--entrypoint", "/app", "golang:1.24-bookworm"], capture_output=True, text=True)
+                assert result.returncode == 0, (result.stdout,result.stderr)
                 assert result.stdout.strip() == "Hello, Oyzu!"
                 assert any(a["id"].endswith(":format-check") and a["status"] == "succeeded" for a in manifest["actions"])
             # Tampering is detected; a subsequent build retains the old bundle.

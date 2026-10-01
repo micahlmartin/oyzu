@@ -406,6 +406,15 @@ fn capture_output(out: &Path, bundle: &Path, relative: &str) -> Result<PathBuf> 
         .open(&destination)?;
     std::io::copy(&mut input, &mut output)?;
     output.sync_all()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let executable = input.metadata()?.permissions().mode() & 0o111 != 0;
+        fs::set_permissions(
+            &destination,
+            fs::Permissions::from_mode(if executable { 0o755 } else { 0o644 }),
+        )?;
+    }
     Ok(destination)
 }
 
