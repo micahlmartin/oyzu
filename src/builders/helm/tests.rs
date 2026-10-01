@@ -105,3 +105,29 @@ fn packaging_plans_snapshots_and_retains_native_checks() {
         .any(|arg| arg.contains("helm package")));
     assert_eq!(plan.env["KUBECONFIG"], "/dev/null");
 }
+
+#[test]
+fn library_charts_package_and_lint_without_attempting_installable_rendering() {
+    let root = tempfile::tempdir().unwrap();
+    chart(root.path(), "chart", "type: library\n");
+    let source = tempfile::tempdir().unwrap();
+    let snapshot = snapshot::capture(root.path(), &source.path().join("captured")).unwrap();
+    let workspace = discovery::discover(&source.path().join("captured")).unwrap();
+    assert!(!workspace.tasks.contains_key("project:test"));
+    let prepared = Prepared {
+        root: root.path().into(),
+        digest: snapshot.digest.clone(),
+        record: json!({}),
+    };
+    let plan = planning::plan(PlanningContext {
+        target: &workspace.targets["project"],
+        source: &snapshot,
+        dependencies: Some(&prepared),
+    })
+    .unwrap();
+    assert_eq!(plan.artifacts.len(), 1);
+    assert_eq!(plan.artifacts[0].name, "chart");
+    assert!(!plan.tasks.contains_key("test"));
+    assert!(plan.tasks.contains_key("lint"));
+    assert_eq!(plan.package.argv[0], "cp");
+}

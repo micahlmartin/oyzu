@@ -48,7 +48,8 @@ impl Builder for Helm {
         let chart = metadata::chart_path(&target.path)?;
         let path = target.path.join(chart);
         target.manager = "helm".into();
-        target.version = metadata::read(&path)?.version;
+        let metadata = metadata::read(&path)?;
+        target.version = metadata.version;
         insert(
             target,
             "install",
@@ -57,12 +58,14 @@ impl Builder for Helm {
         );
         insert(target, "build", &["helm", "package", chart], true);
         insert(target, "lint", &["helm", "lint", chart], true);
-        insert(
-            target,
-            "test",
-            &["helm", "template", "oyzu-check", chart],
-            true,
-        );
+        if metadata.kind != "library" {
+            insert(
+                target,
+                "test",
+                &["helm", "template", "oyzu-check", chart],
+                true,
+            );
+        }
 
         Ok(())
     }

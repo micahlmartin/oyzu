@@ -11,6 +11,8 @@ use std::{
 pub(super) struct Chart {
     pub name: String,
     pub version: String,
+    #[serde(rename = "type", default)]
+    pub kind: String,
     #[serde(default)]
     pub dependencies: Vec<Dependency>,
 }

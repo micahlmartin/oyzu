@@ -1,5 +1,4 @@
 """Native Helm chart packaging and negative cases through the compiled CLI."""
-import json
 import shutil
 import tarfile
 import yaml
@@ -54,3 +53,20 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
     assert source_files(project) == before
     verified.append('Helm: native stale lock rejection and invalid values fail without publishing artifacts or editing source')
+
+    library = base/'helm-library'
+    shutil.copytree(root/'examples/builds/helm-chart/project/labels', library)
+    before = source_files(library)
+    invoke(library, 'build')
+    manifest = validate(library/'dist')
+    assert len(manifest['artifacts']) == 1
+    assert not any(a['id']=='project:test' for a in manifest['actions'])
+    assert next(a for a in manifest['actions'] if a['id']=='project:lint')['status']=='succeeded'
+    artifact = manifest['artifacts'][0]
+    with tarfile.open(library/'dist'/artifact['path']) as archive:
+        chart = yaml.safe_load(archive.extractfile('labels/Chart.yaml').read())
+        assert chart['type'] == 'library'
+        assert chart['version'] == artifact['version']
+        assert 'labels/templates/_helpers.tpl' in archive.getnames()
+    assert source_files(library) == before
+    verified.append('Helm library chart is inferred, linted and packaged without treating it as an installable application')

@@ -20,8 +20,18 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let chart = super::metadata::read(&prepared.root.join("chart"))?;
     let id = &context.target.name;
     let filename = format!("{}-{}.tgz", chart.name, chart.version);
-    let mut plan = BuilderPlan::new(
-        chart.version,
+    let library = chart.kind == "library";
+    let package = if library {
+        CommandSpec::new(
+            "package",
+            &[
+                "cp",
+                "--",
+                &format!(".oyzu-build/package/{filename}"),
+                &format!("/out/{id}/artifacts/{filename}"),
+            ],
+        )
+    } else {
         CommandSpec::new(
             "package",
             &[
@@ -33,8 +43,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
                 &format!("/out/{id}/artifacts/{filename}"),
                 &format!("/out/{id}/artifacts/rendered.yaml"),
             ],
-        ),
-    );
+        )
+    };
+    let mut plan = BuilderPlan::new(chart.version, package);
     plan.env.extend(environment());
     plan.prepare.push(CommandSpec::new(
         "prepare",
@@ -48,14 +59,16 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         "sh", "-c", "helm package .oyzu-build/chart --destination .oyzu-build/package && python -I /oyzu/helm-archive.py \"$1\"", "oyzu-helm-package",
         &format!(".oyzu-build/package/{filename}"),
     ]));
-    plan.tasks.insert(
-        "test".into(),
-        TaskPlan::command(&[
-            "sh",
-            "-c",
-            "helm template oyzu-check .oyzu-build/chart > .oyzu-build/rendered.yaml",
-        ]),
-    );
+    if !library {
+        plan.tasks.insert(
+            "test".into(),
+            TaskPlan::command(&[
+                "sh",
+                "-c",
+                "helm template oyzu-check .oyzu-build/chart > .oyzu-build/rendered.yaml",
+            ]),
+        );
+    }
     plan.tasks.insert(
         "lint".into(),
         TaskPlan::command(&[
@@ -66,19 +79,19 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             "--with-subcharts",
         ]),
     );
-    plan.artifacts = vec![
-        ArtifactSpec {
-            name: "chart".into(),
-            filename,
-            media_type: "application/gzip",
-            version: None,
-        },
-        ArtifactSpec {
+    plan.artifacts = vec![ArtifactSpec {
+        name: "chart".into(),
+        filename,
+        media_type: "application/gzip",
+        version: None,
+    }];
+    if !library {
+        plan.artifacts.push(ArtifactSpec {
             name: "rendered".into(),
             filename: "rendered.yaml".into(),
             media_type: "application/yaml",
             version: None,
-        },
-    ];
+        });
+    }
     Ok(plan)
 }
