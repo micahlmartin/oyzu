@@ -20,7 +20,7 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 
 | Requirement | State |
 | --- | --- |
-| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Pending |
+| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Initial source-copy/digest primitive tested; full plan/build integration pending |
 | Dependency preparation and private-registry credential isolation for every native manager | Pending |
 | Capability-enforced executor, cancellation/process containment and offline build actions | Pending |
 | Build/test/lint/read-only formatting orchestration with native ownership and reports | Task discovery foundation only |
@@ -37,4 +37,10 @@ The implementation must not read scenario expectation JSON as instructions for m
 
 ## Next checkpoint
 
-Implement captured source and build-plan/manifest plumbing, then the first complete Node/Python/Go source-to-snapshot build with enforced executor boundaries. Add artifact-content and failure/report assertions to the compiled-CLI scenario job, and expand the same engine across the other managers. Keep committing incremental verified changes.
+Wire captured source into build-plan/manifest plumbing, then implement the first complete Node/Python/Go source-to-snapshot build with enforced executor boundaries. Add artifact-content and failure/report assertions to the compiled-CLI scenario job, and expand the same engine across the other managers. Keep committing incremental verified changes.
+
+## Checkpoint 2: captured-source primitive
+
+Source copying now creates a separate content-identified tree, excludes common dependency/output stores, detects changed file contents during capture, rejects nonportable/colliding paths and refuses symlinks rather than following them into host files. Existing or source-nested destinations fail. Local tests prove equal content at different checkout paths shares an identity and later source edits do not change captured bytes. A Unix-only escaping-symlink test is included for CI.
+
+This is not yet the complete source isolation contract: allowed internal links, cross-host executable-mode normalization, repository ignore rules, race-resistant handle-based filesystem access and executor integration remain required. These limitations are not treated as passing the sandbox examples. The full build command is still pending.
