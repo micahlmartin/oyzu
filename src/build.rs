@@ -511,6 +511,30 @@ fn execute_plan(
             }
             collected.push(report);
         }
+        if code == 0 {
+            for intent in plan["artifacts"]
+                .as_array()
+                .context("missing artifacts")?
+                .iter()
+                .filter(|v| v["producer"] == id)
+            {
+                let capture = (|| -> Result<Value> {
+                    let path = intent["path"].as_str().context("missing artifact path")?;
+                    let file = safe_file(out, path)?;
+                    let mut artifact = intent.clone();
+                    artifact["digest"] = json!(snapshot::file_digest(&file)?);
+                    artifact["size"] = json!(fs::metadata(file)?.len());
+                    Ok(artifact)
+                })();
+                match capture {
+                    Ok(artifact) => artifacts.push(artifact),
+                    Err(error) => {
+                        code = 1;
+                        diagnostics.push(json!({"code":"artifact-invalid","phase":"collect","severity":"error","message":error.to_string(),"action":id,"target":target}));
+                    }
+                }
+            }
+        }
         outcome["status"] = json!(if code == 0 { "succeeded" } else { "failed" });
         outcome["exitCode"] = json!(code);
         outcome["enforced"] = json!([
@@ -520,16 +544,6 @@ fn execute_plan(
         ]);
         failed = code != 0;
         outcomes.push(outcome);
-    }
-    if !failed {
-        for intent in plan["artifacts"].as_array().context("missing artifacts")? {
-            let path = intent["path"].as_str().context("missing artifact path")?;
-            let file = safe_file(out, path)?;
-            let mut artifact = intent.clone();
-            artifact["digest"] = json!(snapshot::file_digest(&file)?);
-            artifact["size"] = json!(fs::metadata(file)?.len());
-            artifacts.push(artifact);
-        }
     }
     Ok(ExecutionRecords {
         actions: outcomes,

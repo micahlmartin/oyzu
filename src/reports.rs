@@ -1,12 +1,26 @@
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, fs, io::Write, path::Path};
+use std::{
+    collections::BTreeMap,
+    fs,
+    io::{Read, Write},
+    path::Path,
+};
+
+fn read_report(path: &Path) -> Result<String> {
+    const LIMIT: u64 = 16 * 1024 * 1024;
+    let mut text = String::new();
+    fs::File::open(path)?
+        .take(LIMIT + 1)
+        .read_to_string(&mut text)?;
+    if text.len() as u64 > LIMIT {
+        bail!("report exceeds 16 MiB");
+    }
+    Ok(text)
+}
 
 pub fn junit_summary(path: &Path) -> Result<Value> {
-    let text = fs::read_to_string(path)?;
-    if text.len() > 16 * 1024 * 1024 {
-        bail!("JUnit report exceeds 16 MiB");
-    }
+    let text = read_report(path)?;
     let doc = roxmltree::Document::parse(&text)?;
     if !matches!(
         doc.root_element().tag_name().name(),
@@ -34,12 +48,22 @@ pub fn junit_summary(path: &Path) -> Result<Value> {
 
 pub fn go_to_junit(log: &Path, report: &Path) -> Result<Value> {
     let mut cases = BTreeMap::<(String, String), (String, String)>::new();
-    for line in fs::read_to_string(log)?.lines() {
-        let Ok(event) = serde_json::from_str::<Value>(line) else {
+    let mut packages = BTreeMap::<String, (bool, String)>::new();
+    let mut seen = false;
+    for line in read_report(log)?.lines().filter(|s| !s.trim().is_empty()) {
+        let event: Value = serde_json::from_str(line)?;
+        let Some(package) = event["Package"].as_str() else {
             continue;
         };
-        let (Some(package), Some(test)) = (event["Package"].as_str(), event["Test"].as_str())
-        else {
+        seen = true;
+        let Some(test) = event["Test"].as_str() else {
+            let package = packages.entry(package.into()).or_default();
+            if event["Action"] == "fail" {
+                package.0 = true;
+            }
+            if let Some(output) = event["Output"].as_str() {
+                package.1.push_str(output);
+            }
             continue;
         };
         let record = cases.entry((package.into(), test.into())).or_default();
@@ -48,6 +72,18 @@ pub fn go_to_junit(log: &Path, report: &Path) -> Result<Value> {
         }
         if matches!(event["Action"].as_str(), Some("pass" | "fail" | "skip")) {
             record.0 = event["Action"].as_str().unwrap().into();
+        }
+    }
+    if !seen {
+        bail!("missing Go test events");
+    }
+    for (package, (failed, output)) in packages {
+        if failed
+            && !cases
+                .iter()
+                .any(|((p, _), (status, _))| p == &package && status != "pass" && status != "skip")
+        {
+            cases.insert((package, "package failure".into()), ("fail".into(), output));
         }
     }
     let mut xml = String::from(
@@ -78,6 +114,19 @@ pub fn go_to_junit(log: &Path, report: &Path) -> Result<Value> {
 
 fn escape(value: &str) -> String {
     value
+        .chars()
+        .map(|c| {
+            if c == '\t'
+                || c == '\n'
+                || c == '\r'
+                || (c >= ' ' && c != '\u{fffe}' && c != '\u{ffff}')
+            {
+                c
+            } else {
+                '\u{fffd}'
+            }
+        })
+        .collect::<String>()
         .replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
@@ -86,7 +135,7 @@ fn escape(value: &str) -> String {
 }
 
 pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
-    let text = fs::read_to_string(path)?;
+    let text = read_report(path)?;
     let (mut total, mut covered) = (0u64, 0u64);
     match format {
         "lcov" => {

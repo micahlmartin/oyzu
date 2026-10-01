@@ -104,7 +104,6 @@ pub fn execute(request: Request<'_>) -> Result<Execution> {
         "--cpus=2",
         "--tmpfs",
         "/tmp:rw,nosuid,size=536870912",
-        "--mount",
     ]);
     let workspace = request.workspace.canonicalize()?;
     let output = request.output.canonicalize()?;
@@ -121,7 +120,7 @@ pub fn execute(request: Request<'_>) -> Result<Execution> {
             bail!("Docker bind mount paths containing commas are unsupported");
         }
     }
-    command.arg(format!(
+    command.arg("--mount").arg(format!(
         "type=bind,source={},target=/workspace",
         docker_path(&workspace)
     ));

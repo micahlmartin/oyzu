@@ -70,3 +70,18 @@ fn coverage_retains_metric_and_zero_denominator_and_rejects_bad_records() {
     assert!(coverage_summary(&report, "lcov").is_err());
     assert!(coverage_summary(&report, "unknown").is_err());
 }
+
+#[test]
+fn package_level_go_failures_cannot_be_reported_as_success() {
+    let dir = tempfile::tempdir().unwrap();
+    let log = dir.path().join("go.jsonl");
+    let report = dir.path().join("junit.xml");
+    fs::write(&log, "{\"Action\":\"fail\",\"Package\":\"broken\"}\n").unwrap();
+    assert_eq!(go_to_junit(&log, &report).unwrap()["failed"], 1);
+    assert!(
+        go_to_junit(&log, &report).is_err(),
+        "must not overwrite a supplied report path"
+    );
+    fs::write(&log, "invalid events").unwrap();
+    assert!(go_to_junit(&log, &dir.path().join("invalid.xml")).is_err());
+}
