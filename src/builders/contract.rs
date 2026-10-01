@@ -103,9 +103,11 @@ impl CommandSpec {
 }
 
 pub(crate) struct ArtifactSpec {
-    pub name: &'static str,
+    pub name: String,
     pub filename: String,
     pub media_type: &'static str,
+    /// Native workspaces can contain packages with independent versions.
+    pub version: Option<String>,
 }
 
 #[derive(Default)]

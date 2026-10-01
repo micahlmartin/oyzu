@@ -22,7 +22,12 @@ src/
       runtime/adapter.py      # Embedded native Python adapter
       runtime/reporting.py    # Installed-distribution pytest/coverage integration
     go/                       # Discovery and Go planning
-    rust/                     # Cargo discovery; build implementation pending
+    rust/
+      mod.rs                  # Cargo descriptor, discovery and interface implementation
+      metadata.rs             # Typed native workspace metadata and version projection
+      preparation.rs          # Offline lock validation and captured manifest overlay
+      planning.rs             # Binary, native checks and JUnit intent
+      tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
     docker/                   # Container builder
     helm/                     # Chart builder
@@ -53,6 +58,8 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 | `runtime_files` | Declare compiled-in adapter assets needed by isolated native processes |
 
 `BuilderPlan`, `CommandSpec`, `TaskPlan`, `ArtifactSpec` and `ReportSpec` are Rust structures. A builder does not assemble arbitrary build-plan JSON. The common planner expands hooks, preserves TOML replacements, assigns action identities, binds source/dependency/toolchain identities and serializes the versioned plan. Report formats and input conversions are explicit types.
+
+Artifact names are owned strings, and artifacts can override the target-level version. This lets a native workspace expose multiple independently versioned package outputs without adding Cargo-specific cases to the engine. Cargo preparation uses the same captured-input interface as acquisition, recording native workspace metadata and a version-projected manifest/lock overlay; it does not require a separate execution path.
 
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 

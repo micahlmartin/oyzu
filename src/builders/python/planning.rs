@@ -106,12 +106,14 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     }
     plan.artifacts = vec![
         ArtifactSpec {
-            name: "wheel",
+            name: "wheel".into(),
+            version: None,
             filename: format!("{name}-{version}-py3-none-any.whl"),
             media_type: "application/zip",
         },
         ArtifactSpec {
-            name: "sdist",
+            name: "sdist".into(),
+            version: None,
             filename: format!("{name}-{version}.tar.gz"),
             media_type: "application/gzip",
         },

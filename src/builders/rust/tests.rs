@@ -1,0 +1,76 @@
+use super::metadata::{relative, Metadata};
+use serde_json::json;
+use std::fs;
+
+fn metadata() -> Metadata {
+    serde_json::from_value(json!({
+        "workspace_root":"/workspace", "workspace_members":["opaque-a","opaque-b"],
+        "packages":[
+            {"id":"opaque-a","name":"api","version":"1.2.3","manifest_path":"/workspace/api/Cargo.toml","source":null,
+             "dependencies":[{"name":"core","source":null,"path":"/workspace/core"}],
+             "targets":[{"name":"api","kind":["bin"],"src_path":"/workspace/api/src/main.rs"}]},
+            {"id":"opaque-b","name":"core","version":"2.0.0","manifest_path":"/workspace/core/Cargo.toml","source":null,
+             "dependencies":[],"targets":[{"name":"core","kind":["lib"],"src_path":"/workspace/core/src/lib.rs"}]}
+        ]
+    })).unwrap()
+}
+
+#[test]
+fn cargo_paths_cannot_escape_the_captured_target() {
+    for path in [
+        "/host/Cargo.toml",
+        "/workspace/../secret",
+        "/workspace/a/../../secret",
+        "/workspace/a\\b",
+        "/workspace//a",
+    ] {
+        assert!(relative(path).is_err(), "{path}");
+    }
+    let mut native = metadata();
+    native.validate().unwrap();
+    native.packages[0].dependencies[0].source = Some("registry+https://example.invalid".into());
+    assert!(native
+        .validate()
+        .unwrap_err()
+        .to_string()
+        .contains("acquisition"));
+}
+
+#[test]
+fn cargo_projection_preserves_workspace_settings_and_updates_aliased_requirements() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir(root.path().join("api")).unwrap();
+    fs::create_dir(root.path().join("core")).unwrap();
+    fs::write(root.path().join("Cargo.toml"), "[workspace]\nmembers=['api','core']\nresolver='2'\n[workspace.package]\nversion='2.0.0'\n[workspace.dependencies]\nalias={package='core',path='core',version='2'}\n").unwrap();
+    fs::write(root.path().join("api/Cargo.toml"), "[package]\nname='api'\nversion='1.2.3'\n[target.'cfg(unix)'.dependencies]\nalias={package='core',path='../core',version='2',default-features=false}\n").unwrap();
+    fs::write(
+        root.path().join("core/Cargo.toml"),
+        "[package]\nname='core'\nversion.workspace=true\n[features]\nextra=[]\n",
+    )
+    .unwrap();
+    let files = metadata()
+        .project_versions(root.path(), &format!("sha256:{}", "a".repeat(64)))
+        .unwrap();
+    assert_eq!(files.len(), 3);
+    let read = |name: &str| -> toml::Value {
+        toml::from_str(&fs::read_to_string(root.path().join(name)).unwrap()).unwrap()
+    };
+    let api = read("api/Cargo.toml");
+    assert_eq!(
+        api["package"]["version"].as_str(),
+        Some("1.2.3-dev.gaaaaaaaaaaaa")
+    );
+    let dep = &api["target"]["cfg(unix)"]["dependencies"]["alias"];
+    assert_eq!(dep["version"].as_str(), Some("=2.0.0-dev.gaaaaaaaaaaaa"));
+    assert_eq!(dep["default-features"].as_bool(), Some(false));
+    let core = read("core/Cargo.toml");
+    assert_eq!(
+        core["package"]["version"].as_str(),
+        Some("2.0.0-dev.gaaaaaaaaaaaa")
+    );
+    assert!(core["features"]["extra"].is_array());
+    assert_eq!(
+        read("Cargo.toml")["workspace"]["dependencies"]["alias"]["version"].as_str(),
+        Some("=2.0.0-dev.gaaaaaaaaaaaa")
+    );
+}

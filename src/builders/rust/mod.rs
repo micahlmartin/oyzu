@@ -1,5 +1,12 @@
 use crate::builders::task::insert;
-use crate::builders::{Builder, Descriptor};
+mod metadata;
+mod planning;
+mod preparation;
+#[cfg(test)]
+mod tests;
+
+use crate::builders::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext};
+use crate::dependencies::Prepared;
 use crate::model::Target;
 use anyhow::Result;
 use std::fs;
@@ -8,6 +15,18 @@ use std::path::Path;
 pub(super) struct Rust;
 
 impl Builder for Rust {
+    fn toolchain(&self, _target: &Target) -> Result<&'static str> {
+        Ok("oyzu-toolchain/rust:1.94.0-nextest0.9.146")
+    }
+
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
+        preparation::prepare(context).map(Some)
+    }
+
+    fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
+        planning::plan(context)
+    }
+
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             ids: &["rust/app", "rust/library"],

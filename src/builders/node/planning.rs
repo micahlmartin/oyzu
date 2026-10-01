@@ -91,7 +91,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         plan.tasks.insert("test".into(), test);
     }
     plan.artifacts.push(ArtifactSpec {
-        name: "primary",
+        name: "primary".into(),
+        version: None,
         filename,
         media_type: "application/gzip",
     });

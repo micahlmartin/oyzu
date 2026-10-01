@@ -183,7 +183,7 @@ pub(super) fn plan_with_dependencies(
         for artifact in &intent.artifacts {
             let artifact_id = format!("{id}/{}", artifact.name);
             outputs.push(artifact_id.clone());
-            artifacts.push(json!({"id":artifact_id,"target":id,"variant":{},"name":artifact.name,"producer":producer,"kind":"file","version":intent.version,"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
+            artifacts.push(json!({"id":artifact_id,"target":id,"variant":{},"name":artifact.name,"producer":producer,"kind":"file","version":artifact.version.as_ref().unwrap_or(&intent.version),"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
         }
         package["outputs"] = json!(outputs);
         planned.push(package);

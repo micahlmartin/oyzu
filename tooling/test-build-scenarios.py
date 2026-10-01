@@ -16,6 +16,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
+from build_scenarios import rust
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -291,7 +292,9 @@ def test_acquired_dependency_and_offline_boundary():
         assert 'stale' in stale['diagnostics'][0]['message'].lower()
         verified.append('Poetry: native lock freshness/export, captured poetry-core backend, snapshot wheel/sdist and unittest results through pytest')
 
-    summary={"verified":verified,"scope":"initial Node/npm, Go and Python manager builds; full builder catalog remains pending"}
+        rust.verify(ROOT,base,invoke,validate,source_files,verified)
+
+    summary={"verified":verified,"scope":"initial Node/npm, Go, Python manager and local Cargo workspace builds; full builder catalog remains pending"}
     if evidence:
         (evidence/'summary.json').write_text(json.dumps(summary,indent=2))
     print(json.dumps(summary,indent=2))
