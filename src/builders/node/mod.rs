@@ -4,6 +4,7 @@ mod jest;
 mod managers;
 mod planning;
 mod reporting;
+mod vitest;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
 use crate::dependencies::Prepared;
@@ -14,6 +15,14 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "node-archive.mjs",
+        contents: include_str!("runtime/archive.mjs"),
+    },
+    RuntimeFile {
+        name: "vitest.mjs",
+        contents: include_str!("runtime/vitest.mjs"),
+    },
     RuntimeFile {
         name: "manager-runtime.mjs",
         contents: include_str!("runtime/manager-runtime.mjs"),
@@ -99,7 +108,16 @@ impl Builder for Node {
                 .ok()
                 .and_then(|p| p["scripts"]["test"].as_str().map(jest::recognized))
                 .unwrap_or(false);
+        let vitest_script = target
+            .discovery
+            .get("test-framework")
+            .is_some_and(|p| p.selected() == "vitest")
+            && crate::records::read(&target.path.join("package.json"))
+                .ok()
+                .and_then(|p| p["scripts"]["test"].as_str().map(vitest::recognized))
+                .unwrap_or(false);
         reporting::instrument_override(task, env, native_script, &target.manager)
             .or_else(|| jest::instrument_override(task, jest_script))
+            .or_else(|| vitest::instrument_override(task, vitest_script, &target.manager))
     }
 }

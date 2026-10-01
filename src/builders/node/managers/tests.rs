@@ -42,8 +42,16 @@ fn manager_profiles_keep_native_packing_and_report_forwarding() {
                 dependencies: Some(&prepared),
             })
             .unwrap();
-        assert_eq!(plan.package.argv[0], manager);
-        assert!(plan.package.argv.iter().any(|a| a == pack_flag));
+        if manager == "yarn" {
+            assert_eq!(&plan.package.argv[..2], &["sh", "-c"]);
+            assert!(
+                plan.package.argv[2].contains("yarn --offline --non-interactive pack --filename")
+            );
+            assert!(plan.package.argv[2].contains("node /oyzu/node-archive.mjs"));
+        } else {
+            assert_eq!(plan.package.argv[0], manager);
+            assert!(plan.package.argv.iter().any(|a| a == pack_flag));
+        }
         assert!(plan
             .package
             .argv

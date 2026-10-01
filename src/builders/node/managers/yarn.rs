@@ -47,11 +47,10 @@ impl Manager for Yarn {
         CommandSpec::new(
             "package",
             &[
-                "yarn",
-                "--offline",
-                "--non-interactive",
-                "pack",
-                "--filename",
+                "sh",
+                "-c",
+                "yarn --offline --non-interactive pack --filename \"$1\" && node /oyzu/node-archive.mjs \"$1\" /opt/oyzu-yarn/node_modules/tar-stream",
+                "oyzu-yarn-pack",
                 &format!("/out/{target}/artifacts/{filename}"),
             ],
         )

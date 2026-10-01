@@ -23,6 +23,7 @@ src/
       runtime/                # Native manager capture/replay, lifecycle and integrity validation
       reporting.rs            # Native test reporters and exact-command override adaptation
       jest.rs                 # Jest default invocation and exact script/override adaptation
+      vitest.rs               # Vitest default invocation and exact script/override adaptation
     python/
       mod.rs                  # Descriptor and interface implementation
       discovery.rs            # pip / uv / Poetry inference

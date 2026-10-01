@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, docker, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, rust
+from build_scenarios import ant, docker, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, rust, vitest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -101,6 +101,7 @@ def main():
         node_preflight.verify(ROOT,base,invoke,validate,source_files,verified)
         node_managers.verify(ROOT,base,invoke,validate,source_files,verified)
         jest.verify(ROOT,base,invoke,validate,source_files,verified)
+        vitest.verify(ROOT,base,invoke,validate,source_files,verified)
         materialization.verify(ROOT,base,invoke,validate,source_files,verified)
         docker.verify(ROOT,base,invoke,validate,source_files,verified)
         maven.verify(ROOT,base,invoke,validate,source_files,verified)

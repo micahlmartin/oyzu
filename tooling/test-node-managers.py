@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -15,6 +16,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--pnpm-cli', type=Path, required=True)
     parser.add_argument('--yarn-cli', type=Path, required=True)
+    parser.add_argument('--tar-stream', type=Path, required=True)
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix='oyzu-native-managers-') as temporary:
         base = Path(temporary)
@@ -59,8 +61,15 @@ def main():
             assert (reports / 'junit.xml').is_file() and 'SF:' in (reports/'coverage.lcov').read_text()
             archives = []
             for index in range(2):
+                # Model fresh captured workspaces and generated files with
+                # different mtimes, instead of repacking the same timestamps.
+                for path in project.rglob('*'):
+                    os.utime(path, (1000000000 + index * 100, 1000000000 + index * 100))
+                os.utime(project, (1000000000 + index * 100, 1000000000 + index * 100))
                 archive = base / f'{manager}-{index}.tgz'
                 execute(prefix + ['pack','--out' if manager == 'pnpm' else '--filename',str(archive)])
+                if manager == 'yarn':
+                    execute(['node', str(ROOT / 'src/builders/node/runtime/archive.mjs'), str(archive), str(args.tar_stream.resolve())])
                 with tarfile.open(archive) as tar:
                     assert json.load(tar.extractfile('package/package.json'))['version'] == package['version']
                     assert 'package/dist/greeting.mjs' in tar.getnames()

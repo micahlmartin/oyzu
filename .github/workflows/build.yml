@@ -72,9 +72,12 @@ jobs:
           python tooling/test-node-acquisition.py
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
-          python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
+          python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js --tar-stream tooling/images/node-yarn/node_modules/tar-stream
+          python tooling/test-node-archive.py --tar-stream tooling/images/node-yarn/node_modules/tar-stream
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/jest
           python tooling/test-jest-reporting.py --jest-cli tooling/fixtures/jest/node_modules/jest/bin/jest.js
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/vitest
+          python tooling/test-vitest-reporting.py --node-modules tooling/fixtures/vitest/node_modules
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
           else
