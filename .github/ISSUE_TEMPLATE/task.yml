@@ -6,7 +6,7 @@ body:
     id: scope
     attributes:
       label: Scope and related design
-      description: Link the tracking issue and accepted design where applicable.
+      description: Identify the owning subsystem and relevant interface, link the design where applicable, and describe the bounded work an AI coding agent should implement.
     validations:
       required: true
   - type: textarea

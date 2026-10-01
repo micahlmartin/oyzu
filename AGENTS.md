@@ -3,6 +3,21 @@
 ## Scope
 This is the public Oyzu repository. It must be buildable and usable without private repository access or a platform account.
 
+## Development model
+
+Oyzu is a 100% AI-built project. All first-party implementation code, tests and scripts, including fixes and refactors, are AI-generated. People define requirements, guide agents, review results and approve changes; handcrafted code patches are not our contribution workflow. Dependencies and upstream code retain their actual authorship and licenses. Follow [CONTRIBUTING.md](CONTRIBUTING.md); AI generation never replaces verification or maintainer accountability.
+
+## Architecture rules
+
+- Organize by subsystem responsibility: configuration, discovery, builders, tasks, planning, execution, acquisition and evidence. Read the [code map](docs/code-organization.md) before choosing a home for new behavior.
+- Give each behavior and invariant one owner. Keep CLI/UI transport and presentation thin; reusable operations must not depend on argument parsers or UI state. Avoid dependency cycles and reaching into another subsystem's private implementation.
+- Use small traits at actual extension or substitution boundaries, such as builders, detectors and native managers. Prefer concrete functions/types elsewhere and enums for closed choices. Do not create speculative plugin APIs, generic frameworks or a trait for every struct.
+- Keep modules/items private by default; expose the narrowest useful interface with `pub(super)` or `pub(crate)` where possible. Pass typed inputs/results across boundaries; keep format-specific parsing/serialization at their owning boundary.
+- Keep code DRY by sharing behavior with the same semantics. Search for an existing owner before adding a parallel implementation. Do not merge similar-looking ecosystem code whose native rules differ, or add global `helpers`, `utils` or catch-all `core` modules.
+- Separate observation, resolution/planning and side effects. Detectors return evidence; resolvers make deterministic choices; adapters declare intent; execution/acquisition owners perform effects. Keep process, network and filesystem capabilities explicit.
+- Split growing modules by responsibility, with related tests and runtime assets beside their owner. Split crates only for demonstrated reuse, dependency isolation or independent distribution; no empty scaffolding or arbitrary file-size limits.
+- For a changed boundary, document its responsibility and invariants and update the code map. Verify meaningful behavior, failure paths and applicable platforms; shared contracts need conformance coverage across implementations. Refactor touched code incrementally without unrelated rewrites.
+
 ## Working rules
 - Preserve existing user changes and inspect the worktree before editing.
 - Do not publish private platform details, credentials, or customer information.

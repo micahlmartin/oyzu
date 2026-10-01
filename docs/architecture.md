@@ -22,6 +22,8 @@ flowchart TD
 
 ## Proposed code layout
 
+For today's module locations and repository-wide engineering rules, use the [code map](code-organization.md). The following is a possible future crate layout, not the current filesystem or a scaffolding checklist.
+
 ```text
 crates/
   oyzu-cli/

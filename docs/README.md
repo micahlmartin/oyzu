@@ -17,6 +17,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Check decisions requiring review | [Decision register](decisions.md) |
 | Find implemented behavior | [Reference status](reference/README.md) and [implementation status](implementation-status.md) |
 | Extend an ecosystem adapter | [Builder code organization](builder-code-organization.md) |
+| Contribute code or introduce a subsystem | [Code map and engineering guide](code-organization.md), [contribution workflow](../CONTRIBUTING.md), [agent instructions](../AGENTS.md) |
 
 ## Document authority
 
