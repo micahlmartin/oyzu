@@ -2,7 +2,7 @@
 id: OEP-0005
 title: Task discovery overrides and hooks
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []

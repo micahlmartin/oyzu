@@ -2,7 +2,7 @@
 id: OEP-0002
 title: Configuration and managed settings
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []

@@ -1,6 +1,6 @@
 # Oyzu design library
 
-This library consolidates the product direction discussed through 2026-10-01. **All visions and OEPs are drafts; implementation has not started.** Agreed product constraints are distinguished from proposed implementation choices in the [decision register](decisions.md).
+This library consolidates the product direction discussed through 2026-10-01. **Visions and OEPs remain drafts; implementation is in progress.** Measured capabilities are recorded in [implementation status](implementation-status.md). Agreed product constraints are distinguished from proposed implementation choices in the [decision register](decisions.md).
 
 Start with the [platform vision](vision/VIS-001-platform.md), then the [architecture](architecture.md), [example catalog](examples.md), and [proposal index](proposals/README.md). Use the [glossary](glossary.md) for consistent terms.
 
@@ -15,7 +15,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Turn designs into bounded implementation work | [Delivery plan](delivery.md), [examples](examples.md), [proposal process](proposals/OEP-0001-proposal-process/README.md) |
 | Implement the build engine from detailed contracts | [Build implementation map and work packages](build-implementation.md), [record schemas](contracts/README.md) |
 | Check decisions requiring review | [Decision register](decisions.md) |
-| Find implemented behavior | [Reference status](reference/README.md); none yet |
+| Find implemented behavior | [Reference status](reference/README.md) and [implementation status](implementation-status.md) |
 
 ## Document authority
 

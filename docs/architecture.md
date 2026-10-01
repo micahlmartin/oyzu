@@ -1,6 +1,6 @@
 # Public architecture and repository boundaries
 
-Status: draft. No source workspace exists yet.
+Status: draft. The Rust CLI implementation has started; see [implementation status](implementation-status.md) for verified behavior and remaining scope.
 
 Oyzu separates discovery and deterministic planning from acquisition, execution, evidence, and enterprise authorization. The same core supports terminal users, CI systems, automation, and the optional desktop.
 

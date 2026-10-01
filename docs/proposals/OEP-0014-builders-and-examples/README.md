@@ -2,7 +2,7 @@
 id: OEP-0014
 title: Ecosystem builders and executable examples
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []
