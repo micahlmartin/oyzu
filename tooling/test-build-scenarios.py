@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import rust
+from build_scenarios import helm, rust
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -97,6 +97,7 @@ def main():
 
     with tempfile.TemporaryDirectory(prefix="oyzu-build-check-") as temporary:
         base = Path(temporary)
+        helm.verify(ROOT,base,invoke,validate,source_files,verified)
         rust.verify(ROOT,base,invoke,validate,source_files,verified)
         for example in ["node-package", "go-app"]:
             project = base / example
@@ -297,7 +298,7 @@ def test_acquired_dependency_and_offline_boundary():
         assert 'stale' in stale['diagnostics'][0]['message'].lower()
         verified.append('Poetry: native lock freshness/export, captured poetry-core backend, snapshot wheel/sdist and unittest results through pytest')
 
-    summary={"verified":verified,"scope":"initial Node/npm, Go, Python manager and local Cargo workspace builds; full builder catalog remains pending"}
+    summary={"verified":verified,"scope":"initial Node/npm, Go, Python manager, local Cargo workspace and local Helm chart builds; full builder catalog remains pending"}
     if evidence:
         (evidence/'summary.json').write_text(json.dumps(summary,indent=2))
     print(json.dumps(summary,indent=2))

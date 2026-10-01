@@ -32,7 +32,11 @@ src/
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
     docker/                   # Container builder
-    helm/                     # Chart builder
+    helm/
+      metadata.rs             # Chart discovery and contained local dependency order
+      preparation.rs          # Native lock handling and captured chart closure
+      planning.rs             # Packaging, linting and rendering commands
+      runtime/archive.py      # Normalize native archive transport timestamps
   build/
     mod.rs                    # Capture, preparation, execution and finalization lifecycle
     planning.rs               # Common hook expansion and execution-plan serialization

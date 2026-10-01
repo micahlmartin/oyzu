@@ -151,6 +151,7 @@ fn existing_builder_examples_are_discoverable_without_native_toolchains() {
         "java-ant/conventional",
         "docker-offline/project",
         "helm-chart/project/chart",
+        "helm-chart/project",
         "container-variants/project",
         "image-and-chart/project",
         "mixed-monorepo/project",

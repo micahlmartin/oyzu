@@ -125,8 +125,8 @@ fn explicit_task_overrides_are_not_replaced_by_native_builder_planning() {
 fn unsupported_builder_preserves_preflight_failure_bundle() {
     let root = tempfile::tempdir().unwrap();
     fs::write(
-        root.path().join("Chart.yaml"),
-        "apiVersion: v2\nname: preflight\nversion: 0.1.0\n",
+        root.path().join("build.xml"),
+        "<project name=\"preflight\" default=\"build\"><target name=\"build\"/></project>",
     )
     .unwrap();
     let failed = build::run(root.path(), &[], false).unwrap();
