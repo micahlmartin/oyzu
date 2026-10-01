@@ -74,6 +74,27 @@ jobs:
             python3 tooling/test-task-scenarios.py --cli cli/oyzu
           fi
 
+  container-worker-contract:
+    name: Native isolated BuildKit worker contract (Linux)
+    needs: build-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Provision native worker and probe compiler
+        run: |
+          docker pull moby/buildkit:v0.25.0-rootless
+          docker pull golang:1.24-bookworm
+      - name: Verify native worker isolation and reproducible OCI export
+        run: python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence
+      - name: Retain worker logs and native OCI outputs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oyzu-worker-evidence
+          path: worker-evidence
+          if-no-files-found: ignore
+          retention-days: 14
+
   build-scenarios:
     name: Compiled CLI captured-source builds (Linux)
     needs: build-cli
