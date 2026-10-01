@@ -33,7 +33,26 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     );
     let mut artifacts = vec![];
     let mut names = BTreeSet::new();
+    let mut archive =
+        TaskPlan::command(&["cargo", "package", "--locked", "--offline", "--allow-dirty"]);
     for package_metadata in &metadata.packages {
+        archive
+            .argv
+            .extend(["--package".into(), package_metadata.name.clone()]);
+        let archive_name = format!(
+            "{}-{}.crate",
+            package_metadata.name, package_metadata.version
+        );
+        package.argv.extend([
+            format!(".oyzu-build/target/package/{archive_name}"),
+            format!("/out/{id}/artifacts/{archive_name}"),
+        ]);
+        artifacts.push(ArtifactSpec {
+            name: format!("crate.{}", package_metadata.name),
+            filename: archive_name,
+            version: Some(package_metadata.version.clone()),
+            media_type: "application/gzip",
+        });
         for target in &package_metadata.targets {
             if !target.kind.iter().any(|k| k == "bin") {
                 continue;
@@ -55,10 +74,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             });
         }
     }
-    if artifacts.is_empty() {
-        bail!("Cargo library archive packaging is not implemented yet");
-    }
     let mut plan = BuilderPlan::new(metadata.packages[0].version.clone(), package);
+    plan.stages.push("archive");
+    plan.tasks.insert("archive".into(), archive);
     plan.env.extend(environment());
     plan.env.insert("CARGO_BUILD_TARGET".into(), host);
     plan.prepare.push(CommandSpec::new(

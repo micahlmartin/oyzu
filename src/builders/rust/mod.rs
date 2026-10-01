@@ -84,6 +84,12 @@ impl Builder for Rust {
             &["cargo", "fmt", "--all", "--check"],
             true,
         );
+        insert(
+            target,
+            "archive",
+            &["cargo", "package", "--workspace", "--locked", "--offline"],
+            true,
+        );
 
         Ok(())
     }

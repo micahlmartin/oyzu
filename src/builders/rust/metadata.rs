@@ -150,7 +150,7 @@ fn project_dependencies(value: &mut toml::Value, versions: &BTreeMap<String, Str
                     let Some(dep) = dependency.as_table_mut() else {
                         continue;
                     };
-                    if !dep.contains_key("path") || !dep.contains_key("version") {
+                    if !dep.contains_key("path") {
                         continue;
                     }
                     let name = dep

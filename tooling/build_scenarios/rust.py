@@ -2,11 +2,35 @@
 import json
 import shutil
 import subprocess
+import tarfile
+import tomllib
 
 from jsonschema import Draft202012Validator
 
 
 IMAGE = 'oyzu-toolchain/rust:1.94.0-nextest0.9.146'
+
+
+def binary(manifest):
+    return next(a for a in manifest['artifacts'] if a['mediaType']=='application/octet-stream')
+
+
+def archives(project, manifest, count):
+    packages = [a for a in manifest['artifacts'] if a['name'].startswith('crate.')]
+    assert len(packages) == count
+    for artifact in packages:
+        name = artifact['name'].removeprefix('crate.')
+        with tarfile.open(project/'dist'/artifact['path']) as archive:
+            prefix = f"{name}-{artifact['version']}/"
+            metadata = tomllib.loads(archive.extractfile(prefix+'Cargo.toml').read().decode())
+            assert metadata['package']['name'] == name
+            assert metadata['package']['version'] == artifact['version']
+            assert prefix+'Cargo.lock' in archive.getnames()
+            assert any(n.startswith(prefix+'src/') for n in archive.getnames())
+            assert all('.oyzu-build/' not in n for n in archive.getnames())
+            for dependency in metadata.get('dependencies', {}).values():
+                assert '-dev.g' in dependency['version']
+                assert 'path' not in dependency
 
 
 def run_binary(project, artifact):
@@ -32,12 +56,12 @@ def verify(root, base, invoke, validate, source_files, verified):
         manifest = validate(project/'dist')
         assert before == source_files(project)
         invoke(project, 'inspect', 'dist')
-        assert len(manifest['artifacts']) == 1
-        artifact = manifest['artifacts'][0]
+        archives(project, manifest, 3 if example=='rust-workspace' else 1)
+        artifact = binary(manifest)
         assert '-dev.g' in artifact['version']
         assert run_binary(project, artifact) == 'Hello, Oyzu!'
         assert next(r for r in manifest['reports'] if r['kind']=='test')['summary']['passed'] > 0
-        for stage in ['build', 'test', 'lint', 'format-check', 'package']:
+        for stage in ['build', 'test', 'lint', 'format-check', 'archive', 'package']:
             assert next(a for a in manifest['actions'] if a['id']==f'project:{stage}')['status']=='succeeded'
         dependency = json.loads((project/'dist/dependencies/project.json').read_text())
         Draft202012Validator(schema).validate(dependency)
@@ -45,16 +69,28 @@ def verify(root, base, invoke, validate, source_files, verified):
         assert len(workspace['projected']['packages']) == (3 if example=='rust-workspace' else 1)
         assert all('-dev.g' in p['version'] for p in workspace['projected']['packages'])
         rebuilt = invoke(project, 'build')
-        assert rebuilt['artifacts'][0]['digest'] == artifact['digest'], 'Cargo binary was not repeatable'
-        verified.append(f'{example}: native workspace resolution, snapshot versions, offline build/test/clippy/fmt, JUnit, delivered binary and repeatability')
+        assert {a['name']:a['digest'] for a in rebuilt['artifacts']} == {a['name']:a['digest'] for a in manifest['artifacts']}, 'Cargo artifacts were not repeatable'
+        verified.append(f'{example}: native workspace resolution, snapshot versions, offline build/test/clippy/fmt, JUnit, delivered binary, verified crate archives and repeatability')
+
+    project = base/'rust-library'
+    shutil.copytree(root/'examples/builds/rust-workspace/project/core', project)
+    (project/'Cargo.lock').write_text('version = 4\n\n[[package]]\nname = "example-core"\nversion = "0.1.0"\n')
+    before = source_files(project)
+    invoke(project, 'build')
+    library_manifest = validate(project/'dist')
+    archives(project, library_manifest, 1)
+    assert len(library_manifest['artifacts']) == 1
+    assert source_files(project) == before
+    assert next(r for r in library_manifest['reports'] if r['kind']=='test')['summary']['passed'] > 0
+    verified.append('Cargo library-only project produces a native verified snapshot crate without a binary')
 
     project = base/'rust-workspace'
-    previous = validate(project/'dist')['artifacts'][0]
+    previous = binary(validate(project/'dist'))
     (project/'core/message.txt').write_text('Hello, changed input!\n')
     library = project/'core/src/lib.rs'
     library.write_text(library.read_text().replace('Hello, Oyzu!', 'Hello, changed input!'))
     invoke(project, 'build')
-    changed = validate(project/'dist')['artifacts'][0]
+    changed = binary(validate(project/'dist'))
     assert changed['digest'] != previous['digest']
     assert run_binary(project, changed) == 'Hello, changed input!'
     verified.append('Cargo build-script input changes alter the delivered binary; workspace proc macro executes offline')

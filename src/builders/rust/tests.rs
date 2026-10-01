@@ -44,7 +44,7 @@ fn cargo_projection_preserves_workspace_settings_and_updates_aliased_requirement
     fs::create_dir(root.path().join("api")).unwrap();
     fs::create_dir(root.path().join("core")).unwrap();
     fs::write(root.path().join("Cargo.toml"), "[workspace]\nmembers=['api','core']\nresolver='2'\n[workspace.package]\nversion='2.0.0'\n[workspace.dependencies]\nalias={package='core',path='core',version='2'}\n").unwrap();
-    fs::write(root.path().join("api/Cargo.toml"), "[package]\nname='api'\nversion='1.2.3'\n[target.'cfg(unix)'.dependencies]\nalias={package='core',path='../core',version='2',default-features=false}\n").unwrap();
+    fs::write(root.path().join("api/Cargo.toml"), "[package]\nname='api'\nversion='1.2.3'\n[dev-dependencies]\ncore={path='../core'}\n[target.'cfg(unix)'.dependencies]\nalias={package='core',path='../core',version='2',default-features=false}\n").unwrap();
     fs::write(
         root.path().join("core/Cargo.toml"),
         "[package]\nname='core'\nversion.workspace=true\n[features]\nextra=[]\n",
@@ -65,6 +65,10 @@ fn cargo_projection_preserves_workspace_settings_and_updates_aliased_requirement
     let dep = &api["target"]["cfg(unix)"]["dependencies"]["alias"];
     assert_eq!(dep["version"].as_str(), Some("=2.0.0-dev.gaaaaaaaaaaaa"));
     assert_eq!(dep["default-features"].as_bool(), Some(false));
+    assert_eq!(
+        api["dev-dependencies"]["core"]["version"].as_str(),
+        Some("=2.0.0-dev.gaaaaaaaaaaaa")
+    );
     let core = read("core/Cargo.toml");
     assert_eq!(
         core["package"]["version"].as_str(),
@@ -107,8 +111,13 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
         dependencies: Some(&prepared),
     })
     .unwrap();
-    assert_eq!(plan.artifacts.len(), 2);
-    for (artifact, package) in plan.artifacts.iter().zip(&native.packages) {
+    assert_eq!(plan.artifacts.len(), 4);
+    for artifact in &plan.artifacts {
+        let package = native
+            .packages
+            .iter()
+            .find(|p| artifact.name == p.name || artifact.name == format!("crate.{}", p.name))
+            .unwrap();
         assert_eq!(artifact.version.as_ref(), Some(&package.version));
         assert!(artifact.filename.contains(&package.version));
         assert!(plan
@@ -116,7 +125,7 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
             .argv
             .contains(&format!("/out/project/artifacts/{}", artifact.filename)));
     }
-    for stage in ["build", "lint"] {
+    for stage in ["build", "lint", "archive"] {
         assert!(plan.tasks[stage].argv.contains(&"--locked".into()));
         assert!(plan.tasks[stage].argv.contains(&"--offline".into()));
     }
