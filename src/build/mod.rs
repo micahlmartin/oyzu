@@ -2,6 +2,7 @@
 mod bundle;
 mod collection;
 mod execution;
+mod materialization;
 mod planning;
 mod reporting;
 
@@ -69,6 +70,7 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
     let result = (|| -> Result<Value> {
         let source = snapshot::capture(&root, &source_path)?;
         let workspace = discovery::discover_with_shell(&source_path, Some("sh"))?;
+        planning::target_order(&workspace)?;
         let resolved = resolve_images(&workspace, images)?;
         let mut dependencies = BTreeMap::new();
         for (id, target) in &workspace.targets {
@@ -111,6 +113,7 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
             reports,
             artifacts,
             diagnostics,
+            evidence,
         } = execute_plan(
             &plan,
             &work,
@@ -125,6 +128,10 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
         manifest["reports"] = json!(reports);
         manifest["artifacts"] = json!(artifacts);
         manifest["diagnostics"] = json!(diagnostics);
+        manifest["evidence"]
+            .as_array_mut()
+            .unwrap()
+            .extend(evidence);
         manifest["status"] = json!(if success { "succeeded" } else { "failed" });
         Ok(plan)
     })();

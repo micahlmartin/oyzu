@@ -45,7 +45,7 @@ fn included(entry: &DirEntry) -> bool {
         )
 }
 
-fn portable(value: &str) -> bool {
+pub(crate) fn portable(value: &str) -> bool {
     !value.is_empty()
         && value.split('/').all(|part| {
             let stem = part.split('.').next().unwrap_or("").to_ascii_uppercase();

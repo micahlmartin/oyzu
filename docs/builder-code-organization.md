@@ -55,6 +55,7 @@ src/
     mod.rs                    # Capture, preparation, execution and finalization lifecycle
     planning.rs               # Common hook expansion and execution-plan serialization
     execution.rs              # Scheduling, executor invocation and outcome collection
+    materialization.rs        # Symbolic artifact selection and verified private consumer copies
     collection.rs             # Bounded report capture, parsing and failure evidence
     reporting.rs              # Required evidence and custom report location bindings
     bundle.rs                 # Output containment, capture and integrity inspection
@@ -99,6 +100,8 @@ Native runtime code belongs to its ecosystem. The embedded Python adapter exists
 Report collection is a separate engine responsibility. It retains contained raw report bytes before parsing, within the shared 16 MiB report limit. Parsing and digests refer to those retained bytes. Invalid reports fail the action but remain available for diagnosis; missing, escaping or oversized files are not copied into the bundle. Native report formats remain in `reports.rs`, rather than being implemented separately by each builder.
 
 The collector queues executed producers until their post-hook boundary. It also drains a failed producer when that post-hook is blocked, and retains available evidence when post itself fails. Declared globs use the same typed formats and bounded capture as native reports; every matched file receives a stable identity and independent validation. Glob expansion does not follow symlinks. The scheduler owns outcome changes and downstream blocking; the collector does not run commands or choose build stages.
+
+Materialization is a shared graph responsibility. Its planner resolves logical artifact outputs and contained consumer destinations before bytes exist; its executor copies only successfully produced, digest-verified bundle files. Each target has a private mutable source workspace, and collectors read that target's report paths. Consumers never mount producer bundle storage. The initial implementation handles file artifacts on matching OS/architecture pairs; directory outputs, richer runtime compatibility and Docker context filtering still require integration.
 
 ## Adding a builder
 

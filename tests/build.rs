@@ -150,6 +150,50 @@ fn unsupported_builder_preserves_preflight_failure_bundle() {
 }
 
 #[test]
+fn materialization_adds_symbolic_inputs_and_orders_the_producer_before_its_consumer() {
+    let root = tempfile::tempdir().unwrap();
+    for name in ["consumer", "producer"] {
+        fs::create_dir(root.path().join(name)).unwrap();
+        fs::write(
+            root.path().join(name).join("package.json"),
+            format!(r#"{{"name":"{name}","version":"1.0.0"}}"#),
+        )
+        .unwrap();
+    }
+    fs::write(root.path().join("build.yaml"), "consumer:\n  uses: node/package\n  path: consumer\n  materialize:\n    - from: producer\n      to: inputs/package.tgz\nproducer:\n  uses: node/package\n  path: producer\n").unwrap();
+    let temp = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), temp.path());
+    let actions = plan["actions"].as_array().unwrap();
+    let producer = actions
+        .iter()
+        .position(|a| a["id"] == "producer:package")
+        .unwrap();
+    let consumer = actions
+        .iter()
+        .position(|a| a["target"] == "consumer")
+        .unwrap();
+    assert!(producer < consumer);
+    let input = actions[consumer]["inputs"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["kind"] == "artifact")
+        .unwrap();
+    assert_eq!(
+        input,
+        &json!({"kind":"artifact","artifact":"producer/primary","producer":"producer:package","mount":"consumer/inputs/package.tgz"})
+    );
+    assert!(
+        input.get("digest").is_none(),
+        "future bytes cannot have a fabricated digest"
+    );
+    assert!(actions[consumer]["dependsOn"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("producer:package")));
+}
+
+#[test]
 fn single_target_build_honors_root_tasks_and_hooks_without_cross_target_fanout() {
     let root = tempfile::tempdir().unwrap();
     let capture = tempfile::tempdir().unwrap();

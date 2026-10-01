@@ -20,7 +20,7 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 
 | Requirement | State |
 | --- | --- |
-| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Captured source, serial plans and initial Node/npm and Go build command; graph/platform expansion pending |
+| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Captured source and serial plans; file artifact edges/private consumer workspaces integrated pending CI; platform expansion pending |
 | Dependency preparation and private-registry credential isolation for every native manager | Public Python wheel acquisition verified; Maven/Gradle Central preparation integrated pending complete CI; all-manager/private-source integration pending |
 | Capability-enforced executor, cancellation/process containment and offline build actions | Docker offline executor integrated; full boundary/cancellation verification pending |
 | Build/test/lint/read-only formatting orchestration with native ownership and reports | Initial Node, Go, Python, Cargo, Helm and Ant profiles verified in Linux CI; Maven reactor verification pending |
@@ -169,7 +169,7 @@ Local native JDK checks compile and execute a delivered JAR, verify unchanged cl
 
 The Ant profile currently discovers native top-level jar tasks with destinations resolvable during project evaluation. Runtime-computed/custom packaging destinations, full imported-target discovery, Ivy/private dependencies, JUnit/JaCoCo collection and additional archive/classifier kinds remain required. The fixture's plain Java assertion program produces native process evidence, not JUnit or coverage. Maven and Gradle build integration remain outstanding. These are implementation checkpoints, not completion of the Java builder catalog.
 
-## Checkpoint 8: Maven reactor integration under verification
+## Checkpoint 8: initial Maven reactor integration
 
 The Maven builder now has separate native metadata, preparation and planning modules. A small Maven core lifecycle extension reads the actual reactor models after parent/property/dependency interpolation. Local offline checks against Maven 3.9.11 prove inherited reactor versions, resolved dependency management, custom finalName interpolation, unchanged source and rejection of output paths outside captured source. The extension does not reconstruct the graph by traversing arbitrary POM XML in the engine.
 
@@ -183,6 +183,8 @@ Private repositories, full wrapper/toolchain selection, custom report locations,
 
 [Run 36847332491](https://github.com/micahlmartin/oyzu/actions/runs/36847332491) passed all host CLI/task jobs and completed the first native Maven acquisition/offline build. Its downloaded bundle contains three snapshot POMs, two JARs, two passing Surefire reports and two JaCoCo reports. The harness then rejected zero covered app lines: the fixture's app test called only the library. The test now invokes `App.main` and asserts its output; the positive application-coverage check remains unchanged. Repeatability and failing-reactor cases were not reached in that run and remain unverified.
 
+[Run 36848165244](https://github.com/micahlmartin/oyzu/actions/runs/36848165244) passed at `d38fa1407df0e47838a6607b47e0eae0dd604b2b`. Downloaded Maven bundles show 1/1 covered application lines in each module, one passing test per module, five native artifacts and identical plans/artifact digests across repeated builds. The intentional library-test failure retained failed JUnit and available coverage and exported no artifacts. All prior native profiles and three-host CLI/task jobs also passed. This verifies the initial Maven profile, not the remaining Java acceptance catalog.
+
 ## Checkpoint 9: Gradle composite integration under verification
 
 An ecosystem-owned Gradle initialization script exports evaluated project models, included-build ownership, registered task names, native archive providers and JUnit locations. Each included build exports its own model through a native task dependency; the adapter does not parse build scripts to reconstruct the composite graph. Paths must remain under the captured workspace, and unset archive versions are represented explicitly before snapshot projection. Separate Rust metadata, preparation and planning modules now wire these models into the builder interface.
@@ -194,3 +196,11 @@ The integration script projects project/archive snapshot versions in memory, con
 Acquisition resolves native configurations through a scoped Central mirror, captures downloaded Maven-layout files and records their digests. Build execution has no acquisition channel and uses the captured file repository in offline mode with a fresh private Gradle home. A separate Windows development probe proved this layout with 46 captured repository files, three actual JARs, passing native tests/coverage, byte-identical repeated archives, and retained JUnit/coverage after intentional test failure. That probe's host-side Central downloader is test infrastructure, not the production broker or proof of container isolation.
 
 The compiled-CLI CI suite now includes EX-024's actual composite source, delivered-JAR execution, source preservation, repeated plan/artifact identities and a failing test that must block export. End-to-end verification is pending. Wrapper acquisition, plugin-portal/private/Ivy sources, complete dependency edges and scopes, generated/custom test inputs, discovery of all dynamic native task names, additional languages/plugins and full EX-024 acceptance remain required. Unknown repository types or unmodelled test source ownership fail explicitly. Tool installation remains excluded from the active goal.
+
+## Artifact materialization and private consumer workspaces
+
+The agreed file-form `materialize: [{from, artifact?, to}]` now contributes data edges to target ordering and symbolic producer references to every consumer action. Omitted artifact selection requires an identified `primary` output or exactly one available output. Cycles, ambiguous selections, portable path aliases, overlapping destinations and collisions with captured source fail before application execution. Matching OS/architecture is required; richer runtime/ABI compatibility and platform-independent artifact declarations remain outstanding.
+
+Targets execute in separate captured workspaces. Before the first consumer action, the engine checks the producer's successful outcome and bundle file digest/size, copies its bytes while preserving executable permissions, then verifies the copy. Producer bundle storage is not mounted into consumers. The local materialization receipt records actual artifact identity, digest, size and destination, is retained as bundle evidence, and is referenced by consumer action outcomes. Report collection follows each target's private workspace.
+
+Focused Rust tests cover symbolic plans and ordering, source/parent/case collisions, ambiguous outputs, executable copies, tampered or failed producers, existing destination rejection and consumer mutations leaving producer bytes intact. A compiled-CLI CI case builds the actual Go example, executes its materialized binary from a Node test, mutates the private copy, checks workspace isolation and receipts, and exercises collision/cycle failures. That end-to-end case is pending. Directory/tree artifacts, Docker ignore semantics and BuildKit packaging, matrices, cross-target task prerequisites, independent failure scheduling and complete filesystem race/space-quota enforcement remain required. This is part of OEP-0006/OEP-0018, not completion of their acceptance criteria.

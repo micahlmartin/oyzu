@@ -21,16 +21,15 @@ fn platform(image: &executor::Image) -> Value {
     json!({"os":image.os,"arch":image.arch})
 }
 
-fn target_order(workspace: &Workspace) -> Result<Vec<String>> {
+pub(super) fn target_order(workspace: &Workspace) -> Result<Vec<String>> {
     let configs = config::targets(&workspace.root)?.unwrap_or_default();
     for (id, c) in &configs {
-        if !c.materialize.is_empty()
-            || !c.matrix.is_empty()
+        if !c.matrix.is_empty()
             || c.platform.is_some()
             || c.container.is_some()
             || c.bindings.is_some()
         {
-            bail!("{id}: platform expansion, materialization and packaging options are not implemented yet");
+            bail!("{id}: platform expansion and packaging options are not implemented yet");
         }
     }
     let mut pending: BTreeSet<_> = workspace.targets.keys().cloned().collect();
@@ -39,9 +38,12 @@ fn target_order(workspace: &Workspace) -> Result<Vec<String>> {
         let ready = pending
             .iter()
             .find(|id| {
-                configs
-                    .get(*id)
-                    .is_none_or(|c| c.depends_on.iter().all(|d| done.contains(d)))
+                configs.get(*id).is_none_or(|c| {
+                    c.depends_on
+                        .iter()
+                        .chain(c.materialize.iter().map(|m| &m.from))
+                        .all(|d| done.contains(d))
+                })
             })
             .cloned();
         let id = ready.context("target dependency cycle")?;
@@ -89,6 +91,8 @@ pub(super) fn plan_with_dependencies(
     let mut tools = Vec::new();
     let builder_digest = snapshot::file_digest(&std::env::current_exe()?)?;
     let mut emitted = BTreeSet::new();
+    let configs = config::targets(&workspace.root)?.unwrap_or_default();
+    let mut materialized = BTreeMap::new();
     for id in target_order(workspace)? {
         let target = &workspace.targets[&id];
         let image = images
@@ -104,6 +108,19 @@ pub(super) fn plan_with_dependencies(
             .validate()
             .with_context(|| format!("{id}: invalid builder output contract"))?;
         let cwd = relative(&workspace.root, &target.path)?;
+        if let Some(config) = configs.get(&id) {
+            materialized.insert(
+                id.clone(),
+                super::materialization::plan(
+                    &config.materialize,
+                    &cwd,
+                    &artifacts,
+                    images,
+                    &id,
+                    source,
+                )?,
+            );
+        }
         target_records.push(json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)}));
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));
         for command in &intent.prepare {
@@ -229,14 +246,25 @@ pub(super) fn plan_with_dependencies(
     // Initial scheduler is deliberately serial; every actual ordering edge is explicit.
     let mut previous: Option<String> = None;
     for a in &mut planned {
+        if let Some(inputs) = a["target"].as_str().and_then(|id| materialized.get(id)) {
+            a["inputs"].as_array_mut().unwrap().extend(inputs.clone());
+        }
         if let Some(dependency) = a["target"].as_str().and_then(|id| dependencies.get(id)) {
             a["inputs"].as_array_mut().unwrap().push(
                 json!({"kind":"dependency","digest":dependency.digest,"mount":"dependencies"}),
             );
         }
+        let mut prerequisites: BTreeSet<String> = a["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|input| input["kind"] == "artifact")
+            .filter_map(|input| input["producer"].as_str().map(str::to_owned))
+            .collect();
         if let Some(p) = &previous {
-            a["dependsOn"] = json!([p]);
+            prerequisites.insert(p.clone());
         }
+        a["dependsOn"] = json!(prerequisites);
         previous = a["id"].as_str().map(str::to_string);
     }
     let policy = json!({"mode":"standalone","enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"offline":true,"productionEligible":false,"executor":"docker-v1"}))?,"requiredChecks":[]});

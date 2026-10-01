@@ -1,9 +1,14 @@
 //! Execute a resolved plan and collect outcome records without ecosystem dispatch.
-use super::{bundle::capture_output, collection};
-use crate::{builders, dependencies, executor, snapshot};
+use super::{bundle::capture_output, collection, materialization};
+use crate::{builders, dependencies, executor, records, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, fs, path::Path, time::Duration};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+    time::Duration,
+};
 
 #[derive(Default)]
 pub(super) struct ExecutionRecords {
@@ -11,6 +16,7 @@ pub(super) struct ExecutionRecords {
     pub reports: Vec<Value>,
     pub artifacts: Vec<Value>,
     pub diagnostics: Vec<Value>,
+    pub evidence: Vec<Value>,
 }
 
 impl ExecutionRecords {
@@ -65,15 +71,39 @@ pub(super) fn execute_plan(
             runtime_paths.insert(id.to_string(), directory);
         }
     }
+    let contexts = tempfile::tempdir()?;
+    let mut workspaces = BTreeMap::new();
+    let targets = plan["targets"].as_array().context("missing targets")?;
+    for target in targets {
+        let id = target["id"].as_str().context("missing target id")?;
+        let path = if targets.len() == 1 {
+            work.to_path_buf()
+        } else {
+            let path = contexts.path().join(id);
+            snapshot::capture(work, &path)?;
+            path
+        };
+        workspaces.insert(id.to_string(), path);
+    }
+    let mut collectors: BTreeMap<_, _> = workspaces
+        .iter()
+        .map(|(id, path)| {
+            (
+                id.clone(),
+                collection::Collector::new(
+                    collection::Locations {
+                        workspace: path,
+                        output: out,
+                        bundle,
+                    },
+                    &plan["source"]["treeDigest"],
+                ),
+            )
+        })
+        .collect();
+    let mut initialized = BTreeSet::new();
+    let mut materialization_evidence = BTreeMap::new();
     let mut records = ExecutionRecords::default();
-    let mut collector = collection::Collector::new(
-        collection::Locations {
-            workspace: work,
-            output: out,
-            bundle,
-        },
-        &plan["source"]["treeDigest"],
-    );
     let mut failed = false;
     for target in plan["targets"].as_array().context("missing targets")? {
         let id = target["id"].as_str().context("missing target id")?;
@@ -89,13 +119,48 @@ pub(super) fn execute_plan(
     {
         let id = a["id"].as_str().context("missing action id")?;
         let target = a["target"].as_str().context("missing action target")?;
+        let collector = collectors
+            .get_mut(target)
+            .context("missing target report collector")?;
         let mut outcome = json!({"id":id,"target":target,"required":true,"status":"blocked","producerEvidence":[],"enforced":[]});
         if failed {
             outcome["reason"] = json!("a prerequisite failed");
             records.actions.push(outcome);
             // A failed main skips post, but its evidence must still be retained.
-            failed |= records.collect_due(&mut collector, id)?;
+            failed |= records.collect_due(collector, id)?;
             continue;
+        }
+        if initialized.insert(target.to_string()) {
+            let binding = (|| -> Result<()> {
+                let receipts = materialization::apply(
+                    &workspaces[target],
+                    bundle,
+                    a["inputs"].as_array().context("missing action inputs")?,
+                    &records.artifacts,
+                    &records.actions,
+                )?;
+                if !receipts.is_empty() {
+                    fs::create_dir_all(bundle.join("inputs"))?;
+                    let path = format!("inputs/{target}.json");
+                    let record = json!({"schemaVersion":"v1alpha1","kind":"artifact-materialization","target":target,"inputs":receipts});
+                    records::write(&bundle.join(&path), &record)?;
+                    let evidence_id = format!("{target}/materialization");
+                    records.evidence.push(json!({"id":evidence_id,"kind":"artifact-materialization","subjectDigest":records::digest("oyzu.materialization.v1alpha1", &record)?,"producer":"oyzu-executor","verification":"local","path":path,"digest":snapshot::file_digest(&bundle.join(path))?}));
+                    materialization_evidence.insert(target.to_string(), evidence_id);
+                }
+                Ok(())
+            })();
+            if let Err(error) = binding {
+                outcome["status"] = json!("failed");
+                outcome["exitCode"] = json!(1);
+                records.diagnostics.push(json!({"code":"materialization-failed","phase":"execute","severity":"error","message":error.to_string(),"action":id,"target":target}));
+                records.actions.push(outcome);
+                failed = true;
+                continue;
+            }
+        }
+        if let Some(evidence) = materialization_evidence.get(target) {
+            outcome["producerEvidence"] = json!([evidence]);
         }
         let stdout = bundle.join(format!("logs/{index:04}.stdout"));
         let stderr = bundle.join(format!("logs/{index:04}.stderr"));
@@ -121,7 +186,7 @@ pub(super) fn execute_plan(
         let result = executor::execute_with_mounts(
             executor::Request {
                 image: &images[target],
-                workspace: work,
+                workspace: &workspaces[target],
                 output: out,
                 cwd: &cwd,
                 argv: &argv,
@@ -188,8 +253,10 @@ pub(super) fn execute_plan(
         }
         failed = code != 0;
         records.actions.push(outcome);
-        failed |= records.collect_due(&mut collector, id)?;
+        failed |= records.collect_due(collector, id)?;
     }
-    collector.ensure_finished()?;
+    for collector in collectors.values() {
+        collector.ensure_finished()?;
+    }
     Ok(records)
 }
