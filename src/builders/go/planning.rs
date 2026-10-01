@@ -1,54 +1,96 @@
-use super::super::{
-    semver_snapshot, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, ReportFormat,
-    ReportSpec, TaskPlan,
+use super::{metadata::Metadata, preparation};
+use crate::builders::{
+    semver_snapshot, ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext,
+    ReportFormat, ReportSpec, TaskPlan,
 };
-use anyhow::{bail, Result};
-use std::collections::BTreeMap;
+use anyhow::{bail, Context, Result};
+
+// Paths remain individual shell words; native names never become shell syntax.
+fn quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
 
 pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let target = context.target;
     let id = &target.name;
-    if target.path.join("go.work").exists() {
-        bail!("{id}: Go workspace packaging is not implemented yet");
-    }
     if target.builder != "go/app" {
         bail!("{id}: Go library artifact packaging is not implemented yet");
     }
+    let prepared = context
+        .dependencies
+        .context("Go planning requires captured native metadata")?;
+    let metadata: Metadata =
+        serde_json::from_value(prepared.record["extensions"]["oyzu.dev/go-metadata"].clone())?;
+    metadata.validate()?;
+    if metadata.binaries.is_empty() {
+        bail!("{id}: no native Go main package found; library packaging is not implemented yet");
+    }
     let version = semver_snapshot(target, context.source);
-    let filename = format!("{id}-{version}");
-    let mut plan = BuilderPlan::new(
-        version,
-        CommandSpec::new(
-            "package",
-            &[
-                "cp",
-                ".oyzu-build/app",
-                &format!("/out/{id}/artifacts/{filename}"),
-            ],
-        ),
-    );
-    plan.env.extend(BTreeMap::from([
-        ("GOTOOLCHAIN".into(), "local".into()),
-        ("GOPROXY".into(), "off".into()),
-        ("GOSUMDB".into(), "off".into()),
-        ("CGO_ENABLED".into(), "0".into()),
-        ("GOFLAGS".into(), "-p=2".into()),
-        ("GOMAXPROCS".into(), "2".into()),
-        ("GOCACHE".into(), "/workspace/.oyzu-build/go-cache".into()),
-    ]));
-    plan.prepare
-        .push(CommandSpec::new("prepare", &["mkdir", "-p", ".oyzu-build"]));
+    let mut plan = BuilderPlan::new(version.clone(), CommandSpec::new("package", &[]));
+    plan.env.extend(preparation::environment());
+    plan.fixed_env.insert("GOOS".into(), metadata.os);
+    plan.fixed_env.insert("GOARCH".into(), metadata.arch);
+    if metadata.cgo {
+        plan.fixed_env.insert("CGO_ENABLED".into(), "1".into());
+        plan.fixed_env.insert("CC".into(), "gcc".into());
+    }
+    plan.env.extend(plan.fixed_env.clone());
+    plan.env
+        .insert("GOCACHE".into(), "/workspace/.oyzu-build/go-cache".into());
+    let workspace = if target.path.join("go.work").is_file() {
+        "auto"
+    } else {
+        "off"
+    };
+    plan.env.insert("GOWORK".into(), workspace.into());
+    let mut builds = vec!["mkdir -p .oyzu-build/bin".to_string()];
+    let mut copies = Vec::new();
+    for (index, binary) in metadata.binaries.iter().enumerate() {
+        let primary = metadata.binaries.len() == 1;
+        let name = if primary {
+            "primary".into()
+        } else if crate::names::valid(&binary.name) {
+            binary.name.clone()
+        } else {
+            crate::names::scoped("bin", &binary.name)
+        };
+        let filename = if primary {
+            format!("{id}-{version}")
+        } else {
+            format!("{}-{version}", binary.name)
+        };
+        let input = format!(".oyzu-build/bin/{index}");
+        // -buildvcs=false avoids ambient checkout metadata outside the captured tree.
+        builds.push(format!(
+            "go build -trimpath -buildvcs=false -o {} {}",
+            quote(&input),
+            quote(&binary.package)
+        ));
+        copies.push(format!(
+            "cp {} {}",
+            quote(&input),
+            quote(&format!("/out/{id}/artifacts/{filename}"))
+        ));
+        plan.artifacts.push(ArtifactSpec {
+            kind: ArtifactKind::File,
+            name,
+            filename,
+            version: None,
+            media_type: "application/octet-stream",
+        });
+    }
+    plan.package = CommandSpec::new("package", &["sh", "-ec", &copies.join("\n")]);
     plan.tasks.insert(
         "build".into(),
-        TaskPlan::command(&["go", "build", "-trimpath", "-o", ".oyzu-build/app", "."]),
+        TaskPlan::command(&["sh", "-ec", &builds.join("\n")]),
     );
     let mut test = TaskPlan::command(&[
         "go",
         "test",
         "-json",
         &format!("-coverprofile=/out/{id}/reports/coverage.out"),
-        "./...",
     ]);
+    test.argv.extend(metadata.patterns.clone());
     test.reports = vec![
         ReportSpec {
             format: ReportFormat::Junit,
@@ -66,12 +108,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         },
     ];
     plan.tasks.insert("test".into(), test);
-    plan.artifacts.push(ArtifactSpec {
-        kind: crate::builders::ArtifactKind::File,
-        name: "primary".into(),
-        version: None,
-        filename,
-        media_type: "application/octet-stream",
-    });
+    let mut lint = TaskPlan::command(&["go", "vet"]);
+    lint.argv.extend(metadata.patterns);
+    plan.tasks.insert("lint".into(), lint);
     Ok(plan)
 }

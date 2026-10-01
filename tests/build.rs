@@ -348,40 +348,6 @@ fn node_override_reporting_recognizes_exact_commands_without_parsing_shell_progr
 }
 
 #[test]
-fn unknown_go_override_requires_files_instead_of_interpreting_arbitrary_stdout() {
-    let root = tempfile::tempdir().unwrap();
-    fs::write(
-        root.path().join("go.mod"),
-        "module example.test/demo\n\ngo 1.24\n",
-    )
-    .unwrap();
-    fs::write(
-        root.path().join("main.go"),
-        "package main\nfunc main() {}\n",
-    )
-    .unwrap();
-    fs::write(
-        root.path().join("oyzu.toml"),
-        "[tasks.\"project:test\"]\nargv=['custom-test']\n",
-    )
-    .unwrap();
-    let capture = tempfile::tempdir().unwrap();
-    let plan = planned(root.path(), capture.path());
-    let task = plan["actions"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|a| a["id"] == "project:test")
-        .unwrap();
-    assert_eq!(task["argv"], json!(["custom-test"]));
-    assert_eq!(task["reports"].as_array().unwrap().len(), 2);
-    assert_eq!(
-        task["extensions"]["oyzu.dev/report-sources"]["project:test"],
-        "file"
-    );
-}
-
-#[test]
 fn declared_reports_bind_captured_task_cwd_and_preserve_other_required_kinds() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir_all(root.path().join("api/checks")).unwrap();

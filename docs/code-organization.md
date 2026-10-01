@@ -36,6 +36,8 @@ Keep fields private when constructors enforce an invariant. Plain data records c
 
 Reusable operations take their necessary inputs explicitly. Avoid hidden dependence on process-global environment, current directory, clock or credentials. Pure resolution/planning consumes captured facts; effectful orchestration obtains those facts through declared capabilities. Builders must not create their own shortcut around acquisition, sandboxing or bundle collection.
 
+The internal builder development-task hook may resolve native arguments after an explicit `oyzu run` request. Static discovery never calls it. Captured builds use prepared facts instead. `BuilderPlan.fixed_env` declares captured toolchain facts that effective task environments must preserve; the shared planner checks these after applying overrides.
+
 ## Reuse without coupling unrelated behavior
 
 Before extracting shared code, ask whether its callers have the same semantics and should change together. Shared capture/cleanup lifecycle belongs in acquisition infrastructure. npm, pnpm and Yarn lock interpretation belongs to their respective managers, even when portions look similar. Small local duplication is preferable to a shared function with a growing list of ecosystem flags.

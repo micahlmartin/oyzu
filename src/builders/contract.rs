@@ -30,6 +30,12 @@ pub(crate) trait Builder: Sync {
         true
     }
 
+    /// Resolve native arguments only after an explicit development task run.
+    /// Static discovery and captured build planning must never call this hook.
+    fn development_argv(&self, _task: &Task) -> Result<Option<Vec<String>>> {
+        Ok(None)
+    }
+
     fn executor_profile(&self) -> Profile {
         Profile::Process
     }
@@ -96,6 +102,8 @@ pub(crate) struct RuntimeFile {
 pub(crate) struct BuilderPlan {
     pub version: String,
     pub env: BTreeMap<String, String>,
+    /// Captured toolchain facts that task overrides cannot silently change.
+    pub fixed_env: BTreeMap<String, String>,
     pub prepare: Vec<CommandSpec>,
     pub stages: Vec<&'static str>,
     pub tasks: BTreeMap<String, TaskPlan>,
@@ -108,6 +116,11 @@ pub(crate) struct BuilderPlan {
 
 impl BuilderPlan {
     pub fn validate(&self) -> Result<()> {
+        for (name, value) in &self.fixed_env {
+            if self.env.get(name) != Some(value) {
+                bail!("builder environment does not supply captured fact {name}");
+            }
+        }
         if let Some(files) = &self.source_files {
             crate::snapshot::Projection::new(".", files)?;
         }
@@ -151,6 +164,7 @@ impl BuilderPlan {
                 ("OYZU_VERSION".into(), version.clone()),
             ]),
             version,
+            fixed_env: BTreeMap::new(),
             prepare: vec![],
             stages: vec!["build", "test", "lint", "format-check", "format:check"],
             tasks: BTreeMap::new(),

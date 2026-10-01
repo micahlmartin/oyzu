@@ -1,4 +1,7 @@
+mod development;
+mod metadata;
 mod planning;
+mod preparation;
 use crate::builders::task::insert;
 use crate::builders::{Builder, Descriptor};
 use crate::model::Target;
@@ -7,9 +10,28 @@ use std::path::Path;
 
 pub(super) struct Go;
 
+static RUNTIME: &[super::RuntimeFile] = &[super::RuntimeFile {
+    name: "go-metadata.go",
+    contents: include_str!("runtime/metadata.go"),
+}];
+
 impl Builder for Go {
     fn acquisition_requires_network(&self) -> bool {
         false
+    }
+
+    fn development_argv(&self, task: &crate::model::Task) -> Result<Option<Vec<String>>> {
+        development::argv(task)
+    }
+    fn prepare(
+        &self,
+        context: super::PreparationContext<'_>,
+    ) -> Result<Option<crate::dependencies::Prepared>> {
+        preparation::prepare(context)
+    }
+
+    fn runtime_files(&self) -> &'static [super::RuntimeFile] {
+        RUNTIME
     }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("golang:1.24-bookworm")
