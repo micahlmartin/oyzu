@@ -2,16 +2,18 @@
 
 An opinionated developer platform for tools, environments, tasks, and builds.
 
-This repository will contain the CLI, headless agent, build engine, and optional desktop application. It is currently a repository scaffold; no implementation is available.
+This repository will contain the CLI, headless agent, build engine, and optional desktop application. It currently contains draft visions and technical designs; no implementation is available.
 
 ## Repository layout
 
-- `docs/vision/`: reserved for platform and component visions.
-- `docs/proposals/`: reserved for Oyzu Enhancement Proposals (OEPs).
-- `docs/reference/`: reserved for implemented contracts.
+- [Design library](docs/README.md): reading paths, architecture, decisions, and delivery plan.
+- [Visions](docs/vision/README.md): platform and component direction.
+- [Proposals](docs/proposals/README.md): detailed Oyzu Enhancement Proposals (OEPs).
+- [Example catalog](docs/examples.md): progressively complex implementation targets.
+- [Reference](docs/reference/README.md): reserved for verified implemented contracts.
 - `.github/`: contribution templates.
 
-Design documents have not been written yet. Source workspaces and verification commands will be added with implementation.
+All designs remain drafts for maintainer review. Source workspaces and product verification commands will be added with implementation. Run `node tooling/check-docs.mjs` to check documentation structure.
 
 ## Contributing
 

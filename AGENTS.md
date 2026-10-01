@@ -15,4 +15,6 @@ This is the public Oyzu repository. It must be buildable and usable without priv
 - Add verification appropriate to the change; never claim unperformed checks passed.
 
 ## Current state
-This is a documentation-ready scaffold. There is no source workspace or build/test command yet. Do not invent verification commands or imply implementation exists.
+Draft visions and OEPs are indexed in docs/README.md. All current designs are draft and implementation is not started. There is no source workspace or product build/test command yet.
+
+Run `node tooling/check-docs.mjs` for documentation structure. Do not imply this validates product behavior. Preserve agreed constraints in docs/decisions.md, distinguish proposed syntax from stable contracts, and never mark a design accepted without recorded maintainer review.

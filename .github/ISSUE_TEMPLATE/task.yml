@@ -13,6 +13,7 @@ body:
     id: acceptance
     attributes:
       label: Acceptance criteria
+      description: Reference OEP acceptance IDs and EX example IDs; define observable outcomes.
     validations:
       required: true
   - type: textarea
