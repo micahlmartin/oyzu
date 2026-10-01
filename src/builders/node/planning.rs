@@ -7,13 +7,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let target = context.target;
     let id = &target.name;
     let package = records::read(&target.path.join("package.json"))?;
-    if package.get("workspaces").is_some() {
-        bail!("{id}: npm workspace build integration is not implemented yet");
-    }
-    for field in ["dependencies", "devDependencies", "optionalDependencies"] {
-        if package[field].as_object().is_some_and(|v| !v.is_empty()) {
-            bail!("{id}: dependency acquisition is not implemented; refusing an incomplete or online build");
-        }
+    let captured = super::preparation::required(&target.path, &package)?;
+    if captured && context.dependencies.is_none() {
+        bail!("{id}: npm dependency capture is required before planning execution");
     }
     let version = semver_snapshot(target, context.source);
     let name = package["name"]
@@ -49,18 +45,25 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         ("npm_config_fund".into(), "false".into()),
         ("npm_config_cache".into(), "/tmp/npm-cache".into()),
     ]));
-    let script="const fs=require('node:fs');for(const f of ['package.json','package-lock.json']){if(!fs.existsSync(f))continue;const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=process.env.OYZU_VERSION;if(p.packages?.[''])p.packages[''].version=p.version;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\\n');}";
+    let script="const fs=require('node:fs');for(const f of ['package.json','package-lock.json','npm-shrinkwrap.json']){if(!fs.existsSync(f))continue;const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=process.env.OYZU_VERSION;if(p.packages?.[''])p.packages[''].version=p.version;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\\n');}";
     plan.prepare
         .push(CommandSpec::new("version", &["node", "-e", script]));
-    let install = if target.path.join("package-lock.json").exists() {
-        "ci"
+    if captured {
+        plan.prepare.push(CommandSpec::new(
+            "prepare",
+            &["node", "/oyzu/npm.mjs", "install", "/dependencies", "."],
+        ));
     } else {
-        "install"
-    };
-    plan.prepare.push(CommandSpec::new(
-        "prepare",
-        &["npm", install, "--offline", "--ignore-scripts"],
-    ));
+        let install = if super::preparation::lockfile(&target.path).is_some() {
+            "ci"
+        } else {
+            "install"
+        };
+        plan.prepare.push(CommandSpec::new(
+            "prepare",
+            &["npm", install, "--offline", "--ignore-scripts"],
+        ));
+    }
     let framework = target
         .discovery
         .get("test-framework")

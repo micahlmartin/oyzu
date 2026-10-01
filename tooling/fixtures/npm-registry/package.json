@@ -1,0 +1,11 @@
+{
+  "name": "oyzu-npm-capture",
+  "version": "1.0.0",
+  "type": "module",
+  "files": ["src"],
+  "scripts": {
+    "build": "node --check src/number.mjs",
+    "lint": "node --check src/number.mjs"
+  },
+  "dependencies": {"is-number": "7.0.0"}
+}

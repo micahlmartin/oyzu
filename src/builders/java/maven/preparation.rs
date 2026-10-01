@@ -16,7 +16,7 @@ pub(super) fn environment() -> BTreeMap<String, String> {
 }
 
 pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
-    let tree = super::super::repository_preparation::capture(
+    let tree = crate::dependencies::preparation::capture(
         &context,
         RUNTIME,
         &[

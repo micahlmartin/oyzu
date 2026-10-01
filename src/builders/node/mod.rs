@@ -1,14 +1,31 @@
 mod detection;
 mod discovery;
 mod planning;
+mod preparation;
 mod reporting;
 
-use super::{Builder, BuilderPlan, Descriptor, PlanningContext};
+use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
+use crate::dependencies::Prepared;
 use crate::model::{Target, Task};
 use anyhow::{bail, Result};
 use std::path::Path;
 
 pub(super) struct Node;
+
+static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "npm.mjs",
+        contents: include_str!("runtime/npm.mjs"),
+    },
+    RuntimeFile {
+        name: "npm_lock.mjs",
+        contents: include_str!("runtime/lock.mjs"),
+    },
+    RuntimeFile {
+        name: "broker_transport.mjs",
+        contents: include_str!("../../broker/runtime/transport.mjs"),
+    },
+];
 
 impl Builder for Node {
     fn descriptor(&self) -> Descriptor {
@@ -34,6 +51,15 @@ impl Builder for Node {
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         self.toolchain(context.target)?;
         planning::plan(context)
+    }
+
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
+        self.toolchain(context.target)?;
+        preparation::prepare(context)
+    }
+
+    fn runtime_files(&self) -> &'static [RuntimeFile] {
+        RUNTIME
     }
 
     fn instrument_override(

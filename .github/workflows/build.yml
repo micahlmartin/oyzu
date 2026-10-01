@@ -67,6 +67,8 @@ jobs:
       - name: Execute compiled CLI against real task scenarios
         shell: bash
         run: |
+          node --test tooling/test-node-lock.mjs
+          python tooling/test-node-acquisition.py
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
           else

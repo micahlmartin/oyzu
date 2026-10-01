@@ -16,6 +16,8 @@ src/
       detection/managers.rs   # Native manager declarations and lock evidence
       detection/frameworks.rs # Test script/config/dependency observations and fallback
       planning.rs             # npm commands and artifact/report intent
+      preparation.rs          # Lock admission and scoped tarball snapshot records
+      runtime/                # Native npm capture/replay and integrity validation
       reporting.rs            # Native test reporters and exact-command override adaptation
     python/
       mod.rs                  # Descriptor and interface implementation
@@ -47,7 +49,6 @@ src/
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
       ant/runtime/            # Native Ant metadata and JDK archive integration
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
-    java/repository_preparation.rs # Shared sandbox/broker lifecycle for native repository capture
     docker/                   # Container builder
       metadata.rs             # Typed native facts and captured-input admission
       preparation.rs          # Offline native metadata and worker-profile capture
@@ -68,8 +69,9 @@ src/
     bundle.rs                 # Output containment, capture and integrity inspection
   discovery.rs                # Workspace ownership, ambiguity and task overrides
   dependencies.rs             # Shared prepared dependency snapshot
+  dependencies/preparation.rs # Temporary capture workspace, scoped broker and sandbox lifecycle
   broker.rs                   # Source-scoped transport and credential boundary
-  broker/runtime/transport.py # Shared credential-free acquisition channel client
+  broker/runtime/             # Credential-free acquisition clients for Python and Node
   executor.rs                 # Image admission and ordinary process execution
   executor/mode.rs            # Typed process/BuildKit capabilities
   executor/worker.rs          # Private rootless worker lifecycle and filtered context assembly
@@ -102,7 +104,9 @@ Artifact names are owned strings, and artifacts can override the target-level ve
 
 Native report intent can also identify a module and a contained file/glob under the task's working directory. Maven uses this to attribute Surefire and JaCoCo reports to reactor modules without adding Maven branches to the planner or collector. Shared report formats include native JaCoCo aggregate line counters. Prepared input snapshots include the entire acquired tree, even native coordinate directories named `target`; source checkout exclusion rules do not apply to repositories.
 
-Gradle uses the same interface with its own composite metadata and native initialization scripts. Included builds export their own evaluated models. Preparation captures repository files through the shared broker; the offline lifecycle resolves a local file repository with a fresh private Gradle home. Mutable daemon/dependency caches are not prepared inputs. Maven and Gradle share the Maven-layout file inventory and the Rust repository-preparation lifecycle. That lifecycle owns temporary workspace cleanup, scoped broker lifetime, sandbox invocation and prepared-tree capture. Each manager supplies explicit commands, runtime assets, environment and source routes; native acquisition semantics, metadata validation and planning stay in its own adapter. No manager switch is needed in the shared lifecycle.
+Gradle uses the same interface with its own composite metadata and native initialization scripts. Included builds export their own evaluated models. Preparation captures repository files through the shared broker; the offline lifecycle resolves a local file repository with a fresh private Gradle home. Mutable daemon/dependency caches are not prepared inputs. Maven and Gradle share the Maven-layout file inventory. Node, Maven and Gradle share the Rust preparation lifecycle in `dependencies/preparation.rs`. That lifecycle owns temporary workspace cleanup, scoped broker lifetime, sandbox invocation and prepared-tree capture. Each manager supplies explicit commands, runtime assets, environment and source routes; native acquisition semantics, metadata validation and planning stay in its own adapter. No manager switch is needed in the shared lifecycle.
+
+Node captures lockfile-addressed npm registry tarballs and a deterministic inventory. Its adapter uses native `npm cache add` with a fresh temporary cache, then native `npm ci --offline` to validate and install; mutable npm cache indexes are not frozen inputs. Acquisition disables lifecycle scripts while the broker is mounted. Build execution seeds another private cache from the captured tarballs and runs native installation with lifecycle scripts enabled inside the network-isolated executor, without a broker mount. All source lockfiles remain untouched; snapshot version projection changes only the private execution copy.
 
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 

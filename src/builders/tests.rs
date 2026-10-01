@@ -18,7 +18,11 @@ fn descriptors_have_unique_ids_and_own_their_runtime_files() {
             assert!(!file.contents.is_empty());
         }
     }
-    assert!(get("node/package").unwrap().runtime_files().is_empty());
+    assert!(get("node/package")
+        .unwrap()
+        .runtime_files()
+        .iter()
+        .any(|file| file.name == "npm.mjs"));
     assert!(get("python/package")
         .unwrap()
         .runtime_files()

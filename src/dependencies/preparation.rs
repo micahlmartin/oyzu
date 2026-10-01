@@ -1,4 +1,4 @@
-//! Shared lifecycle for native Java repository acquisition.
+//! Shared isolated lifecycle for native dependency acquisition.
 //!
 //! Managers supply commands, assets, environment and source routes. This module
 //! owns temporary workspace and broker lifetimes; it never interprets native models.
@@ -10,7 +10,7 @@ use crate::{
 use anyhow::{bail, Result};
 use std::{collections::BTreeMap, fs, time::Duration};
 
-pub(super) fn capture(
+pub(crate) fn capture(
     context: &PreparationContext<'_>,
     runtime_files: &[RuntimeFile],
     argv: &[String],

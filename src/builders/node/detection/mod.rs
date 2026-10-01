@@ -23,6 +23,7 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
     let mut inputs = vec![
         "package.json",
         "package-lock.json",
+        "npm-shrinkwrap.json",
         "pnpm-lock.yaml",
         "yarn.lock",
     ];
@@ -39,9 +40,14 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
     let context = ContextData { source, package };
     let manager = exclusive("Node package manager", &context, managers::MANAGERS)?;
     let framework = exclusive("Node test framework", &context, frameworks::DETECTORS)?;
-    let locked = ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"]
-        .iter()
-        .any(|p| context.source.text(p).is_some());
+    let locked = [
+        "npm-shrinkwrap.json",
+        "package-lock.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+    ]
+    .iter()
+    .any(|p| context.source.text(p).is_some());
     Ok(Profile {
         package: context.package,
         manager,

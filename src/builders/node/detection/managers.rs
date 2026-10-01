@@ -58,6 +58,11 @@ impl Detector<ContextData> for NpmDefault {
 }
 pub(super) static MANAGERS: &[&dyn Detector<ContextData>] = &[
     &NativeManager {
+        id: "node/npm-shrinkwrap",
+        manager: "npm",
+        lock: "npm-shrinkwrap.json",
+    },
+    &NativeManager {
         id: "node/npm-lock",
         manager: "npm",
         lock: "package-lock.json",

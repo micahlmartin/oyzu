@@ -1,6 +1,7 @@
 """Native Node task replacement evidence through the compiled CLI."""
 import shutil
 import json
+from jsonschema import Draft202012Validator
 
 
 def verify_overrides(root, base, invoke, validate, source_files, verified):
@@ -52,6 +53,76 @@ process.exitCode=result.status ?? 1;
     verified.append("Node overrides: automatic native reporting, custom runner destinations, missing evidence blocks artifacts")
     verify_declared_reports(root, base, invoke, validate, source_files, verified)
     verify_defaults(root, base, invoke, validate, source_files, verified)
+    verify_dependencies(root, base, invoke, validate, source_files, verified)
+
+
+def verify_dependencies(root, base, invoke, validate, source_files, verified):
+    project = base / 'node-registry-dependencies'
+    shutil.copytree(root / 'tooling/fixtures/npm-registry', project)
+    # Real tests execute inside the build sandbox after dependency preparation.
+    (project / 'test/isolation.test.mjs').write_text("""import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import net from 'node:net';
+test('execution has no broker or external network', async () => {
+  assert.equal(fs.existsSync('/broker'), false);
+  await assert.rejects(new Promise((resolve,reject) => {
+    const socket=net.connect({host:'1.1.1.1',port:443});
+    socket.once('connect',()=>{socket.destroy();resolve();});
+    socket.once('error',reject);
+    socket.setTimeout(2000,()=>{socket.destroy();reject(new Error('timed out'));});
+  }));
+});
+""")
+    before = source_files(project)
+    first_plan = invoke(project, 'build', '--plan')
+    assert first_plan == invoke(project, 'build', '--plan'), 'capture destabilized identical plans'
+    invoke(project, 'build')
+    manifest = validate(project / 'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    assert len(manifest['artifacts']) == 1
+    artifact = manifest['artifacts'][0]
+    assert '-dev.g' in artifact['version']
+    assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == 2
+    assert next(r for r in manifest['reports'] if r['kind'] == 'coverage')['summary']['covered'] > 0
+    dependency = json.loads((project / 'dist/dependencies/project.json').read_text())
+    schema = json.loads((root / 'docs/contracts/v1alpha1/dependencies.schema.json').read_text())
+    Draft202012Validator(schema).validate(dependency)
+    assert dependency['manager']['id'] == 'npm'
+    assert [(p['name'],p['version'],p['sourceId']) for p in dependency['packages']] == [('is-number','7.0.0','npm-public')]
+    assert dependency['packages'][0]['verification'] == 'digest-only'
+    invoke(project, 'inspect', 'dist')
+    invoke(project, 'build')
+    again = validate(project / 'dist')
+    assert again['planDigest'] == manifest['planDigest']
+    assert again['artifacts'][0]['digest'] == artifact['digest']
+    lock_path = project / 'package-lock.json'
+    original = json.loads(lock_path.read_text())
+    lock = json.loads(lock_path.read_text())
+    entry = lock['packages']['node_modules/is-number']
+    entry['integrity'] = 'sha512-' + 'A' * 86 + '=='
+    lock_path.write_text(json.dumps(lock))
+    invoke(project, 'build', success=False)
+    failed = validate(project / 'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert 'integrity mismatch' in failed['diagnostics'][0]['message']
+    entry['integrity'] = original['packages']['node_modules/is-number']['integrity']
+    entry['resolved'] = 'https://unapproved.invalid/package.tgz'
+    lock_path.write_text(json.dumps(lock))
+    invoke(project, 'build', success=False)
+    failed = validate(project / 'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert 'denied or failed' in failed['diagnostics'][0]['message']
+    lock_path.write_text(json.dumps(original))
+    package_path = project / 'package.json'
+    package = json.loads(package_path.read_text())
+    package['dependencies']['is-number'] = '6.0.0'
+    package_path.write_text(json.dumps(package))
+    invoke(project, 'build', success=False)
+    failed = validate(project / 'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert 'npm ci failed' in failed['diagnostics'][0]['message']
+    verified.append('Node registry acquisition: deterministic lock-bound tarballs, native offline install/tests, verified snapshot package, bad SRI/stale lock/unapproved source failures')
 
 
 def verify_defaults(root, base, invoke, validate, source_files, verified):
