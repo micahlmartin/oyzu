@@ -30,7 +30,7 @@ pub struct Session {
     selection_reason: Option<String>,
     captured: std::collections::BTreeMap<PathBuf, Vec<ConfigSource>>,
     management: Option<serde_json::Value>,
-    invocation: Option<ConfigSource>,
+    invocation: Vec<ConfigSource>,
 }
 impl Session {
     pub fn open(directory: &Path, options: &Options) -> Result<Self> {
@@ -118,12 +118,30 @@ impl Session {
         } else {
             None
         };
-        let invocation=std::env::var("OYZU_BUILDKIT_APPARMOR_PROFILE").ok().map(|value|{
-            let text=toml::to_string(&serde_json::json!({"docker":{"apparmorProfile":value}}))?;
-            let mut source=ConfigSource::parse("OYZU_BUILDKIT_APPARMOR_PROFILE",&root,Scope::Invocation,false,&text,&registry)?;
-            source.diagnostics.push(sources::Diagnostic{code:"CONFIG_DEPRECATED".into(),source:source.identity.clone(),key:"docker.apparmorProfile".into(),message:"use docker.apparmorProfile; legacy environment input remains subject to policy".into()});
-            Ok::<_,anyhow::Error>(source)
-        }).transpose()?;
+        let mut invocation = Vec::new();
+        for (key, environment) in registry.environment_aliases() {
+            if let Ok(value) = std::env::var(environment) {
+                let (namespace, setting) = key.split_once('.').expect("registered setting path");
+                let text = toml::to_string(&serde_json::json!({namespace:{setting:value}}))?;
+                let mut source = ConfigSource::parse(
+                    environment,
+                    &root,
+                    Scope::Invocation,
+                    false,
+                    &text,
+                    &registry,
+                )?;
+                source.diagnostics.push(sources::Diagnostic {
+                    code: "CONFIG_DEPRECATED".into(),
+                    source: environment.into(),
+                    key: key.into(),
+                    message: format!(
+                        "use {key}; legacy environment input remains subject to policy"
+                    ),
+                });
+                invocation.push(source);
+            }
+        }
         Ok(Self {
             root,
             registry,
@@ -181,6 +199,19 @@ impl Session {
             all_profiles,
         )?;
         result.management = self.management.clone();
+        result
+            .diagnostics
+            .extend(
+                self.locations
+                    .diagnostics
+                    .iter()
+                    .map(|message| sources::Diagnostic {
+                        code: "CONFIG_LOCATION".into(),
+                        source: "native-locations".into(),
+                        key: String::new(),
+                        message: message.clone(),
+                    }),
+            );
         if let Some(reason) = &self.selection_reason {
             result.selection_reason = reason.clone();
             result.profiles = self.known_profiles.clone();
@@ -266,6 +297,19 @@ impl Session {
         {
             bail!("CONFIG_LIMIT: invocation source limit exceeded");
         }
+        let mut profile_origins =
+            std::collections::BTreeMap::from([("ci".to_owned(), vec!["built-in".to_owned()])]);
+        for source in unique
+            .values()
+            .filter(|source| !(self.ci && source.scope == Scope::User))
+        {
+            for profile in source.profiles.keys() {
+                profile_origins
+                    .entry(profile.clone())
+                    .or_default()
+                    .push(source.identity.clone());
+            }
+        }
         sources.push(catalogue);
         // Selection is invocation-wide; target-specific values and constraints
         // are evaluated only after the target's complete cascade is available.
@@ -288,7 +332,7 @@ impl Session {
             false,
         )?;
         self.selection_reason = Some(selected.selection_reason);
-        self.known_profiles = selected.profiles;
+        self.known_profiles = profile_origins;
         self.selection.explicit = selected.profile;
         self.selection.no_profile = self.selection.explicit.is_none();
         Ok(())

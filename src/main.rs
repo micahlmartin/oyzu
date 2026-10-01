@@ -1,3 +1,4 @@
+mod config_args;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use oyzu::{build, config, discovery, tasks};
@@ -27,7 +28,7 @@ enum Commands {
     /// Inspect, validate or edit cascading configuration without executing tasks.
     Config {
         #[command(subcommand)]
-        command: config::cli::Command,
+        command: config_args::Command,
     },
     /// List inferred tasks or execute a task in the development environment.
     Run {
@@ -79,7 +80,11 @@ fn run() -> Result<i32> {
         Commands::Config { command } => {
             println!(
                 "{}",
-                serde_json::to_string_pretty(&config::cli::run(command, &directory, &options)?)?
+                serde_json::to_string_pretty(&config::operations::run(
+                    &command.operation(),
+                    &directory,
+                    &options
+                )?)?
             );
             return Ok(0);
         }

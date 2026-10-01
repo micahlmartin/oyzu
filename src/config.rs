@@ -1,12 +1,12 @@
 use anyhow::{bail, Context, Result};
 pub mod agent;
-pub mod cli;
 pub mod constraints;
 pub mod edit;
 pub(crate) mod enforcement;
 mod inventory;
 pub mod locations;
 pub mod managed;
+pub mod operations;
 pub mod policy;
 mod policy_runtime;
 pub mod registry;

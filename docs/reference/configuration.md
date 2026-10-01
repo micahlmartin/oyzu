@@ -21,7 +21,7 @@ Sources resolve in this order: built-ins, verified corporate defaults, protected
 
 Profile selection uses explicit `--profile` or `--no-profile`, inherited task selection, `OYZU_PROFILE`, the eligible root/default selector, inferred CI's empty `ci` profile, then no profile. Names grant no authority. Inferred CI excludes user computation settings and local files; `--local-overrides` requests local files, subject to administrative restrictions. Excluded local files are not parsed.
 
-`config show`, `get`, `explain`, `profiles`, and `validate` do not execute project tasks. Environment values and task bodies are redacted in configuration inspection. Discovery/task listing also redacts environment values. Explain includes source histories, byte spans, exclusions, constraint source IDs and the effective computation digest. Unknown optional settings warn and stay inert; known invalid values, unsupported required capabilities, duplicate keys and unsupported schema majors fail. `--strict` rejects optional warnings. `--all-profiles` validates inactive capability requirements and profile outcomes.
+`config show`, `get`, `explain`, `profiles`, and `validate` do not execute project tasks. If resolution is blocked, `show` and `explain` return an explicit unresolved status without effective values; `validate` remains the failing validation command. Environment values and task bodies are redacted in configuration inspection. Discovery/task listing also redacts environment values. Explain includes source histories, byte spans, exclusions, constraint source IDs and the effective computation digest. Unknown optional settings warn and stay inert; known invalid values, unsupported required capabilities, duplicate keys and unsupported schema majors fail. `--strict` rejects optional warnings. `--all-profiles` validates inactive capability requirements and profile outcomes.
 
 ## Editing
 
@@ -32,7 +32,7 @@ oyzu --root path/to/project --profile dev config set ui.color never --user
 oyzu --root path/to/project config unset build.jobs --project
 ```
 
-Exactly one of `--user`, `--project`, or `--local` is required. `--directory` can select a contained nested project scope. `unset` removes an assignment in that file and exposes inherited values; it does not create a removal tombstone. Edits preserve unrelated comments and unknown syntax, validate known types/scopes, and compare the original bytes before atomic replacement. Concurrent changes produce `CONFIG_EDIT_CONFLICT`. A small `.oyzu-config-edit.lock` coordinates Oyzu writers and is excluded from source snapshots.
+Exactly one of `--user`, `--project`, or `--local` is required. `--directory` can select a contained nested project scope. `unset` removes an assignment in that file and exposes inherited values; it does not create a removal tombstone. Ordinary edits remain available to repair invalid values even when resolution is blocked; they do not activate values or alter protected records. Edits preserve unrelated comments and unknown syntax, validate known types/scopes, and compare the original bytes before atomic replacement. Concurrent changes produce `CONFIG_EDIT_CONFLICT`. A small `.oyzu-config-edit.lock` coordinates Oyzu writers and is excluded from source snapshots.
 
 ## Administrative policy
 
@@ -40,7 +40,7 @@ Native locations follow OEP-0002: Windows known folders, macOS Application Suppo
 
 `admin-settings.json` uses the same typed constraint evaluator as corporate policy. Locks, allowed whole values, numeric bounds and required sets intersect independently of ordinary precedence. Required checks cannot be removed by empty ordinary arrays. The build planner requires configured checks to have actual actions/report contracts; report collection enforces the coverage minimum, including missing/zero-denominator failures.
 
-`config status` reports enrollment and cached-policy status. `config refresh` performs a headless request to the enrolled platform's public configuration-context endpoint. Signed responses use pinned Ed25519 keys, canonical JSON, identity/context binding, monotonic sequences, expiry and explicit offline permissions. Cache entries are immutable and flushed before an OS credential-store pointer commits them. Windows Credential Manager, macOS Keychain and Linux Secret Service hold integrity state. If that service is unavailable, managed execution fails; standalone use does not need it. Transport backoff never extends signed deadlines. Server denial cannot become offline permission.
+`config status` reports enrollment and cached-policy status. `config refresh` performs a headless request to the enrolled platform's public configuration-context endpoint. Signed responses use pinned Ed25519 keys, canonical JSON, identity/context binding, monotonic sequences, expiry and explicit offline permissions. Cache entries are content-addressed and flushed before an OS credential-store pointer commits them. A corrupt entry can only be repaired from a newly verified online response. Windows Credential Manager, macOS Keychain and Linux Secret Service hold integrity state. If that service is unavailable, managed execution fails; standalone use does not need it. Transport backoff never extends signed deadlines. Server denial cannot become offline permission.
 
 ## Existing settings migration and boundaries
 

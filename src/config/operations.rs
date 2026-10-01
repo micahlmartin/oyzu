@@ -6,10 +6,10 @@ use super::{
     session::{Options, Session},
 };
 use anyhow::{bail, Context, Result};
-use clap::{Args, Subcommand};
 use serde_json::{json, Value};
 use std::path::Path;
-#[derive(Subcommand)]
+
+/// Configuration operations shared by headless clients, independent of CLI parsing.
 pub enum Command {
     Show,
     Get {
@@ -20,9 +20,7 @@ pub enum Command {
     },
     Profiles,
     Validate {
-        #[arg(long)]
         strict: bool,
-        #[arg(long)]
         all_profiles: bool,
     },
     Status,
@@ -30,28 +28,41 @@ pub enum Command {
     Set {
         key: String,
         value: String,
-        #[arg(long)]
         json_value: bool,
-        #[command(flatten)]
         scope: WriteScope,
     },
     Unset {
         key: String,
-        #[command(flatten)]
         scope: WriteScope,
     },
 }
-#[derive(Args)]
-#[group(required = true, multiple = false)]
-pub struct WriteScope {
-    #[arg(long)]
-    user: bool,
-    #[arg(long)]
-    project: bool,
-    #[arg(long)]
-    local: bool,
+#[derive(Clone, Copy)]
+pub enum WriteScope {
+    User,
+    Project,
+    Local,
 }
+
 pub fn run(command: &Command, directory: &Path, options: &Options) -> Result<Value> {
+    match run_inner(command, directory, options) {
+        Err(error) if matches!(command, Command::Show | Command::Explain { .. }) => {
+            // Inspection must work even when policy or ordinary syntax blocks
+            // execution. Never serialize unreviewed parser/transport error bodies.
+            let description = format!("{error:#}");
+            let code = description
+                .split(|c: char| c == ':' || c.is_whitespace())
+                .find(|part| part.starts_with("CONFIG_") || part.starts_with("POLICY_"))
+                .unwrap_or("CONFIG_UNRESOLVED");
+            Ok(json!({"status":"unresolved","values":null,"diagnostics":[{
+                "code":code,"severity":"error","key":null,"sourceSpan":null,"target":null,
+                "message":"Configuration resolution is blocked; no effective snapshot is available",
+                "remedy":"Run config validate for local diagnostics, or config status and config refresh for managed policy"
+            }]}))
+        }
+        result => result,
+    }
+}
+fn run_inner(command: &Command, directory: &Path, options: &Options) -> Result<Value> {
     if matches!(command, Command::Status) {
         return status(directory, options);
     }
@@ -68,23 +79,26 @@ pub fn run(command: &Command, directory: &Path, options: &Options) -> Result<Val
             json!({"refreshed":true,"revision":acquired.snapshot.revision(),"offlineDeadline":acquired.snapshot.deadline()}),
         );
     }
-    let mut session = Session::open(directory, options)?;
     if let Command::Set { key, scope, .. } | Command::Unset { key, scope } = command {
+        // Ordinary edits remain available while execution is blocked. They never
+        // write enrollment or activate a requested value as effective policy.
         let registry = Registry::default();
-        let (path, kind) = if scope.user {
-            (session.locations.user.clone(), Scope::User)
+        let locations = Locations::native()?;
+        let root = super::session::workspace_root(directory, options.root.as_deref())?;
+        let (path, kind) = if matches!(scope, WriteScope::User) {
+            (locations.user.clone(), Scope::User)
         } else {
             let directory = directory.canonicalize()?;
-            if !directory.starts_with(&session.root) {
+            if !directory.starts_with(&root) {
                 bail!("CONFIG_SCOPE: edit directory escapes workspace");
             }
             (
-                directory.join(if scope.project {
+                directory.join(if matches!(scope, WriteScope::Project) {
                     "oyzu.toml"
                 } else {
                     "oyzu.local.toml"
                 }),
-                if scope.project {
+                if matches!(scope, WriteScope::Project) {
                     Scope::Project
                 } else {
                     Scope::Local
@@ -116,11 +130,12 @@ pub fn run(command: &Command, directory: &Path, options: &Options) -> Result<Val
         edit.commit(
             &path,
             kind,
-            kind != Scope::User && path.parent() != Some(session.root.as_path()),
+            kind != Scope::User && path.parent() != Some(root.as_path()),
             &registry,
         )?;
         return Ok(json!({"destination":path,"updated":key}));
     }
+    let mut session = Session::open(directory, options)?;
     let mut selected = vec![directory.canonicalize()?];
     let (inventory, inventory_diagnostics) = super::targets_with_diagnostics(&session.root)?;
     if let Some(targets) = inventory {
@@ -193,8 +208,14 @@ fn status(directory: &Path, options: &Options) -> Result<Value> {
         Ok(Some(bytes)) => match super::managed::Bootstrap::parse(&bytes) {
             Ok(b) => {
                 let root = super::session::workspace_root(directory, options.root.as_deref())?;
-                super::agent::Agent::new(b, &locations, &root, super::sources::detected_ci())?
+                match super::agent::Agent::new(b, &locations, &root, super::sources::detected_ci())?
                     .status()
+                {
+                    Ok(status) => Ok(status),
+                    Err(_) => Ok(
+                        json!({"mode":"managed","enrolled":true,"status":"POLICY_UNAVAILABLE","offlineAvailable":false}),
+                    ),
+                }
             }
             Err(_) => Ok(json!({"mode":"managed","enrolled":true,"status":"POLICY_INVALID"})),
         },

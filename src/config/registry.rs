@@ -66,6 +66,7 @@ pub enum Kind {
 #[derive(Clone, Debug)]
 pub struct SettingDefinition {
     pub key: String,
+    pub deprecated_environment: Option<&'static str>,
     pub kind: Kind,
     pub default: Option<Value>,
     pub administrative: bool,
@@ -185,6 +186,7 @@ impl Default for Registry {
             registry
                 .register(SettingDefinition {
                     key: key.into(),
+                    deprecated_environment: None,
                     kind,
                     default,
                     administrative,
@@ -204,6 +206,13 @@ impl Default for Registry {
     }
 }
 impl Registry {
+    pub(crate) fn environment_aliases(&self) -> impl Iterator<Item = (&str, &str)> {
+        self.definitions.values().filter_map(|definition| {
+            definition
+                .deprecated_environment
+                .map(|name| (definition.key.as_str(), name))
+        })
+    }
     pub fn register(&mut self, definition: SettingDefinition) -> Result<()> {
         if self.definitions.contains_key(&definition.key) {
             bail!("CONFIG_INVALID_VALUE: duplicate setting registration");

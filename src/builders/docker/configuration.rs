@@ -13,6 +13,7 @@ pub(super) fn default_apparmor() -> String {
 pub(super) fn register(registry: &mut Registry) -> Result<()> {
     registry.register(SettingDefinition {
         key: "docker.apparmorProfile".into(),
+        deprecated_environment: Some("OYZU_BUILDKIT_APPARMOR_PROFILE"),
         kind: Kind::Name,
         default: Some(serde_json::json!(default_apparmor())),
         administrative: false,

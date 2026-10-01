@@ -5,7 +5,11 @@ use super::{
 };
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
-use std::{fs, io::Write, path::Path};
+use std::{
+    fs,
+    io::{Read, Write},
+    path::Path,
+};
 use toml_edit::{DocumentMut, Item, Table};
 
 pub struct Edit {
@@ -14,8 +18,18 @@ pub struct Edit {
 }
 impl Edit {
     pub fn read(path: &Path) -> Result<Self> {
-        let original = match fs::read(path) {
-            Ok(v) => Some(v),
+        if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+            bail!("CONFIG_SCOPE: edit destination must not be a symlink");
+        }
+        let original = match fs::File::open(path) {
+            Ok(file) => {
+                let mut bytes = Vec::new();
+                file.take(1024 * 1024 + 1).read_to_end(&mut bytes)?;
+                if bytes.len() > 1024 * 1024 {
+                    bail!("CONFIG_LIMIT: oversized edit source");
+                }
+                Some(bytes)
+            }
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
             Err(e) => return Err(e.into()),
         };

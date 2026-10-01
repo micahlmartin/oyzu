@@ -227,7 +227,13 @@ fn check_handle(file: &fs::File) -> Result<()> {
                 || EqualSid(sid, installer) != 0
         };
         let mask = if file.metadata()?.is_dir() {
-            0x500d0152
+            // Every checked ancestor contains the next protected component.
+            // Creating an unrelated child cannot replace that component; changing
+            // a nonempty directory into a reparse point is rejected by Windows.
+            // Deny delete-child, delete, ACL/owner changes and generic all. This
+            // admits ProgramData's normal create/write-attributes permissions.
+            // https://learn.microsoft.com/windows/win32/fileio/reparse-points
+            0x100d0040
         } else {
             0x500d0156
         };
@@ -261,5 +267,23 @@ fn check_handle(file: &fs::File) -> Result<()> {
         LocalFree(installer);
         LocalFree(descriptor);
         result
+    }
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+    #[test]
+    fn native_machine_ancestors_accept_standard_windows_acl() {
+        let locations = Locations::native().unwrap();
+        let program_data = locations.machine.parent().unwrap();
+        for ancestor in program_data.ancestors() {
+            check_protection(ancestor).unwrap();
+        }
+    }
+    #[test]
+    fn user_owned_file_is_not_administrative_policy() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        assert!(check_handle(file.as_file()).is_err());
     }
 }

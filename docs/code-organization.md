@@ -8,7 +8,7 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 
 | Responsibility | Current entry points | Boundary to preserve as the code grows |
 | --- | --- | --- |
-| CLI input and output | `src/main.rs` | Parse arguments, call operations, render results; keep business rules in the library |
+| CLI input and output | `src/main.rs`, `src/config_args.rs` | Parse arguments, call operations, render results; keep business rules in the library |
 | Configuration | `src/config.rs`, `src/config/` | Own bounded source capture, typed settings, profiles, constraints, immutable resolution and edits; keep protected policy verification and effectful refresh separate from pure resolution |
 | Discovery and resolution | `src/discovery.rs`, `src/discovery/` | Gather bounded evidence and resolve ownership/capabilities deterministically; never execute project code during static detection |
 | Ecosystem integration | `src/builders/<ecosystem>/` | Own native manager/framework semantics; implement shared contracts and declare commands, artifacts and reports |
@@ -19,6 +19,8 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 | Source and input identity | `src/snapshot.rs`, `src/snapshot/` | Own capture, projection, containment and content identity |
 | Reports and artifacts | `src/reports.rs`, `src/reports/`, `src/oci/`, `src/build/collection.rs`, `src/build/bundle.rs` | Parse/verify formats separately from collection; record actual outputs and failures rather than trusting an adapter's success claim |
 | Shared data contracts | `src/model.rs`, `src/records.rs`, `docs/contracts/` | Hold genuinely shared concepts and record encoding; keep subsystem-specific types with their owner |
+
+Configuration's pure resolver consumes captured sources and registered types. `config/session` captures filesystem/context facts, `config/operations` exposes parser-independent inspection/edit operations, and `config/agent` owns signed policy cache transitions through its runtime boundary. Builder registration owns ecosystem setting definitions and deprecated input aliases; shared configuration does not name ecosystem-specific environment variables. CLI flags remain in `config_args`.
 
 Tool installation, environment activation, caching, agent/connectors, publishing and desktop/platform surfaces need the same ownership discipline as they arrive. Their proposed boundaries are in the architecture and OEPs. Do not create placeholder crates or put their future behavior into a general-purpose service object now.
 

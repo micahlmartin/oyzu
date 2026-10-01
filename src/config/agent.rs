@@ -179,13 +179,9 @@ impl Agent {
         file.write_all(envelope.as_bytes())?;
         file.as_file().sync_all()?;
         let path = self.directory.join(format!("{entry}.jws"));
-        if path.exists() {
-            if fs::read(&path)? != envelope.as_bytes() {
-                bail!("POLICY_INVALID: immutable cache entry is corrupt");
-            }
-        } else {
-            file.persist_noclobber(&path).map_err(|e| e.error)?;
-        }
+        // Verified content determines the name. Atomic replacement also repairs a
+        // corrupt entry after online reconciliation without trusting its old bytes.
+        file.persist(&path).map_err(|e| e.error)?;
         #[cfg(unix)]
         fs::File::open(&self.directory)?.sync_all()?;
         // The OS-protected pointer is the commit point, after durable immutable bytes.
@@ -255,10 +251,11 @@ impl Agent {
         let state = self.state()?;
         match state {
             Some(state) => {
-                let snapshot = self.cached(&state, self.runtime.now()?);
+                let time = self.runtime.now()?;
+                let snapshot = self.cached(&state, time);
                 match snapshot {
                     Ok(s) => Ok(
-                        json!({"mode":"managed","revision":s.revision(),"offlineDeadline":s.deadline(),"refreshAfter":s.refresh_after(),"status":"verified"}),
+                        json!({"mode":"managed","revision":s.revision(),"offlineDeadline":s.deadline(),"refreshAfter":s.refresh_after(),"status":"verified","offlineAvailable":self.context.execution_class == "local" && s.authorize(Operation::LocalBuild,time,false,true).is_ok()}),
                     ),
                     Err(_) => Ok(json!({"mode":"managed","status":"refresh-required"})),
                 }
@@ -326,6 +323,10 @@ mod tests {
         }
     }
     fn setup(root: &Path) -> (Agent, Arc<Fake>, SigningKey) {
+        // macOS exposes its temporary root through /var -> /private/var.
+        // Test the physical fixture, retaining the production no-link rule.
+        let physical_root = root.canonicalize().unwrap();
+        let root = physical_root.as_path();
         let key = SigningKey::from_bytes(&[19; 32]);
         let bootstrap=Bootstrap::parse(&serde_json::to_vec(&json!({"schemaVersion":1,"kind":"management-bootstrap","organizationId":"test","enrollmentId":"test","platformUrl":"https://example.test","policyKeys":[{"kid":"test","kty":"OKP","crv":"Ed25519","x":URL_SAFE_NO_PAD.encode(key.verifying_key().as_bytes())}]})).unwrap()).unwrap();
         let locations = Locations {
@@ -411,7 +412,11 @@ mod tests {
             "truncated",
         )
         .unwrap();
-        *runtime.reply.lock().unwrap() = None;
+        let valid = runtime.reply.lock().unwrap().take();
         assert!(agent.acquire(false).is_err());
+        *runtime.reply.lock().unwrap() = valid;
+        assert!(agent.acquire(true).unwrap().online);
+        *runtime.reply.lock().unwrap() = None;
+        assert!(!agent.acquire(false).unwrap().online);
     }
 }

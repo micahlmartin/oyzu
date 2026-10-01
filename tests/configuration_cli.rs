@@ -155,3 +155,28 @@ fn ci_skips_invalid_local_source_before_parsing() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn ordinary_edit_repairs_invalid_value_without_executing_configuration() {
+    let temp = tempfile::tempdir().unwrap();
+    fs::write(
+        temp.path().join("oyzu.toml"),
+        "# keep this\n[build]\njobs='invalid'\n",
+    )
+    .unwrap();
+    assert!(!run(temp.path(), &["config", "validate"]).status.success());
+    let explanation = value(temp.path(), &["config", "explain"]);
+    assert_eq!(explanation["status"], "unresolved");
+    assert!(explanation["values"].is_null());
+    value(
+        temp.path(),
+        &["config", "set", "build.jobs", "2", "--project"],
+    );
+    assert_eq!(
+        value(temp.path(), &["config", "get", "build.jobs"]),
+        json!(2)
+    );
+    assert!(fs::read_to_string(temp.path().join("oyzu.toml"))
+        .unwrap()
+        .contains("# keep this"));
+}

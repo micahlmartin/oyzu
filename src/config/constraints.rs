@@ -108,11 +108,15 @@ impl Constraints {
         registry: &Registry,
     ) -> Result<()> {
         entry.validate(key, registry)?;
-        self.entries
+        let mut candidate = self.clone();
+        candidate
+            .entries
             .entry(key.into())
             .or_default()
             .push((source.into(), entry));
-        self.check_consistency()
+        candidate.check_consistency()?;
+        *self = candidate;
+        Ok(())
     }
     pub fn defaults(&self, source: &str) -> BTreeMap<String, Value> {
         self.entries
