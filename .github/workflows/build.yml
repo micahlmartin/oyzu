@@ -82,10 +82,12 @@ jobs:
           docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim
           docker build --tag oyzu-toolchain/poetry:2.5.1-python3.12 --file tooling/images/python-poetry.Dockerfile tooling/images
           python3 -m pip install -r tooling/design-requirements.txt
+          python3 -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
       - name: Build and verify native snapshot artifacts through the compiled CLI
         run: |
           chmod +x cli/oyzu
           python3 tooling/test-python-adapter.py
+          python3 tooling/test-python-reporting.py
           python3 tooling/test-build-scenarios.py --cli cli/oyzu --evidence-dir build-evidence
       - name: Retain native snapshot artifacts and failure evidence
         if: always()

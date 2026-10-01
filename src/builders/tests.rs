@@ -19,7 +19,7 @@ fn descriptors_have_unique_ids_and_own_their_runtime_files() {
         }
     }
     assert!(get("node/package").unwrap().runtime_files().is_empty());
-    assert_eq!(get("python/package").unwrap().runtime_files().len(), 1);
+    assert_eq!(get("python/package").unwrap().runtime_files().len(), 2);
     assert!(get("unknown/builder").is_err());
 }
 

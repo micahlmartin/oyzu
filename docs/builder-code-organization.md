@@ -20,6 +20,7 @@ src/
       acquisition.rs          # Native locks and scoped wheel acquisition
       planning.rs             # Python commands and artifact/report intent
       runtime/adapter.py      # Embedded native Python adapter
+      runtime/reporting.py    # Installed-distribution pytest/coverage integration
     go/                       # Discovery and Go planning
     rust/                     # Cargo discovery; build implementation pending
     java/{maven,gradle,ant}/   # Separate native-manager adapters

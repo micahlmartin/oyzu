@@ -55,24 +55,14 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let mut test = TaskPlan::command(&[
         ".oyzu-build/venv/bin/python",
         "-I",
-        "-m",
-        "pytest",
-        "--import-mode=importlib",
-        &format!("--junitxml=/out/{id}/reports/junit.xml"),
-        "--cov",
-        &format!("--cov-report=xml:/out/{id}/reports/coverage.xml"),
+        "/oyzu/python-reporting.py",
+        "--distribution",
+        &name,
+        "--junit",
+        &format!("/out/{id}/reports/junit.xml"),
+        "--coverage",
+        &format!("/out/{id}/reports/coverage.xml"),
     ]);
-    if let Some(packages) = project
-        .get("tool")
-        .and_then(|p| p.get("setuptools"))
-        .and_then(|p| p.get("packages"))
-        .and_then(|p| p.as_array())
-    {
-        test.argv.retain(|v| v != "--cov");
-        for package in packages.iter().filter_map(|p| p.as_str()) {
-            test.argv.push(format!("--cov={package}"));
-        }
-    }
     if target.manager == "uv" {
         let mut wrapper = strings(&[
             "uv",

@@ -50,9 +50,15 @@ impl Builder for Python {
         planning::plan(context)
     }
     fn runtime_files(&self) -> &'static [RuntimeFile] {
-        &[RuntimeFile {
-            name: "python.py",
-            contents: acquisition::PYTHON_HELPER,
-        }]
+        &[
+            RuntimeFile {
+                name: "python.py",
+                contents: acquisition::PYTHON_HELPER,
+            },
+            RuntimeFile {
+                name: "python-reporting.py",
+                contents: include_str!("runtime/reporting.py"),
+            },
+        ]
     }
 }

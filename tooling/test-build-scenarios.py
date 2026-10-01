@@ -13,6 +13,7 @@ import tarfile
 import tempfile
 import zipfile
 import email
+import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
 
@@ -43,6 +44,17 @@ def validate(bundle):
         if "path" in artifact:
             assert digest(bundle / artifact["path"]) == artifact["digest"]
     return records["manifest"]
+
+
+def application_coverage(project, manifest, module):
+    report=next(r for r in manifest['reports'] if r['kind']=='coverage')
+    assert report['summary']['covered']>0, 'executed application lines were not measured'
+    document=ET.parse(project/'dist'/report['path'])
+    classes=document.findall('.//class')
+    assert classes and all('test_' not in c.attrib['filename'] for c in classes)
+    sources=' '.join(n.text or '' for n in document.findall('.//source'))
+    assert module in sources or any(module in c.attrib['filename'] for c in classes)
+    assert any(int(line.attrib['hits'])>0 for line in document.findall('.//class/lines/line'))
 
 
 def main():
@@ -212,6 +224,7 @@ def test_acquired_dependency_and_offline_boundary():
                     assert all(m.mtime==0 for m in archive.getmembers())
         assert next(r for r in python_manifest["reports"] if r["kind"]=="test")["summary"]["passed"]>=3
         assert next(r for r in python_manifest["reports"] if r["kind"]=="coverage")["summary"]["total"]>0
+        application_coverage(python_project,python_manifest,'api')
         dependency_path=python_project / "dist/dependencies/api.json"
         dependency=json.loads(dependency_path.read_text())
         schema=json.loads((ROOT / "docs/contracts/v1alpha1/dependencies.schema.json").read_text())
@@ -222,6 +235,17 @@ def test_acquired_dependency_and_offline_boundary():
         rebuilt=invoke(python_project,"build")
         assert {a['name']:a['digest'] for a in rebuilt['artifacts']}=={a['name']:a['digest'] for a in python_manifest['artifacts']}
         verified.append("Python: broker acquisition, captured dependency closure, offline wheel/sdist builds, snapshot metadata, native tests/coverage and repeatable artifacts")
+
+        with metadata_path.open('a') as metadata_file:
+            metadata_file.write('\n[tool.coverage.report]\nfail_under=100\n')
+        invoke(python_project,'build',success=False)
+        insufficient=validate(python_project/'dist')
+        assert insufficient['status']=='failed' and not insufficient['artifacts']
+        assert next(r for r in insufficient['reports'] if r['kind']=='test')['summary']['failed']==0
+        measured=next(r for r in insufficient['reports'] if r['kind']=='coverage')['summary']
+        assert 0<measured['covered']<measured['total']
+        assert next(a for a in insufficient['actions'] if a['id']=='api:package')['status']=='blocked'
+        verified.append('Python coverage threshold blocks packaging despite passing tests and retains measured application coverage')
 
         uv_project=base / "python-uv-library"
         shutil.copytree(ROOT / "examples/builds/python-uv-library/project",uv_project)
@@ -235,6 +259,7 @@ def test_acquired_dependency_and_offline_boundary():
         assert digest(uv_project/'uv.lock') in uv_dependencies['lockDigests']
         assert next(r for r in uv_manifest['reports'] if r['kind']=='test')['summary']['passed']>0
         assert {a['name'] for a in uv_manifest['artifacts']}=={'wheel','sdist'}
+        application_coverage(uv_project,uv_manifest,'greeting')
         # A stale native lock must fail before the final execution plan exists.
         pyproject=uv_project / 'pyproject.toml'
         pyproject.write_text(pyproject.read_text().replace('pytest==8.3.5','pytest==8.3.4'))
@@ -256,6 +281,7 @@ def test_acquired_dependency_and_offline_boundary():
         assert any(p['name']=='poetry-core' and p['version']=='2.2.1' for p in poetry_dependencies['packages'])
         assert next(r for r in poetry_manifest['reports'] if r['kind']=='test')['summary']['passed']>0
         assert {a['name'] for a in poetry_manifest['artifacts']}=={'wheel','sdist'}
+        application_coverage(poetry_project,poetry_manifest,'greeting')
         invoke(poetry_project,'inspect','dist')
         pyproject=poetry_project/'pyproject.toml'
         pyproject.write_text(pyproject.read_text().replace('dependencies = []','dependencies = ["packaging==24.2"]'))
