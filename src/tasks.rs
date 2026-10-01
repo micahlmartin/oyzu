@@ -124,6 +124,12 @@ pub fn execute(task: &Task, args: &[String]) -> Result<Outcome> {
     }
     // Development task execution is explicit; it is never represented as a hermetic build.
     let mut argv = task.argv.clone();
+    for builder in crate::builders::all() {
+        if let Some(native) = builder.development_argv(task)? {
+            argv = native;
+            break;
+        }
+    }
     if !args.is_empty() && argv.iter().any(|s| s == "-c" || s == "-Command") {
         bail!("shell task arguments require an argv task definition");
     }

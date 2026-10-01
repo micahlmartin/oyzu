@@ -60,6 +60,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.24.13'
+          cache: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: oyzu-${{ matrix.os }}
@@ -79,9 +83,11 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/vitest
           python tooling/test-vitest-reporting.py --node-modules tooling/fixtures/vitest/node_modules
           if [ "$RUNNER_OS" = "Windows" ]; then
+            python tooling/test-go-metadata.py --cli cli/oyzu.exe
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
           else
             chmod +x cli/oyzu
+            python3 tooling/test-go-metadata.py --cli cli/oyzu
             python3 tooling/test-task-scenarios.py --cli cli/oyzu
           fi
 

@@ -33,7 +33,13 @@ src/
       planning.rs             # Python commands and artifact/report intent
       runtime/adapter.py      # Embedded native Python adapter
       runtime/reporting.py    # Installed-distribution pytest/coverage integration
-    go/                       # Discovery and Go planning
+    go/
+      mod.rs                  # Go descriptor and static implicit tasks
+      development.rs          # Native workspace argument expansion only on explicit task run
+      metadata.rs             # Typed portable native facts and validation
+      preparation.rs          # Shared isolated capture, toolchain and compiler evidence
+      planning.rs             # Workspace checks and named snapshot binary artifacts
+      runtime/metadata.go     # Native Go manifest/package inspection without running project code
     rust/
       mod.rs                  # Cargo descriptor, discovery and interface implementation
       metadata.rs             # Typed native workspace metadata and version projection

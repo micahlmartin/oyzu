@@ -24,11 +24,7 @@ fn platform(image: &executor::Image) -> Value {
 pub(super) fn target_order(workspace: &Workspace) -> Result<Vec<String>> {
     let configs = config::targets(&workspace.root)?.unwrap_or_default();
     for (id, c) in &configs {
-        if !c.matrix.is_empty()
-            || c.platform.is_some()
-            || c.container.is_some()
-            || c.bindings.is_some()
-        {
+        if !c.matrix.is_empty() || c.container.is_some() || c.bindings.is_some() {
             bail!("{id}: platform expansion and packaging options are not implemented yet");
         }
     }
@@ -103,6 +99,12 @@ pub(super) fn plan_with_dependencies(
         let image = images
             .get(&id)
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
+        if let Some(required) = configs.get(&id).and_then(|c| c.platform.as_ref()) {
+            let actual = format!("{}/{}", image.os, image.arch);
+            if required != &actual {
+                bail!("{id}: required platform {required} does not match resolved toolchain {actual}; cross-platform execution is not implemented yet");
+            }
+        }
         let builder = builders::get(&target.builder)?;
         let intent = builder.plan(builders::PlanningContext {
             target,
@@ -210,6 +212,11 @@ pub(super) fn plan_with_dependencies(
                     env.extend(reports.env);
                 }
                 env.extend(bindings.env);
+                for (name, value) in &intent.fixed_env {
+                    if env.get(name) != Some(value) {
+                        bail!("{step}: {name} must remain {value} for the captured builder capability");
+                    }
+                }
                 let instrumented = contract
                     .filter(|_| native.is_none())
                     .and_then(|_| builder.instrument_override(target, task, &env));
@@ -329,4 +336,95 @@ pub(super) fn resolve_images(
         );
     }
     Ok(images)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    #[test]
+    fn unknown_go_override_requires_files_instead_of_interpreting_arbitrary_stdout() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("go.mod"),
+            "module example.test/demo\n\ngo 1.24\n",
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("main.go"),
+            "package main\nfunc main() {}\n",
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("oyzu.toml"),
+            "[tasks.\"project:test\"]\nargv=['custom-test']\n",
+        )
+        .unwrap();
+        let capture = tempfile::tempdir().unwrap();
+        let source = snapshot::capture(root.path(), &capture.path().join("source")).unwrap();
+        let workspace =
+            crate::discovery::discover_with_shell(&capture.path().join("source"), Some("sh"))
+                .unwrap();
+        let image = executor::Image {
+            reference: "go:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        };
+        let metadata = json!({"version":"go1.24","os":"linux","arch":"amd64","patterns":["./..."],"modules":["."],"binaries":[{"name":"demo","package":"example.test/demo","directory":"."}],"cgo":false});
+        let mut dependency = dependencies::Prepared {
+            root: capture.path().into(),
+            digest: format!("sha256:{}", "2".repeat(64)),
+            record: json!({"extensions":{"oyzu.dev/go-metadata":metadata}}),
+        };
+        let plan = plan_with_dependencies(
+            &workspace,
+            &source,
+            &BTreeMap::from([("project".into(), image.clone())]),
+            &BTreeMap::from([(
+                "project".into(),
+                dependencies::Prepared {
+                    root: dependency.root.clone(),
+                    digest: dependency.digest.clone(),
+                    record: dependency.record.clone(),
+                },
+            )]),
+        )
+        .unwrap();
+        let task = plan["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["id"] == "project:test")
+            .unwrap();
+        assert_eq!(task["argv"], json!(["custom-test"]));
+        assert_eq!(task["reports"].as_array().unwrap().len(), 2);
+        assert_eq!(
+            task["extensions"]["oyzu.dev/report-sources"]["project:test"],
+            "file"
+        );
+        // Captured native compiler facts survive root TOML environment overrides.
+        dependency.record["extensions"]["oyzu.dev/go-metadata"]["cgo"] = json!(true);
+        dependency.record["extensions"]["oyzu.dev/go-metadata"]["compiler"] = json!("gcc 12");
+        dependency.record["extensions"]["oyzu.dev/go-metadata"]["compilerTarget"] =
+            json!("x86_64-linux-gnu");
+        fs::write(
+            capture.path().join("source/oyzu.toml"),
+            "[env]\nCGO_ENABLED='0'\n",
+        )
+        .unwrap();
+        let workspace =
+            crate::discovery::discover_with_shell(&capture.path().join("source"), Some("sh"))
+                .unwrap();
+        let failure = plan_with_dependencies(
+            &workspace,
+            &source,
+            &BTreeMap::from([("project".into(), image)]),
+            &BTreeMap::from([("project".into(), dependency)]),
+        );
+        assert!(failure
+            .unwrap_err()
+            .to_string()
+            .contains("CGO_ENABLED must remain 1"));
+    }
 }
