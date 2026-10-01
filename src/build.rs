@@ -102,7 +102,10 @@ fn plan_with_dependencies(
     let mut emitted = BTreeSet::new();
     for id in target_order(workspace)? {
         let target = &workspace.targets[&id];
-        if !matches!(target.manager.as_str(), "npm" | "go" | "pip" | "uv") {
+        if !matches!(
+            target.manager.as_str(),
+            "npm" | "go" | "pip" | "uv" | "poetry"
+        ) {
             bail!(
                 "{id}: {} build integration is not yet implemented",
                 target.manager
@@ -112,7 +115,7 @@ fn plan_with_dependencies(
             .get(&id)
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
         let cwd = relative(&workspace.root, &target.path)?;
-        let version = if matches!(target.manager.as_str(), "pip" | "uv") {
+        let version = if matches!(target.manager.as_str(), "pip" | "uv" | "poetry") {
             format!(
                 "{}.dev0+g{}",
                 target.version.split('+').next().unwrap_or("0.0.0"),
@@ -138,7 +141,7 @@ fn plan_with_dependencies(
         } else {
             None
         };
-        let python_project = if matches!(target.manager.as_str(), "pip" | "uv") {
+        let python_project = if matches!(target.manager.as_str(), "pip" | "uv" | "poetry") {
             Some(toml::from_str::<toml::Value>(&fs::read_to_string(
                 target.path.join("pyproject.toml"),
             )?)?)
@@ -255,7 +258,7 @@ fn plan_with_dependencies(
                 if task.provider == "go" && stage == "build" && step == task_id {
                     argv = strings(&["go", "build", "-trimpath", "-o", ".oyzu-build/app", "."]);
                 }
-                if matches!(task.provider.as_str(), "pip" | "uv") && step == task_id {
+                if matches!(task.provider.as_str(), "pip" | "uv" | "poetry") && step == task_id {
                     if stage == "build" {
                         argv = strings(&["python", "-I", "/oyzu/python.py", "build"]);
                     }
@@ -300,7 +303,7 @@ fn plan_with_dependencies(
                     }
                 }
                 if python_project.is_some()
-                    && matches!(task.provider.as_str(), "pip" | "uv")
+                    && matches!(task.provider.as_str(), "pip" | "uv" | "poetry")
                     && task.argv.first().is_some_and(|v| v == "ruff")
                 {
                     argv[0] = ".oyzu-build/venv/bin/ruff".into();
@@ -321,17 +324,19 @@ fn plan_with_dependencies(
                 if stage == "test"
                     && step == task_id
                     && (task.provider == "go"
-                        || matches!(task.provider.as_str(), "pip" | "uv")
+                        || matches!(task.provider.as_str(), "pip" | "uv" | "poetry")
                         || node_test)
                 {
-                    let coverage_format = if matches!(task.provider.as_str(), "pip" | "uv") {
-                        "cobertura"
-                    } else if node_test {
-                        "lcov"
-                    } else {
-                        "go-cover"
-                    };
-                    let coverage_file = if matches!(task.provider.as_str(), "pip" | "uv") {
+                    let coverage_format =
+                        if matches!(task.provider.as_str(), "pip" | "uv" | "poetry") {
+                            "cobertura"
+                        } else if node_test {
+                            "lcov"
+                        } else {
+                            "go-cover"
+                        };
+                    let coverage_file = if matches!(task.provider.as_str(), "pip" | "uv" | "poetry")
+                    {
                         "coverage.xml"
                     } else if node_test {
                         "coverage.lcov"
@@ -496,6 +501,7 @@ fn resolve_images(
         ("go".to_string(), GO_IMAGE.to_string()),
         ("pip".to_string(), acquisition::PYTHON_IMAGE.to_string()),
         ("uv".to_string(), acquisition::UV_IMAGE.to_string()),
+        ("poetry".to_string(), acquisition::POETRY_IMAGE.to_string()),
     ]);
     for value in overrides {
         let (manager, reference) = value
@@ -816,7 +822,7 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
         let resolved = resolve_images(&workspace, images)?;
         let mut dependencies = BTreeMap::new();
         for (id, target) in &workspace.targets {
-            if matches!(target.manager.as_str(), "pip" | "uv") {
+            if matches!(target.manager.as_str(), "pip" | "uv" | "poetry") {
                 eprintln!("{id}: acquire Python dependency closure");
                 let prepared = acquisition::python(
                     &target.path,

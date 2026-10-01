@@ -11,6 +11,7 @@ use std::{
 
 pub const PYTHON_IMAGE: &str = "python:3.12-slim-bookworm";
 pub const UV_IMAGE: &str = "ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim";
+pub const POETRY_IMAGE: &str = "oyzu-toolchain/poetry:2.5.1-python3.12";
 pub const PYTHON_HELPER: &str = include_str!("helpers/python.py");
 
 pub struct Prepared {
@@ -100,7 +101,7 @@ pub fn python(
         Ok(json!({"id":p["id"],"name":p["name"],"version":p["version"],"sourceId":"pypi","digest":snapshot::file_digest(&path)?,"size":info.len(),"purpose":p["purpose"],"dependencies":p["dependencies"],"verification":"digest-only"}))
     }).collect::<Result<_>>()?;
     let platform = json!({"os":image.os,"arch":image.arch,"runtime":metadata["python"]});
-    let lock_digests = ["uv.lock", "requirements.txt"]
+    let lock_digests = ["uv.lock", "poetry.lock", "requirements.txt"]
         .iter()
         .filter_map(|file| root.join(file).is_file().then_some(root.join(file)))
         .map(|file| snapshot::file_digest(&file))

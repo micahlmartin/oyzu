@@ -226,7 +226,29 @@ def test_acquired_dependency_and_offline_boundary():
         assert stale['status']=='failed' and stale['planDigest'] is None
         verified.append('uv: native locked export, hash-checked wheel closure, native build/test wrappers and stale-lock rejection')
 
-    print(json.dumps({"verified":verified,"scope":"initial Node/npm, Go and Python/pip builds; full builder catalog remains pending"},indent=2))
+        poetry_project=base / 'python-poetry'
+        shutil.copytree(ROOT / 'examples/builds/python-poetry/project',poetry_project)
+        poetry_before=source_files(poetry_project)
+        invoke(poetry_project,'build')
+        poetry_manifest=validate(poetry_project/'dist')
+        assert source_files(poetry_project)==poetry_before
+        poetry_dependencies=json.loads((poetry_project/'dist/dependencies/project.json').read_text())
+        Draft202012Validator(schema).validate(poetry_dependencies)
+        assert poetry_dependencies['manager']['id']=='poetry'
+        assert digest(poetry_project/'poetry.lock') in poetry_dependencies['lockDigests']
+        assert any(p['name']=='poetry-core' and p['version']=='2.2.1' for p in poetry_dependencies['packages'])
+        assert next(r for r in poetry_manifest['reports'] if r['kind']=='test')['summary']['passed']>0
+        assert {a['name'] for a in poetry_manifest['artifacts']}=={'wheel','sdist'}
+        invoke(poetry_project,'inspect','dist')
+        pyproject=poetry_project/'pyproject.toml'
+        pyproject.write_text(pyproject.read_text().replace('dependencies = []','dependencies = ["packaging==24.2"]'))
+        invoke(poetry_project,'build',success=False)
+        stale=validate(poetry_project/'dist')
+        assert stale['status']=='failed' and stale['planDigest'] is None
+        assert 'stale' in stale['diagnostics'][0]['message'].lower()
+        verified.append('Poetry: native lock freshness/export, captured poetry-core backend, snapshot wheel/sdist and unittest results through pytest')
+
+    print(json.dumps({"verified":verified,"scope":"initial Node/npm, Go and Python manager builds; full builder catalog remains pending"},indent=2))
 
 
 if __name__ == "__main__":

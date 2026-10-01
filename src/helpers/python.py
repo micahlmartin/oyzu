@@ -138,28 +138,51 @@ class Bridge(BaseHTTPRequestHandler):
         (root/(request_id+'.body')).unlink()
 
 
-def acquire():
-    requirements,purposes=requirement_lines()
-    manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
-    constraint_args=[]
+def locked_export(manager, destination):
+    """Use native lock semantics without loading project-supplied plugins."""
     if manager=='uv':
         lock=tomllib.loads(Path('uv.lock').read_text())
         for package in lock.get('package',[]):
             registry=package.get('source',{}).get('registry')
             if registry and registry.rstrip('/')!='https://pypi.org/simple':
                 raise ValueError('uv lock references an unconfigured source')
-        run(['uv','export','--locked','--offline','--no-python-downloads','--no-managed-python','--python',sys.executable,'--no-emit-project','--format','requirements-txt','--output-file','/out/uv-export.txt'],stdout=subprocess.DEVNULL)
+        run(['uv','export','--locked','--offline','--no-python-downloads','--no-managed-python','--python',sys.executable,'--no-emit-project','--format','requirements-txt','--output-file',str(destination)],stdout=subprocess.DEVNULL)
+    elif manager=='poetry':
+        from cleo.io.null_io import NullIO
+        from poetry.factory import Factory
+        from poetry_plugin_export.exporter import Exporter
+        lock=tomllib.loads(Path('poetry.lock').read_text())
+        if project().get('tool',{}).get('poetry',{}).get('source'):
+            raise ValueError('Poetry project references an unconfigured source')
+        if any(package.get('source') for package in lock.get('package',[])):
+            raise ValueError('Poetry lock references an unconfigured source')
+        poetry=Factory().create_poetry(Path.cwd(),disable_plugins=True,disable_cache=True)
+        if not poetry.locker.is_locked() or not poetry.locker.is_fresh():
+            raise ValueError('Poetry lock is missing or stale; update it with poetry lock')
+        groups=poetry.package.dependency_group_names(include_optional=False)
+        Exporter(poetry,NullIO()).only_groups(groups).with_urls(False).export('requirements.txt',destination.parent,destination.name)
+
+
+def acquire():
+    requirements,purposes=requirement_lines()
+    manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
+    constraint_args=[]
+    export=Path('/out')/(manager+'-export.txt')
+    if manager in {'uv','poetry'}:
+        locked_export(manager,export)
         from pip._vendor.packaging.requirements import Requirement
         constraints=[]
-        for line in Path('/out/uv-export.txt').read_text().replace('\\\n',' ').splitlines():
+        for line in export.read_text().replace('\\\n',' ').splitlines():
             line=line.strip()
             if not line or line.startswith('#'):
                 continue
             declaration=line.split(' --hash=',1)[0].strip()
             parsed=Requirement(declaration)
             if parsed.url or parsed.extras:
-                raise ValueError('Unsupported uv locked source form')
+                raise ValueError('Unsupported locked source form')
             constraints.append(declaration)
+            # Include native groups, including legacy Poetry requirements, as roots.
+            requirements.append(declaration)
         Path('/out/constraints.txt').write_text('\n'.join(constraints)+'\n')
         constraint_args=['-c','/out/constraints.txt']
     server=ThreadingHTTPServer(('127.0.0.1',0),Bridge)
@@ -168,8 +191,8 @@ def acquire():
     Path('/out/wheels').mkdir()
     args=[sys.executable,'-I','-m','pip','--isolated','download','--only-binary=:all:','--no-cache-dir','--disable-pip-version-check','--dest','/out/wheels','--index-url',index,'--trusted-host','127.0.0.1']
     run(args+constraint_args+requirements)
-    if manager=='uv':
-        run(args+['--no-deps','-r','/out/uv-export.txt'])
+    if manager in {'uv','poetry'}:
+        run(args+['--no-deps','--require-hashes','-r',str(export)])
     if Path('requirements.txt').exists():
         run(args+['--no-deps','-r','requirements.txt'])
     server.shutdown()
@@ -236,7 +259,14 @@ def inventory(purposes, roots):
                     changed=True
     for package in packages.values():
         package['dependencies'].sort()
-    manager_version=subprocess.check_output(['uv','--version'],text=True).strip().split()[1] if os.environ.get('OYZU_PYTHON_MANAGER')=='uv' else pip.__version__
+    manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
+    if manager=='uv':
+        manager_version=subprocess.check_output(['uv','--version'],text=True).strip().split()[1]
+    elif manager=='poetry':
+        from importlib.metadata import version
+        manager_version=version('poetry')
+    else:
+        manager_version=pip.__version__
     Path('/out/packages.json').write_text(json.dumps({'packages':list(packages.values()),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
 
 
