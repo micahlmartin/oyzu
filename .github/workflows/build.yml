@@ -100,6 +100,7 @@ jobs:
           docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile tooling/images
           docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile tooling/images
           docker build --tag oyzu-toolchain/maven:3.9.11-jdk17 --file tooling/images/maven.Dockerfile .
+          docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile tooling/images
           python3 -m venv .ci-python
           .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
           .ci-python/bin/python -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
@@ -111,6 +112,7 @@ jobs:
           .ci-python/bin/python tooling/test-helm-archive.py
           .ci-python/bin/python tooling/test-ant-adapter.py
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/maven:3.9.11-jdk17 tooling/test-maven-metadata.py --maven-home /opt/maven --java-home /opt/java/openjdk
+          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/gradle:8.14.3-jdk17 tooling/test-gradle-metadata.py --gradle-home /opt/gradle-8.14.3 --java-home /opt/java/openjdk
           .ci-python/bin/python tooling/test-build-scenarios.py --cli cli/oyzu --evidence-dir build-evidence
       - name: Retain native snapshot artifacts and failure evidence
         if: always()

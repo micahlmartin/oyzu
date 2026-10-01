@@ -36,6 +36,7 @@ src/
       maven/preparation.rs    # Scoped native repository capture and POM overlay
       maven/planning.rs       # One native lifecycle with module artifact/report identities
       maven/runtime/          # Maven core metadata extension and native acquisition/lifecycle adapter
+      gradle/runtime/metadata.gradle # Native composite-build metadata (build integration pending)
       ant/metadata.rs         # Typed native Ant output metadata and containment
       ant/preparation.rs      # Sandboxed native project evaluation
       ant/planning.rs         # Compile/check/archive intent and versioned JARs

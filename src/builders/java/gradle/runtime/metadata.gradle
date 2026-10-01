@@ -1,0 +1,55 @@
+import groovy.json.JsonOutput
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
+import org.gradle.api.tasks.testing.Test
+
+// Executed by Gradle inside captured source. Native models own project membership,
+// included builds, task types, interpolation, and archive/report destinations.
+def workspace = new File(System.getenv('OYZU_GRADLE_WORKSPACE')).canonicalFile.toPath()
+def destination = new File(System.getenv('OYZU_GRADLE_METADATA'))
+def relative = { File file ->
+    def path = file.canonicalFile.toPath()
+    if (!path.startsWith(workspace)) {
+        throw new GradleException("Gradle path is outside captured source: ${file}")
+    }
+    def value = workspace.relativize(path).toString().replace(File.separatorChar, '/' as char)
+    value.isEmpty() ? '.' : value
+}
+
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    def buildPath = relative(root.projectDir)
+    def included = gradle.includedBuilds.collect { build ->
+        [name: build.name, path: relative(build.projectDir)]
+    }.sort { it.path }
+    def name = 'oyzuCollectMetadata'
+    if (root.tasks.findByName(name) != null) {
+        throw new GradleException("Reserved native adapter task already exists: ${name}")
+    }
+    root.tasks.register(name) {
+        // Included builds are separate native models; ask each model to export
+        // itself instead of scanning settings/build scripts or flattening them.
+        dependsOn(gradle.includedBuilds.collect { it.task(":${name}") })
+        doLast {
+            def projects = root.allprojects.collect { project ->
+                def archives = project.tasks.withType(AbstractArchiveTask).findAll { it.enabled }.collect { task ->
+                    [task: task.path, file: relative(task.archiveFile.get().asFile),
+                     extension: task.archiveExtension.get(), classifier: task.archiveClassifier.get(),
+                     version: task.archiveVersion.getOrElse('')]
+                }.sort { it.task }
+                def tests = project.tasks.withType(Test).findAll { it.enabled }.collect { task ->
+                    [task: task.path, junit: relative(task.reports.junitXml.outputLocation.get().asFile),
+                     junitEnabled: task.reports.junitXml.required.get()]
+                }.sort { it.task }
+                [path: project.path, directory: relative(project.projectDir),
+                 buildDirectory: relative(project.layout.buildDirectory.get().asFile),
+                 name: project.name, group: project.group.toString(), version: project.version.toString(),
+                 tasks: project.tasks.names.toList().sort(), archives: archives, tests: tests]
+            }.sort { it.path }
+            def document = [schemaVersion: 1, gradleVersion: gradle.gradleVersion,
+                            directory: buildPath, included: included, projects: projects]
+            destination.mkdirs()
+            def identity = buildPath.getBytes('UTF-8').encodeHex().toString()
+            new File(destination, "${identity}.json").setText(JsonOutput.toJson(document) + '\n', 'UTF-8')
+        }
+    }
+}
