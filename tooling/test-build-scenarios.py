@@ -48,12 +48,29 @@ def validate(bundle):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--cli", type=Path, required=True)
+    parser.add_argument("--evidence-dir", type=Path, help="Retain generated bundles for CI review")
     args = parser.parse_args()
     cli = args.cli.resolve()
     verified = []
+    evidence = args.evidence_dir.resolve() if args.evidence_dir else None
+    if evidence:
+        evidence.mkdir(parents=True, exist_ok=False)
+    invocation = 0
 
     def invoke(root, *command, success=True):
+        nonlocal invocation
         result = subprocess.run([str(cli), "-C", str(root), *command], capture_output=True, text=True, timeout=900)
+        if evidence and command == ('build',):
+            invocation += 1
+            destination = evidence / f'{invocation:02d}-{root.name}'
+            destination.mkdir()
+            if (root / 'dist').is_dir():
+                shutil.copytree(root / 'dist', destination / 'dist')
+            (destination / 'invocation.json').write_text(json.dumps({
+                'command': ['oyzu', *command], 'expectedSuccess': success,
+                'exitCode': result.returncode, 'stdout': result.stdout,
+                'stderr': result.stderr,
+            }, indent=2))
         if (result.returncode == 0) != success:
             logs = ""
             for p in (root / "dist/logs").glob("*"):
@@ -248,7 +265,10 @@ def test_acquired_dependency_and_offline_boundary():
         assert 'stale' in stale['diagnostics'][0]['message'].lower()
         verified.append('Poetry: native lock freshness/export, captured poetry-core backend, snapshot wheel/sdist and unittest results through pytest')
 
-    print(json.dumps({"verified":verified,"scope":"initial Node/npm, Go and Python manager builds; full builder catalog remains pending"},indent=2))
+    summary={"verified":verified,"scope":"initial Node/npm, Go and Python manager builds; full builder catalog remains pending"}
+    if evidence:
+        (evidence/'summary.json').write_text(json.dumps(summary,indent=2))
+    print(json.dumps(summary,indent=2))
 
 
 if __name__ == "__main__":

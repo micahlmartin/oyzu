@@ -21,10 +21,10 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 | Requirement | State |
 | --- | --- |
 | Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Captured source, serial plans and initial Node/npm and Go build command; graph/platform expansion pending |
-| Dependency preparation and private-registry credential isolation for every native manager | Pending |
+| Dependency preparation and private-registry credential isolation for every native manager | Initial public Python wheel acquisition and broker boundary tests; all-manager/private-source integration pending |
 | Capability-enforced executor, cancellation/process containment and offline build actions | Docker offline executor integrated; full boundary/cancellation verification pending |
-| Build/test/lint/read-only formatting orchestration with native ownership and reports | Initial Node/npm and Go orchestration; other builder integrations pending |
-| Native snapshot version projection and verified dist artifacts/manifests, including failures | Initial Node packages and Go binaries; Linux CI verification added |
+| Build/test/lint/read-only formatting orchestration with native ownership and reports | Node/npm and Go verified in Linux CI; Python/pip, uv and Poetry integration under native verification |
+| Native snapshot version projection and verified dist artifacts/manifests, including failures | Node packages and Go binaries verified; Python wheel/source archive checks added |
 | Container convenience packaging, Dockerfile contexts/materialization, multi-platform outputs | Discovery only |
 | Helm dependency capture, chart output and image digest bindings | Discovery only |
 | Java multi-module, Go workspace/cgo, Rust features, Node workspaces and all Python variants | Discovery only; native build integration pending |
@@ -39,7 +39,7 @@ The implementation must not read scenario expectation JSON as instructions for m
 
 Initial executor and report helpers are also checked in as foundations for OEP-0007 and OEP-0012. The Docker helper requires a provisioned Linux image, resolves its identity, disables container networking and mounts only supplied workspace/output directories. JUnit, Go test-event conversion and LCOV/Go coverage summaries have focused parser tests. Both helpers are now wired into the initial `oyzu build` command. Container execution, cancellation, mount containment and complete report validation still require further acceptance verification; compilation and parser tests do not establish those guarantees.
 
-The initial Node/Go source-to-snapshot path has passed Linux CI. Next add dependency preparation and expand the same engine across Python and the other managers. Keep committing incremental verified changes.
+The initial Node/Go source-to-snapshot path has passed Linux CI. Python dependency preparation and packaging are now integrated; next establish native CI evidence and expand the same engine across the remaining managers. Keep committing incremental verified changes.
 
 ## Checkpoint 2: captured-source primitive
 
@@ -80,3 +80,5 @@ The uv profile uses the pre-provisioned `ghcr.io/astral-sh/uv:0.12.21-python3.12
 Initial Python CI exposed vendored metadata inside the setuptools wheel. The adapter now selects only top-level distribution metadata and checks its name/version against the wheel filename; focused tests also reject absent, duplicate and inconsistent identities. The first uv CI attempt exposed an unavailable Bookworm image tag; the Trixie tag above was verified against the upstream registry. Full Python build verification remains pending until the corrected native CI cases pass.
 
 The initial Poetry path uses native Poetry lock freshness checks and the provisioned export plugin with project plugin loading disabled. The locked export supplies exact constraints and required hashes for wheel acquisition. Offline packaging invokes the project's captured PEP 517 backend (including the source-pinned `poetry-core` version), rather than substituting the frontend's own backend version. CI explicitly provisions the toolchain from `tooling/images/python-poetry.Dockerfile`; builds never install Poetry on demand. The added native case checks artifacts, captured backend identity, unittest results collected by pytest and rejection of a stale lock. Custom sources and non-PEP-621 project metadata remain outstanding.
+
+The scenario harness can retain each generated bundle with `--evidence-dir`. CI uploads these as `oyzu-build-evidence`, including failed builds and their invocation exit codes. A summary is written only after all currently implemented checks pass; individual artifacts are evidence for their particular invocation, not an assertion that the entire scenario catalog passed.

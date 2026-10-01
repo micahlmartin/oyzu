@@ -86,4 +86,12 @@ jobs:
         run: |
           chmod +x cli/oyzu
           python3 tooling/test-python-adapter.py
-          python3 tooling/test-build-scenarios.py --cli cli/oyzu
+          python3 tooling/test-build-scenarios.py --cli cli/oyzu --evidence-dir build-evidence
+      - name: Retain native snapshot artifacts and failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oyzu-build-evidence
+          path: build-evidence
+          if-no-files-found: ignore
+          retention-days: 14
