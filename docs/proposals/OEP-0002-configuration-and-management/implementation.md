@@ -1,39 +1,123 @@
-# Build configuration implementation contract
+# Configuration resolution implementation contract
 
-Status: proposed v1alpha1. This document selects initial semantics so implementation does not need to invent them. Existing agreed minimal syntax is preserved.
+Status: proposed v1alpha1; companion to [OEP-0002](README.md).
 
-## Boundaries and precedence
+## Ownership and typed interfaces
 
-Read protected management indicators first. Establish the nearest Git worktree root; outside Git, use an explicit `--root`, otherwise the invocation directory. Never walk above that boundary. A symlinked invocation directory is resolved before boundary selection. Root `build.yaml` defines the build inventory; nested `oyzu.toml` affects only targets inside its subtree. Nested build.yaml is an error with the supported root path, not silently merged configuration. Repository submodules are separate source imports and are not automatically traversed.
+The shared configuration component separates `sources`, `registry`, `profiles`, `merge`, `constraints`, `compatibility`, `resolve`, `explain`, and `edit`. These are responsibilities, not a requirement for one crate per module. CLI, agent and optional desktop consume the same resolver. Builders register typed setting descriptors and consume resolved values; they must not independently search home directories or reinterpret policy.
 
-User defaults live in the OS application configuration directory under `oyzu/config.toml`. A project cannot redirect that directory or management records. Resolution is builtin defaults → managed defaults → user defaults → root-to-target TOML → eligible local overrides → CLI requests. Mandatory managed constraints validate the result independently. Managed defaults intended to be immutable must be expressed as constraints. Global tools never satisfy a locked build requirement merely by appearing first on PATH.
+Core Rust interfaces use owned, immutable records: `ConfigSource` (scope, identity, parsed syntax and digest), `SettingDefinition` (see [registry](settings.md)), `RequestedConfig`, `EffectiveConfig`, and `ResolutionReport`. `resolve(sources, registry, context, selection, constraints)` returns an effective snapshot or structured diagnostics. Origins include source, key span, scope, profile, replacement/removal history, and contributing constraint IDs. A `VerifiedPolicySnapshot` can only be constructed by the verification component. Parsing an ordinary JSON object cannot construct one. Filesystem and clock access sit behind testable adapters.
 
-Tables merge recursively; arrays/scalars replace; a task replaces as one unit. Unknown keys, duplicate keys and conflicting scalar/table types fail at their source location. YAML uses the JSON-compatible scalar subset: reject custom tags, merge keys and aliases. Limit each config file to 1 MiB, nesting to 32 and total effective target count to 1,024 before expansion. Paths use repository-relative forward-slash spelling; `.` is the root. Reject absolute paths, parent escapes, Windows drive prefixes, reserved device names and portable case collisions before selecting an executor.
+## Locations and protection
 
-`oyzu.local.toml` participates in ordinary local development and local builds; its nonsecret semantic values and source digest are captured. All detected CI contexts ignore it by default, even if workload identity is not verified. A caller can request local settings but managed CI must expressly permit that request. No local setting can weaken enforced policy. A bare `CI=true` can restrict behavior but cannot grant privilege.
+| OS | Machine directory | User configuration | User state |
+| --- | --- | --- | --- |
+| Windows | Native ProgramData known folder plus `Oyzu` | Native RoamingAppData plus `Oyzu/config.toml` | Native LocalAppData plus `Oyzu/state` |
+| macOS | `/Library/Application Support/Oyzu` | `~/Library/Application Support/Oyzu/config.toml` | `~/Library/Application Support/Oyzu/state` |
+| Linux | `/etc/oyzu` | `$XDG_CONFIG_HOME/oyzu/config.toml`, otherwise `~/.config/oyzu/config.toml` | `$XDG_STATE_HOME/oyzu`, otherwise `~/.local/state/oyzu` |
 
-## Target configuration
+The machine directory contains optional `config.toml`, `admin-settings.json`, and `management.json`. Use native Windows known-folder APIs rather than trusting environment variables for protected paths. Linux user XDG paths must be absolute; invalid values produce a diagnostic and use the standard user fallback. Project configuration cannot relocate any of these roots.
 
-The root YAML is a map from target name to target object, without a mandatory version/header. Target names match `[A-Za-z][A-Za-z0-9_-]{0,63}`; reject portable case collisions. Core fields are `uses`, `path`, `depends_on`, `materialize`, `platform`, `matrix`, `container` and `bindings`. `uses` is required for an explicit target. Builder-specific fields must be registered, versioned and validated; there is no freeform bag of silently ignored properties. The draft [build schema](../../contracts/v1alpha1/build.schema.json) defines shapes; semantic checks enforce meaning.
+Unix administrative files and relevant parent directories must be root-owned and not writable by ordinary users. Windows ACL validation must exclude ordinary-user write, replacement, ownership and parent deletion rights; a read-only file attribute is insufficient. Reject links/reparse redirection for administrative files and revalidate the opened handle against the checked identity. An unreadable or insecure existing protected record is an error, never equivalent to absence. Administrative provisioning and removal require OS administrative access; ordinary CLI settings cannot change enrollment. No custom device certificate is required.
 
-`path` defaults to `.`. Multiple explicit targets may share a source path when their builders differ; two targets claiming the same native build ownership unit are rejected. When root YAML exists its explicit targets are the selected inventory; native submodules and dependencies are still discovered under each owner. Do not also add a competing zero-config root target. No YAML means discover conventional project roots, excluding VCS internals, dependency/cache/output directories and vendor trees identified by the native manager.
+## Workspace and source discovery
 
-`depends_on` adds ordering only. It never mounts another target's files. `materialize` selects captured outputs and creates data dependencies. `bindings` selects typed artifact metadata, initially only Helm image digest binding described in OEP-0018. Both are finite records, not expressions. There are no includes, template evaluation, conditionals or user-defined operators.
+Resolve invocation paths before discovery. Use explicit `--root` when supplied, otherwise the nearest Git worktree root, otherwise the invocation directory. The explicit root must contain the selected targets and cannot redirect protected sources. Never ascend beyond it. Submodules are separate imports, not implicit configuration parents.
 
-`platform` and `matrix.platform` are mutually exclusive. Additional matrix keys initially are python, node, go, rust and java, each an array of exact locked tool versions, with at most one language axis appropriate to the builder. Duplicate values fail. Cartesian expansion has at most 64 variants per target and 4,096 actions per plan by default; explicit invocation limits may raise these up to administrative caps. Enforce before acquisition. Unknown axes fail. List ordering does not influence variant identity.
+Read project files from root to each selected target. Normal files form one pass, then eligible `oyzu.local.toml` files form another root-to-target pass. Thus a root local override wins over a nested committed value. Each target receives its own scoped snapshot; nested settings cannot affect siblings. Invocation-wide settings are accepted only at root or broader scopes.
 
-## Tools, tasks and environment
+Root `build.yaml` owns explicit target inventory; nested build files are rejected when encountered for a selected target. Without YAML, discover conventional projects while excluding VCS, output, dependency, cache and native vendor directories. With YAML, do not add a competing implicit root target. Distinct builders may share a path, but two targets cannot own the same native build unit.
 
-Existing `[tools]`, `[env]` and `[tasks]` tables remain. Build-related cache fields are `cache.remote` (OCI URI), `cache.read` (boolean, default true) and `cache.write` (boolean, default false for a remote). Local action caching defaults on. Managed policy supplies equivalent effective settings. No cache-key, restore-path or save-step configuration is exposed.
+Relative configuration paths are relative to their declaring file, then normalized. Project execution/input paths must remain inside the permitted workspace/import boundary. Host-local cache locations are separately typed host preferences and cannot become undeclared build inputs. Portable artifact paths reject absolute paths, parent escapes, drive prefixes, reserved device names and case collisions.
 
-Environment values are literal strings. No shell evaluation occurs on read. Builder-required nonsecret environment is merged explicitly; reserved authentication/management variables cannot be replaced by project configuration. Ambient environment is excluded except a documented executor bootstrap allowlist (OS process necessities), which is separated from the action environment. Secrets belong to broker handles, never `[env]` for builds. Do not dump environment values in diagnostics; origin inspection redacts sensitive settings.
+## Resolution algorithm
 
-Task fields and platform-specific command behavior are fully specified in [OEP-0005 implementation](../OEP-0005-tasks-and-hooks/implementation.md). A build override's inputs, dependencies and report requirements are validated before execution. Do not interpret a TOML task called preflight as permission to replace engine guards.
+1. Inspect protected records before reading ordinary overrides or deciding whether login is needed. Obtain a verified applicable corporate snapshot when enrolled.
+2. Capture source bytes, invocation arguments, detected context and registry definitions. Check parser/resource limits and duplicate keys.
+3. Validate known types and legal scopes, retaining unknown optional syntax for diagnostics and edits. Validate required capabilities for participating sources.
+4. Select one profile using [profile rules](profiles.md). Exclude ineligible sources before parsing their content; record the exclusion reason.
+5. In precedence order apply base removals, base values, selected-profile removals, then selected-profile values. A single overlay cannot remove and assign the same key.
+6. Merge values and origin history. Collect administrative constraints independently; never replace constraints through ordinary merging.
+7. Intersect applicable constraints, diagnose inconsistent policies, and validate final requested values. Reject violations; do not silently clamp or silently substitute a permitted value.
+8. Validate native tool requirements, locked identities, task contracts and required reports. Resolve secret references only for an authorized consumer, not while parsing.
+9. Freeze the effective configuration and nonsecret provenance for planning. The executor receives that snapshot, not paths to reread opportunistically.
 
-## Validation, evolution and verification
+Missing settings inherit. Scalars and arrays replace; empty arrays intentionally replace with empty arrays. Tables merge by registered keys. Task definitions and secret-reference objects replace atomically. Types cannot change through layering. Built-in defaults are applied before every other layer.
 
-Validate syntax, resolve origins, validate native ownership, then enforce policy. Errors identify file/line, field, target and a remedy without disclosing tokens. `oyzu config explain --json` emits value origins and redacted restrictions; it is not a credential export API. CI receives deterministic noninteractive diagnostics instead of prompts.
+For deliberate removal:
 
-The implicit file dialect is initially v1alpha1 tied to the CLI compatibility range. Unknown fields fail, so newer configuration cannot silently behave differently on older clients. Add an explicit format-version field only when a real incompatible migration exists; migrations require a reviewable diff, never automatic source rewriting during build.
+```toml
+[overrides]
+remove = ["env.DEBUG_FLAG", "tasks.api:preview"]
+```
 
-Verification extends CFG-01 through CFG-06 with worktree roots, nested TOML, multiple explicit targets sharing a path, YAML aliases, path/case collisions, bounded matrices, CI-local overrides and configuration origin snapshots. License choice and OS management-store ACL implementation remain external prerequisites; these parsing semantics are ready to implement as draft contracts.
+Version one permits removal of explicitly configured environment entries and tasks only. Paths use the exact registered root plus the literal entry name; no globbing or numeric indexes. Removing an absent entry warns. The tombstone removes inherited explicit configuration, and a later layer may reintroduce it. Removing a task override exposes any builder-discovered task; it cannot delete mandatory engine checks. Environment removal produces an unset operation during shell activation. Tools and administrative constraints are not removable through this mechanism. Unknown optional removal targets warn; an author requiring new removal behavior must declare its capability.
+
+## CI and ambient environment
+
+Context detectors infer CI; there is no writable context override. Detected CI excludes user-level computation settings, tasks and environment, and excludes all local override files by default. User presentation preferences may participate. Protected machine/admin sources still apply. `--local-overrides` explicitly requests local files; standalone installations may honor it, while managed installations require `config.localOverridesInCi = true` from policy. It does not re-enable user-global build settings. All admitted values still face constraints and provenance capture.
+
+A spoofed `CI=true` may cause stricter defaults but grants nothing. Required checks, publication and signing use independent authorization and evidence. Builds admit only declared environment plus a documented executor bootstrap allowlist; they do not inherit a developer's complete shell environment.
+
+Environment strings are literal, with no shell or variable expansion. Development activation may use `{ secret = "dev/api-token" }` references through the broker; build actions cannot consume those as ordinary environment literals and must use the explicit secret-consumer contract. Missing access is an error, never an empty substituted secret. Reserved authentication/management variables cannot be assigned by project files. Reject portable case collisions in environment names. Arbitrary environment values are redacted in inspection by default. Reading a config never authorizes execution of its tasks/hooks; existing workspace trust checks still apply.
+
+## Compatibility
+
+```toml
+[compatibility]
+schema_major = 1
+requires = ["config.profiles/v1"]
+```
+
+Absent metadata means major 1 with no extra requirements. Requirements union across applicable sources and the active profile; they cannot be removed by overrides. Unknown optional settings warn once per source/key and remain inert. Known invalid types, illegal scopes, duplicate keys, unknown required capabilities and unsupported major versions fail before affected execution. Suggestions may identify likely misspellings. `config validate --strict` upgrades optional warnings to errors without making ordinary builds strict by default.
+
+Inactive profiles receive syntax/type checks, but their capability and secret-access requirements do not block unrelated execution. `config validate --all-profiles` validates their requirements explicitly. YAML's minimal target map is preserved; a root TOML capability declaration gates required new build features. Unknown optional fields may be ignored, but unsupported values for understood fields, builder IDs or matrix axes fail. Authors cannot expect an old client to infer that an unknown field is mandatory.
+
+Initial capability IDs are `config.cascade/v1`, `config.profiles/v1`, `config.removal/v1`, and `policy.constraints/v1`. The resolver reports its supported IDs. Signed enforcement records reject unknown operators or mandatory semantics even though ordinary configuration tolerates optional extensions. Strict artifact manifest and plan schemas remain strict.
+
+Limits: 1 MiB per ordinary file, 128 participating files, 8 MiB aggregate source data, depth 32, 128 profile names, 10,000 setting entries and 1,024 targets before expansion. JSON rejects duplicate keys and nonfinite numbers. YAML rejects aliases, merge keys and custom tags. These are defensive v1 limits, not profile-overridable settings.
+
+## Existing build and tool contracts
+
+Explicit target names match `[A-Za-z][A-Za-z0-9_-]{0,63}` without portable case collisions. Fields include `uses`, `path`, `depends_on`, `materialize`, `platform`, `matrix`, `container`, and `bindings`; builder-owned fields register their types. `uses` is required on explicit targets and `path` defaults to `.`. Ordering edges do not mount files; materialization selects captured outputs and bindings select typed artifact metadata.
+
+`platform` and `matrix.platform` are mutually exclusive. Initial language axes are python, node, go, rust and java, with at most one appropriate language axis, using exact locked versions. Duplicate values and unknown axes fail. Default limits remain 64 variants per target and 4,096 actions per plan; raised invocation limits remain bounded by administrative caps. List ordering does not change variant identity. Profiles cannot rewrite build inventory, builder selection, matrix topology or materialization relationships.
+
+Global PATH entries never satisfy locked requirements by accident. A profile requesting an incompatible version fails against the existing lock and native project constraints; it does not silently rewrite the lock. Native package configuration remains authoritative for native behavior, while Oyzu adapters apply approved transport/routing and enforce effective constraints. Task replacement cannot bypass preflight, required test/coverage collection, or policy checks. See [task implementation](../OEP-0005-tasks-and-hooks/implementation.md).
+
+## Inspection and editing
+
+| Command | Contract |
+| --- | --- |
+| `oyzu config show [--json]` | Effective settings with redacted values and resolution status |
+| `oyzu config get <key>` | One effective setting; redaction still applies |
+| `oyzu config explain [<key>] [--json]` | Origins, selected profile, exclusions, overwritten values where safe, constraints and denial reasons |
+| `oyzu config profiles` | Available names, contributing sources, current selection and reason |
+| `oyzu config validate [--strict] [--all-profiles]` | Non-executing validation; nonzero on errors |
+| `oyzu config status` | Enrollment, policy revision, expiry and offline availability without credentials |
+| `oyzu config refresh` | Request verified refresh; no implicit login UI or authority downgrade |
+| `oyzu config set <key> <value> --user/--project/--local` | Edit exactly one explicitly selected ordinary source |
+| `oyzu config unset <key> --user/--project/--local` | Delete assignment in that source, revealing inherited values |
+
+Write scopes are mutually exclusive and mandatory. Project/local default to workspace root; `--directory` selects a contained scope and `--profile` selects an overlay. Use `--json-value` for structured typed values. Reject unknown keys in `set` because the CLI cannot type them; hand editing remains possible. `unset` is distinct from an explicit removal tombstone. Ordinary editing commands cannot modify policy/bootstrap/cache.
+
+Use a lossless syntax tree, preserve comments and unknown fields, compare the original digest before atomic replacement, and report the destination. Concurrent modifications cause `CONFIG_EDIT_CONFLICT`. Explain may report an unresolved request without executing it. Never write secrets into source, logs, plans or error suggestions. Help, status and diagnostics remain usable when execution is blocked.
+
+## Snapshot identity and error model
+
+Compute a domain-separated SHA-256 digest (`oyzu.config.v1` followed by a zero byte and canonical JSON) of normalized effective computation settings, effective execution settings and required behavior. Exclude credentials, display preferences, incidental host cache paths, timestamps and source formatting. Secret references are redacted in public provenance and secret bytes never enter this digest; any secret-dependent action follows the executor's non-cacheable or explicitly safe contract. Profile names and origins are provenance, while the effective values determine computation identity. Policy revision and authorization evidence remain separately recorded.
+
+Refresh does not mutate an active plan. If a fresh authorization requires different computation/checks, stop and replan; otherwise record the new authorization separately. Never relabel earlier evidence as if new checks ran.
+
+Diagnostics contain stable code, severity, key, source span where available, target, safe message and remedy. Initial codes: `CONFIG_SYNTAX`, `CONFIG_DUPLICATE`, `CONFIG_LIMIT`, `CONFIG_UNKNOWN_OPTIONAL`, `CONFIG_INVALID_VALUE`, `CONFIG_SCOPE`, `CONFIG_PROFILE_UNKNOWN`, `CONFIG_REQUIRED_CAPABILITY`, `CONFIG_MAJOR_VERSION`, `CONFIG_POLICY_CONFLICT`, `CONFIG_OVERRIDE_DENIED`, `CONFIG_EDIT_CONFLICT`, `POLICY_UNAVAILABLE`, `POLICY_INVALID`, `POLICY_EXPIRED`, `POLICY_CLOCK_UNCERTAIN`.
+
+## Implementation and verification sequence
+
+1. Introduce typed descriptors, lossless parsing and raw-source preservation around existing configuration behavior.
+2. Implement bounded discovery, OS paths, deterministic merging and provenance fixtures.
+3. Add profiles, removal, compatibility declarations and inspection/editing commands.
+4. Add protected local JSON administration and constraint evaluation without a platform dependency.
+5. Add verified corporate snapshots, atomic cache/state transitions and refresh through the headless agent.
+6. Integrate effective settings with native builders, locks, shell activation and fresh privileged authorization.
+
+Use unit tests for merge/constraint algebra, golden resolution diagnostics, parser fuzzing, filesystem boundary and ACL tests on all OSes, concurrent-edit/cache fault injection, identity/scope replay tests and end-to-end standalone/managed CLI scenarios. [Verification cases](examples.md) map expected outcomes. Documentation checks and syntax parsing alone do not establish runtime compliance.
