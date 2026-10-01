@@ -1,6 +1,9 @@
 use crate::{dependencies::Prepared, executor::Image, model::Target, snapshot::Snapshot};
 use anyhow::{bail, Result};
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 pub(crate) struct Descriptor {
     pub ids: &'static [&'static str],
@@ -70,6 +73,31 @@ pub(crate) struct BuilderPlan {
 }
 
 impl BuilderPlan {
+    pub fn validate(&self) -> Result<()> {
+        let mut names = BTreeSet::new();
+        let mut paths = BTreeSet::new();
+        for artifact in &self.artifacts {
+            if !crate::names::valid(&artifact.name)
+                || !names.insert(artifact.name.to_ascii_lowercase())
+            {
+                bail!("invalid or colliding artifact identifier {}", artifact.name);
+            }
+            let file = &artifact.filename;
+            if file.is_empty()
+                || matches!(file.as_str(), "." | "..")
+                || file.chars().any(|c| {
+                    c.is_control()
+                        || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|')
+                })
+                || file.ends_with(['.', ' '])
+                || !paths.insert(file.to_lowercase())
+            {
+                bail!("invalid or colliding artifact filename {file}");
+            }
+        }
+        Ok(())
+    }
+
     pub fn new(version: String, package: CommandSpec) -> Self {
         Self {
             env: BTreeMap::from([

@@ -104,13 +104,7 @@ pub fn targets(root: &Path) -> Result<Option<BTreeMap<String, TargetConfig>>> {
     }
     let mut names = std::collections::BTreeSet::new();
     for (name, config) in &values {
-        if name.is_empty()
-            || name.len() > 64
-            || !name.as_bytes()[0].is_ascii_alphabetic()
-            || !name
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
-        {
+        if !crate::names::valid(name) {
             bail!("invalid target name {name}");
         }
         if !names.insert(name.to_lowercase()) {

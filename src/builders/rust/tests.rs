@@ -116,7 +116,10 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
         let package = native
             .packages
             .iter()
-            .find(|p| artifact.name == p.name || artifact.name == format!("crate.{}", p.name))
+            .find(|p| {
+                artifact.name == crate::names::scoped("bin", &p.name)
+                    || artifact.name == crate::names::scoped("crate", &p.name)
+            })
             .unwrap();
         assert_eq!(artifact.version.as_ref(), Some(&package.version));
         assert!(artifact.filename.contains(&package.version));

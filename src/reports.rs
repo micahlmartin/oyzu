@@ -35,9 +35,34 @@ fn read_report(path: &Path) -> Result<String> {
     Ok(text)
 }
 
+fn xml_report(text: &str, cobertura: bool) -> Result<roxmltree::Document<'_>> {
+    // Native Cobertura generators emit this inert external declaration. roxmltree
+    // reads only the supplied string: it never retrieves the referenced DTD.
+    // Keep internal subsets, other DTDs and entity definitions disabled.
+    let known_doctype = [
+        "<!DOCTYPE coverage SYSTEM \"https://cobertura.sourceforge.net/xml/coverage-04.dtd\">",
+        "<!DOCTYPE coverage SYSTEM \"http://cobertura.sourceforge.net/xml/coverage-04.dtd\">",
+        "<!DOCTYPE coverage SYSTEM 'https://cobertura.sourceforge.net/xml/coverage-04.dtd'>",
+        "<!DOCTYPE coverage SYSTEM 'http://cobertura.sourceforge.net/xml/coverage-04.dtd'>",
+    ];
+    let allow_dtd = cobertura
+        && text.matches("<!DOCTYPE").count() == 1
+        && known_doctype
+            .iter()
+            .any(|declaration| text.contains(declaration))
+        && !text.contains("<!ENTITY");
+    Ok(roxmltree::Document::parse_with_options(
+        text,
+        roxmltree::ParsingOptions {
+            allow_dtd,
+            nodes_limit: 1_000_000,
+        },
+    )?)
+}
+
 pub fn junit_summary(path: &Path) -> Result<Value> {
     let text = read_report(path)?;
-    let doc = roxmltree::Document::parse(&text)?;
+    let doc = xml_report(&text, false)?;
     if !matches!(
         doc.root_element().tag_name().name(),
         "testsuite" | "testsuites"
@@ -155,7 +180,7 @@ pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
     let (mut total, mut covered) = (0u64, 0u64);
     match format {
         "cobertura" => {
-            let doc = roxmltree::Document::parse(&text)?;
+            let doc = xml_report(&text, true)?;
             let root = doc.root_element();
             if !root.has_tag_name("coverage") {
                 bail!("invalid coverage root");

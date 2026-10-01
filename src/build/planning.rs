@@ -100,6 +100,9 @@ pub(super) fn plan_with_dependencies(
             source,
             dependencies: dependencies.get(&id),
         })?;
+        intent
+            .validate()
+            .with_context(|| format!("{id}: invalid builder output contract"))?;
         let cwd = relative(&workspace.root, &target.path)?;
         target_records.push(json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)}));
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));

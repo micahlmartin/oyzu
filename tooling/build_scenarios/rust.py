@@ -17,10 +17,10 @@ def binary(manifest):
 
 
 def archives(project, manifest, count):
-    packages = [a for a in manifest['artifacts'] if a['name'].startswith('crate.')]
+    packages = [a for a in manifest['artifacts'] if a['name'].startswith('crate-')]
     assert len(packages) == count
     for artifact in packages:
-        name = artifact['name'].removeprefix('crate.')
+        name = (project/'dist'/artifact['path']).name.removesuffix(f"-{artifact['version']}.crate")
         with tarfile.open(project/'dist'/artifact['path']) as archive:
             prefix = f"{name}-{artifact['version']}/"
             metadata = tomllib.loads(archive.extractfile(prefix+'Cargo.toml').read().decode())

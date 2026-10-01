@@ -72,6 +72,29 @@ fn coverage_retains_metric_and_zero_denominator_and_rejects_bad_records() {
 }
 
 #[test]
+fn cobertura_accepts_native_declaration_without_loading_dtds_or_entities() {
+    let dir = tempfile::tempdir().unwrap();
+    let report = dir.path().join("coverage.xml");
+    let native =
+        "<!DOCTYPE coverage SYSTEM \"https://cobertura.sourceforge.net/xml/coverage-04.dtd\">";
+    let body = "<coverage lines-covered='2' lines-valid='3'/>";
+    fs::write(&report, format!("<?xml version='1.0'?>\n{native}\n{body}")).unwrap();
+    assert_eq!(
+        coverage_summary(&report, "cobertura").unwrap(),
+        json!({"covered":2,"total":3,"metric":"lines"})
+    );
+    for invalid in [
+        format!("<!DOCTYPE coverage SYSTEM 'file:///etc/passwd'>{body}"),
+        format!("<!DOCTYPE coverage [<!ENTITY secret SYSTEM 'file:///etc/passwd'>]>{body}"),
+        format!("<!-- {native} --><!DOCTYPE coverage [<!ENTITY secret '2'>]>{body}"),
+        format!("{native}<coverage lines-covered='&secret;' lines-valid='3'/>"),
+    ] {
+        fs::write(&report, invalid).unwrap();
+        assert!(coverage_summary(&report, "cobertura").is_err());
+    }
+}
+
+#[test]
 fn package_level_go_failures_cannot_be_reported_as_success() {
     let dir = tempfile::tempdir().unwrap();
     let log = dir.path().join("go.jsonl");
