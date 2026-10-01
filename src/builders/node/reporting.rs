@@ -6,6 +6,11 @@ use crate::{model::Task, reports::ReportSource};
 fn arguments(test: &str, coverage: &str) -> Vec<String> {
     strings(&[
         "--experimental-test-coverage",
+        "--test-coverage-exclude=**/test/**",
+        "--test-coverage-exclude=**/tests/**",
+        "--test-coverage-exclude=**/*.test.*",
+        "--test-coverage-exclude=**/*.spec.*",
+        "--test-coverage-exclude=**/node_modules/**",
         "--test-reporter=junit",
         &format!("--test-reporter-destination={test}"),
         "--test-reporter=lcov",
@@ -13,12 +18,13 @@ fn arguments(test: &str, coverage: &str) -> Vec<String> {
     ])
 }
 
-pub(super) fn test(id: &str) -> TaskPlan {
-    let mut argv = strings(&["npm", "run", "test", "--"]);
-    argv.extend(arguments(
-        &format!("/out/{id}/reports/junit.xml"),
-        &format!("/out/{id}/reports/coverage.lcov"),
-    ));
+pub(super) fn test(id: &str, mut argv: Vec<String>, instrument: bool) -> TaskPlan {
+    if instrument {
+        argv.extend(arguments(
+            &format!("/out/{id}/reports/junit.xml"),
+            &format!("/out/{id}/reports/coverage.lcov"),
+        ));
+    }
     TaskPlan {
         execution: Default::default(),
         argv,
@@ -44,6 +50,7 @@ pub(super) fn test(id: &str) -> TaskPlan {
 pub(super) fn instrument_override(
     task: &Task,
     env: &std::collections::BTreeMap<String, String>,
+    native_script: bool,
 ) -> Option<Vec<String>> {
     if task.name != "test" {
         return None;
@@ -51,7 +58,7 @@ pub(super) fn instrument_override(
     let argv: Vec<_> = task.argv.iter().map(String::as_str).collect();
     let mut command = match argv.as_slice() {
         ["node", "--test"] | ["sh", "-c", "node --test"] => strings(&["node", "--test"]),
-        ["npm", "run", "test"] | ["sh", "-c", "npm run test"] => {
+        ["npm", "run", "test"] | ["sh", "-c", "npm run test"] if native_script => {
             strings(&["npm", "run", "test", "--"])
         }
         _ => return None,

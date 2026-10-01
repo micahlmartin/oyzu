@@ -1,5 +1,6 @@
 """Native Node task replacement evidence through the compiled CLI."""
 import shutil
+import json
 
 
 def verify_overrides(root, base, invoke, validate, source_files, verified):
@@ -50,6 +51,62 @@ process.exitCode=result.status ?? 1;
     invoke(project, "inspect", "dist")
     verified.append("Node overrides: automatic native reporting, custom runner destinations, missing evidence blocks artifacts")
     verify_declared_reports(root, base, invoke, validate, source_files, verified)
+    verify_defaults(root, base, invoke, validate, source_files, verified)
+
+
+def verify_defaults(root, base, invoke, validate, source_files, verified):
+    project = base / 'node-default-tests'
+    shutil.copytree(root / 'examples/builds/node-package/project', project)
+    package_file = project / 'package.json'
+    package = json.loads(package_file.read_text())
+    del package['scripts']['test']
+    package_file.write_text(json.dumps(package, indent=2) + '\n')
+    before = source_files(project)
+    listing = invoke(project, 'run', 'list', '--json')
+    assert listing['project:test']['argv'] == ['node', '--test']
+    assert listing['project:test']['build_stage']
+    invoke(project, 'build')
+    manifest = validate(project / 'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    assert manifest['targets'][0]['extensions']['oyzu.dev/discovery']['test-framework']['selected'] == 'node-test'
+    tests = next(r for r in manifest['reports'] if r['kind'] == 'test')
+    coverage = next(r for r in manifest['reports'] if r['kind'] == 'coverage')
+    assert tests['summary']['passed'] == 2 and coverage['summary']['covered'] > 0
+    sources = [line[3:] for line in (project / 'dist' / coverage['path']).read_text().splitlines() if line.startswith('SF:')]
+    assert sources and any(p.endswith('src/greeting.mjs') for p in sources)
+    assert all('/test/' not in p and '/tests/' not in p and '.test.' not in p for p in sources)
+    invoke(project, 'inspect', 'dist')
+    # A known configuration wins over an unused dependency convention, but an
+    # unimplemented integration must not silently run a different framework.
+    (project / 'vitest.config.ts').write_text("throw new Error('discovery must not execute this config');\n")
+    invoke(project, 'build', success=False)
+    unsupported = validate(project / 'dist')
+    assert not unsupported['actions'] and not unsupported['artifacts']
+    assert 'vitest' in unsupported['diagnostics'][0]['message']
+    (project / 'vitest.config.ts').unlink()
+    (project / 'test/failing.test.mjs').write_text("import test from 'node:test'; test('intentional failure',()=>{throw new Error('expected')});\n")
+    invoke(project, 'build', success=False)
+    failed = validate(project / 'dist')
+    assert not failed['artifacts']
+    assert next(r for r in failed['reports'] if r['kind'] == 'test')['summary']['failed'] == 1
+    assert all(r['status'] == 'collected' for r in failed['reports'])
+    # No tests must remain a callable task and retain real empty native reports.
+    shutil.rmtree(project / 'test')
+    invoke(project, 'build')
+    empty = validate(project / 'dist')
+    assert next(r for r in empty['reports'] if r['kind'] == 'test')['summary']['total'] == 0
+    assert next(r for r in empty['reports'] if r['kind'] == 'coverage')['summary']['total'] == 0
+    # A custom script is preserved and must meet the same report obligations.
+    package['scripts']['test'] = 'node custom-harness.mjs'
+    package_file.write_text(json.dumps(package, indent=2) + '\n')
+    (project / 'custom-harness.mjs').write_text("console.log('zero exit without test evidence');\n")
+    invoke(project, 'build', success=False)
+    missing = validate(project / 'dist')
+    assert not missing['artifacts'] and len(missing['reports']) == 2
+    assert all(r['status'] == 'invalid' for r in missing['reports'])
+    action = next(a for a in missing['actions'] if a['id'] == 'project:test')
+    assert action['status'] == 'failed'
+    verified.append('Node framework detectors: no-config native tests, JUnit/application coverage, real empty reports, failed tests, unsupported framework admission and custom-script evidence obligations')
 
 
 def verify_declared_reports(root, base, invoke, validate, source_files, verified):

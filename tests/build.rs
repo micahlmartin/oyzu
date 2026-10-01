@@ -100,6 +100,60 @@ fn semantic_digest_canonicalizes_unicode_property_order() {
 }
 
 #[test]
+fn implicit_node_tests_and_custom_scripts_inherit_report_obligations() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"default-test","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let action = plan["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "project:test")
+        .unwrap();
+    assert_eq!(action["argv"][0], "node");
+    assert_eq!(action["argv"][1], "--test");
+    assert_eq!(action["reports"].as_array().unwrap().len(), 2);
+    assert!(action["argv"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|a| a == "--test-reporter=junit"));
+    fs::write(root.path().join("package.json"), r#"{"name":"custom-test","version":"1.0.0","scripts":{"test":"node arbitrary-harness.mjs"}}"#).unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let action = plan["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "project:test")
+        .unwrap();
+    assert_eq!(action["argv"], json!(["npm", "run", "test"]));
+    assert_eq!(action["reports"].as_array().unwrap().len(), 2);
+    assert!(action["env"]["OYZU_TEST_REPORT"].is_string());
+    assert!(action["env"]["OYZU_COVERAGE_REPORT"].is_string());
+    // An explicit wrapper around an opaque npm script must not acquire Node-only flags.
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[tasks.test]\nargv=['npm','run','test']\n",
+    )
+    .unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let action = plan["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "test")
+        .unwrap();
+    assert_eq!(action["argv"], json!(["npm", "run", "test"]));
+}
+
+#[test]
 fn explicit_task_overrides_are_not_replaced_by_native_builder_planning() {
     let root = tempfile::tempdir().unwrap();
     let capture = tempfile::tempdir().unwrap();

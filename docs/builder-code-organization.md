@@ -12,7 +12,9 @@ src/
     task.rs                   # Shared implicit-task constructors
     node/
       mod.rs                  # Descriptor and interface implementation
-      discovery.rs            # Native metadata, managers and scripts
+      discovery.rs            # Tasks from resolved manager/framework facts
+      detection/managers.rs   # Native manager declarations and lock evidence
+      detection/frameworks.rs # Test script/config/dependency observations and fallback
       planning.rs             # npm commands and artifact/report intent
       reporting.rs            # Native test reporters and exact-command override adaptation
     python/
@@ -124,7 +126,7 @@ Tests cover unique registrations, native ownership ambiguity, required prepared 
 
 ## Encapsulation as builders grow
 
-Discovery is moving from coarse `Builder::detect` and mutable per-builder inference to [specialized detectors plus a resolver](proposals/OEP-0006-discovery-and-planning/detectors.md). Shared types and exclusive-role resolution now live in `src/discovery/detectors.rs`, with bounded read-once metadata in `source.rs`. Node and Python manager detectors live under their ecosystem's `detection/` modules. They report typed evidence without creating tasks; task discovery consumes the selected manager. Target plan/manifest extensions retain registry versions, source evidence and observations. Coarse builder ownership, framework/suite composition and deferred native metadata still require migration. No public plugin ABI or user priority/configuration DSL is introduced.
+Discovery is moving from coarse `Builder::detect` and mutable per-builder inference to [specialized detectors plus a resolver](proposals/OEP-0006-discovery-and-planning/detectors.md). Shared types and exclusive-role resolution now live in `src/discovery/detectors.rs`, with bounded read-once metadata in `source.rs`. Node and Python manager detectors and Node test-framework detectors live under their ecosystem's `detection/` modules. They report typed evidence without creating tasks; task discovery consumes the selected manager. Target plan/manifest extensions retain registry versions, source evidence and observations. Coarse builder ownership, remaining framework/suite composition and deferred native metadata still require migration. No public plugin ABI or user priority/configuration DSL is introduced.
 
 Use private child modules by default and the narrowest useful visibility (`pub(super)` or `pub(in crate::builders)`) for implementation seams. The engine depends on the `Builder` contract, never a concrete manager's metadata or runtime modules. Keep native representations inside their ecosystem and convert them to shared intent at that boundary.
 

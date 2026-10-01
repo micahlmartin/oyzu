@@ -71,6 +71,16 @@ def main():
         assert outcomes[-1]["status"] == "succeeded"
         passed.append("EX-018 real native build and test task execution")
 
+        package_path = node_build / 'package.json'
+        package = json.loads(package_path.read_text())
+        del package['scripts']['test']
+        package_path.write_text(json.dumps(package))
+        listing = invoke(node_build, 'run', 'list')
+        assert listing['project:test']['argv'] == ['node', '--test']
+        outcomes = invoke(node_build, 'run', 'test')
+        assert outcomes[-1]['status'] == 'succeeded'
+        passed.append('Node no-script fallback discovers and executes real tests')
+
         if os.name == 'nt':
             launchers = root/'native launchers'
             launchers.mkdir()

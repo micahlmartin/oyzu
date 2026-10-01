@@ -5,6 +5,10 @@ use serde_json::Value;
 
 pub(super) fn discover(target: &mut Target) -> Result<()> {
     let profile = super::detection::detect(&target.path)?;
+    let framework = profile.framework.selected().to_string();
+    target
+        .discovery
+        .insert("test-framework".into(), profile.framework);
     let value = profile.package;
     let manager = profile.manager.selected().to_string();
     target.manager = manager.clone();
@@ -35,6 +39,13 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             );
             insert(target, name, &[&manager, "run", name], stage);
             target.tasks.get_mut(name).unwrap().mutates_source = name == "format";
+        }
+    }
+    if !target.tasks.contains_key("test") {
+        if framework == "node-test" {
+            insert(target, "test", &["node", "--test"], true);
+        } else {
+            super::super::unavailable(target, "test", &format!("Detected {framework}; its implicit runner/report integration is not implemented yet"));
         }
     }
     Ok(())

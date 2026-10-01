@@ -17,7 +17,9 @@ pub(crate) trait Detector<C>: Sync {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum Strength {
+    Declared,
     Native,
+    Conventional,
     Fallback,
 }
 
@@ -36,6 +38,20 @@ pub(crate) struct Finding {
 }
 
 impl Finding {
+    pub fn declared(candidate: &str, evidence: Vec<Evidence>) -> Self {
+        Self {
+            candidate: candidate.into(),
+            strength: Strength::Declared,
+            evidence,
+        }
+    }
+    pub fn conventional(candidate: &str, evidence: Vec<Evidence>) -> Self {
+        Self {
+            candidate: candidate.into(),
+            strength: Strength::Conventional,
+            evidence,
+        }
+    }
     pub fn native(candidate: &str, evidence: Vec<Evidence>) -> Self {
         Self {
             candidate: candidate.into(),
@@ -96,7 +112,7 @@ pub(crate) fn exclusive<C>(
             .with_context(|| format!("{id}: {role} detection failed"))?
         {
             if finding.candidate.is_empty()
-                || (finding.strength == Strength::Native && finding.evidence.is_empty())
+                || (finding.strength != Strength::Fallback && finding.evidence.is_empty())
             {
                 bail!("{id}: invalid detection evidence");
             }
@@ -110,12 +126,10 @@ pub(crate) fn exclusive<C>(
     }
     observations.sort();
     observations.dedup();
-    let native = observations
-        .iter()
-        .any(|o| o.finding.strength == Strength::Native);
+    let strongest = observations.iter().map(|o| &o.finding.strength).min();
     let candidates: BTreeSet<_> = observations
         .iter()
-        .filter(|o| !native || o.finding.strength == Strength::Native)
+        .filter(|o| Some(&o.finding.strength) == strongest)
         .map(|o| o.finding.candidate.as_str())
         .collect();
     if candidates.len() != 1 {

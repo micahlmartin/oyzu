@@ -231,3 +231,67 @@ fn detector_profiles_preserve_native_evidence_conflicts_and_fallbacks() {
         error.contains("conflicting") && error.contains("uv.lock") && error.contains("tool.poetry")
     );
 }
+
+#[test]
+fn node_framework_detectors_keep_scripts_and_choose_a_no_config_default() {
+    let root = tempfile::tempdir().unwrap();
+    write(root.path(), "package.json", "{}");
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(
+        ws.targets["project"].discovery["test-framework"].selected(),
+        "node-test"
+    );
+    assert_eq!(ws.tasks["project:test"].argv, ["node", "--test"]);
+    assert!(ws.tasks["project:test"].build_stage);
+    write(
+        root.path(),
+        "package.json",
+        r#"{"scripts":{"test":"node custom-harness.mjs"}}"#,
+    );
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(
+        ws.targets["project"].discovery["test-framework"].selected(),
+        "custom"
+    );
+    assert_eq!(ws.tasks["project:test"].argv, ["npm", "run", "test"]);
+    write(
+        root.path(),
+        "package.json",
+        r#"{"scripts":{"test":"node --test"},"devDependencies":{"jest":"29.7.0","vitest":"3.0.0"}}"#,
+    );
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(
+        ws.targets["project"].discovery["test-framework"].selected(),
+        "node-test"
+    );
+    write(
+        root.path(),
+        "package.json",
+        r#"{"devDependencies":{"jest":"29.7.0"}}"#,
+    );
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(
+        ws.targets["project"].discovery["test-framework"].selected(),
+        "jest"
+    );
+    assert!(ws.tasks["project:test"].availability.is_some());
+    write(
+        root.path(),
+        "vitest.config.ts",
+        "throw new Error('discovery must not execute config');",
+    );
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(
+        ws.targets["project"].discovery["test-framework"].selected(),
+        "vitest"
+    );
+    write(
+        root.path(),
+        "jest.config.js",
+        "throw new Error('do not execute');",
+    );
+    assert!(discovery::discover(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("conflicting"));
+}

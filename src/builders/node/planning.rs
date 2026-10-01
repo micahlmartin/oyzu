@@ -61,9 +61,28 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         "prepare",
         &["npm", install, "--offline", "--ignore-scripts"],
     ));
-    if package["scripts"]["test"].as_str() == Some("node --test") {
-        plan.tasks.insert("test".into(), super::reporting::test(id));
+    let framework = target
+        .discovery
+        .get("test-framework")
+        .context("missing resolved Node test framework")?
+        .selected();
+    let script = package["scripts"]["test"].as_str();
+    if framework != "node-test" && script.is_none() {
+        bail!("{id}: {framework} test/report integration is not implemented yet; refusing to omit its test operation");
     }
+    let command = if script.is_some() {
+        super::super::strings(if script == Some("node --test") {
+            &["npm", "run", "test", "--"]
+        } else {
+            &["npm", "run", "test"]
+        })
+    } else {
+        super::super::strings(&["node", "--test"])
+    };
+    plan.tasks.insert(
+        "test".into(),
+        super::reporting::test(id, command, framework == "node-test"),
+    );
     plan.artifacts.push(ArtifactSpec {
         kind: crate::builders::ArtifactKind::File,
         name: "primary".into(),

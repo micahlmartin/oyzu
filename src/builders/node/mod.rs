@@ -38,10 +38,18 @@ impl Builder for Node {
 
     fn instrument_override(
         &self,
-        _target: &Target,
+        target: &Target,
         task: &Task,
         env: &std::collections::BTreeMap<String, String>,
     ) -> Option<Vec<String>> {
-        reporting::instrument_override(task, env)
+        let native_script = target
+            .discovery
+            .get("test-framework")
+            .is_some_and(|p| p.selected() == "node-test")
+            && target
+                .tasks
+                .get("test")
+                .is_some_and(|t| t.argv == ["npm", "run", "test"]);
+        reporting::instrument_override(task, env, native_script)
     }
 }
