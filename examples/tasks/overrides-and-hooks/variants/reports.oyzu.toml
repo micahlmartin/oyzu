@@ -1,5 +1,5 @@
 # Proposed narrow escape hatch for a custom runner with registered JUnit output.
-# A future native runner fixture supplies scripts/custom-tests and its XML report.
+# The native runner fixture supplies scripts/custom-tests.mjs and its XML report.
 [tasks."api:test"]
 argv = ["node", "scripts/custom-tests.mjs"]
 reports = [{ kind = "test", format = "junit", path = "reports/tests.xml" }]

@@ -261,3 +261,110 @@ fn unknown_go_override_requires_files_instead_of_interpreting_arbitrary_stdout()
         "file"
     );
 }
+
+#[test]
+fn declared_reports_bind_captured_task_cwd_and_preserve_other_required_kinds() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir_all(root.path().join("api/checks")).unwrap();
+    fs::write(
+        root.path().join("build.yaml"),
+        "api:\n  uses: node/app\n  path: api\n",
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("api/package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        r#"
+[tasks."api:test"]
+argv=['custom-test']
+cwd='checks'
+reports=[{kind='test',format='junit',path='reports/tests.xml'}]
+[tasks."api:post_test"]
+argv=['custom-post']
+"#,
+    )
+    .unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    let task = actions.iter().find(|a| a["id"] == "api:test").unwrap();
+    assert_eq!(task["reports"].as_array().unwrap().len(), 2);
+    let report = task["reports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["kind"] == "test")
+        .unwrap();
+    let id = report["id"].as_str().unwrap();
+    assert_eq!(
+        task["extensions"]["oyzu.dev/report-inputs"][id],
+        json!({"root":"workspace","path":"api/checks/reports/tests.xml"})
+    );
+    assert_eq!(
+        task["env"]["OYZU_TEST_REPORT"],
+        "/workspace/api/checks/reports/tests.xml"
+    );
+    assert_eq!(
+        task["env"]["OYZU_COVERAGE_REPORT"],
+        "/out/api/reports/coverage.lcov"
+    );
+    assert_eq!(
+        task["extensions"]["oyzu.dev/collect-after"],
+        "api:post_test"
+    );
+    let post = actions.iter().find(|a| a["id"] == "api:post_test").unwrap();
+    assert_eq!(
+        post["env"]["OYZU_TEST_REPORT"],
+        task["env"]["OYZU_TEST_REPORT"]
+    );
+}
+
+#[test]
+fn operation_contracts_follow_tasks_first_executed_as_prerequisites() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("package.json"), r#"{"name":"demo","version":"1.0.0","scripts":{"build":"node build.mjs","test":"node --test"}}"#).unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        r#"
+[tasks."project:build"]
+argv=['node','build.mjs']
+depends_on=['project:test']
+[tasks."project:post_test"]
+argv=['custom-post']
+"#,
+    )
+    .unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    let test = actions
+        .iter()
+        .position(|a| a["id"] == "project:test")
+        .unwrap();
+    let post = actions
+        .iter()
+        .position(|a| a["id"] == "project:post_test")
+        .unwrap();
+    let build = actions
+        .iter()
+        .position(|a| a["id"] == "project:build")
+        .unwrap();
+    assert!(test < post && post < build);
+    assert_eq!(
+        actions.iter().filter(|a| a["id"] == "project:test").count(),
+        1
+    );
+    assert_eq!(actions[test]["reports"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        actions[test]["extensions"]["oyzu.dev/collect-after"],
+        "project:post_test"
+    );
+    assert_eq!(
+        actions[post]["env"]["OYZU_TEST_REPORT"],
+        "/out/project/reports/junit.xml"
+    );
+}

@@ -1,24 +1,24 @@
 //! Native Node test reporting. Only exact known commands are instrumented;
 //! arbitrary shell programs and custom runners retain their original semantics.
 use super::super::{strings, ReportFormat, ReportSpec, TaskPlan};
-use crate::{
-    model::{Target, Task},
-    reports::ReportSource,
-};
+use crate::{model::Task, reports::ReportSource};
 
-fn arguments(id: &str) -> Vec<String> {
+fn arguments(test: &str, coverage: &str) -> Vec<String> {
     strings(&[
         "--experimental-test-coverage",
         "--test-reporter=junit",
-        &format!("--test-reporter-destination=/out/{id}/reports/junit.xml"),
+        &format!("--test-reporter-destination={test}"),
         "--test-reporter=lcov",
-        &format!("--test-reporter-destination=/out/{id}/reports/coverage.lcov"),
+        &format!("--test-reporter-destination={coverage}"),
     ])
 }
 
 pub(super) fn test(id: &str) -> TaskPlan {
     let mut argv = strings(&["npm", "run", "test", "--"]);
-    argv.extend(arguments(id));
+    argv.extend(arguments(
+        &format!("/out/{id}/reports/junit.xml"),
+        &format!("/out/{id}/reports/coverage.lcov"),
+    ));
     TaskPlan {
         argv,
         reports: vec![
@@ -36,7 +36,10 @@ pub(super) fn test(id: &str) -> TaskPlan {
     }
 }
 
-pub(super) fn instrument_override(target: &Target, task: &Task) -> Option<Vec<String>> {
+pub(super) fn instrument_override(
+    task: &Task,
+    env: &std::collections::BTreeMap<String, String>,
+) -> Option<Vec<String>> {
     if task.name != "test" {
         return None;
     }
@@ -48,6 +51,11 @@ pub(super) fn instrument_override(target: &Target, task: &Task) -> Option<Vec<St
         }
         _ => return None,
     };
-    command.extend(arguments(&target.name));
+    // The planner resolves declared paths against captured task cwd. Node only
+    // owns translating these concrete destinations into its reporter arguments.
+    command.extend(arguments(
+        env.get("OYZU_TEST_REPORT")?,
+        env.get("OYZU_COVERAGE_REPORT")?,
+    ));
     Some(command)
 }

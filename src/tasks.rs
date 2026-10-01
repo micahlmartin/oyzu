@@ -40,6 +40,22 @@ fn hook(task: &Task, prefix: &str) -> String {
     }
 }
 
+pub(crate) fn post_hook(task: &Task) -> String {
+    hook(task, "post")
+}
+
+pub(crate) fn hook_owner(task: &Task) -> Option<String> {
+    let name = task
+        .name
+        .strip_prefix("pre_")
+        .or_else(|| task.name.strip_prefix("post_"))?;
+    Some(if task.target.is_empty() {
+        name.into()
+    } else {
+        format!("{}:{name}", task.target)
+    })
+}
+
 fn visit(
     workspace: &Workspace,
     id: &str,

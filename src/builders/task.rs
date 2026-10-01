@@ -14,6 +14,7 @@ pub(super) fn task(target: &Target, name: &str, argv: &[&str], stage: bool) -> T
         build_stage: stage,
         mutates_source: false,
         stdout_must_be_empty: false,
+        reports: vec![],
     }
 }
 

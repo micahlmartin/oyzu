@@ -13,6 +13,32 @@ pub(super) struct ExecutionRecords {
     pub diagnostics: Vec<Value>,
 }
 
+impl ExecutionRecords {
+    fn collect_due(
+        &mut self,
+        collector: &mut collection::Collector<'_>,
+        boundary: &str,
+    ) -> Result<bool> {
+        let mut failed = false;
+        for (index, reports) in collector.finish(boundary)? {
+            for report in reports {
+                if report.failed() {
+                    failed = true;
+                    self.actions[index]["status"] = json!("failed");
+                    if self.actions[index]["exitCode"] == 0 {
+                        self.actions[index]["exitCode"] = json!(1);
+                    }
+                }
+                if let Some(diagnostic) = report.diagnostic {
+                    self.diagnostics.push(diagnostic);
+                }
+                self.reports.push(report.record);
+            }
+        }
+        Ok(failed)
+    }
+}
+
 pub(super) fn execute_plan(
     plan: &Value,
     work: &Path,
@@ -39,10 +65,15 @@ pub(super) fn execute_plan(
             runtime_paths.insert(id.to_string(), directory);
         }
     }
-    let mut outcomes = vec![];
-    let mut collected = vec![];
-    let mut artifacts = vec![];
-    let mut diagnostics = vec![];
+    let mut records = ExecutionRecords::default();
+    let mut collector = collection::Collector::new(
+        collection::Locations {
+            workspace: work,
+            output: out,
+            bundle,
+        },
+        &plan["source"]["treeDigest"],
+    );
     let mut failed = false;
     for target in plan["targets"].as_array().context("missing targets")? {
         let id = target["id"].as_str().context("missing target id")?;
@@ -61,7 +92,9 @@ pub(super) fn execute_plan(
         let mut outcome = json!({"id":id,"target":target,"required":true,"status":"blocked","producerEvidence":[],"enforced":[]});
         if failed {
             outcome["reason"] = json!("a prerequisite failed");
-            outcomes.push(outcome);
+            records.actions.push(outcome);
+            // A failed main skips post, but its evidence must still be retained.
+            failed |= records.collect_due(&mut collector, id)?;
             continue;
         }
         let stdout = bundle.join(format!("logs/{index:04}.stdout"));
@@ -106,7 +139,7 @@ pub(super) fn execute_plan(
                 result.code
             }
             Err(error) => {
-                diagnostics.push(json!({"code":"executor-failed","phase":"execute","severity":"error","message":error.to_string(),"action":id,"target":target}));
+                records.diagnostics.push(json!({"code":"executor-failed","phase":"execute","severity":"error","message":error.to_string(),"action":id,"target":target}));
                 1
             }
         };
@@ -118,23 +151,7 @@ pub(super) fn execute_plan(
         {
             code = 1;
         }
-        for intent in a["reports"].as_array().context("missing report intents")? {
-            let report = collection::collect(
-                a,
-                intent,
-                &plan["source"]["treeDigest"],
-                out,
-                bundle,
-                &stdout,
-            )?;
-            if report.failed() {
-                code = 1;
-            }
-            if let Some(diagnostic) = report.diagnostic {
-                diagnostics.push(diagnostic);
-            }
-            collected.push(report.record);
-        }
+        collector.defer(a, stdout, records.actions.len())?;
         if code == 0 {
             for intent in plan["artifacts"]
                 .as_array()
@@ -151,10 +168,10 @@ pub(super) fn execute_plan(
                     Ok(artifact)
                 })();
                 match capture {
-                    Ok(artifact) => artifacts.push(artifact),
+                    Ok(artifact) => records.artifacts.push(artifact),
                     Err(error) => {
                         code = 1;
-                        diagnostics.push(json!({"code":"artifact-invalid","phase":"collect","severity":"error","message":error.to_string(),"action":id,"target":target}));
+                        records.diagnostics.push(json!({"code":"artifact-invalid","phase":"collect","severity":"error","message":error.to_string(),"action":id,"target":target}));
                     }
                 }
             }
@@ -170,12 +187,9 @@ pub(super) fn execute_plan(
             ]);
         }
         failed = code != 0;
-        outcomes.push(outcome);
+        records.actions.push(outcome);
+        failed |= records.collect_due(&mut collector, id)?;
     }
-    Ok(ExecutionRecords {
-        actions: outcomes,
-        reports: collected,
-        artifacts,
-        diagnostics,
-    })
+    collector.ensure_finished()?;
+    Ok(records)
 }

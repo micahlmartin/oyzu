@@ -47,12 +47,14 @@ src/
     planning.rs               # Common hook expansion and execution-plan serialization
     execution.rs              # Scheduling, executor invocation and outcome collection
     collection.rs             # Bounded report capture, parsing and failure evidence
+    reporting.rs              # Required evidence and custom report location bindings
     bundle.rs                 # Output containment, capture and integrity inspection
   discovery.rs                # Workspace ownership, ambiguity and task overrides
   dependencies.rs             # Shared prepared dependency snapshot
   broker.rs                   # Source-scoped transport and credential boundary
   executor.rs                 # Enforced execution boundary
   reports.rs                  # Native report conversion and validation
+  reports/contract.rs         # Typed declarations and bounded contained glob discovery
 ```
 
 Modules are private unless a public CLI/library entry point needs them. The `Builder` trait and planning types are crate-private; they are not an external plugin ABI. A single crate is sufficient at this stage. A future crate split should follow an actual reuse or isolation boundary, rather than requiring separate crates for small adapters.
@@ -72,7 +74,7 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 
 `BuilderPlan`, `CommandSpec`, `TaskPlan`, `ArtifactSpec` and `ReportSpec` are Rust structures. A builder does not assemble arbitrary build-plan JSON. The common planner expands hooks, preserves TOML replacements, assigns action identities, binds source/dependency/toolchain identities and serializes the versioned plan. Report formats and input conversions are explicit types.
 
-Command replacement and evidence requirements have separate ownership. A TOML override cannot remove the builder's required reports. The optional override adapter may instrument an exact known native command; the shared planner does not parse ecosystem commands or shell programs. Unknown replacements retain their arguments and receive `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` destinations when those kinds are required. Native stdout conversion applies only to native or recognized commands; arbitrary replacement output is not assumed to use the native event protocol. Explicit custom report declarations and collection after post-hooks remain separate pending work.
+Command replacement and evidence requirements have separate ownership. A TOML override cannot remove the builder's required reports. The optional override adapter may instrument an exact known native command; the shared planner does not parse ecosystem commands or shell programs. Unknown replacements retain their arguments and receive `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` destinations when those kinds have one concrete destination. Native stdout conversion applies only to native or recognized commands; arbitrary replacement output is not assumed to use the native event protocol. The shared reporting binder resolves custom declarations against captured task cwd and retains requirements for undeclared kinds. Hooks inherit the operation's report destinations. The Node adapter receives resolved destinations and owns conversion to reporter arguments.
 
 Artifact names are owned strings, and artifacts can override the target-level version. This lets a native workspace expose multiple independently versioned package outputs without adding Cargo-specific cases to the engine. Cargo preparation uses the same captured-input interface as acquisition, recording native workspace metadata and a version-projected manifest/lock overlay; it does not require a separate execution path.
 
@@ -81,6 +83,8 @@ The executor owns process invocation and sandbox flags. A builder's planned comm
 Native runtime code belongs to its ecosystem. The embedded Python adapter exists to invoke native package tooling and inspect native metadata inside the isolated toolchain environment. It does not own scheduling, policy decisions or bundle finalization. Further Python growth should split manager and operation modules inside `builders/python`, not add unrelated ecosystems to a global helpers directory.
 
 Report collection is a separate engine responsibility. It retains contained raw report bytes before parsing, within the shared 16 MiB report limit. Parsing and digests refer to those retained bytes. Invalid reports fail the action but remain available for diagnosis; missing, escaping or oversized files are not copied into the bundle. Native report formats remain in `reports.rs`, rather than being implemented separately by each builder.
+
+The collector queues executed producers until their post-hook boundary. It also drains a failed producer when that post-hook is blocked, and retains available evidence when post itself fails. Declared globs use the same typed formats and bounded capture as native reports; every matched file receives a stable identity and independent validation. Glob expansion does not follow symlinks. The scheduler owns outcome changes and downstream blocking; the collector does not run commands or choose build stages.
 
 ## Adding a builder
 

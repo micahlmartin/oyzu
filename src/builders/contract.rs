@@ -48,7 +48,12 @@ pub(crate) trait Builder: Sync {
     /// Add native reporting to an exactly recognized replacement command. Unknown
     /// bodies stay unchanged and must satisfy the operation's report contract.
     /// This cannot replace or remove required reports, hooks or sandbox constraints.
-    fn instrument_override(&self, _target: &Target, _task: &Task) -> Option<Vec<String>> {
+    fn instrument_override(
+        &self,
+        _target: &Target,
+        _task: &Task,
+        _env: &BTreeMap<String, String>,
+    ) -> Option<Vec<String>> {
         None
     }
 }
@@ -165,30 +170,7 @@ impl TaskPlan {
     }
 }
 
-pub(crate) enum ReportFormat {
-    Junit,
-    Cobertura,
-    Lcov,
-    GoCover,
-}
-
-impl ReportFormat {
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Junit => "junit",
-            Self::Cobertura => "cobertura",
-            Self::Lcov => "lcov",
-            Self::GoCover => "go-cover",
-        }
-    }
-
-    pub fn kind(&self) -> &'static str {
-        match self {
-            Self::Junit => "test",
-            _ => "coverage",
-        }
-    }
-}
+pub(crate) use crate::reports::Format as ReportFormat;
 
 pub(crate) struct ReportSpec {
     pub format: ReportFormat,

@@ -117,28 +117,37 @@ pub(super) fn plan_with_dependencies(
                 (image, &source.digest),
             ));
         }
+        let operation_id = |stage: &str| {
+            if workspace.targets.len() == 1 && workspace.tasks.contains_key(stage) {
+                stage.to_string()
+            } else {
+                format!("{id}:{stage}")
+            }
+        };
+        let operation_contracts: BTreeMap<_, _> = intent
+            .tasks
+            .iter()
+            .map(|(name, plan)| (operation_id(name), plan))
+            .collect();
         for stage in &intent.stages {
             // Match public task lookup for a single-target workspace: explicit
             // root tasks own unqualified operations. Never fan a root override
             // out across multiple targets.
             let root_override =
                 workspace.targets.len() == 1 && workspace.tasks.contains_key(*stage);
-            let task_id = if root_override {
-                stage.to_string()
-            } else {
-                format!("{id}:{stage}")
-            };
+            let task_id = operation_id(stage);
             let Some(task) = workspace.tasks.get(&task_id) else {
                 continue;
             };
             if task.availability.is_some() || (!task.build_stage && !root_override) {
                 continue;
             }
-            for step in tasks::sequence(workspace, &task_id)? {
+            let sequence = tasks::sequence(workspace, &task_id)?;
+            for (position, step) in sequence.iter().enumerate() {
                 if !emitted.insert(step.clone()) {
                     continue;
                 }
-                let task = &workspace.tasks[&step];
+                let task = &workspace.tasks[step];
                 if task.mutates_source {
                     bail!("{step}: mutating formatter cannot run as a build check");
                 }
@@ -148,49 +157,44 @@ pub(super) fn plan_with_dependencies(
                 // The operation owns its required evidence even when TOML
                 // replaces its body. Runner-specific adaptation belongs to the
                 // builder; the engine never guesses how to modify a command.
-                let contract = if step == task_id {
-                    intent.tasks.get(*stage)
-                } else {
-                    None
-                };
+                // A native operation can first appear as another operation's
+                // prerequisite. Its report contract follows its identity.
+                let contract = operation_contracts.get(step).copied();
                 let native = contract.filter(|_| task.provider == target.manager);
+                let mut bindings = super::reporting::bind(&workspace.root, &id, task, contract)?;
+                let mut env = intent.env.clone();
+                env.extend(task.env.clone());
+                if let Some(owner) = tasks::hook_owner(task).and_then(|id| workspace.tasks.get(&id))
+                {
+                    let reports = super::reporting::bind(
+                        &workspace.root,
+                        &id,
+                        owner,
+                        operation_contracts.get(&owner.id()).copied(),
+                    )?;
+                    env.extend(reports.env);
+                }
+                env.extend(bindings.env);
                 let instrumented = contract
                     .filter(|_| native.is_none())
-                    .and_then(|_| builder.instrument_override(target, task));
+                    .and_then(|_| builder.instrument_override(target, task, &env));
                 let native_reporting = native.is_some() || instrumented.is_some();
                 let argv = native.map_or_else(
                     || instrumented.unwrap_or_else(|| task.argv.clone()),
                     |v| v.argv.clone(),
                 );
-                let mut env = intent.env.clone();
-                env.extend(task.env.clone());
-                let mut report_intents = Vec::new();
-                let mut paths = BTreeMap::new();
-                let mut report_sources = BTreeMap::new();
-                if let Some(contract) = contract {
-                    for report in &contract.reports {
-                        let kind = report.format.kind();
-                        let report_id = format!("{id}:{kind}");
-                        report_intents.push(json!({"id":report_id,"kind":kind,"format":report.format.name(),"required":true,"subject":id}));
-                        // For example, arbitrary Go overrides need not emit
-                        // go test JSON on stdout. Require the report file unless
-                        // the adapter recognizes the command producing events.
-                        let source = if native_reporting {
-                            report.source
-                        } else {
-                            crate::reports::ReportSource::File
-                        };
-                        report_sources.insert(report_id.clone(), source);
-                        let path = format!("{id}/reports/{}", report.filename);
-                        env.insert(
-                            format!("OYZU_{}_REPORT", kind.to_ascii_uppercase()),
-                            format!("/out/{path}"),
-                        );
-                        paths.insert(report_id, path);
+                if !native_reporting {
+                    for source in bindings.sources.values_mut() {
+                        *source = crate::reports::ReportSource::File;
                     }
                 }
+                let post = tasks::post_hook(task);
+                let boundary = sequence[position + 1..]
+                    .iter()
+                    .find(|id| **id == post)
+                    .unwrap_or(step);
                 let mut a = action(
-                    &step,
+                    step,
                     &id,
                     &task.name,
                     argv,
@@ -198,8 +202,8 @@ pub(super) fn plan_with_dependencies(
                     &env,
                     (image, &source.digest),
                 );
-                a["reports"] = json!(report_intents);
-                a["extensions"] = json!({"oyzu.dev/report-paths":paths,"oyzu.dev/stdout-must-be-empty":task.stdout_must_be_empty,"oyzu.dev/report-sources":report_sources});
+                a["reports"] = json!(bindings.intents);
+                a["extensions"] = json!({"oyzu.dev/report-paths":bindings.paths,"oyzu.dev/stdout-must-be-empty":task.stdout_must_be_empty,"oyzu.dev/report-sources":bindings.sources,"oyzu.dev/report-inputs":bindings.inputs,"oyzu.dev/collect-after":boundary});
                 planned.push(a);
             }
         }

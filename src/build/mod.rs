@@ -3,6 +3,7 @@ mod bundle;
 mod collection;
 mod execution;
 mod planning;
+mod reporting;
 
 use crate::{builders, discovery, records, snapshot};
 use anyhow::{bail, Context, Result};

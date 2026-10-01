@@ -35,7 +35,12 @@ impl Builder for Node {
         planning::plan(context)
     }
 
-    fn instrument_override(&self, target: &Target, task: &Task) -> Option<Vec<String>> {
-        reporting::instrument_override(target, task)
+    fn instrument_override(
+        &self,
+        _target: &Target,
+        task: &Task,
+        env: &std::collections::BTreeMap<String, String>,
+    ) -> Option<Vec<String>> {
+        reporting::instrument_override(task, env)
     }
 }

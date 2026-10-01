@@ -15,6 +15,8 @@ pub struct Task {
     pub build_stage: bool,
     pub mutates_source: bool,
     pub stdout_must_be_empty: bool,
+    #[serde(default)]
+    pub reports: Vec<crate::reports::Declaration>,
 }
 
 impl Task {

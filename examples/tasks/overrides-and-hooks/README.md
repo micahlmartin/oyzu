@@ -51,4 +51,4 @@ Files such as `scenario.json` and sibling expectation data belong to the example
 
 ## Detailed specification candidate
 
-[Custom report candidate](variants/reports.oyzu.toml) illustrates the finite report-path escape hatch in OEP-0005/0014. The custom runner is a future fixture; no new parser code or pipeline language is implied.
+[Custom report candidate](variants/reports.oyzu.toml) illustrates the finite report-path escape hatch in OEP-0005/0014. Its checked-in [custom runner](project/api/scripts/custom-tests.mjs) invokes Node's native test runner and produces JUnit and LCOV. Applying the variant in a disposable project copy selects its JUnit path; required coverage remains attached to the builder. This is an executable native fixture, not completion of the full scenario acceptance contract.

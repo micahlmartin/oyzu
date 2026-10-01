@@ -52,7 +52,7 @@ pub struct TaskConfig {
     #[serde(default)]
     pub interactive: bool,
     #[serde(default)]
-    pub reports: Vec<serde_json::Value>,
+    pub reports: Vec<crate::reports::Declaration>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -138,6 +138,10 @@ pub fn project(root: &Path) -> Result<ProjectConfig> {
         }
         let value: ProjectConfig = toml::from_str(&fs::read_to_string(&path)?)
             .with_context(|| format!("invalid {}", path.display()))?;
+        for (id, task) in &value.tasks {
+            crate::reports::validate_declarations(&task.reports)
+                .with_context(|| format!("task {id}: invalid reports"))?;
+        }
         result.env.extend(value.env);
         result.tasks.extend(value.tasks);
         result.tools.extend(value.tools);

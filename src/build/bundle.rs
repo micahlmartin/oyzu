@@ -12,11 +12,19 @@ use std::{
 /// Read before creating the destination so oversized inputs leave no bundle file.
 pub(super) fn capture_bounded_output(
     out: &Path,
+    source_relative: &str,
     bundle: &Path,
     relative: &str,
     limit: u64,
 ) -> Result<PathBuf> {
-    let source = safe_file(out, relative)?;
+    let source = safe_file(out, source_relative)?;
+    if relative.contains(['\\', ':'])
+        || relative
+            .split('/')
+            .any(|p| p.is_empty() || p == "." || p == "..")
+    {
+        bail!("invalid report destination");
+    }
     let mut bytes = Vec::new();
     fs::File::open(source)?
         .take(limit + 1)

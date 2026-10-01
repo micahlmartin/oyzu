@@ -108,3 +108,31 @@ fn package_level_go_failures_cannot_be_reported_as_success() {
     fs::write(&log, "invalid events").unwrap();
     assert!(go_to_junit(&log, &dir.path().join("invalid.xml")).is_err());
 }
+#[test]
+fn report_declarations_reject_unknown_formats_mismatched_kinds_and_escaping_globs() {
+    let root = tempfile::tempdir().unwrap();
+    for declaration in [
+        "{kind='test',format='unknown',path='report.xml'}",
+        "{kind='coverage',format='junit',path='report.xml'}",
+        "{kind='test',format='junit',path='../report.xml'}",
+        "{kind='test',format='junit',path='/tmp/report.xml'}",
+        "{kind='test',format='junit',path='C:/report.xml'}",
+        "{kind='test',format='junit',path='reports/{a,b}.xml'}",
+        "{kind='test',format='junit',path='reports/[ab].xml'}",
+        "{kind='test',format='junit',path='reports/a**b.xml'}",
+    ] {
+        std::fs::write(
+            root.path().join("oyzu.toml"),
+            format!("[tasks.test]\nargv=['custom-test']\nreports=[{declaration}]\n"),
+        )
+        .unwrap();
+        assert!(oyzu::config::project(root.path()).is_err(), "{declaration}");
+    }
+    std::fs::write(root.path().join("oyzu.toml"), "[tasks.test]\nargv=['custom-test']\nreports=[{kind='test',format='junit',path='reports/**/test-?.xml'}]\n").unwrap();
+    assert_eq!(
+        oyzu::config::project(root.path()).unwrap().tasks["test"]
+            .reports
+            .len(),
+        1
+    );
+}

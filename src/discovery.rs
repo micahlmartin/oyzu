@@ -135,6 +135,7 @@ pub fn discover_with_shell(path: &Path, default_shell: Option<&str>) -> Result<W
                 build_stage: stage,
                 mutates_source: false,
                 stdout_must_be_empty: false,
+                reports: definition.reports,
             },
         );
     }

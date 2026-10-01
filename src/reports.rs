@@ -1,4 +1,7 @@
+mod contract;
 use anyhow::{bail, Result};
+pub(crate) use contract::{matches, validate_declarations, Input, Root};
+pub use contract::{Declaration, Format};
 use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
