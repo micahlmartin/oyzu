@@ -2,6 +2,8 @@
 
 An opinionated developer platform for tools, environments, tasks, and builds.
 
+**Oyzu is 100% AI-built and community-directed.** AI generates our first-party code; people define requirements, guide implementation, review and validate results. Handcrafted code patches are not our contribution workflow. See the [contribution guide](CONTRIBUTING.md) for how to participate and the current license status.
+
 The Rust CLI is under active implementation. Native builder/task discovery and development tasks support overrides and hooks. An initial container build command produces snapshot bundles for simple Node/npm and Go projects. The complete builder catalog and scenario suite remain in progress; see the [implementation status](docs/implementation-status.md).
 
 ```text
@@ -15,6 +17,7 @@ Native tools must already be installed. This implementation does not install too
 ## Repository layout
 
 - [Design library](docs/README.md): reading paths, architecture, decisions, and delivery plan.
+- [Code map and engineering guide](docs/code-organization.md): subsystem ownership, interfaces, reuse and extension workflow.
 - [Visions](docs/vision/README.md): platform and component direction.
 - [Proposals](docs/proposals/README.md): detailed Oyzu Enhancement Proposals (OEPs).
 - [Examples](examples/README.md): 58 checked-in design-contract scenarios with source, configuration, expected behavior, and failures.

@@ -192,7 +192,7 @@ fn explicit_task_overrides_are_not_replaced_by_native_builder_planning() {
 }
 
 #[test]
-fn unsupported_builder_preserves_preflight_failure_bundle() {
+fn conflicting_managers_preserve_preflight_failure_bundle() {
     let root = tempfile::tempdir().unwrap();
     fs::write(
         root.path().join("package.json"),
@@ -204,6 +204,7 @@ fn unsupported_builder_preserves_preflight_failure_bundle() {
         "lockfileVersion: '9.0'\n",
     )
     .unwrap();
+    fs::write(root.path().join("package-lock.json"), "{}").unwrap();
     let failed = build::run(root.path(), &[], false).unwrap();
     assert_eq!(failed["status"], "failed");
     assert!(failed["planDigest"].is_null());
@@ -211,7 +212,7 @@ fn unsupported_builder_preserves_preflight_failure_bundle() {
     assert!(failed["diagnostics"][0]["message"]
         .as_str()
         .unwrap()
-        .contains("not implemented"));
+        .contains("conflicting"));
     assert_eq!(build::inspect(&root.path().join("dist")).unwrap(), failed);
 }
 

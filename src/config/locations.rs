@@ -227,7 +227,7 @@ fn check_handle(file: &fs::File) -> Result<()> {
                 || EqualSid(sid, installer) != 0
         };
         let mask = if file.metadata()?.is_dir() {
-            0x500d0150
+            0x500d0152
         } else {
             0x500d0156
         };

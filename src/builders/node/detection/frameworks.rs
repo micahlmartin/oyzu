@@ -133,7 +133,7 @@ pub(super) static DETECTORS: &[&dyn Detector<ContextData>] = &[
     &Framework {
         id: "node/test-vitest",
         name: "vitest",
-        commands: &["vitest", "vitest run"],
+        commands: super::super::vitest::COMMANDS,
         configs: VITEST_CONFIGS,
     },
     &DefaultTest,

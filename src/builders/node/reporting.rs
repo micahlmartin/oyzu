@@ -51,6 +51,7 @@ pub(super) fn instrument_override(
     task: &Task,
     env: &std::collections::BTreeMap<String, String>,
     native_script: bool,
+    manager: &str,
 ) -> Option<Vec<String>> {
     if task.name != "test" {
         return None;
@@ -58,8 +59,11 @@ pub(super) fn instrument_override(
     let argv: Vec<_> = task.argv.iter().map(String::as_str).collect();
     let mut command = match argv.as_slice() {
         ["node", "--test"] | ["sh", "-c", "node --test"] => strings(&["node", "--test"]),
-        ["npm", "run", "test"] | ["sh", "-c", "npm run test"] if native_script => {
-            strings(&["npm", "run", "test", "--"])
+        [command, "run", "test"] if native_script && *command == manager => {
+            super::managers::get(manager).ok()?.script("test", true)
+        }
+        ["sh", "-c", command] if native_script && *command == format!("{manager} run test") => {
+            super::managers::get(manager).ok()?.script("test", true)
         }
         _ => return None,
     };

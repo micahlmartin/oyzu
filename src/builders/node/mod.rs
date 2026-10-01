@@ -1,19 +1,40 @@
 mod detection;
 mod discovery;
 mod jest;
+mod managers;
 mod planning;
-mod preparation;
 mod reporting;
+mod vitest;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
 use crate::dependencies::Prepared;
 use crate::model::{Target, Task};
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::path::Path;
 
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "node-archive.mjs",
+        contents: include_str!("runtime/archive.mjs"),
+    },
+    RuntimeFile {
+        name: "vitest.mjs",
+        contents: include_str!("runtime/vitest.mjs"),
+    },
+    RuntimeFile {
+        name: "manager-runtime.mjs",
+        contents: include_str!("runtime/manager-runtime.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm.mjs",
+        contents: include_str!("runtime/pnpm.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn.mjs",
+        contents: include_str!("runtime/yarn.mjs"),
+    },
     RuntimeFile {
         name: "jest.mjs",
         contents: include_str!("runtime/jest.mjs"),
@@ -50,13 +71,7 @@ impl Builder for Node {
         discovery::discover(target)
     }
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
-        match target.manager.as_str() {
-            "npm" => Ok("oyzu-toolchain/node:npm11.11.0-node22"),
-            manager => bail!(
-                "{}: {manager} build integration is not implemented yet",
-                target.name
-            ),
-        }
+        Ok(managers::get(&target.manager)?.image())
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         self.toolchain(context.target)?;
@@ -65,7 +80,7 @@ impl Builder for Node {
 
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
         self.toolchain(context.target)?;
-        preparation::prepare(context)
+        managers::get(&context.target.manager)?.prepare(context)
     }
 
     fn runtime_files(&self) -> &'static [RuntimeFile] {
@@ -85,7 +100,7 @@ impl Builder for Node {
             && target
                 .tasks
                 .get("test")
-                .is_some_and(|t| t.argv == ["npm", "run", "test"]);
+                .is_some_and(|t| t.argv == [&target.manager, "run", "test"]);
         let jest_script = target
             .discovery
             .get("test-framework")
@@ -94,7 +109,16 @@ impl Builder for Node {
                 .ok()
                 .and_then(|p| p["scripts"]["test"].as_str().map(jest::recognized))
                 .unwrap_or(false);
-        reporting::instrument_override(task, env, native_script)
+        let vitest_script = target
+            .discovery
+            .get("test-framework")
+            .is_some_and(|p| p.selected() == "vitest")
+            && crate::records::read(&target.path.join("package.json"))
+                .ok()
+                .and_then(|p| p["scripts"]["test"].as_str().map(vitest::recognized))
+                .unwrap_or(false);
+        reporting::instrument_override(task, env, native_script, &target.manager)
             .or_else(|| jest::instrument_override(task, jest_script))
+            .or_else(|| vitest::instrument_override(task, vitest_script, &target.manager))
     }
 }

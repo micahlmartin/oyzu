@@ -66,7 +66,16 @@ pub fn discover_with_options(
     default_shell: Option<&str>,
     options: &config::session::Options,
 ) -> Result<Workspace> {
-    let mut session = config::session::Session::open(path, options)?;
+    discover_with_session(
+        config::session::Session::open(path, options)?,
+        default_shell,
+    )
+}
+
+pub(crate) fn discover_with_session(
+    mut session: config::session::Session,
+    default_shell: Option<&str>,
+) -> Result<Workspace> {
     let root = session.root.clone();
     let mut targets = BTreeMap::new();
     if let Some(configs) = config::targets(&root)? {

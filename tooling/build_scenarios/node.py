@@ -148,7 +148,7 @@ def verify_defaults(root, base, invoke, validate, source_files, verified):
     assert all('/test/' not in p and '/tests/' not in p and '.test.' not in p for p in sources)
     invoke(project, 'inspect', 'dist')
     # A known configuration wins over an unused dependency convention, but an
-    # unimplemented integration must not silently run a different framework.
+    # framework without a captured dependency must not silently run another runner.
     (project / 'vitest.config.ts').write_text("throw new Error('discovery must not execute this config');\n")
     invoke(project, 'build', success=False)
     unsupported = validate(project / 'dist')
@@ -177,7 +177,7 @@ def verify_defaults(root, base, invoke, validate, source_files, verified):
     assert all(r['status'] == 'invalid' for r in missing['reports'])
     action = next(a for a in missing['actions'] if a['id'] == 'project:test')
     assert action['status'] == 'failed'
-    verified.append('Node framework detectors: no-config native tests, JUnit/application coverage, real empty reports, failed tests, unsupported framework admission and custom-script evidence obligations')
+    verified.append('Node framework detectors: no-config native tests, JUnit/application coverage, real empty reports, failed tests, uncaptured framework admission and custom-script evidence obligations')
 
 
 def verify_declared_reports(root, base, invoke, validate, source_files, verified):

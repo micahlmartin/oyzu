@@ -1,5 +1,7 @@
 # Builder code organization
 
+Apply the repository-wide [code organization rules](code-organization.md) alongside this ecosystem-specific guide.
+
 This describes the current Rust implementation structure. The behavioral design remains in [OEP-0014](proposals/OEP-0014-builders-and-examples/implementation.md), with acquisition in [OEP-0017](proposals/OEP-0017-dependency-acquisition/README.md). This refactor does not make unimplemented builder profiles complete; see [implementation status](implementation-status.md).
 
 ## Ownership
@@ -15,11 +17,15 @@ src/
       discovery.rs            # Tasks from resolved manager/framework facts
       detection/managers.rs   # Native manager declarations and lock evidence
       detection/frameworks.rs # Test script/config/dependency observations and fallback
-      planning.rs             # npm commands and artifact/report intent
-      preparation.rs          # Lock admission and scoped tarball snapshot records
-      runtime/                # Native npm capture/replay and integrity validation
+      planning.rs             # Shared Node version, artifact and report intent
+      managers/mod.rs         # Crate-private native Manager interface and registration
+      managers/{npm,pnpm,yarn}.rs # Native toolchain, preparation, script and packaging behavior
+      managers/npm/preparation.rs # npm lock admission and scoped tarball snapshot records
+      managers/empty.rs       # Initial dependency-free manager admission and evidence
+      runtime/                # Native manager capture/replay, lifecycle and integrity validation
       reporting.rs            # Native test reporters and exact-command override adaptation
       jest.rs                 # Jest default invocation and exact script/override adaptation
+      vitest.rs               # Vitest default invocation and exact script/override adaptation
     python/
       mod.rs                  # Descriptor and interface implementation
       discovery.rs            # pip / uv / Poetry inference

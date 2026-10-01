@@ -56,16 +56,9 @@ pub fn run_with_options(
 ) -> Result<Value> {
     let root = crate::config::session::workspace_root(root, options.root.as_deref())?;
     // Capture and validate all administrative policy before any build side effects.
-    let mut workspace = discovery::discover_with_options(&root, Some("sh"), options)?;
-    for (id, target) in &workspace.targets {
-        if let Some(config) = workspace.configuration.get(id) {
-            let builder = builders::get(&target.builder)?;
-            crate::config::enforcement::build_preflight(config, builder.descriptor().tools)?;
-            if config.management.is_some() && builder.acquisition_requires_network() {
-                bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
-            }
-        }
-    }
+    let session = crate::config::session::Session::open(&root, options)?;
+    // Native discovery failures still produce the ordinary failed build bundle.
+    let workspace = discovery::discover_with_session(session, Some("sh"));
     let state = root.join(".oyzu");
     if state.exists() && fs::symlink_metadata(&state)?.file_type().is_symlink() {
         bail!(".oyzu must not be a symlink");
@@ -111,6 +104,16 @@ pub fn run_with_options(
     }
     let mut manifest = json!({"schemaVersion":"v1alpha1","kind":"build-manifest","runId":run_id,"planDigest":null,"planPath":null,"source":null,"status":"failed","targets":[],"actions":[],"artifacts":[],"reports":[],"evidence":[],"diagnostics":[],"envelopePath":"envelope.json","envelopeDigest":null});
     let result = (|| -> Result<Value> {
+        let mut workspace = workspace?;
+        for (id, target) in &workspace.targets {
+            if let Some(config) = workspace.configuration.get(id) {
+                let builder = builders::get(&target.builder)?;
+                crate::config::enforcement::build_preflight(config, builder.descriptor().tools)?;
+                if config.management.is_some() && builder.acquisition_requires_network() {
+                    bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
+                }
+            }
+        }
         let source = snapshot::capture(&root, &source_path)?;
         for target in workspace.targets.values_mut() {
             target.path = source_path.join(target.path.strip_prefix(&root)?);
