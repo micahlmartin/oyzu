@@ -291,7 +291,7 @@ def prepare():
 def build():
     python='.oyzu-build/venv/bin/python'
     if os.environ.get('OYZU_PYTHON_MANAGER')=='uv':
-        run(['uv','build','--offline','--no-python-downloads','--no-managed-python','--python',python,'--no-build-isolation','--out-dir','.oyzu-build/dist'])
+        run(['uv','build','--offline','--no-python-downloads','--no-managed-python','--python',python,'--no-build-isolation','--no-create-gitignore','--out-dir','.oyzu-build/dist'])
     else:
         run([python,'-I','-m','build','--no-isolation','--outdir','.oyzu-build/dist'])
     wheels=list(Path('.oyzu-build/dist').glob('*.whl'))
@@ -326,7 +326,7 @@ def package():
         elif artifact.name.endswith('.whl'):
             shutil.copyfile(artifact,destination/artifact.name)
         else:
-            raise ValueError('Unexpected native Python artifact')
+            raise ValueError('Unexpected native Python artifact: '+artifact.name)
 
 
 if __name__=='__main__':
