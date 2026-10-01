@@ -13,6 +13,8 @@ Start with zero-configuration projects, then exceptions and composition. Configu
 5. [Containers](builds/docker-offline/README.md), [Helm](builds/helm-chart/README.md), [image/chart composition](builds/image-and-chart/README.md), [matrix](builds/compatibility-matrix/README.md), [generation](builds/generated-source/README.md): which exceptions truly need syntax?
 6. [Caching](cache/oci-standalone/README.md), [release eligibility](release/eligibility/README.md), [managed tools](managed/tool-catalog/README.md), [package proxy](managed/package-proxy/README.md): are trust and failure behavior explicit?
 
+7. [Private dependency acquisition](DEPENDENCIES.md): do all package managers preserve the same credential boundary, including container packaging and custom Dockerfiles?
+
 ## All scenarios
 
 | ID | Example | Area |
@@ -67,6 +69,14 @@ Start with zero-configuration projects, then exceptions and composition. Configu
 | EX-048 | [Provider facts retain unknown states](release/source-control-facts/README.md) | release |
 | EX-049 | [Select multiple artifacts from one producer](builds/materialize-selected-artifacts/README.md) | builds |
 | EX-050 | [Materialize a directory and share compatible content](builds/materialize-directory/README.md) | builds |
+| EX-051 | [Private Python dependencies across uv pip Poetry and legacy projects](dependencies/python-private/README.md) | dependencies |
+| EX-052 | [Private npm pnpm and Yarn dependencies with lifecycle scripts](dependencies/node-private/README.md) | dependencies |
+| EX-053 | [Private Maven Gradle and Ant Ivy dependency preparation](dependencies/java-private/README.md) | dependencies |
+| EX-054 | [Private Go modules without direct VCS fallback](dependencies/go-private/README.md) | dependencies |
+| EX-055 | [Private Cargo registries and credential-free build scripts](dependencies/rust-private/README.md) | dependencies |
+| EX-056 | [Private Helm dependencies and OCI registry authentication](dependencies/helm-private/README.md) | dependencies |
+| EX-057 | [Prepared apt and apk inputs for container images](dependencies/container-os-packages/README.md) | dependencies |
+| EX-058 | [Custom Dockerfiles consume prepared dependencies without credentials](dependencies/docker-credential-boundary/README.md) | dependencies |
 
 ## Directory convention
 

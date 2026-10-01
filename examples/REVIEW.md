@@ -26,3 +26,7 @@ Generated-source and affected-build examples provide native scripts/imports and 
 ## Capturing changes
 
 Change the example and its expectation together. Reference the relevant OEP when the behavior affects a contract. Do not turn an example-only preference into a mandatory field across every builder. Accepted examples will later become executable acceptance tests; their current value is making the proposed experience concrete.
+
+## Private dependencies and container credentials
+
+Review [EX-051 through EX-058](DEPENDENCIES.md) across both standalone and managed profiles. Check that no manager adds per-project authentication boilerplate, and that preparation includes plugins, lifecycle assets and OS packages. Custom Dockerfile dependency-context binding and apt/apk preparation integration remain open; do not treat these as agreed new YAML syntax. Inspect the copy-then-delete negative Dockerfile and the full-layer/cache expectations, not only the final root filesystem.

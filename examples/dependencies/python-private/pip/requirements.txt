@@ -1,0 +1,1 @@
+oyzu-fixture-greeting==1.0.0

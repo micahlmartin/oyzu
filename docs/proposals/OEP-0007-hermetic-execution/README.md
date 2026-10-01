@@ -50,6 +50,10 @@ Most compile/test actions need no secrets. Necessary secrets are short-lived han
 
 Hooks inherit the primary task's sandbox and declared input rules. User task overrides do not disable engine enforcement. Output collectors reject path traversal and escaping symlinks. Interrupted actions cannot publish partially completed cache entries.
 
+## Credential-free dependency execution
+
+[Private dependency examples](../../../examples/DEPENDENCIES.md) define a shared acquisition boundary across native package managers and container packaging. Upstream credentials remain in the broker. Project and dependency scripts receive captured content, never upstream credentials. A preparation session may access approved routes through a job-scoped capability; session material cannot persist into execution outputs. Dynamic downloads, build plugins and OS package scripts require captured supported inputs or an actionable failure.
+
 ## Acceptance scenarios
 
 - EXEC-01: An action attempting a public download or home-directory read is denied.
@@ -58,6 +62,8 @@ Hooks inherit the primary task's sandbox and declared input rules. User task ove
 - EXEC-04: Unsupported host isolation fails with an explanation of the missing capability.
 - EXEC-05: External-service tests are visibly distinct from hermetic actions.
 - EXEC-06: A hook has the same isolation boundaries as the primary task.
+
+- EXEC-07: Private dependency acquisition keeps upstream credentials outside project/dependency execution and all exported outputs; incomplete input captures never trigger network fallback.
 
 ## Open decisions
 

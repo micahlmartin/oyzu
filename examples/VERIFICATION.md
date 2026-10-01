@@ -1,6 +1,6 @@
 # Validation scope
 
-These examples are a **design contract**, not an implemented Oyzu conformance suite. All 50 scenario families have checked-in input projects/data, expected behavior, and negative cases.
+These examples are a **design contract**, not an implemented Oyzu conformance suite. All 58 scenario families have checked-in input projects/data, expected behavior, and negative cases.
 
 Validation for this change checks document links, catalog/acceptance references, scenario coverage, file existence, and native JSON/TOML/YAML/XML syntax. It does not run or certify Oyzu. Source programs illustrate the intended native projects; cross-platform execution is future implementation work.
 
@@ -11,3 +11,5 @@ The Gradle example contains an installed-Gradle project and a wrapper preparatio
 Versions are fixture choices, not current-version recommendations. Registry endpoints under example.invalid are deliberate non-routable placeholders; no real enterprise credentials or infrastructure are needed for review.
 
 Consumer-owned materialization and platform propagation are now agreed example contracts. The structural checker compares those YAML mappings and platforms with their expectation files. This does not execute a build or prove binary compatibility. Other matrix axes and chart value bindings remain under review. Contract JSON alongside projects records expectations, not required user configuration or a substitute engine.
+
+EX-051 through EX-058 add private-dependency design fixtures. Their native locks, package archives, repository responses and base digests are intentionally pending a synthetic registry harness; no native builds or credential-isolation checks have been executed. The apt/apk Dockerfiles are network-dependent starting points whose supported preparation integration remains open. EX-058 uses a proposed named dependency context, not implemented automatic binding. Negative Dockerfiles contain secret variable names but no actual credentials.

@@ -1,0 +1,47 @@
+{
+  "purpose": "Review expectations, not an Oyzu configuration or shipped protocol schema.",
+  "managers": [
+    "Cargo"
+  ],
+  "profiles": [
+    "standalone with user-approved registry mappings",
+    "managed with policy-approved connector routes"
+  ],
+  "preparation": [
+    "Registry index metadata, crate archives and checksum information for the locked graph.",
+    "Git dependencies, build dependencies, proc macros and target/native toolchains."
+  ],
+  "credentialBoundary": {
+    "upstreamCredentials": "broker only; never exposed to project or dependency scripts",
+    "packageBytes": "executor-side agent directly to approved upstream; no mandatory platform byte relay",
+    "brokerAccess": "job-scoped route limited to approved repositories; no shared unauthenticated endpoint",
+    "execution": "captured inputs; networking denied independently of manager offline flags",
+    "cache": "credential-free captured content; private-content authorization rechecked on reuse"
+  },
+  "platforms": {
+    "hosts": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "containerTargets": [
+      "linux/amd64",
+      "linux/arm64"
+    ],
+    "selection": "Capture OS/architecture/runtime/ABI-compatible inputs; executor availability is checked, never inferred from host support."
+  },
+  "evidence": [
+    "source and lock identity",
+    "resolved content digests",
+    "approved source identity without credential-bearing URLs",
+    "target and execution platform",
+    "actual checks and failures"
+  ],
+  "excluded": [
+    "upstream tokens",
+    "credential files",
+    "authentication headers",
+    "signed download URLs",
+    "broker session capabilities"
+  ]
+}

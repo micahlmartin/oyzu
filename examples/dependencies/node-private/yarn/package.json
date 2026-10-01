@@ -1,0 +1,13 @@
+{
+  "name": "private-node-app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "yarn@4.0.0",
+  "scripts": {
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@oyzu-fixture/greeting": "1.0.0"
+  }
+}

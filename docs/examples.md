@@ -1,6 +1,6 @@
 # Executable example catalog
 
-Status: **all 50 design-contract scenarios are now checked in** under [examples](../examples/README.md). They contain project source/configuration, expected behavior, and negative cases for review. Oyzu implementation and behavioral verification remain pending.
+Status: **all 58 design-contract scenarios are now checked in** under [examples](../examples/README.md). They contain project source/configuration, expected behavior, and negative cases for review. Oyzu implementation and behavioral verification remain pending.
 
 Each row is a scenario family. Manager/runtime/platform variants have separate project roots or explicit candidate variant definitions. Managed examples contain synthetic context/evidence inputs, not a running platform implementation or real credentials. The [review guide](../examples/REVIEW.md) highlights the shape decisions to discuss.
 
@@ -58,6 +58,14 @@ Each row is a scenario family. Manager/runtime/platform variants have separate p
 | EX-048 | Source-control evidence | GitHub/GitLab protected refs, tags, fork PRs, missing permissions | Unknown/protection facts accurate; verified identity required for release | CONN-06, REL-02, REL-05 |
 | EX-049 | Named artifact selection | One Go target produces server and migrate; image selects both | Explicit selectors, inferred dependency, platform-compatible binaries at stable paths | PLAN-07, PLAN-08, BUILDER-07 |
 | EX-050 | Directory materialization | Static frontend directory feeds two image variants | Directory contents under site; reuse only with established platform independence | PLAN-07, PLAN-08, BUILDER-07 |
+| EX-051 | Private Python dependencies across uv pip Poetry and legacy projects | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-02, EXEC-07, BUILDER-08, CONN-03 |
+| EX-052 | Private npm pnpm and Yarn dependencies with lifecycle scripts | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-02, EXEC-07, BUILDER-08, CONN-03 |
+| EX-053 | Private Maven Gradle and Ant Ivy dependency preparation | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-02, EXEC-07, BUILDER-08, CONN-03 |
+| EX-054 | Private Go modules without direct VCS fallback | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-02, EXEC-07, BUILDER-08, CONN-03 |
+| EX-055 | Private Cargo registries and credential-free build scripts | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-02, EXEC-07, BUILDER-08, CONN-03 |
+| EX-056 | Private Helm dependencies and OCI registry authentication | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-02, EXEC-07, BUILDER-08, CONN-03 |
+| EX-057 | Prepared apt and apk inputs for container images | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-02, EXEC-07, BUILDER-08, CONN-03 |
+| EX-058 | Custom Dockerfiles consume prepared dependencies without credentials | Native manifests; oyzu build in standalone and managed profiles | Approved preparation, captured inputs and no upstream credentials in execution or exports | EXEC-07, BUILDER-08, BUILDER-05, CONN-03 |
 
 ## Fixture contract
 

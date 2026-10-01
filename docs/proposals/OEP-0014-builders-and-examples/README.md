@@ -52,6 +52,10 @@ Helm packaging can consume an image digest from another target through a declare
 
 Dockerfile consumers use `materialize` to place producer artifacts into a prepared context. The consumer selects a single target platform or a platform matrix; the engine resolves compatible producer variants and preserves ordinary Dockerfile COPY paths. EX-027, EX-029, EX-030, EX-049, and EX-050 define this agreed example contract. Chart digest-value binding is still a separate open design; it must not be confused with copying a file into a context.
 
+## Package-manager adapter conformance
+
+EX-051 through EX-058 exercise private dependencies across Python, Node, Java, Go, Rust, Helm and container OS packages. Every supported adapter must preserve native resolution while sharing connector authentication, broker routing, captured-input execution and credential exclusion. [The example contract](../../../examples/DEPENDENCIES.md) also records unsupported dynamic downloads and open custom-Dockerfile integration syntax. These examples do not declare that all managers are already implemented.
+
 ## Examples as the implementation contract
 
 The [example catalog](../../examples.md) defines stable EX identifiers, expected commands, inferred facts, outputs, and acceptance links. Each implemented fixture includes minimal source, native metadata/locks, expected semantic results, supported host matrix, and a short guide. Oyzu configuration appears only when the scenario requires an override.
@@ -69,6 +73,8 @@ A fixture progresses proposed → implemented → verified; a document listing a
 - BUILDER-05: Container and chart composition preserves artifact digests without deploying anything.
 - BUILDER-06: Every supported builder passes common planning, task, sandbox, report, and cache conformance cases.
 - BUILDER-07: Docker contexts contain declared file/directory artifacts at deterministic paths with compatible platform identities and no manual copy scripts.
+
+- BUILDER-08: Each supported package-manager adapter demonstrates approved private-source preparation, target-compatible offline inputs, and credential-exclusion negative cases in standalone and managed profiles.
 
 ## Open decisions
 

@@ -1,0 +1,4 @@
+<project name="private-app" default="build" xmlns:ivy="antlib:org.apache.ivy.ant">
+  <target name="dependencies"><ivy:resolve/><ivy:cachepath pathid="dependencies"/></target>
+  <target name="build" depends="dependencies"><mkdir dir="build/classes"/><javac srcdir="src" destdir="build/classes" classpathref="dependencies" includeantruntime="false"/><jar destfile="build/private-app.jar" basedir="build/classes"/></target>
+</project>

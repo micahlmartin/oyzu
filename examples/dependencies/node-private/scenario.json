@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-052",
+  "title": "Private npm pnpm and Yarn dependencies with lifecycle scripts",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "npm",
+    "pnpm",
+    "yarn"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [],
+  "acceptance": [
+    "EXEC-02",
+    "EXEC-07",
+    "BUILDER-08",
+    "CONN-03"
+  ],
+  "expected": [
+    "oyzu build discovers the native manager without per-project authentication fields.",
+    "The same dependency preparation supports native build outputs and container packaging.",
+    "Acquisition is authenticated; application and dependency execution receive no upstream credentials.",
+    "Locked captured inputs feed isolated execution; the final image, build bundle and exported caches contain no credentials."
+  ],
+  "cases": [
+    {
+      "name": "managed-route-denied",
+      "change": "Deny the package repository in the synthetic managed context.",
+      "expect": "Fail acquisition without trying a public registry or a direct URL fallback."
+    },
+    {
+      "name": "incomplete-capture",
+      "change": "Remove one required dependency from the prepared snapshot.",
+      "expect": "Fail with the missing input and owning adapter; do not restore network access."
+    },
+    {
+      "name": "credential-observation",
+      "change": "Inspect application process environment, mounted files, image layers, exported caches, logs and manifest using an ephemeral test-only upstream canary.",
+      "expect": "The upstream canary is absent. Project code cannot read the broker credential store. A detected leak blocks export; scanning alone is not proof of absence."
+    },
+    {
+      "name": "expired-authorization",
+      "change": "Expire access before acquisition or before reuse of private cached inputs.",
+      "expect": "Reauthorize according to the active grant and offline policy or deny. Possession of cached bytes is not authorization."
+    },
+    {
+      "name": "lifecycle-download",
+      "change": "Use variants/download-browser.mjs as a dependency install script.",
+      "expect": "Reject its network access in execution. A supported adapter may prepare the declared browser asset first; an unknown download needs a diagnostic, not an internet retry."
+    },
+    {
+      "name": "git-dependency",
+      "change": "Replace the registry dependency with an approved private Git dependency.",
+      "expect": "Use mediated source acquisition and a frozen commit; npm registry credentials must not be forwarded to Git."
+    }
+  ],
+  "requiredFiles": [
+    "npm/package.json",
+    "npm/app.test.mjs",
+    "pnpm/package.json",
+    "pnpm/app.test.mjs",
+    "yarn/package.json",
+    "yarn/app.test.mjs",
+    "variants/download-browser.mjs",
+    "expected-acquisition.json"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Design fixtures only. Private registries and their packages are synthetic; no resolver, broker, engine or native execution has been verified.",
+    "Private dependency locks, repository snapshots and base-image digests must be generated against a future synthetic registry. They are deliberately not fabricated here.",
+    "Minimal manager metadata expresses discovery inputs; an immutable dependency closure must be captured before execution. Missing or stale locks must never silently become a reproducibility claim."
+  ]
+}

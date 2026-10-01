@@ -1,0 +1,2 @@
+[registries.corporate]
+index = "sparse+https://packages.example.invalid/cargo/index/"
