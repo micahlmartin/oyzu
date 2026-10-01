@@ -46,11 +46,11 @@ This list defines semantics; a machine-readable JSON Schema must be introduced w
 
 ## Reporting contract
 
-Builders discover native test/coverage facilities and request machine-readable output automatically. JUnit XML and ecosystem coverage formats are collected without ordinary project configuration. Oyzu preserves original reports and normalized summary metadata; it does not invent successful tests or coverage percentages where none were produced.
+Every builder exposes an implicit test task, discovers its existing framework or selects a documented default, and requests JUnit XML plus applicable code coverage automatically. Both report kinds are collected under `dist/reports/` and referenced by the manifest without ordinary project configuration. Oyzu preserves original reports and normalized summary metadata; it does not invent successful tests or coverage percentages where none were produced. See the [default testing contract](../OEP-0014-builders-and-examples/testing.md).
 
-No tests detected, tests skipped, zero tests collected, test runner failure, missing report, and successful tests are distinct states. Coverage is enabled when the builder supports a deterministic integration. Missing reporter dependencies must be resolved as pinned preparation inputs, not installed ad hoc during tests. Unknown custom runners report unsupported automatic collection and offer a narrow override contract.
+No tests detected, tests skipped, zero tests collected, test runner failure, missing report, and successful tests are distinct states. Coverage collection is enabled by default for supported source profiles, independently of whether a threshold exists. Packaging-only subjects record applicability and reference producer coverage when present. Missing reporter dependencies must be resolved as pinned preparation inputs, not installed ad hoc during tests. Unknown custom runners report unsupported automatic collection and offer a narrow override contract; they do not silently fall back to a different test suite.
 
-An explicit task override inherits the required report contract. If it fails to produce a required report, the build explains the mismatch. Policy determines whether optional coverage is informative or mandatory; absence cannot be treated as passing a threshold.
+An explicit task override inherits the required report contract. If it fails to produce expected JUnit or coverage for an applicable operation, the evidence requirement fails even if the command exits zero. Policy controls thresholds and permitted opt-outs separately from default collection; absence cannot be treated as passing a threshold. Direct test invocations produce their own finalized test-only bundle with accurate development/build context, using the same report lifecycle without mutating an earlier bundle.
 
 ## Integrity and lifecycle
 
@@ -76,6 +76,9 @@ A partial build may have usable development artifacts, but its aggregate failure
 - BUNDLE-04: Mutating an artifact after finalization causes publishing validation to fail.
 - BUNDLE-05: Publishing adds a receipt without modifying the original manifest.
 - BUNDLE-06: A crash or output-directory race cannot produce a false complete bundle.
+- BUNDLE-07: Each executed conventional test operation produces digest-verifiable JUnit and applicable coverage under dist, with complete manifest references and no reporting configuration.
+- BUNDLE-08: Direct test invocation finalizes a distinct test-only bundle without stale reports, invented build artifacts or upgraded execution trust.
+- BUNDLE-09: Packaging coverage applicability and producer references remain distinct from collected source coverage; missing/malformed expected reports fail collection rather than becoming successful evidence.
 
 ## Open decisions
 

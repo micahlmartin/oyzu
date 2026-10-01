@@ -20,6 +20,8 @@ Plan digests and output digests exclude the manifest. The manifest is hashed onl
 
 ## Reports and normalization
 
+The [default testing contract](../OEP-0014-builders-and-examples/testing.md) is required across builders. JUnit and applicable source coverage are collected by default without a project reporting section or coverage threshold. Expected missing/invalid evidence fails the operation. Applicability is separate from collection success: packaging-only subjects explain why source coverage does not apply and bind any producer coverage to the exact consumed artifact. Extend draft record schemas and conformance fixtures for these facts before claiming implementation; an omitted record or an invented percentage cannot represent them.
+
 Each report has kind, native format, producer action, target/variant, collection status, original bytes digest/path and normalized summary. Collection statuses: collected, not-detected, unsupported, disabled, missing, invalid. Test outcomes within collected reports distinguish passed, failed, skipped and zero-collected. A runner exit failure remains a failed action even if some tests report passed. JUnit readers disable external entities/DTD, cap input size/nesting and preserve duplicate case names with suite and occurrence identity.
 
 Normalize test totals with integer counts; retain raw formats for details. Coverage records covered/total counts per metric and source mapping completeness, not only rounded percentages. Gate comparisons use exact integer fractions; empty denominators mean unavailable, not 100 percent. Merging requires matching source identity, metric semantics and a known adapter; never average percentages across modules or sum duplicated source coverage from matrix runs. Show each variant separately; an optional combined view is not production evidence unless its merge rules are recorded.
@@ -30,6 +32,8 @@ A report must bind the exact output/source/action it claims to assess. Scanner f
 
 ## Consumers and verification
 
+Direct `oyzu run <target>:test` uses this lifecycle for a test-only `dist/` bundle, preserving earlier finalized bundles through the normal retention/transaction rules. Record only actions actually executed and their invocation/source context. Development test results cannot be misrepresented as captured build or trusted CI evidence. Reports are collected on failure whenever available; no append to an immutable prior manifest is allowed.
+
 `oyzu inspect <bundle>` validates schema, references, paths and digests and summarizes outcome without running code. `oyzu publish <bundle>` performs the same verification plus current authorization. A failed bundle can be inspected and retained; publication eligibility is evaluated per requested artifact closure and managed production rules require complete relevant evidence. No local upload converts its origin.
 
-BUNDLE-01–06 plus zero tests versus no tests, malformed/hostile XML, coverage denominator zero, duplicate names, matrix source collisions, incomplete journal recovery, post-hook failure with outputs, OCI digest versus archive digest, signature-envelope circularity and concurrent destination selection. Machine-readable schemas check shape only; filesystem integrity and evidence truth require executable consumer checks.
+BUNDLE-01–09 plus zero tests versus no tests, malformed/hostile XML, coverage denominator zero, duplicate names, matrix source collisions, incomplete journal recovery, post-hook failure with outputs, OCI digest versus archive digest, signature-envelope circularity and concurrent destination selection. Machine-readable schemas check shape only; filesystem integrity and evidence truth require executable consumer checks.

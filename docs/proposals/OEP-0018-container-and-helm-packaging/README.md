@@ -87,6 +87,8 @@ The producer image's `image` output denotes its index for a platform matrix or s
 
 ## Acceptance scenarios
 
+Docker and Helm follow the [universal testing contract](../OEP-0014-builders-and-examples/testing.md). Both expose implicit `test` and produce JUnit for real assertions: contained image structure/configuration checks or chart rendering/schema checks form the default when no existing suite is configured. Runtime/cluster integration tests require declared intent and capabilities; a default must not contact an ambient cluster or invent application startup behavior. Application coverage is referenced from exact tested producers when packaging their outputs. Pure packaging subjects record source-coverage applicability explicitly and never substitute build success or assertion counts for application line coverage.
+
 - PACK-01: Optional Dockerfile-free packaging consumes exact prepared application output once and infers tests/reports without boilerplate.
 - PACK-02: Materialization preserves stable paths and metadata while rejecting collisions, escapes and incompatible variants.
 - PACK-03: Multi-platform images retain matching producer/test evidence and never silently emit a partial required index.
@@ -94,6 +96,7 @@ The producer image's `image` output denotes its index for a platform matrix or s
 - PACK-05: Image layers, metadata, logs and intermediate caches contain no upstream credential under the normal packaging path.
 - PACK-06: Helm digest bindings alter only isolated values, create graph edges and fail incompatible charts/destination changes.
 - PACK-07: Container engine cache reuse preserves producer evidence or is disabled; it never launders local-origin output.
+- PACK-08: Docker and Helm expose no-config test defaults with real JUnit assertions, dist manifest entries and honest coverage applicability or producer references; no implicit deployment or fabricated application coverage occurs.
 
 ## Rollout and open implementation gates
 

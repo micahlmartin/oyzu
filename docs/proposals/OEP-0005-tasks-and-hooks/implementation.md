@@ -16,7 +16,7 @@ In a single-target build, the builder's conventional operation names use that sa
 
 The adapter marks native operations as atomic ownership units. `npm run test` retains npm's pretest/posttest; Oyzu only adds distinct `pre_test`/`post_test` hooks. Do not discover npm's pretest as another implicit Oyzu pre-hook. Maven verify and Gradle build already include subordinate phases/tasks; represent one native invocation when splitting would duplicate compilation/testing. Report ingestion associates native subtask outcomes with that invocation without claiming separate engine actions ran.
 
-The default build requests dependency preparation, compilation/package, detected tests, configured lint and read-only formatting validation, followed by artifact validation. Native task dependencies determine actual order. It does not run every script, an editor formatter, development server, publish script or install-to-global command. Go's dependency task means prepared module acquisition, not installing binaries globally. A missing configured linter is prepared as a locked tool; no linter configuration means unavailable rather than inventing a lint regime.
+The default build requests dependency preparation, compilation/package, the builder's implicit test operation, configured lint and read-only formatting validation, followed by artifact validation. Testing preserves a detected framework or uses the profile default; no tests is an explicit discovery/execution outcome. Native task dependencies determine actual order. It does not run every script, an editor formatter, development server, publish script or install-to-global command. Go's dependency task means prepared module acquisition, not installing binaries globally. A missing configured linter is prepared as a locked tool; no linter configuration means unavailable rather than inventing a lint regime.
 
 ## Hook state machine
 
@@ -27,6 +27,8 @@ Pre-hook output is hashed before main action cache lookup. A declared output nee
 Task overrides and hooks inherit the build sandbox, policy and target toolchain. In `oyzu run` development mode they use the declared development environment and cannot produce hermetic build evidence; the displayed context is explicit. Long-lived interactive tasks are rejected from finite build plans unless an adapter models them as a scoped service test.
 
 ## Exit and report semantics
+
+Every builder's implicit test operation inherits automatic JUnit and applicable coverage collection into a finalized dist bundle. Direct development-mode test invocation uses the same report contract while recording its actual invocation/source context; it does not claim hermetic build or trusted CI provenance. See [OEP-0014 testing](../OEP-0014-builders-and-examples/testing.md) and [OEP-0012 lifecycle](../OEP-0012-build-bundles/implementation.md). This remains required implementation work where direct task execution currently returns only native output/status.
 
 Declared report paths resolve against the task's captured working directory. A declaration binds a registered format to its kind: JUnit is test evidence; Cobertura, LCOV, JaCoCo and Go coverage are coverage evidence. Unknown formats and mismatched kinds fail during configuration loading. Explicit locations replace inferred locations for that kind only; every declared file/match is required, and requirements for other kinds remain. Empty globs fail. Multiple matches retain separate report identities and raw bytes rather than summing potentially overlapping coverage into a misleading total.
 

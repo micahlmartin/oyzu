@@ -14,7 +14,7 @@ tracking-issue: null
 
 > Design draft for review. MUST and SHOULD express proposed normative requirements, not shipped behavior. Example syntax and protocol fields are provisional unless identified as an agreed product constraint.
 
-Implementation detail: [builder profiles and adapter contracts](implementation.md), [dependency acquisition](../OEP-0017-dependency-acquisition/README.md), and [container/Helm packaging](../OEP-0018-container-and-helm-packaging/README.md). These specify initial draft implementation choices without marking support implemented.
+Implementation detail: [builder profiles and adapter contracts](implementation.md), [default testing and evidence](testing.md), [dependency acquisition](../OEP-0017-dependency-acquisition/README.md), and [container/Helm packaging](../OEP-0018-container-and-helm-packaging/README.md). These specify initial draft implementation choices without marking support implemented.
 
 ## Problem and outcome
 
@@ -40,9 +40,11 @@ Initial builders ship with the CLI to reduce distribution and compatibility comp
 | Docker | Dockerfile/context or explicit builder intent | Context preparation, image build, metadata/SBOM hooks and OCI image outputs | Pinned base digests, multi-stage/multi-platform, secrets, networked RUN steps, external ADD, context exclusions |
 | Helm | Chart.yaml, values, Chart.lock and dependencies | Dependency preparation, lint, supported rendering/schema checks and packaging; chart archives | Chart dependencies, application/chart version distinction, OCI publication, template values needed for validation |
 
-“Default” does not mean invent a linter, test runner, application framework, entrypoint, or deployment environment. Use detected conventional tools; declare unavailable capabilities clearly. Java/Ant and custom Node scripts especially require evidence-based discovery. Multiple plausible managers or output types produce a targeted explanation and override.
+Every builder MUST expose an implicit `test` task. It detects and preserves an existing test framework or native test lifecycle; when none is found, it selects the builder profile's documented standard default. Test execution automatically requests JUnit XML and code coverage, with report collection into `dist/` and digest-bound manifest records. No ordinary project needs a test, output or reporting section in Oyzu configuration. The [testing contract](testing.md) defines defaults, applicability, failure behavior and conformance.
 
-Automatic coverage/reporting adds only pinned declared tooling where the integration is supported. No missing tool is installed from the public internet during an action.
+Selecting a default runner does not invent tests, an application framework, entrypoint, deployment environment or lint regime. Java/Ant and custom Node scripts especially require evidence-based discovery. An existing unrecognized runner is preserved and diagnosed rather than replaced by an unrelated fallback. Multiple plausible managers, incompatible runners or output types produce a targeted explanation and narrow override.
+
+Automatic test/coverage/reporting tooling is part of the builder's pinned preparation inputs. Coverage collection is enabled by default for supported source instrumentation; a configured threshold is not required to collect it. No missing tool is installed from the public internet during an action. An unsupported integration remains an implementation gap, not permission to silently omit required evidence or claim full builder support.
 
 ## Containers and composition
 
@@ -77,6 +79,10 @@ A fixture progresses proposed → implemented → verified; a document listing a
 - BUILDER-07: Docker contexts contain declared file/directory artifacts at deterministic paths with compatible platform identities and no manual copy scripts.
 
 - BUILDER-08: Each supported package-manager adapter demonstrates approved private-source preparation, target-compatible offline inputs, and credential-exclusion negative cases in standalone and managed profiles.
+- BUILDER-09: Every builder lists a qualified implicit test task without TOML duplication; recognized native frameworks win over the documented fallback, and unknown custom runners are not silently replaced.
+- BUILDER-10: A conventional source project produces real JUnit and coverage files plus valid dist manifest references without reporting configuration, both through build and direct test invocation; failed tests retain available reports.
+- BUILDER-11: Tests absent, zero collected, skipped, failed, unsupported, disabled and missing evidence remain distinct; a missing expected report fails the test contract, and packaging cannot fabricate application coverage.
+- BUILDER-12: Native modules and matrix variants retain attributable test/coverage evidence without rerunning native lifecycle tests or double-counting coverage; custom overrides retain required evidence contracts.
 
 ## Open decisions
 

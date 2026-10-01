@@ -2,6 +2,8 @@
 
 The active objective is the complete builder system, all applicable sample scenarios passing through real Oyzu behavior, snapshot artifacts, and CI that builds the CLI before running scenario verification. Tool installation is excluded. The checkpoints below do not redefine completion around a subset.
 
+DEC-029 makes implicit testing, detected-framework/default selection and automatic JUnit plus applicable coverage collection a requirement for every builder. The [testing contract](proposals/OEP-0014-builders-and-examples/testing.md) also requires test-only dist bundles for direct test invocation and honest packaging coverage applicability/producer references. Existing partial profiles do not yet fulfill the universal contract: Docker default assertions, complete Helm/Ant reporting, all runner fallbacks, direct-run collection and explicit applicability/selection records still require implementation and native acceptance checks. Previously unavailable tests/reporting remain gaps to close, not exceptions to the product requirement.
+
 ## Checkpoint 1: native discovery and development tasks
 
 Implemented in Rust:

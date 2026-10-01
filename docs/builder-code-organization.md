@@ -116,6 +116,8 @@ Builders can declare an optional source-file selection in `BuilderPlan`. The sna
 
 ## Adding a builder
 
+Every builder must implement the [default testing contract](proposals/OEP-0014-builders-and-examples/testing.md): implicit test discovery, existing-framework selection or documented fallback, JUnit and applicable coverage intent. Native detection/instrumentation lives in the ecosystem module; the engine owns required evidence and dist collection. A task override cannot erase these obligations, and an unimplemented reporter remains an explicit implementation gap. Packaging builders declare applicability and exact producer evidence relationships rather than inventing source coverage.
+
 Implement the trait in the ecosystem module and register it once in `builders/mod.rs`. Put native inference and version projection in that adapter, reuse task constructors and shared report formats, and declare exact output identities before execution. Add native scenario verification for its artifacts and failure behavior. Do not add a new manager switch to the shared engine, let native acquisition contact arbitrary sources, or manufacture successful results for missing integrations.
 
 Tests cover unique registrations, native ownership ambiguity, required prepared inputs, typed Python output/report intent and preservation of explicit task overrides. Existing discovery, hook, bundle and native CI scenario tests remain the behavior checks across this structural change. Cross-platform runtime support must still be demonstrated independently.

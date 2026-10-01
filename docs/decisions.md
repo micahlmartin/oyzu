@@ -34,6 +34,7 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | DEC-026 | Consumer-owned materialize mappings select producer artifacts and place them in isolated input workspaces; dependency edges are inferred | OEP-0006 |
 | DEC-027 | Consumer platform requirements propagate to runtime artifact producers; host, execution and target platforms remain distinct | OEP-0006 |
 | DEC-028 | Platform matrix variants receive matching artifacts at identical logical paths in separate contexts; target test evidence remains explicit | OEP-0014 |
+| DEC-029 | Every builder exposes an implicit test command, detects the existing framework or selects a documented standard default, and automatically collects JUnit and applicable code coverage in dist with manifest references; ordinary projects need no reporting configuration | OEP-0014 / OEP-0012 |
 
 ## Proposed choices needing review or experiments
 

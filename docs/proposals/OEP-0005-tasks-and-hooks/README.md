@@ -21,6 +21,8 @@ Implementation detail: [v1alpha1 implementation contract](implementation.md). Th
 
 Tasks are the unified developer interface across all builders. They are inferred by builders, discovered from native ecosystems, or declared in TOML. Targets form groups: `oyzu run api:test`. `oyzu run list` lists tasks grouped by target with their origins.
 
+Every builder exposes `test` using a detected native framework or a documented standard default. Direct test runs and builds inherit automatic JUnit/coverage collection and dist manifest reporting; no ordinary project requires task or report boilerplate. No tests present is an explicit outcome, not grounds to hide the task. See the [testing contract](../OEP-0014-builders-and-examples/testing.md) for defaults, applicability and test-only bundles.
+
 Defining the same qualified task in TOML replaces its implementation. Every primary task has implicit pre/post slots; defining `api:pre_test` or `api:post_test` attaches them. Direct runs and builds MUST use the same executor.
 
 ## Example
