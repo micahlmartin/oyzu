@@ -187,7 +187,7 @@ pub fn capture(source: &Path, destination: &Path) -> Result<Snapshot> {
     let normalized = serde_json::to_value(&entries)?;
     let mut hasher = Sha256::new();
     hasher.update(b"oyzu.tree.v1alpha1\0");
-    hasher.update(serde_json::to_vec(&normalized)?);
+    hasher.update(serde_json_canonicalizer::to_vec(&normalized)?);
     Ok(Snapshot {
         digest: format!("sha256:{:x}", hasher.finalize()),
         entries,

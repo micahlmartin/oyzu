@@ -20,29 +20,41 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 
 | Requirement | State |
 | --- | --- |
-| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Initial source-copy/digest primitive tested; full plan/build integration pending |
+| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Captured source, serial plans and initial Node/npm and Go build command; graph/platform expansion pending |
 | Dependency preparation and private-registry credential isolation for every native manager | Pending |
-| Capability-enforced executor, cancellation/process containment and offline build actions | Initial Docker execution primitive; full integration and boundary verification pending |
-| Build/test/lint/read-only formatting orchestration with native ownership and reports | Task discovery foundation only |
-| Native snapshot version projection and verified dist artifacts/manifests, including failures | Pending |
+| Capability-enforced executor, cancellation/process containment and offline build actions | Docker offline executor integrated; full boundary/cancellation verification pending |
+| Build/test/lint/read-only formatting orchestration with native ownership and reports | Initial Node/npm and Go orchestration; other builder integrations pending |
+| Native snapshot version projection and verified dist artifacts/manifests, including failures | Initial Node packages and Go binaries; Linux CI verification added |
 | Container convenience packaging, Dockerfile contexts/materialization, multi-platform outputs | Discovery only |
 | Helm dependency capture, chart output and image digest bindings | Discovery only |
 | Java multi-module, Go workspace/cgo, Rust features, Node workspaces and all Python variants | Discovery only; native build integration pending |
 | OCI action cache, producer evidence and snapshot publication/retry | Pending |
 | Managed policy, source-control facts, service-test/sandbox negative cases and broker behavior | Pending |
 | Complete scenario runner with native registry fixtures and accurate per-scenario evidence | Pending |
-| Cross-host verified full builds using the compiled CLI in GitHub Actions | Task workflow introduced; full builds pending |
+| Cross-host verified full builds using the compiled CLI in GitHub Actions | Three-host task workflow; first Linux container build checks added |
 
 The implementation must not read scenario expectation JSON as instructions for manufacturing outputs. Native source/configuration determines behavior. Existing authored scenarios retain pending-implementation status until their actual acceptance cases, including negatives, are exercised. No fixture is marked passing merely because a CLI command exists.
 
 ## Next checkpoint
 
-Initial executor and report helpers are also checked in as foundations for OEP-0007 and OEP-0012. The Docker helper requires a provisioned Linux image, resolves its identity, disables container networking and mounts only supplied workspace/output directories. JUnit, Go test-event conversion and LCOV/Go coverage summaries have focused parser tests. Neither helper is wired into an `oyzu build` command yet. Container execution, cancellation, mount containment, complete report validation and package-level Go failures still require integration and acceptance verification; compilation and parser tests do not establish those guarantees.
+Initial executor and report helpers are also checked in as foundations for OEP-0007 and OEP-0012. The Docker helper requires a provisioned Linux image, resolves its identity, disables container networking and mounts only supplied workspace/output directories. JUnit, Go test-event conversion and LCOV/Go coverage summaries have focused parser tests. Both helpers are now wired into the initial `oyzu build` command. Container execution, cancellation, mount containment, complete report validation and package-level Go failures still require integration and acceptance verification; compilation and parser tests do not establish those guarantees.
 
-Wire captured source into build-plan/manifest plumbing, then implement the first complete Node/Python/Go source-to-snapshot build with enforced executor boundaries. Add artifact-content and failure/report assertions to the compiled-CLI scenario job, and expand the same engine across the other managers. Keep committing incremental verified changes.
+Verify the initial Node/Go source-to-snapshot path in CI, then add dependency preparation and expand the same engine across Python and the other managers. Keep committing incremental verified changes.
 
 ## Checkpoint 2: captured-source primitive
 
 Source copying now creates a separate content-identified tree, excludes common dependency/output stores, detects changed file contents during capture, rejects nonportable/colliding paths and refuses symlinks rather than following them into host files. Existing or source-nested destinations fail. Local tests prove equal content at different checkout paths shares an identity and later source edits do not change captured bytes. A Unix-only escaping-symlink test is included for CI.
 
-This is not yet the complete source isolation contract: allowed internal links, cross-host executable-mode normalization, repository ignore rules, race-resistant handle-based filesystem access and executor integration remain required. These limitations are not treated as passing the sandbox examples. The full build command is still pending.
+This is not yet the complete source isolation contract: allowed internal links, cross-host executable-mode normalization, repository ignore rules, race-resistant handle-based filesystem access remain required. These limitations are not treated as passing the sandbox examples. The full builder catalog remains pending.
+
+## Checkpoint 3: first captured-source build path
+
+`oyzu build` now constructs a plan from captured source and pre-provisioned Docker image identities, then runs serial offline actions for dependency-free npm packages and simple Go applications. `oyzu build --plan` performs capture/preflight/planning without executing project commands. `oyzu inspect dist` checks recorded content digests; it does not authenticate a producer or grant release eligibility.
+
+The plan records native commands, inferred build/test/lint/format-check tasks, hooks, target paths, source and toolchain identity, snapshot artifact names and report intents. Semantic records use RFC 8785 encoding. Build-time shell defaults follow the Linux executor, even on a Windows CLI host. Native npm lifecycle remains npm-owned. Go formatting checks do not edit the source. The Go application fixture was formatted to meet that actual check.
+
+Bundles contain plans, execution context, native stdout/stderr, declared artifacts, JUnit and coverage reports and a success/failure manifest. Existing Oyzu bundles are retained under `.oyzu/history`; an unrelated existing `dist` is rejected. Local and CI-indicated runs remain unverified for production. The engine never pulls toolchain images during a build.
+
+Unit tests cover location-independent plans, toolchain digest binding, hook ordering, executor shell selection, semantic encoding and detection of changed artifact bytes. A compiled-CLI Linux CI job now exercises real Node/Go artifact contents, reports, failure manifests, repeated builds, source preservation and actual container network/filesystem/environment restrictions. Its result is authoritative for those cases; broader examples are still pending.
+
+Remaining limits include dependency acquisition, non-Node/non-Go packaging, matrices, materialization, container packaging, cache/publication, managed policy, native macOS/Windows executors, process cancellation, strict output quotas, complete report validation, authentic source-control evidence and recovery from every interrupted/faulted finalization. Inferred checks that are unavailable do not constitute passed checks. npm workspaces and projects declaring dependencies fail explicitly for now. This checkpoint does not satisfy the full objective.

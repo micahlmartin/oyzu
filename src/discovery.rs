@@ -396,6 +396,11 @@ fn python(target: &mut Target) -> Result<()> {
 }
 
 pub fn discover(path: &Path) -> Result<Workspace> {
+    discover_with_shell(path, None)
+}
+
+/// Build discovery selects the executor's default shell, independent of host OS.
+pub fn discover_with_shell(path: &Path, default_shell: Option<&str>) -> Result<Workspace> {
     let root = path
         .canonicalize()
         .context("project directory does not exist")?;
@@ -446,7 +451,9 @@ pub fn discover(path: &Path) -> Result<Workspace> {
         } else {
             let script = definition.run.unwrap();
             let shell = definition.shell.unwrap_or_else(|| {
-                if cfg!(windows) {
+                if let Some(shell) = default_shell {
+                    shell.into()
+                } else if cfg!(windows) {
                     "powershell.exe".into()
                 } else {
                     "sh".into()

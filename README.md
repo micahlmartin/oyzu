@@ -2,7 +2,7 @@
 
 An opinionated developer platform for tools, environments, tasks, and builds.
 
-The Rust CLI is under active implementation. The first checkpoint provides native builder/task discovery and development task execution with overrides and hooks. Full build orchestration, isolated execution, versioned artifact bundles and the complete scenario suite remain in progress; see the [implementation status](docs/implementation-status.md).
+The Rust CLI is under active implementation. Native builder/task discovery and development tasks support overrides and hooks. An initial container build command produces snapshot bundles for simple Node/npm and Go projects. The complete builder catalog and scenario suite remain in progress; see the [implementation status](docs/implementation-status.md).
 
 ```text
 cargo build --locked
@@ -20,7 +20,7 @@ Native tools must already be installed. This implementation does not install too
 - [Examples](examples/README.md): 58 checked-in design-contract scenarios with source, configuration, expected behavior, and failures.
 - [Example catalog](docs/examples.md): acceptance-criteria traceability.
 - [Reference](docs/reference/README.md): reserved for verified implemented contracts.
-- `.github/`: contribution templates and CLI compilation/task-scenario workflow.
+- `.github/`: contribution templates and CLI compilation, task and initial build-scenario workflows.
 
 All designs remain drafts for maintainer review. Run `cargo test --locked`, `cargo clippy --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check` for the current Rust implementation. `python tooling/test-task-scenarios.py --cli <compiled-oyzu-path>` tests the CLI against real native task scenarios. Run `node tooling/check-docs.mjs` separately for documentation structure.
 

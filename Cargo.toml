@@ -2,7 +2,7 @@
 name = "oyzu"
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.89"
 description = "An opinionated developer build platform"
 publish = false
 
@@ -16,9 +16,11 @@ sha2 = "0.10"
 toml = "0.8"
 walkdir = "2.5"
 roxmltree = "0.20"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+serde_json_canonicalizer = "0.3.2"
+tempfile = "3.20"
 
 [dev-dependencies]
-tempfile = "3.20"
 
 [profile.release]
 lto = "thin"

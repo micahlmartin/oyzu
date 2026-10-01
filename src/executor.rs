@@ -108,6 +108,14 @@ pub fn execute(request: Request<'_>) -> Result<Execution> {
     ]);
     let workspace = request.workspace.canonicalize()?;
     let output = request.output.canonicalize()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let metadata = fs::metadata(&workspace)?;
+        command
+            .arg("--user")
+            .arg(format!("{}:{}", metadata.uid(), metadata.gid()));
+    }
     for path in [&workspace, &output] {
         if path.to_string_lossy().contains(',') {
             bail!("Docker bind mount paths containing commas are unsupported");

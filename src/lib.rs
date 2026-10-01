@@ -1,7 +1,9 @@
+pub mod build;
 pub mod config;
 pub mod discovery;
 pub mod executor;
 pub mod model;
+pub mod records;
 pub mod reports;
 pub mod snapshot;
 pub mod tasks;

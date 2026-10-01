@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{collections::BTreeMap, fs, io::Write, path::Path};
 
 pub fn junit_summary(path: &Path) -> Result<Value> {
     let text = fs::read_to_string(path)?;
@@ -67,7 +67,12 @@ pub fn go_to_junit(log: &Path, report: &Path) -> Result<Value> {
         xml.push_str("</testcase>");
     }
     xml.push_str("</testsuite></testsuites>");
-    fs::write(report, xml)?;
+    // Never follow an output created by project code when normalizing test events.
+    let mut output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(report)?;
+    output.write_all(xml.as_bytes())?;
     junit_summary(report)
 }
 

@@ -63,3 +63,23 @@ jobs:
             chmod +x cli/oyzu
             python3 tooling/test-task-scenarios.py --cli cli/oyzu
           fi
+
+  build-scenarios:
+    name: Compiled CLI captured-source builds (Linux)
+    needs: build-cli
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: oyzu-ubuntu-latest
+          path: cli
+      - name: Provision native toolchain images and contract validator
+        run: |
+          docker pull node:22-bookworm-slim
+          docker pull golang:1.24-bookworm
+          python3 -m pip install -r tooling/design-requirements.txt
+      - name: Build and verify native snapshot artifacts through the compiled CLI
+        run: |
+          chmod +x cli/oyzu
+          python3 tooling/test-build-scenarios.py --cli cli/oyzu

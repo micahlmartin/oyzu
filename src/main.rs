@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use oyzu::{discovery, tasks};
+use oyzu::{build, discovery, tasks};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -24,6 +24,17 @@ enum Commands {
     },
     /// Inspect static builder and native task discovery without executing project code.
     Discover,
+    /// Build captured source with a provisioned container toolchain.
+    Build {
+        /// Emit the resolved deterministic plan without executing it.
+        #[arg(long)]
+        plan: bool,
+        /// Select a provisioned toolchain image, e.g. npm=node:22-bookworm-slim.
+        #[arg(long)]
+        image: Vec<String>,
+    },
+    /// Verify the recorded digests in an existing build bundle.
+    Inspect { bundle: PathBuf },
 }
 
 fn main() {
@@ -38,6 +49,25 @@ fn main() {
 
 fn run() -> Result<i32> {
     let cli = Cli::parse();
+    match &cli.command {
+        Commands::Build { plan, image } => {
+            let result = build::run(&cli.directory, image, *plan)?;
+            println!("{}", serde_json::to_string_pretty(&result)?);
+            return Ok(if *plan || result["status"] == "succeeded" {
+                0
+            } else {
+                1
+            });
+        }
+        Commands::Inspect { bundle } => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&build::inspect(&cli.directory.join(bundle))?)?
+            );
+            return Ok(0);
+        }
+        _ => {}
+    }
     let workspace = discovery::discover(&cli.directory)?;
     match cli.command {
         Commands::Discover => println!("{}", serde_json::to_string_pretty(&workspace)?),
@@ -70,6 +100,7 @@ fn run() -> Result<i32> {
                 return Ok(code);
             }
         }
+        Commands::Build { .. } | Commands::Inspect { .. } => unreachable!(),
     }
     Ok(0)
 }
