@@ -86,8 +86,10 @@ jobs:
           docker pull golang:1.24-bookworm
       - name: Compile and test native Dockerfile metadata adapter
         run: docker build -f tooling/images/docker-metadata.Dockerfile -t oyzu-toolchain/docker:buildkit0.25.0 .
+      - name: Provision explicit worker user-namespace profile
+        run: sudo apparmor_parser -r tooling/images/buildkit-probe.apparmor
       - name: Verify native worker isolation and reproducible OCI export
-        run: python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence
+        run: python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence --apparmor-profile oyzu-buildkit-probe
       - name: Retain worker logs and native OCI outputs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

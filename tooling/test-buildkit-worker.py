@@ -77,6 +77,7 @@ def inspect_layout(path, sentinel):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--evidence-dir', type=Path, required=True)
+    parser.add_argument('--apparmor-profile', default='unconfined')
     args = parser.parse_args()
     evidence = args.evidence_dir.resolve()
     evidence.mkdir(parents=True, exist_ok=False)
@@ -123,7 +124,7 @@ def main():
             try:
                 docker('run', '--detach', '--pull=never', '--name', name,
                        '--network=none', '--memory=2g', '--cpus=2', '--pids-limit=256',
-                       '--security-opt=seccomp=unconfined', '--security-opt=apparmor=unconfined',
+                       '--security-opt=seccomp=unconfined', f'--security-opt=apparmor={args.apparmor_profile}',
                        '--security-opt=systempaths=unconfined',
                        '--mount', f'type=bind,source={context},target=/workspace,readonly',
                        '--mount', f'type=bind,source={destination},target=/output',
@@ -140,6 +141,7 @@ def main():
                 inspection = json.loads(docker('inspect', name).stdout)[0]
                 assert inspection['HostConfig']['NetworkMode'] == 'none'
                 assert not inspection['HostConfig']['Privileged']
+                assert inspection['AppArmorProfile'] == args.apparmor_profile
                 assert '--oci-worker-no-process-sandbox' not in inspection['Args']
                 assert not any(m['Destination'] == '/var/run/docker.sock' for m in inspection['Mounts'])
                 result = docker('exec', name, 'buildctl', 'build', '--progress=plain', '--no-cache',
@@ -162,7 +164,8 @@ def main():
         assert digests[0] == digests[1], 'fresh workers produced different OCI image identities'
         assert before == {p.relative_to(context).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                           for p in context.rglob('*') if p.is_file()}
-    record = {'worker': identity, 'ociDigest': digests[0], 'result': 'native rootless worker contract passed',
+    record = {'worker': identity, 'apparmorProfile': args.apparmor_profile,
+              'ociDigest': digests[0], 'result': 'native rootless worker contract passed',
               'scope': 'worker/OCI probe only; compiled-Oyzu container build integration remains pending'}
     (evidence / 'summary.json').write_text(json.dumps(record, indent=2))
     print(json.dumps(record))
