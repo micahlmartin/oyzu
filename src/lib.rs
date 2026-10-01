@@ -5,6 +5,7 @@ pub mod config;
 mod dependencies;
 pub mod discovery;
 pub mod executor;
+mod launch;
 pub mod model;
 mod names;
 pub mod records;

@@ -31,6 +31,10 @@ src/
       runtime/test.sh         # Native coverage/test reporting with failure preservation
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
+      ant/metadata.rs         # Typed native Ant output metadata and containment
+      ant/preparation.rs      # Sandboxed native project evaluation
+      ant/planning.rs         # Compile/check/archive intent and versioned JARs
+      ant/runtime/            # Native Ant metadata and JDK archive integration
     docker/                   # Container builder
     helm/
       metadata.rs             # Chart discovery and contained local dependency order

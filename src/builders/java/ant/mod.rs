@@ -1,5 +1,13 @@
 use crate::builders::task::insert;
-use crate::builders::{Builder, Descriptor};
+mod metadata;
+mod planning;
+mod preparation;
+#[cfg(test)]
+mod tests;
+use crate::builders::{
+    Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile,
+};
+use crate::dependencies::Prepared;
 use crate::model::Target;
 use anyhow::Result;
 use std::fs;
@@ -7,7 +15,30 @@ use std::path::Path;
 
 pub(in crate::builders) struct Ant;
 
+const RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "AntMetadata.java",
+        contents: include_str!("runtime/AntMetadata.java"),
+    },
+    RuntimeFile {
+        name: "JarPackaging.java",
+        contents: include_str!("runtime/JarPackaging.java"),
+    },
+];
+
 impl Builder for Ant {
+    fn toolchain(&self, _target: &Target) -> Result<&'static str> {
+        Ok("oyzu-toolchain/ant:1.10.18-jdk17")
+    }
+    fn runtime_files(&self) -> &'static [RuntimeFile] {
+        RUNTIME
+    }
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
+        preparation::prepare(context).map(Some)
+    }
+    fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
+        planning::plan(context)
+    }
     fn descriptor(&self) -> Descriptor {
         Descriptor { ids: &["java/ant"] }
     }
@@ -33,11 +64,32 @@ impl Builder for Ant {
                     target,
                     name,
                     &["ant", name],
-                    Some(name) == default || name == "test",
+                    matches!(
+                        name,
+                        "build" | "compile" | "test" | "lint" | "format-check" | "jar"
+                    ),
                 );
             }
         }
 
+        if !target.tasks.contains_key("build") {
+            let command = if target.tasks.contains_key("compile") {
+                "compile"
+            } else {
+                default.unwrap_or("")
+            };
+            if !command.is_empty() {
+                insert(target, "build", &["ant", command], true);
+            }
+        }
+        let package = if target.tasks.contains_key("jar") {
+            "jar"
+        } else {
+            default.unwrap_or("")
+        };
+        if !package.is_empty() {
+            insert(target, "archive", &["ant", package], true);
+        }
         Ok(())
     }
 }

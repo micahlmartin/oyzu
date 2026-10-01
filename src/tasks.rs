@@ -117,19 +117,13 @@ pub fn execute(task: &Task, args: &[String]) -> Result<Outcome> {
         }
         argv.extend_from_slice(args);
     }
-    let mut command = if cfg!(windows)
-        && matches!(
-            argv[0].as_str(),
-            "npm" | "pnpm" | "yarn" | "mvn" | "gradle" | "ant"
-        ) {
-        let mut cmd = Command::new(format!("{}.cmd", argv[0]));
-        cmd.args(&argv[1..]);
-        cmd
-    } else {
-        let mut cmd = Command::new(&argv[0]);
-        cmd.args(&argv[1..]);
-        cmd
-    };
+    let path = task
+        .env
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("PATH"))
+        .map(|(_, value)| std::ffi::OsStr::new(value));
+    let mut command = Command::new(crate::launch::program(&argv[0], path));
+    command.args(&argv[1..]);
     let output = command
         .current_dir(&task.cwd)
         .envs(&task.env)

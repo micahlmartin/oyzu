@@ -124,11 +124,7 @@ fn explicit_task_overrides_are_not_replaced_by_native_builder_planning() {
 #[test]
 fn unsupported_builder_preserves_preflight_failure_bundle() {
     let root = tempfile::tempdir().unwrap();
-    fs::write(
-        root.path().join("build.xml"),
-        "<project name=\"preflight\" default=\"build\"><target name=\"build\"/></project>",
-    )
-    .unwrap();
+    fs::write(root.path().join("build.gradle"), "plugins { id 'java' }\n").unwrap();
     let failed = build::run(root.path(), &[], false).unwrap();
     assert_eq!(failed["status"], "failed");
     assert!(failed["planDigest"].is_null());
@@ -138,4 +134,36 @@ fn unsupported_builder_preserves_preflight_failure_bundle() {
         .unwrap()
         .contains("not implemented"));
     assert_eq!(build::inspect(&root.path().join("dist")).unwrap(), failed);
+}
+
+#[test]
+fn single_target_build_honors_root_tasks_and_hooks_without_cross_target_fanout() {
+    let root = tempfile::tempdir().unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    fs::write(root.path().join("oyzu.toml"), "[tasks.test]\nargv=['custom-test']\n[tasks.pre_test]\nargv=['custom-pre']\n[tasks.post_test]\nargv=['custom-post']\n").unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    let selected: Vec<_> = actions
+        .iter()
+        .filter(|a| ["pre_test", "test", "post_test"].contains(&a["id"].as_str().unwrap()))
+        .collect();
+    assert_eq!(selected.len(), 3);
+    assert_eq!(selected[1]["argv"], json!(["custom-test"]));
+    assert!(!actions.iter().any(|a| a["id"] == "project:test"));
+    fs::write(
+        root.path().join("build.yaml"),
+        "a:\n  uses: node/package\nb:\n  uses: node/package\n",
+    )
+    .unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    assert!(!actions.iter().any(|a| a["id"] == "test"));
+    assert!(actions.iter().any(|a| a["id"] == "a:test"));
+    assert!(actions.iter().any(|a| a["id"] == "b:test"));
 }

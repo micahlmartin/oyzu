@@ -71,6 +71,25 @@ def main():
         assert outcomes[-1]["status"] == "succeeded"
         passed.append("EX-018 real native build and test task execution")
 
+        if os.name == 'nt':
+            launchers = root/'native launchers'
+            launchers.mkdir()
+            for suffix in ['cmd', 'bat']:
+                tool = f'oyzu-native-{suffix}'
+                (launchers/f'{tool}.{suffix}').write_text('@echo off\n@echo native-launcher-ok\n')
+                (node_build/'oyzu.toml').write_text(f'[tasks.check]\nargv=["{tool}"]\n')
+                env = dict(os.environ, PATH=str(launchers)+os.pathsep+os.environ['PATH'])
+                outcomes = invoke(node_build, 'run', 'check', env=env)
+                assert outcomes[-1]['stdout'].strip() == 'native-launcher-ok'
+            passed.append('Windows development tasks resolve native cmd and bat launchers without ecosystem-specific names')
+            # Ant also ships an OS/2 .cmd file. Follow the host PATHEXT order.
+            (launchers/'oyzu-native.bat').write_text('@echo off\n@echo windows-batch\n')
+            (launchers/'oyzu-native.cmd').write_text('@echo off\n@echo wrong-launcher\n')
+            (node_build/'oyzu.toml').write_text('[tasks.check]\nargv=["oyzu-native"]\n')
+            env['PATHEXT'] = '.COM;.EXE;.BAT;.CMD'
+            outcomes = invoke(node_build, 'run', 'check', env=env)
+            assert outcomes[-1]['stdout'].strip() == 'windows-batch'
+
     print(json.dumps({"verified": passed, "scope": "development task execution only; build integration pending"}, indent=2))
 
 

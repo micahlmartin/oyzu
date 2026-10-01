@@ -10,6 +10,8 @@ Initial TOML fields are `run` (shell string), `argv` (string array), `shell`, `c
 
 Task `list` is reserved for listing unless preceded by `--`. No command lists root and target tasks without executing discovery scripts. Unqualified lookup prefers an explicit root task, then the single current target; multi-target ambiguity returns all qualified candidates. Group ownership is determined before override lookup, so an unqualified test cannot accidentally override every target.
 
+In a single-target build, the builder's conventional operation names use that same root-task precedence. Thus a root `tasks.test` supplies the custom test operation and its root hooks, including when no native test target was discovered. In a multi-target build, use qualified tasks to replace a target's operation; a root task is never implicitly applied to every target. This keeps the existing Ant custom-task example's direct-run and build behavior consistent.
+
 ## Native lifecycle ownership
 
 The adapter marks native operations as atomic ownership units. `npm run test` retains npm's pretest/posttest; Oyzu only adds distinct `pre_test`/`post_test` hooks. Do not discover npm's pretest as another implicit Oyzu pre-hook. Maven verify and Gradle build already include subordinate phases/tasks; represent one native invocation when splitting would duplicate compilation/testing. Report ingestion associates native subtask outcomes with that invocation without claiming separate engine actions ran.

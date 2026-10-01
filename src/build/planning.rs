@@ -118,11 +118,20 @@ pub(super) fn plan_with_dependencies(
             ));
         }
         for stage in &intent.stages {
-            let task_id = format!("{id}:{stage}");
+            // Match public task lookup for a single-target workspace: explicit
+            // root tasks own unqualified operations. Never fan a root override
+            // out across multiple targets.
+            let root_override =
+                workspace.targets.len() == 1 && workspace.tasks.contains_key(*stage);
+            let task_id = if root_override {
+                stage.to_string()
+            } else {
+                format!("{id}:{stage}")
+            };
             let Some(task) = workspace.tasks.get(&task_id) else {
                 continue;
             };
-            if task.availability.is_some() || !task.build_stage {
+            if task.availability.is_some() || (!task.build_stage && !root_override) {
                 continue;
             }
             for step in tasks::sequence(workspace, &task_id)? {
