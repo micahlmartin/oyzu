@@ -372,3 +372,40 @@ fn apparmor_legacy_setting_uses_the_same_constraint_registry() {
     )
     .is_err());
 }
+
+#[test]
+fn optional_diagnostics_locate_base_and_profile_values_without_exporting_them() {
+    let text =
+        "[build]\nfuture='sensitive-base'\n[profiles.dev.build]\nfuture='sensitive-profile'\n";
+    let parsed = source("project", Scope::Project, text);
+    assert_eq!(parsed.diagnostics.len(), 2);
+    for (diagnostic, expected) in parsed
+        .diagnostics
+        .iter()
+        .zip(["'sensitive-base'", "'sensitive-profile'"])
+    {
+        let (start, end) = diagnostic.span.unwrap();
+        assert_eq!(&text[start..end], expected);
+        let public = serde_json::to_value(diagnostic).unwrap();
+        assert_eq!(public["severity"], "warning");
+        assert!(!public["remedy"].as_str().unwrap().is_empty());
+        assert!(!public.to_string().contains("sensitive-"));
+    }
+}
+
+#[test]
+fn task_environment_cannot_case_alias_global_environment() {
+    let registry = Registry::default();
+    for (spelling, succeeds) in [("TOKEN", true), ("token", false)] {
+        let parsed = source("project", Scope::Project, &format!("[env]\nTOKEN='base'\n[tasks.check]\nargv=['tool']\n[tasks.check.env]\n{spelling}='task'\n"));
+        let result = resolve(
+            &[parsed],
+            &registry,
+            false,
+            &Selection::default(),
+            Constraints::default(),
+            false,
+        );
+        assert_eq!(result.is_ok(), succeeds);
+    }
+}

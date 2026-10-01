@@ -184,10 +184,22 @@ pub fn resolve(
             bail!("CONFIG_OVERRIDE_DENIED: selected profile is not permitted");
         }
     }
-    let mut names = BTreeSet::new();
-    for key in result.values.keys().filter(|k| k.starts_with("env.")) {
-        if !names.insert(key.to_ascii_uppercase()) {
-            bail!("CONFIG_INVALID_VALUE: case-colliding environment names");
+    let environment: Vec<_> = result
+        .values
+        .keys()
+        .filter_map(|key| key.strip_prefix("env."))
+        .collect();
+    super::registry::validate_environment_case(environment.iter().copied())?;
+    for (key, task) in &result.values {
+        if key.starts_with("tasks.") {
+            if let Some(env) = task.get("env").and_then(Value::as_object) {
+                super::registry::validate_environment_case(
+                    environment
+                        .iter()
+                        .copied()
+                        .chain(env.keys().map(String::as_str)),
+                )?;
+            }
         }
     }
     let identity: BTreeMap<_, _> = result

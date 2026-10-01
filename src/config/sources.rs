@@ -9,9 +9,24 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Severity {
+    #[default]
+    Warning,
+    Error,
+}
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Diagnostic {
     pub code: String,
+    #[serde(default)]
+    pub severity: Severity,
+    #[serde(default)]
+    pub span: Option<(usize, usize)>,
+    #[serde(default)]
+    pub target: Option<String>,
+    #[serde(default)]
+    pub remedy: String,
     pub source: String,
     pub key: String,
     pub message: String,
@@ -40,6 +55,8 @@ pub fn warning(source: &str, key: &str, message: &str) -> Diagnostic {
         source: source.into(),
         key: key.into(),
         message: message.into(),
+        remedy: "Check the setting spelling and supported configuration capabilities".into(),
+        ..Diagnostic::default()
     }
 }
 pub fn capabilities(values: &[String]) -> Result<()> {
@@ -222,35 +239,6 @@ impl ConfigSource {
         })?;
         let value = serde_json::to_value(parsed)?;
         bounds(&value, 0, &mut 0)?;
-        let mut diagnostics = Vec::new();
-        let base = overlay(
-            &value,
-            identity,
-            scope,
-            nested,
-            false,
-            registry,
-            &mut diagnostics,
-        )?;
-        let mut profiles = BTreeMap::new();
-        let mut names = BTreeSet::new();
-        if let Some(v) = value.get("profiles") {
-            let object = v
-                .as_object()
-                .context("CONFIG_INVALID_VALUE: profiles must be a table")?;
-            if object.len() > 128 {
-                bail!("CONFIG_LIMIT: too many profiles");
-            }
-            for (name, v) in object {
-                if !crate::names::valid(name) || !names.insert(name.to_ascii_lowercase()) {
-                    bail!("CONFIG_INVALID_VALUE: invalid or case-colliding profile name");
-                }
-                profiles.insert(
-                    name.clone(),
-                    overlay(v, identity, scope, nested, true, registry, &mut diagnostics)?,
-                );
-            }
-        }
         let document = toml_edit::ImDocument::parse(text)
             .map_err(|_| anyhow::anyhow!("CONFIG_SYNTAX: invalid TOML"))?;
         let mut spans = BTreeMap::new();
@@ -274,6 +262,42 @@ impl ConfigSource {
             }
         }
         collect(document.as_table(), "", &mut spans);
+        let mut diagnostics = Vec::new();
+        let base = overlay(
+            &value,
+            identity,
+            scope,
+            nested,
+            false,
+            registry,
+            &mut diagnostics,
+        )?;
+        for diagnostic in &mut diagnostics {
+            diagnostic.span = spans.get(&diagnostic.key).copied();
+        }
+        let mut profiles = BTreeMap::new();
+        let mut names = BTreeSet::new();
+        if let Some(v) = value.get("profiles") {
+            let object = v
+                .as_object()
+                .context("CONFIG_INVALID_VALUE: profiles must be a table")?;
+            if object.len() > 128 {
+                bail!("CONFIG_LIMIT: too many profiles");
+            }
+            for (name, v) in object {
+                if !crate::names::valid(name) || !names.insert(name.to_ascii_lowercase()) {
+                    bail!("CONFIG_INVALID_VALUE: invalid or case-colliding profile name");
+                }
+                let start = diagnostics.len();
+                let values = overlay(v, identity, scope, nested, true, registry, &mut diagnostics)?;
+                for diagnostic in &mut diagnostics[start..] {
+                    diagnostic.span = spans
+                        .get(&format!("profiles.{name}.{}", diagnostic.key))
+                        .copied();
+                }
+                profiles.insert(name.clone(), values);
+            }
+        }
         Ok(Self {
             spans,
             identity: identity.into(),

@@ -184,6 +184,7 @@ pub(crate) fn discover_with_session(
         let config = config::project_from_effective(&effective)?;
         for task in tasks.values_mut().filter(|task| task.target == *id) {
             task.env.extend(config.env.clone());
+            config::registry::validate_environment_case(task.env.keys().map(String::as_str))?;
         }
         for (name, definition) in config.tasks {
             if name.split_once(':').is_some_and(|(group, _)| group == id) {
@@ -282,6 +283,7 @@ pub(crate) fn discover_with_session(
             .unwrap_or(&root_effective);
         let mut env = config::project_from_effective(effective)?.env;
         env.extend(definition.env);
+        config::registry::validate_environment_case(env.keys().map(String::as_str))?;
         let stage = existing.is_some_and(|t| t.build_stage);
         tasks.insert(
             id.clone(),

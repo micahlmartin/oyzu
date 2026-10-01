@@ -138,6 +138,8 @@ impl Session {
                     message: format!(
                         "use {key}; legacy environment input remains subject to policy"
                     ),
+                    remedy: format!("Set {key} in an ordinary configuration source"),
+                    ..sources::Diagnostic::default()
                 });
                 invocation.push(source);
             }
@@ -210,8 +212,20 @@ impl Session {
                         source: "native-locations".into(),
                         key: String::new(),
                         message: message.clone(),
+                        remedy: "Use an absolute XDG directory or remove the invalid override"
+                            .into(),
+                        ..sources::Diagnostic::default()
                     }),
             );
+        for diagnostic in &mut result.diagnostics {
+            diagnostic.target = Some(
+                target
+                    .strip_prefix(&self.root)
+                    .unwrap_or(target)
+                    .display()
+                    .to_string(),
+            );
+        }
         if let Some(reason) = &self.selection_reason {
             result.selection_reason = reason.clone();
             result.profiles = self.known_profiles.clone();

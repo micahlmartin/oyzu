@@ -1,4 +1,6 @@
 //! Native configuration locations and protected administrative file access.
+#[cfg(target_os = "macos")]
+mod macos;
 use anyhow::{bail, Context, Result};
 use std::{
     fs,
@@ -145,6 +147,8 @@ fn check_protection(path: &Path) -> Result<()> {
             bail!("POLICY_INVALID: administrative path is not root protected");
         }
     }
+    #[cfg(target_os = "macos")]
+    macos::check_acl(&fs::File::open(path)?)?;
     #[cfg(windows)]
     {
         use std::os::windows::fs::{MetadataExt, OpenOptionsExt};
@@ -166,6 +170,8 @@ fn check_handle(file: &fs::File) -> Result<()> {
     if m.uid() != 0 || m.mode() & 0o022 != 0 {
         bail!("POLICY_INVALID: insecure administrative file");
     }
+    #[cfg(target_os = "macos")]
+    macos::check_acl(file)?;
     Ok(())
 }
 #[cfg(windows)]

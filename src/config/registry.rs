@@ -319,12 +319,9 @@ impl Registry {
         }
         if d.kind == Kind::Task {
             if let Some(env) = value.get("env").and_then(Value::as_object) {
-                let mut names = BTreeSet::new();
+                validate_environment_case(env.keys().map(String::as_str))?;
                 for (name, value) in env {
                     self.validate(&format!("env.{name}"), value)?;
-                    if !names.insert(name.to_ascii_uppercase()) {
-                        bail!("CONFIG_INVALID_VALUE: case-colliding task environment");
-                    }
                 }
             }
         }
@@ -391,4 +388,19 @@ impl Registry {
         }
         Ok(value.clone())
     }
+}
+
+/// An exact spelling may intentionally override itself; distinct case aliases
+/// cannot depend on the host's environment comparison rules.
+pub(crate) fn validate_environment_case<'a>(names: impl Iterator<Item = &'a str>) -> Result<()> {
+    let mut seen = BTreeMap::new();
+    for name in names {
+        if seen
+            .insert(name.to_ascii_uppercase(), name)
+            .is_some_and(|prior| prior != name)
+        {
+            bail!("CONFIG_INVALID_VALUE: case-colliding environment names");
+        }
+    }
+    Ok(())
 }
