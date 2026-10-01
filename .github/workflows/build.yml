@@ -70,6 +70,9 @@ jobs:
           node --test tooling/test-node-lock.mjs
           node --test tooling/test-jest-results.mjs
           python tooling/test-node-acquisition.py
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
+          python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/jest
           python tooling/test-jest-reporting.py --jest-cli tooling/fixtures/jest/node_modules/jest/bin/jest.js
           if [ "$RUNNER_OS" = "Windows" ]; then
@@ -129,6 +132,8 @@ jobs:
         run: |
           docker pull node:22-bookworm-slim
           docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
+          docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
+          docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
           docker pull golang:1.24-bookworm
           docker pull python:3.12-slim-bookworm
           docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim

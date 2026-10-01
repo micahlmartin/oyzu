@@ -15,9 +15,12 @@ src/
       discovery.rs            # Tasks from resolved manager/framework facts
       detection/managers.rs   # Native manager declarations and lock evidence
       detection/frameworks.rs # Test script/config/dependency observations and fallback
-      planning.rs             # npm commands and artifact/report intent
-      preparation.rs          # Lock admission and scoped tarball snapshot records
-      runtime/                # Native npm capture/replay and integrity validation
+      planning.rs             # Shared Node version, artifact and report intent
+      managers/mod.rs         # Crate-private native Manager interface and registration
+      managers/{npm,pnpm,yarn}.rs # Native toolchain, preparation, script and packaging behavior
+      managers/npm/preparation.rs # npm lock admission and scoped tarball snapshot records
+      managers/empty.rs       # Initial dependency-free manager admission and evidence
+      runtime/                # Native manager capture/replay, lifecycle and integrity validation
       reporting.rs            # Native test reporters and exact-command override adaptation
       jest.rs                 # Jest default invocation and exact script/override adaptation
     python/
