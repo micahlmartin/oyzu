@@ -4,8 +4,40 @@ use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::{
     fs,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
+
+/// Retain bounded raw evidence, including bytes that a report parser may reject.
+/// Read before creating the destination so oversized inputs leave no bundle file.
+pub(super) fn capture_bounded_output(
+    out: &Path,
+    bundle: &Path,
+    relative: &str,
+    limit: u64,
+) -> Result<PathBuf> {
+    let source = safe_file(out, relative)?;
+    let mut bytes = Vec::new();
+    fs::File::open(source)?
+        .take(limit + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limit {
+        bail!("report exceeds {limit} bytes");
+    }
+    let destination = bundle.join(relative);
+    let mut output = create_output(&destination)?;
+    output.write_all(&bytes)?;
+    output.sync_all()?;
+    Ok(destination)
+}
+
+fn create_output(destination: &Path) -> Result<fs::File> {
+    fs::create_dir_all(destination.parent().context("missing output parent")?)?;
+    Ok(fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)?)
+}
 
 pub(super) fn safe_file(root: &Path, relative: &str) -> Result<PathBuf> {
     let mut path = root.to_path_buf();
@@ -46,12 +78,8 @@ pub(super) fn safe_report_parent(root: &Path, relative: &str) -> Result<()> {
 pub(super) fn capture_output(out: &Path, bundle: &Path, relative: &str) -> Result<PathBuf> {
     let source = safe_file(out, relative)?;
     let destination = bundle.join(relative);
-    fs::create_dir_all(destination.parent().context("missing output parent")?)?;
     let mut input = fs::File::open(source)?;
-    let mut output = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&destination)?;
+    let mut output = create_output(&destination)?;
     std::io::copy(&mut input, &mut output)?;
     output.sync_all()?;
     #[cfg(unix)]

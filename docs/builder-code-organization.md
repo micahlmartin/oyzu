@@ -37,6 +37,7 @@ src/
     mod.rs                    # Capture, preparation, execution and finalization lifecycle
     planning.rs               # Common hook expansion and execution-plan serialization
     execution.rs              # Scheduling, executor invocation and outcome collection
+    collection.rs             # Bounded report capture, parsing and failure evidence
     bundle.rs                 # Output containment, capture and integrity inspection
   discovery.rs                # Workspace ownership, ambiguity and task overrides
   dependencies.rs             # Shared prepared dependency snapshot
@@ -66,6 +67,8 @@ Artifact names are owned strings, and artifacts can override the target-level ve
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 
 Native runtime code belongs to its ecosystem. The embedded Python adapter exists to invoke native package tooling and inspect native metadata inside the isolated toolchain environment. It does not own scheduling, policy decisions or bundle finalization. Further Python growth should split manager and operation modules inside `builders/python`, not add unrelated ecosystems to a global helpers directory.
+
+Report collection is a separate engine responsibility. It retains contained raw report bytes before parsing, within the shared 16 MiB report limit. Parsing and digests refer to those retained bytes. Invalid reports fail the action but remain available for diagnosis; missing, escaping or oversized files are not copied into the bundle. Native report formats remain in `reports.rs`, rather than being implemented separately by each builder.
 
 ## Adding a builder
 

@@ -1,6 +1,6 @@
 //! Execute a resolved plan and collect outcome records without ecosystem dispatch.
-use super::bundle::{capture_output, safe_file, safe_report_parent};
-use crate::{builders, dependencies, executor, reports, snapshot};
+use super::{bundle::capture_output, collection};
+use crate::{builders, dependencies, executor, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, fs, path::Path, time::Duration};
@@ -119,48 +119,21 @@ pub(super) fn execute_plan(
             code = 1;
         }
         for intent in a["reports"].as_array().context("missing report intents")? {
-            let report_id = intent["id"].as_str().context("missing report id")?;
-            let path = a["extensions"]["oyzu.dev/report-paths"][report_id]
-                .as_str()
-                .context("missing report path")?;
-            let format = intent["format"].as_str().context("missing report format")?;
-            let mut report = json!({"id":report_id,"action":id,"target":target,"kind":intent["kind"],"format":format,"status":"missing","summary":{}});
-            let summary = (|| -> Result<Value> {
-                let source: reports::ReportSource = a["extensions"]["oyzu.dev/report-sources"]
-                    .get(report_id)
-                    .map(|v| serde_json::from_value(v.clone()))
-                    .transpose()?
-                    .unwrap_or_default();
-                if source != reports::ReportSource::File {
-                    safe_report_parent(out, path)?;
-                    reports::materialize(source, &stdout, &out.join(path))?;
-                }
-                let file = safe_file(out, path)?;
-                if format == "junit" {
-                    reports::junit_summary(&file)
-                } else {
-                    reports::coverage_summary(&file, format)
-                }
-            })();
-            match summary {
-                Ok(summary) => {
-                    if summary["failed"].as_u64().is_some_and(|n| n > 0) {
-                        code = 1;
-                    }
-                    report["status"] = json!("collected");
-                    report["summary"] = summary;
-                    report["path"] = json!(path);
-                    let captured = capture_output(out, bundle, path)?;
-                    report["digest"] = json!(snapshot::file_digest(&captured)?);
-                    report["subjectDigest"] = plan["source"]["treeDigest"].clone();
-                }
-                Err(error) => {
-                    code = 1;
-                    report["status"] = json!("invalid");
-                    diagnostics.push(json!({"code":"report-invalid","phase":"collect","severity":"error","message":error.to_string(),"action":id,"target":target}));
-                }
+            let report = collection::collect(
+                a,
+                intent,
+                &plan["source"]["treeDigest"],
+                out,
+                bundle,
+                &stdout,
+            )?;
+            if report.failed() {
+                code = 1;
             }
-            collected.push(report);
+            if let Some(diagnostic) = report.diagnostic {
+                diagnostics.push(diagnostic);
+            }
+            collected.push(report.record);
         }
         if code == 0 {
             for intent in plan["artifacts"]

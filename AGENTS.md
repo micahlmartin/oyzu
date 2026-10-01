@@ -13,6 +13,7 @@ This is the public Oyzu repository. It must be buildable and usable without priv
 - Link significant implementation work to its agreed design and acceptance criteria. Distinguish drafts from accepted requirements.
 - Do not choose a license or copy upstream code before preserving applicable notices and checking licensing.
 - Add verification appropriate to the change; never claim unperformed checks passed.
+- Keep ecosystem behavior under `src/builders/<ecosystem>` behind the crate-private `Builder` contract. Split growing adapters by responsibility and native manager; keep orchestration, sandbox enforcement and bundle collection in shared engine modules. Avoid global helpers directories, manager switches in the engine, and speculative public plugin APIs. See docs/builder-code-organization.md.
 
 ## Current state
 Draft visions and OEPs are indexed in docs/README.md. Implementation is now authorized and in progress. The Rust CLI sources are in src/ with tests in tests/. Track measured capabilities and remaining work in docs/implementation-status.md; do not mark full build scenarios passing based only on discovery or development task execution.

@@ -23,13 +23,14 @@ pub(crate) fn materialize(source: ReportSource, stdout: &Path, destination: &Pat
     }
 }
 
+pub(crate) const MAX_REPORT_BYTES: u64 = 16 * 1024 * 1024;
+
 fn read_report(path: &Path) -> Result<String> {
-    const LIMIT: u64 = 16 * 1024 * 1024;
     let mut text = String::new();
     fs::File::open(path)?
-        .take(LIMIT + 1)
+        .take(MAX_REPORT_BYTES + 1)
         .read_to_string(&mut text)?;
-    if text.len() as u64 > LIMIT {
+    if text.len() as u64 > MAX_REPORT_BYTES {
         bail!("report exceeds 16 MiB");
     }
     Ok(text)
