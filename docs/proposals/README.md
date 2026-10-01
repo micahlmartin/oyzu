@@ -1,6 +1,6 @@
 # Oyzu Enhancement Proposals
 
-All proposals below remain **draft**. Implementation has begun for configuration, discovery and tasks; see each proposal metadata and the [measured status](../implementation-status.md). No proposal has been accepted by a maintainer yet. IDs are permanent and independent of GitHub issue numbers.
+All proposals below remain **draft**. Implementation has begun for configuration, discovery, tasks and the initial captured-source build/bundle path; see each proposal metadata and the [measured status](../implementation-status.md). No proposal has been accepted by a maintainer yet. IDs are permanent and independent of GitHub issue numbers.
 
 | ID | Proposal | Dependencies |
 | --- | --- | --- |

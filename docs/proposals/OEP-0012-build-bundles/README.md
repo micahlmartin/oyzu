@@ -2,7 +2,7 @@
 id: OEP-0012
 title: Build bundles manifests and reports
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []

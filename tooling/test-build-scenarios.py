@@ -92,7 +92,8 @@ def main():
             # Tampering is detected; a subsequent build retains the old bundle.
             path.write_bytes(path.read_bytes() + b"tampered")
             invoke(project,"inspect","dist",success=False)
-            invoke(project,"build")
+            rebuilt = invoke(project,"build")
+            assert rebuilt["artifacts"][0]["digest"] == artifact["digest"], "identical inputs changed artifact bytes"
             assert list((project / ".oyzu/history").iterdir())
             verified.append(f"{example}: plan, build, native tests, coverage, snapshot artifact, source isolation, bundle verification")
 

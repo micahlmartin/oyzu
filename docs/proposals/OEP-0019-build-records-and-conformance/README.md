@@ -2,7 +2,7 @@
 id: OEP-0019
 title: Versioned build records and implementation conformance
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []

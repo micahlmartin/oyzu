@@ -95,3 +95,22 @@ fn semantic_digest_canonicalizes_unicode_property_order() {
         records::digest("oyzu.tree.v1alpha1", &value).unwrap()
     );
 }
+
+#[test]
+fn unsupported_builder_preserves_preflight_failure_bundle() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("Cargo.toml"),
+        "[package]\nname=\"preflight\"\nversion=\"0.1.0\"\nedition=\"2021\"\n",
+    )
+    .unwrap();
+    let failed = build::run(root.path(), &[], false).unwrap();
+    assert_eq!(failed["status"], "failed");
+    assert!(failed["planDigest"].is_null());
+    assert!(failed["actions"].as_array().unwrap().is_empty());
+    assert!(failed["diagnostics"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("not implemented"));
+    assert_eq!(build::inspect(&root.path().join("dist")).unwrap(), failed);
+}

@@ -537,11 +537,14 @@ fn execute_plan(
         }
         outcome["status"] = json!(if code == 0 { "succeeded" } else { "failed" });
         outcome["exitCode"] = json!(code);
-        outcome["enforced"] = json!([
-            "docker-network-none",
-            "docker-read-only-root",
-            "docker-cap-drop-all"
-        ]);
+        // A Docker startup failure is not evidence that a sandbox ran.
+        if code == 0 {
+            outcome["enforced"] = json!([
+                "docker-network-none",
+                "docker-read-only-root",
+                "docker-cap-drop-all"
+            ]);
+        }
         failed = code != 0;
         outcomes.push(outcome);
     }

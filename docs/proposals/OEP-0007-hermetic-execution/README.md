@@ -2,7 +2,7 @@
 id: OEP-0007
 title: Source capture and hermetic execution
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []

@@ -37,7 +37,7 @@ The implementation must not read scenario expectation JSON as instructions for m
 
 ## Next checkpoint
 
-Initial executor and report helpers are also checked in as foundations for OEP-0007 and OEP-0012. The Docker helper requires a provisioned Linux image, resolves its identity, disables container networking and mounts only supplied workspace/output directories. JUnit, Go test-event conversion and LCOV/Go coverage summaries have focused parser tests. Both helpers are now wired into the initial `oyzu build` command. Container execution, cancellation, mount containment, complete report validation and package-level Go failures still require integration and acceptance verification; compilation and parser tests do not establish those guarantees.
+Initial executor and report helpers are also checked in as foundations for OEP-0007 and OEP-0012. The Docker helper requires a provisioned Linux image, resolves its identity, disables container networking and mounts only supplied workspace/output directories. JUnit, Go test-event conversion and LCOV/Go coverage summaries have focused parser tests. Both helpers are now wired into the initial `oyzu build` command. Container execution, cancellation, mount containment and complete report validation still require further acceptance verification; compilation and parser tests do not establish those guarantees.
 
 Verify the initial Node/Go source-to-snapshot path in CI, then add dependency preparation and expand the same engine across Python and the other managers. Keep committing incremental verified changes.
 
