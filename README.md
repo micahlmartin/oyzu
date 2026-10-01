@@ -6,8 +6,8 @@ The Rust CLI is under active implementation. Native builder/task discovery and d
 
 ```text
 cargo build --locked
-cargo run -- -C examples/tasks/npm-scripts/project run list
-cargo run -- -C examples/tasks/npm-scripts/project run foo
+cargo run -- --root examples/tasks/npm-scripts/project run list
+cargo run -- --root examples/tasks/npm-scripts/project run foo
 ```
 
 Native tools must already be installed. This implementation does not install toolchains. `oyzu run` executes development tasks; it does not claim hermetic build evidence.

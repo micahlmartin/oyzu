@@ -37,7 +37,35 @@ pub fn inspect(path: &Path) -> Result<Value> {
 
 /// Build an immutable local bundle. Prior bundles are retained under .oyzu/history.
 pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
-    let root = root.canonicalize()?;
+    run_with_options(
+        root,
+        images,
+        plan_only,
+        &crate::config::session::Options {
+            root: Some(root.into()),
+            ..Default::default()
+        },
+    )
+}
+
+pub fn run_with_options(
+    root: &Path,
+    images: &[String],
+    plan_only: bool,
+    options: &crate::config::session::Options,
+) -> Result<Value> {
+    let root = crate::config::session::workspace_root(root, options.root.as_deref())?;
+    // Capture and validate all administrative policy before any build side effects.
+    let mut workspace = discovery::discover_with_options(&root, Some("sh"), options)?;
+    for (id, target) in &workspace.targets {
+        if let Some(config) = workspace.configuration.get(id) {
+            let builder = builders::get(&target.builder)?;
+            crate::config::enforcement::build_preflight(config, builder.descriptor().tools)?;
+            if config.management.is_some() && builder.acquisition_requires_network() {
+                bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
+            }
+        }
+    }
     let state = root.join(".oyzu");
     if state.exists() && fs::symlink_metadata(&state)?.file_type().is_symlink() {
         bail!(".oyzu must not be a symlink");
@@ -77,14 +105,23 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
         std::process::id(),
         SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos()
     );
-    let mut envelope = json!({"schemaVersion":"v1alpha1","kind":"execution-envelope","runId":run_id,"planDigest":null,"startedAt":chrono::DateTime::<chrono::Utc>::from(SystemTime::now()).to_rfc3339(),"host":{"os":std::env::consts::OS,"arch":std::env::consts::ARCH},"context":if std::env::var_os("CI").is_some() {"ci-unverified"} else {"local"},"identity":{"subject":"local-process","verification":"local"},"policy":{"decisionIds":[]},"facts":[]});
+    let mut envelope = json!({"schemaVersion":"v1alpha1","kind":"execution-envelope","runId":run_id,"planDigest":null,"startedAt":chrono::DateTime::<chrono::Utc>::from(SystemTime::now()).to_rfc3339(),"host":{"os":std::env::consts::OS,"arch":std::env::consts::ARCH},"context":if crate::config::sources::detected_ci() {"ci-unverified"} else {"local"},"identity":{"subject":"local-process","verification":"local"},"policy":{"decisionIds":[]},"facts":[]});
     if envelope["host"]["os"] == "macos" {
         envelope["host"]["os"] = json!("darwin");
     }
     let mut manifest = json!({"schemaVersion":"v1alpha1","kind":"build-manifest","runId":run_id,"planDigest":null,"planPath":null,"source":null,"status":"failed","targets":[],"actions":[],"artifacts":[],"reports":[],"evidence":[],"diagnostics":[],"envelopePath":"envelope.json","envelopeDigest":null});
     let result = (|| -> Result<Value> {
         let source = snapshot::capture(&root, &source_path)?;
-        let workspace = discovery::discover_with_shell(&source_path, Some("sh"))?;
+        for target in workspace.targets.values_mut() {
+            target.path = source_path.join(target.path.strip_prefix(&root)?);
+            for task in target.tasks.values_mut() {
+                task.cwd = source_path.join(task.cwd.strip_prefix(&root)?);
+            }
+        }
+        for task in workspace.tasks.values_mut() {
+            task.cwd = source_path.join(task.cwd.strip_prefix(&root)?);
+        }
+        workspace.root = source_path.clone();
         planning::target_order(&workspace)?;
         let resolved = resolve_images(&workspace, images)?;
         let mut dependencies = BTreeMap::new();
@@ -93,6 +130,7 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
             let execution_name = format!("oyzu-acquire-{run_id}-{id}");
             let builder = builders::get(&target.builder)?;
             if let Some(prepared) = builder.prepare(builders::PreparationContext {
+                configuration: workspace.configuration.get(id),
                 target,
                 destination: &destination,
                 image: &resolved[id],

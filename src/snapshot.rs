@@ -35,6 +35,7 @@ fn included(entry: &DirEntry) -> bool {
             Some(
                 ".git"
                     | ".oyzu"
+                    | ".oyzu-config-edit.lock"
                     | "node_modules"
                     | "dist"
                     | "target"

@@ -1,21 +1,34 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use oyzu::{build, discovery, tasks};
+use oyzu::{build, config, discovery, tasks};
 use std::path::PathBuf;
 
 #[derive(Parser)]
 #[command(version, about = "Opinionated native project tasks and builds")]
 struct Cli {
-    #[arg(short = 'C', long = "directory", global = true, default_value = ".")]
-    directory: PathBuf,
+    #[arg(short = 'C', long = "directory", global = true)]
+    directory: Option<PathBuf>,
     #[arg(long, global = true)]
     json: bool,
+    #[arg(long, global = true)]
+    root: Option<PathBuf>,
+    #[arg(long, global = true, conflicts_with = "no_profile")]
+    profile: Option<String>,
+    #[arg(long, global = true)]
+    no_profile: bool,
+    #[arg(long, global = true)]
+    local_overrides: bool,
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Inspect, validate or edit cascading configuration without executing tasks.
+    Config {
+        #[command(subcommand)]
+        command: config::cli::Command,
+    },
     /// List inferred tasks or execute a task in the development environment.
     Run {
         task: Option<String>,
@@ -49,9 +62,29 @@ fn main() {
 
 fn run() -> Result<i32> {
     let cli = Cli::parse();
+    let directory = cli
+        .directory
+        .as_ref()
+        .or(cli.root.as_ref())
+        .cloned()
+        .unwrap_or_else(|| PathBuf::from("."));
+    let options = config::session::Options {
+        root: cli.root.clone(),
+        profile: cli.profile.clone(),
+        no_profile: cli.no_profile,
+        local_overrides: cli.local_overrides,
+        ..Default::default()
+    };
     match &cli.command {
+        Commands::Config { command } => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&config::cli::run(command, &directory, &options)?)?
+            );
+            return Ok(0);
+        }
         Commands::Build { plan, image } => {
-            let result = build::run(&cli.directory, image, *plan)?;
+            let result = build::run_with_options(&directory, image, *plan, &options)?;
             println!("{}", serde_json::to_string_pretty(&result)?);
             return Ok(if *plan || result["status"] == "succeeded" {
                 0
@@ -62,13 +95,13 @@ fn run() -> Result<i32> {
         Commands::Inspect { bundle } => {
             println!(
                 "{}",
-                serde_json::to_string_pretty(&build::inspect(&cli.directory.join(bundle))?)?
+                serde_json::to_string_pretty(&build::inspect(&directory.join(bundle))?)?
             );
             return Ok(0);
         }
         _ => {}
     }
-    let workspace = discovery::discover(&cli.directory)?;
+    let workspace = discovery::discover_with_options(&directory, None, &options)?;
     match cli.command {
         Commands::Discover => println!("{}", serde_json::to_string_pretty(&workspace)?),
         Commands::Run { task, args } => {
@@ -100,7 +133,9 @@ fn run() -> Result<i32> {
                 return Ok(code);
             }
         }
-        Commands::Build { .. } | Commands::Inspect { .. } => unreachable!(),
+        Commands::Build { .. } | Commands::Inspect { .. } | Commands::Config { .. } => {
+            unreachable!()
+        }
     }
     Ok(0)
 }

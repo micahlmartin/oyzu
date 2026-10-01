@@ -39,6 +39,7 @@ static RUNTIME: &[RuntimeFile] = &[
 impl Builder for Node {
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["node"],
             ids: &["node/app", "node/package"],
         }
     }

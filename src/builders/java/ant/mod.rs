@@ -40,7 +40,10 @@ impl Builder for Ant {
         planning::plan(context)
     }
     fn descriptor(&self) -> Descriptor {
-        Descriptor { ids: &["java/ant"] }
+        Descriptor {
+            ids: &["java/ant"],
+            tools: &["java"],
+        }
     }
     fn detect(&self, path: &Path) -> Option<&'static str> {
         ["build.xml"]

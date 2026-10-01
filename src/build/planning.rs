@@ -104,6 +104,9 @@ pub(super) fn plan_with_dependencies(
             .get(&id)
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
         let builder = builders::get(&target.builder)?;
+        if let Some(config) = workspace.configuration.get(&id) {
+            crate::config::enforcement::build_preflight(config, builder.descriptor().tools)?;
+        }
         let intent = builder.plan(builders::PlanningContext {
             target,
             source,
@@ -138,6 +141,10 @@ pub(super) fn plan_with_dependencies(
         }
         if let Some(projection) = projection {
             record["extensions"]["oyzu.dev/source-projection"] = json!(projection);
+        }
+        if let Some(config) = workspace.configuration.get(&id) {
+            record["extensions"]["oyzu.dev/configuration"] =
+                json!({"digest": config.digest, "profile": config.profile});
         }
         target_records.push(record);
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));
@@ -290,10 +297,40 @@ pub(super) fn plan_with_dependencies(
         if let Some(p) = &previous {
             prerequisites.insert(p.clone());
         }
+        if let Some(config) = a["target"]
+            .as_str()
+            .and_then(|id| workspace.configuration.get(id))
+        {
+            a["extensions"]["oyzu.dev/configuration-digest"] = json!(config.digest);
+            a["extensions"]["oyzu.dev/coverage-minimum"] = config
+                .get("checks.coverageMinimum")
+                .cloned()
+                .unwrap_or(json!(0));
+        }
         a["dependsOn"] = json!(prerequisites);
         previous = a["id"].as_str().map(str::to_string);
     }
-    let policy = json!({"mode":"standalone","enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"offline":true,"productionEligible":false,"executor":"docker-v1"}))?,"requiredChecks":[]});
+    validate_required_checks(workspace, &planned)?;
+    let managed = workspace
+        .configuration
+        .values()
+        .find_map(|config| config.management.as_ref());
+    let required: BTreeSet<_> = workspace
+        .configuration
+        .values()
+        .filter_map(|config| config.get("checks.required").and_then(Value::as_array))
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    let digests: BTreeMap<_, _> = workspace
+        .configuration
+        .iter()
+        .map(|(id, config)| (id, &config.digest))
+        .collect();
+    let mut policy = json!({"mode":if managed.is_some(){"managed"}else{"standalone"},"enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"configuration":digests,"productionEligible":false,"executor":"docker-v1"}))?,"requiredChecks":required});
+    if let Some(management) = managed {
+        policy["extensions"]["oyzu.dev/configuration-policy"] = management.clone();
+    }
     Ok(
         json!({"schemaVersion":"v1alpha1","kind":"build-plan","source":{"treeDigest":source.digest,"commit":null,"dirty":true},"policy":policy,"tools":tools,"targets":target_records,"actions":planned,"artifacts":artifacts}),
     )
@@ -329,4 +366,38 @@ pub(super) fn resolve_images(
         );
     }
     Ok(images)
+}
+
+fn validate_required_checks(workspace: &Workspace, actions: &[Value]) -> Result<()> {
+    for (id, config) in &workspace.configuration {
+        let checks = config
+            .get("checks.required")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let coverage = config
+            .get("checks.coverageMinimum")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        for check in checks
+            .iter()
+            .filter_map(Value::as_str)
+            .chain((coverage > 0).then_some("coverage"))
+        {
+            let present = actions.iter().filter(|a| a["target"] == *id).any(|a| {
+                if matches!(check, "tests" | "coverage") {
+                    let kind = if check == "tests" { "test" } else { "coverage" };
+                    a["reports"]
+                        .as_array()
+                        .is_some_and(|reports| reports.iter().any(|r| r["kind"] == kind))
+                } else {
+                    a["operation"] == check
+                }
+            });
+            if !present {
+                bail!("CONFIG_OVERRIDE_DENIED: {id} cannot satisfy required {check} check");
+            }
+        }
+    }
+    Ok(())
 }

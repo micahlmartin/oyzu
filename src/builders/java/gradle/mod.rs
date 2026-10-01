@@ -50,6 +50,7 @@ impl Builder for Gradle {
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["java"],
             ids: &["java/gradle"],
         }
     }

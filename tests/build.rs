@@ -281,9 +281,17 @@ fn single_target_build_honors_root_tasks_and_hooks_without_cross_target_fanout()
     assert!(selected[0]["reports"].as_array().unwrap().is_empty());
     assert!(selected[2]["reports"].as_array().unwrap().is_empty());
     assert!(!actions.iter().any(|a| a["id"] == "project:test"));
+    for name in ["a", "b"] {
+        fs::create_dir(root.path().join(name)).unwrap();
+        fs::copy(
+            root.path().join("package.json"),
+            root.path().join(name).join("package.json"),
+        )
+        .unwrap();
+    }
     fs::write(
         root.path().join("build.yaml"),
-        "a:\n  uses: node/package\nb:\n  uses: node/package\n",
+        "a:\n  uses: node/package\n  path: a\nb:\n  uses: node/package\n  path: b\n",
     )
     .unwrap();
     let capture = tempfile::tempdir().unwrap();
@@ -391,7 +399,7 @@ fn declared_reports_bind_captured_task_cwd_and_preserve_other_required_kinds() {
         r#"
 [tasks."api:test"]
 argv=['custom-test']
-cwd='checks'
+cwd='api/checks'
 reports=[{kind='test',format='junit',path='reports/tests.xml'}]
 [tasks."api:post_test"]
 argv=['custom-post']

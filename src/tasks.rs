@@ -119,6 +119,14 @@ pub fn sequence(workspace: &Workspace, id: &str) -> Result<Vec<String>> {
 }
 
 pub fn execute(task: &Task, args: &[String]) -> Result<Outcome> {
+    execute_with_unsets(task, args, &BTreeSet::new(), None)
+}
+fn execute_with_unsets(
+    task: &Task,
+    args: &[String],
+    removed: &BTreeSet<String>,
+    profile: Option<&Option<String>>,
+) -> Result<Outcome> {
     if task.argv.is_empty() {
         bail!("empty command for {}", task.id());
     }
@@ -140,6 +148,15 @@ pub fn execute(task: &Task, args: &[String]) -> Result<Outcome> {
         .map(|(_, value)| std::ffi::OsStr::new(value));
     let mut command = Command::new(crate::launch::program(&argv[0], path));
     command.args(&argv[1..]);
+    if let Some(profile) = profile {
+        command.env(
+            "OYZU_INHERITED_PROFILE",
+            profile.as_deref().unwrap_or("@none"),
+        );
+    }
+    for key in removed.iter().filter_map(|key| key.strip_prefix("env.")) {
+        command.env_remove(key);
+    }
     let output = command
         .current_dir(&task.cwd)
         .envs(&task.env)
@@ -171,9 +188,23 @@ pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Ve
     let primary = resolve(workspace, requested)?;
     let mut outcomes = vec![];
     for id in sequence(workspace, &primary)? {
-        let outcome = execute(
+        let config = workspace
+            .configuration
+            .get(&workspace.tasks[&id].target)
+            .or(workspace.root_configuration.as_ref());
+        if let Some(config) = config {
+            config
+                .constraints
+                .apply(&mut config.values().clone(), &config.removed)?;
+        }
+        let removed = config
+            .map(|config| config.removed.clone())
+            .unwrap_or_default();
+        let outcome = execute_with_unsets(
             &workspace.tasks[&id],
             if id == primary { args } else { &[] },
+            &removed,
+            config.map(|config| &config.profile),
         )?;
         let failed = outcome.exit_code != 0;
         outcomes.push(outcome);

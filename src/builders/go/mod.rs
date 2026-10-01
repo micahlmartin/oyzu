@@ -8,6 +8,9 @@ use std::path::Path;
 pub(super) struct Go;
 
 impl Builder for Go {
+    fn acquisition_requires_network(&self) -> bool {
+        false
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("golang:1.24-bookworm")
     }
@@ -16,6 +19,7 @@ impl Builder for Go {
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["go"],
             ids: &["go/app", "go/library"],
         }
     }

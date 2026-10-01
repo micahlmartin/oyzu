@@ -1,0 +1,374 @@
+use oyzu::config::{
+    constraints::{Constraints, Entry},
+    registry::{Registry, Scope},
+    resolve::{resolve, Selection},
+    sources::ConfigSource,
+};
+use serde_json::json;
+use std::path::Path;
+fn source(id: &str, scope: Scope, text: &str) -> ConfigSource {
+    ConfigSource::parse(id, Path::new("."), scope, false, text, &Registry::default()).unwrap()
+}
+#[test]
+fn cascade_profiles_and_atomic_tasks() {
+    let sources=vec![source("user",Scope::User,"[build]\njobs=4\n[profiles.dev.build]\njobs=8\n[tasks.hello]\nargv=['old']\n[tasks.hello.env]\nOLD='yes'\n"),source("project",Scope::Project,"[profile]\ndefault='dev'\n[build]\njobs=6\n[profiles.dev.build]\njobs=12\n[tasks.hello]\nargv=['new']\n"),source("local",Scope::Local,"[build]\njobs=10\n")];
+    let result = resolve(
+        &sources,
+        &Registry::default(),
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    assert_eq!(result.get("build.jobs"), Some(&json!(10)));
+    assert_eq!(result.profile.as_deref(), Some("dev"));
+    assert!(result.get("tasks.hello").unwrap().get("env").is_none());
+    assert_eq!(result.origins["build.jobs"].len(), 6);
+}
+#[test]
+fn optional_compatibility_and_inactive_requirements() {
+    let s = source(
+        "project",
+        Scope::Project,
+        "[future]\nfoo=42\n[profiles.future.compatibility]\nrequires=['future/v99']\n",
+    );
+    let result = resolve(
+        std::slice::from_ref(&s),
+        &Registry::default(),
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    assert_eq!(result.diagnostics.len(), 1);
+    assert!(resolve(
+        &[s],
+        &Registry::default(),
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        true
+    )
+    .is_err());
+    assert!(ConfigSource::parse(
+        "bad",
+        Path::new("."),
+        Scope::Project,
+        false,
+        "[build]\njobs='secret'",
+        &Registry::default()
+    )
+    .unwrap_err()
+    .to_string()
+    .contains("CONFIG_INVALID_VALUE"));
+}
+#[test]
+fn removal_and_reintroduction() {
+    let a = source("a", Scope::Project, "[env]\nHELLO='one'\n");
+    let b = source("b", Scope::Local, "[overrides]\nremove=['env.HELLO']\n");
+    let result = resolve(
+        &[a.clone(), b.clone()],
+        &Registry::default(),
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    assert!(result.get("env.HELLO").is_none());
+    assert!(result.removed.contains("env.HELLO"));
+    let c = source("c", Scope::Invocation, "[env]\nHELLO='two'\n");
+    let result = resolve(
+        &[a, b, c],
+        &Registry::default(),
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    assert_eq!(result.get("env.HELLO"), Some(&json!("two")));
+    assert!(result.removed.is_empty());
+}
+#[test]
+fn restrictive_constraints_and_required_union() {
+    let registry = Registry::default();
+    let mut constraints = Constraints::default();
+    constraints
+        .add(
+            "corp",
+            "build.jobs",
+            Entry {
+                maximum: Some(16),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+    constraints
+        .add(
+            "local",
+            "build.jobs",
+            Entry {
+                maximum: Some(8),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+    constraints
+        .add(
+            "corp",
+            "checks.required",
+            Entry {
+                required: Some(vec![json!("tests")]),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+    let mut values = std::collections::BTreeMap::from([
+        ("build.jobs".into(), json!(8)),
+        ("checks.required".into(), json!([])),
+    ]);
+    constraints.apply(&mut values, &Default::default()).unwrap();
+    assert_eq!(values["checks.required"], json!(["tests"]));
+    values.insert("build.jobs".into(), json!(9));
+    assert!(constraints.apply(&mut values, &Default::default()).is_err());
+    assert!(constraints
+        .add(
+            "bad",
+            "build.jobs",
+            Entry {
+                minimum: Some(10),
+                ..Default::default()
+            },
+            &registry
+        )
+        .is_err());
+}
+#[test]
+fn redaction_and_identity() {
+    let registry = Registry::default();
+    let a = source(
+        "one",
+        Scope::Project,
+        "[env]\nTOKEN='never print this'\n[ui]\ncolor='always'\n",
+    );
+    let b = source(
+        "two",
+        Scope::Project,
+        "[env]\nTOKEN='never print this'\n[ui]\ncolor='never'\n",
+    );
+    let first = resolve(
+        &[a],
+        &registry,
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    let second = resolve(
+        &[b],
+        &registry,
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    assert_eq!(first.digest, second.digest);
+    assert!(!first
+        .explain(&registry)
+        .to_string()
+        .contains("never print this"));
+}
+#[test]
+fn ci_excludes_personal_computation() {
+    let a=source("user",Scope::User,"[env]\nPRIVATE='secret'\n[ui]\ncolor='never'\n[profile]\ndefault='dev'\n[profiles.dev.build]\njobs=1\n");
+    let result = resolve(
+        &[a],
+        &Registry::default(),
+        true,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    assert!(result.get("env.PRIVATE").is_none());
+    assert_eq!(result.get("ui.color"), Some(&json!("never")));
+    assert_eq!(result.profile.as_deref(), Some("ci"));
+}
+#[test]
+fn strict_json_rejects_duplicates_at_any_depth() {
+    assert!(oyzu::config::policy::strict_json(br#"{"a":{"b":1,"b":2}}"#).is_err());
+}
+#[test]
+fn edit_preserves_unknown_comments_and_detects_races() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("oyzu.toml");
+    std::fs::write(
+        &path,
+        "# greeting\n[build]\njobs = 4 # capacity\n[future]\nthing = 'retained'\n",
+    )
+    .unwrap();
+    let registry = Registry::default();
+    let mut edit = oyzu::config::edit::Edit::read(&path).unwrap();
+    edit.change("build.jobs", Some(json!(8)), None, &registry)
+        .unwrap();
+    edit.commit(&path, Scope::Project, false, &registry)
+        .unwrap();
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("# greeting"));
+    assert!(text.contains("# capacity"));
+    assert!(text.contains("thing = 'retained'"));
+    let edit = oyzu::config::edit::Edit::read(&path).unwrap();
+    std::fs::write(&path, "# concurrent edit").unwrap();
+    assert!(edit
+        .commit(&path, Scope::Project, false, &registry)
+        .unwrap_err()
+        .to_string()
+        .contains("CONFIG_EDIT_CONFLICT"));
+}
+
+#[test]
+fn arrays_replace_and_policy_locks_conflict_without_last_writer_wins() {
+    let registry = Registry::default();
+    let first = source(
+        "first",
+        Scope::Project,
+        "[checks]\nrequired=['tests','coverage']\n",
+    );
+    let second = source("second", Scope::Local, "[checks]\nrequired=[]\n");
+    let result = resolve(
+        &[first, second],
+        &registry,
+        false,
+        &Selection::default(),
+        Constraints::default(),
+        false,
+    )
+    .unwrap();
+    assert_eq!(result.get("checks.required"), Some(&json!([])));
+    let mut constraints = Constraints::default();
+    constraints
+        .add(
+            "one",
+            "cache.write",
+            Entry {
+                locked: Some(true),
+                value: Some(json!(false)),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+    assert!(constraints
+        .add(
+            "two",
+            "cache.write",
+            Entry {
+                locked: Some(true),
+                value: Some(json!(true)),
+                ..Default::default()
+            },
+            &registry
+        )
+        .is_err());
+}
+#[test]
+fn configuration_capture_is_immutable() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("oyzu.toml");
+    std::fs::write(&path, "[build]\njobs=3\n").unwrap();
+    let session = oyzu::config::session::Session::open(
+        root.path(),
+        &oyzu::config::session::Options {
+            root: Some(root.path().into()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    std::fs::write(&path, "[build]\njobs=9\n").unwrap();
+    assert_eq!(
+        session
+            .resolve(root.path(), false)
+            .unwrap()
+            .get("build.jobs"),
+        Some(&json!(3))
+    );
+}
+#[test]
+fn yaml_rejects_aliases_duplicates_merge_keys_and_tags() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("build.yaml");
+    for text in [
+        "a: {uses: node/package}\na: {uses: go/app}\n",
+        "a: &base {uses: node/package}\nb: *base\n",
+        "a: {uses: !custom node/package}\n",
+        "a: {uses: node/package, <<: {path: .}}\n",
+    ] {
+        std::fs::write(&path, text).unwrap();
+        assert!(oyzu::config::targets(root.path()).is_err(), "{text}");
+    }
+}
+#[test]
+fn edits_support_inline_tables_and_keep_optional_fields() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("oyzu.toml");
+    std::fs::write(&path, "build = { jobs = 3, future = true } # keep\n").unwrap();
+    let registry = Registry::default();
+    let mut edit = oyzu::config::edit::Edit::read(&path).unwrap();
+    edit.change("build.jobs", Some(json!(8)), None, &registry)
+        .unwrap();
+    edit.commit(&path, Scope::Project, false, &registry)
+        .unwrap();
+    let text = std::fs::read_to_string(path).unwrap();
+    assert!(text.contains("future = true"));
+    assert!(text.contains("# keep"));
+}
+#[test]
+fn optional_task_fields_warn_but_cannot_change_the_typed_task() {
+    let source = source(
+        "project",
+        Scope::Project,
+        "[tasks.example]\nargv=['echo','ok']\nfuture = 'inert'\n",
+    );
+    assert_eq!(source.diagnostics.len(), 1);
+    assert!(source.base.values["tasks.example"].get("future").is_none());
+}
+#[test]
+fn apparmor_legacy_setting_uses_the_same_constraint_registry() {
+    let registry = Registry::default();
+    assert!(registry.definition("docker.apparmorProfile").is_some());
+    let mut constraints = Constraints::default();
+    constraints
+        .add(
+            "admin",
+            "docker.apparmorProfile",
+            Entry {
+                locked: Some(true),
+                value: Some(json!("required-profile")),
+                ..Default::default()
+            },
+            &registry,
+        )
+        .unwrap();
+    let requested = source(
+        "legacy-env",
+        Scope::Invocation,
+        "[docker]\napparmorProfile='unconfined'\n",
+    );
+    assert!(resolve(
+        &[requested],
+        &registry,
+        false,
+        &Selection::default(),
+        constraints,
+        false
+    )
+    .is_err());
+}
