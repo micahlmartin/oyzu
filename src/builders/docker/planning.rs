@@ -36,6 +36,14 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             ],
         ),
     );
+    let mut selected = metadata.context.files.clone();
+    selected.push("Dockerfile".into());
+    if let Some(ignore_file) = &metadata.context.ignore_file {
+        selected.push(ignore_file.clone());
+    }
+    selected.sort();
+    selected.dedup();
+    plan.source_files = Some(selected);
     let mut build = TaskPlan::command(&["buildctl", "build"]);
     build.execution = Mode::Buildkit {
         output,

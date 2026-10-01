@@ -65,6 +65,8 @@ def verify(root, base, invoke, validate, source_files, verified):
     (project / 'image/Dockerfile').write_text('FROM scratch\nCOPY bin/server /server\nCOPY . /context/\nRUN ["/server"]\nENTRYPOINT ["/server"]\n')
     (project / 'image/.dockerignore').write_text('bin/\nprivate.txt\n')
     (project / 'image/private.txt').write_text('synthetic ignored source marker')
+    (project / 'image/bin').mkdir()
+    (project / 'image/bin/server').write_text('stale ignored local binary')
     (project / 'build.yaml').write_text('app:\n  uses: go/app\n  path: app\nimage:\n  uses: docker/image\n  path: image\n  materialize:\n    - from: app\n      to: bin/server\n')
     before = source_files(project)
     invoke(project, 'build')
@@ -76,6 +78,8 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert digest == image['ociDigest'] and config['config']['Entrypoint'] == ['/server']
     assert hashlib.sha256(files['server']).hexdigest() == binary['digest'].removeprefix('sha256:')
     assert b'synthetic ignored source marker' not in b''.join(files.values())
+    assert b'stale ignored local binary' not in b''.join(files.values())
+    assert (project / 'image/bin/server').read_text() == 'stale ignored local binary'
     assert any(r['kind'] == 'test' and r['summary']['passed'] > 0 for r in manifest['reports'])
     assert any(e['kind'] == 'artifact-materialization' and e['id'] == 'image/materialization' for e in manifest['evidence'])
     invoke(project, 'inspect', 'dist')

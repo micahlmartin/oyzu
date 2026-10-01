@@ -20,6 +20,11 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
     )
     .unwrap();
     fs::write(root.path().join("greeting.txt"), "hello\n").unwrap();
+    fs::write(
+        root.path().join(".dockerignore"),
+        "Dockerfile\n.dockerignore\n",
+    )
+    .unwrap();
     let capture = tempfile::tempdir().unwrap();
     let source = snapshot::capture(root.path(), &capture.path().join("source")).unwrap();
     let workspace = discovery::discover(&capture.path().join("source")).unwrap();
@@ -31,10 +36,12 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
             dependencies: None
         })
         .is_err());
+    let mut native = metadata();
+    native["context"] = json!({"files":["greeting.txt"],"ignoreFile":".dockerignore"});
     let prepared = Prepared {
         root: capture.path().into(),
         digest: format!("sha256:{}", "1".repeat(64)),
-        record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":metadata(),"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
+        record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
     };
     let plan = Docker
         .plan(PlanningContext {
@@ -44,6 +51,16 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
         })
         .unwrap();
     plan.validate().unwrap();
+    // Control files stay reserved for admission, even when excluded from COPY.
+    assert_eq!(
+        plan.source_files.as_ref().unwrap(),
+        &[".dockerignore", "Dockerfile", "greeting.txt"]
+    );
+    let crate::executor::Mode::Buildkit { context_files, .. } = &plan.tasks["build"].execution
+    else {
+        panic!("expected native worker");
+    };
+    assert_eq!(context_files, &["greeting.txt"]);
     assert!(plan.version.starts_with("0.0.0-dev.g"));
     assert_eq!(
         serde_json::to_value(&plan.artifacts[0].kind).unwrap(),

@@ -113,6 +113,11 @@ pub(super) fn plan_with_dependencies(
             .validate()
             .with_context(|| format!("{id}: invalid builder output contract"))?;
         let cwd = relative(&workspace.root, &target.path)?;
+        let projection = intent
+            .source_files
+            .as_ref()
+            .map(|files| snapshot::Projection::new(&cwd, files))
+            .transpose()?;
         if let Some(config) = configs.get(&id) {
             materialized.insert(
                 id.clone(),
@@ -123,10 +128,15 @@ pub(super) fn plan_with_dependencies(
                     images,
                     &id,
                     source,
+                    projection.as_ref(),
                 )?,
             );
         }
-        target_records.push(json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)}));
+        let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)});
+        if let Some(projection) = projection {
+            record["extensions"]["oyzu.dev/source-projection"] = json!(projection);
+        }
+        target_records.push(record);
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));
         for command in &intent.prepare {
             planned.push(action(

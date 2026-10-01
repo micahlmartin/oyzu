@@ -1,5 +1,7 @@
 //! Captured source trees for the build engine; never a live view of the checkout.
+mod projection;
 use anyhow::{bail, Context, Result};
+pub(crate) use projection::Projection;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{
@@ -80,16 +82,31 @@ pub fn file_digest(path: &Path) -> Result<String> {
 
 /// Destination must be new and outside source. Failed capture is never reusable.
 pub fn capture(source: &Path, destination: &Path) -> Result<Snapshot> {
-    capture_tree(source, destination, true)
+    capture_tree(source, destination, true, None)
 }
 
 /// Prepared repositories are complete inputs: source-tree ignore rules do not
 /// apply to native package coordinates or resolver metadata.
 pub(crate) fn capture_prepared(source: &Path, destination: &Path) -> Result<Snapshot> {
-    capture_tree(source, destination, false)
+    capture_tree(source, destination, false, None)
 }
 
-fn capture_tree(source: &Path, destination: &Path, source_rules: bool) -> Result<Snapshot> {
+/// Copy the declared selection from an already captured workspace. This does not
+/// modify the checkout or apply source exclusions a second time.
+pub(crate) fn capture_projected(
+    source: &Path,
+    destination: &Path,
+    projection: &Projection,
+) -> Result<Snapshot> {
+    capture_tree(source, destination, false, Some(projection))
+}
+
+fn capture_tree(
+    source: &Path,
+    destination: &Path,
+    source_rules: bool,
+    projection: Option<&Projection>,
+) -> Result<Snapshot> {
     let source = source.canonicalize()?;
     if destination.exists() {
         bail!("snapshot destination already exists");
@@ -108,7 +125,18 @@ fn capture_tree(source: &Path, destination: &Path, source_rules: bool) -> Result
     for item in WalkDir::new(&source)
         .follow_links(false)
         .into_iter()
-        .filter_entry(|entry| !source_rules || included(entry))
+        .filter_entry(|entry| {
+            (!source_rules || included(entry))
+                && (entry.depth() == 0
+                    || projection.is_none_or(|selection| {
+                        entry
+                            .path()
+                            .strip_prefix(&source)
+                            .ok()
+                            .and_then(|p| p.to_str())
+                            .is_none_or(|p| selection.contains(&p.replace('\\', "/")))
+                    }))
+        })
     {
         let item = item?;
         if item.depth() == 0 {

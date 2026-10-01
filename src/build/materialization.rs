@@ -12,6 +12,7 @@ pub(super) fn plan(
     images: &BTreeMap<String, Image>,
     consumer: &str,
     source: &snapshot::Snapshot,
+    projection: Option<&snapshot::Projection>,
 ) -> Result<Vec<Value>> {
     if mappings.len() > 256 {
         bail!("target exceeds 256 artifact materializations");
@@ -50,6 +51,9 @@ pub(super) fn plan(
             }
         }
         for entry in &source.entries {
+            if projection.is_some_and(|p| !p.contains(&entry.path)) {
+                continue;
+            }
             let existing = entry.path.to_lowercase();
             if existing == folded
                 || existing.starts_with(&format!("{folded}/"))
@@ -284,7 +288,8 @@ mod tests {
                     &artifacts,
                     &images,
                     "consumer",
-                    &source
+                    &source,
+                    None
                 )
                 .is_err(),
                 "{path}"
@@ -297,7 +302,8 @@ mod tests {
                 &artifacts,
                 &images,
                 "consumer",
-                &source
+                &source,
+                None
             )
             .is_err());
         }
@@ -307,7 +313,8 @@ mod tests {
             &artifacts,
             &images,
             "consumer",
-            &source
+            &source,
+            None
         )
         .is_ok());
         let ambiguous = vec![
@@ -320,8 +327,38 @@ mod tests {
             &ambiguous,
             &images,
             "consumer",
-            &source
+            &source,
+            None
         )
         .is_err());
+        // A builder's source projection is applied before artifact placement.
+        // Only excluded files cease to reserve their original destinations.
+        let projection = snapshot::Projection::new(".", &["existing".into()]).unwrap();
+        assert!(plan(
+            &[mapping("existing")],
+            ".",
+            &artifacts,
+            &images,
+            "consumer",
+            &source,
+            Some(&projection)
+        )
+        .is_err());
+        let projection = snapshot::Projection::new(".", &[]).unwrap();
+        assert!(plan(
+            &[mapping("existing")],
+            ".",
+            &artifacts,
+            &images,
+            "consumer",
+            &source,
+            Some(&projection)
+        )
+        .is_ok());
+        let projected = captured.path().join("projected");
+        snapshot::capture_projected(&captured.path().join("source"), &projected, &projection)
+            .unwrap();
+        assert!(!projected.join("existing").exists());
+        assert!(root.path().join("existing").is_file());
     }
 }

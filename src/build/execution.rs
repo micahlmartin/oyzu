@@ -76,7 +76,13 @@ pub(super) fn execute_plan(
     let targets = plan["targets"].as_array().context("missing targets")?;
     for target in targets {
         let id = target["id"].as_str().context("missing target id")?;
-        let path = if targets.len() == 1 {
+        let selection = &target["extensions"]["oyzu.dev/source-projection"];
+        let path = if !selection.is_null() {
+            let projection: snapshot::Projection = serde_json::from_value(selection.clone())?;
+            let path = contexts.path().join(id);
+            snapshot::capture_projected(work, &path, &projection)?;
+            path
+        } else if targets.len() == 1 {
             work.to_path_buf()
         } else {
             let path = contexts.path().join(id);

@@ -91,10 +91,16 @@ pub(crate) struct BuilderPlan {
     pub tasks: BTreeMap<String, TaskPlan>,
     pub package: CommandSpec,
     pub artifacts: Vec<ArtifactSpec>,
+    /// Optional files relative to the target, including required control files.
+    /// The engine scopes and applies this selection before materialization.
+    pub source_files: Option<Vec<String>>,
 }
 
 impl BuilderPlan {
     pub fn validate(&self) -> Result<()> {
+        if let Some(files) = &self.source_files {
+            crate::snapshot::Projection::new(".", files)?;
+        }
         self.package.execution.validate()?;
         for command in &self.prepare {
             command.execution.validate()?;
@@ -140,6 +146,7 @@ impl BuilderPlan {
             tasks: BTreeMap::new(),
             package,
             artifacts: vec![],
+            source_files: None,
         }
     }
 }
