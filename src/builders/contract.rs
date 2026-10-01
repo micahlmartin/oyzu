@@ -1,4 +1,9 @@
-use crate::{dependencies::Prepared, executor::Image, model::Target, snapshot::Snapshot};
+use crate::{
+    dependencies::Prepared,
+    executor::Image,
+    model::{Target, Task},
+    snapshot::Snapshot,
+};
 use anyhow::{bail, Result};
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -38,6 +43,13 @@ pub(crate) trait Builder: Sync {
 
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         &[]
+    }
+
+    /// Add native reporting to an exactly recognized replacement command. Unknown
+    /// bodies stay unchanged and must satisfy the operation's report contract.
+    /// This cannot replace or remove required reports, hooks or sandbox constraints.
+    fn instrument_override(&self, _target: &Target, _task: &Task) -> Option<Vec<String>> {
+        None
     }
 }
 

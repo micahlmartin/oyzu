@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, helm, rust
+from build_scenarios import ant, helm, node, rust
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -97,6 +97,7 @@ def main():
 
     with tempfile.TemporaryDirectory(prefix="oyzu-build-check-") as temporary:
         base = Path(temporary)
+        node.verify_overrides(ROOT,base,invoke,validate,source_files,verified)
         ant.verify(ROOT,base,invoke,validate,source_files,verified)
         helm.verify(ROOT,base,invoke,validate,source_files,verified)
         rust.verify(ROOT,base,invoke,validate,source_files,verified)

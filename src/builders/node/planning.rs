@@ -1,7 +1,4 @@
-use super::super::{
-    semver_snapshot, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, ReportFormat,
-    ReportSpec, TaskPlan,
-};
+use super::super::{semver_snapshot, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext};
 use crate::records;
 use anyhow::{bail, Context, Result};
 use std::collections::BTreeMap;
@@ -65,30 +62,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         &["npm", install, "--offline", "--ignore-scripts"],
     ));
     if package["scripts"]["test"].as_str() == Some("node --test") {
-        let mut test = TaskPlan::command(&[
-            "npm",
-            "run",
-            "test",
-            "--",
-            "--experimental-test-coverage",
-            "--test-reporter=junit",
-            &format!("--test-reporter-destination=/out/{id}/reports/junit.xml"),
-            "--test-reporter=lcov",
-            &format!("--test-reporter-destination=/out/{id}/reports/coverage.lcov"),
-        ]);
-        test.reports = vec![
-            ReportSpec {
-                format: ReportFormat::Junit,
-                filename: "junit.xml",
-                source: crate::reports::ReportSource::File,
-            },
-            ReportSpec {
-                format: ReportFormat::Lcov,
-                filename: "coverage.lcov",
-                source: crate::reports::ReportSource::File,
-            },
-        ];
-        plan.tasks.insert("test".into(), test);
+        plan.tasks.insert("test".into(), super::reporting::test(id));
     }
     plan.artifacts.push(ArtifactSpec {
         name: "primary".into(),

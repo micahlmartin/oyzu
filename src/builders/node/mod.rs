@@ -1,8 +1,9 @@
 mod discovery;
 mod planning;
+mod reporting;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext};
-use crate::model::Target;
+use crate::model::{Target, Task};
 use anyhow::{bail, Result};
 use std::path::Path;
 
@@ -32,5 +33,9 @@ impl Builder for Node {
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         self.toolchain(context.target)?;
         planning::plan(context)
+    }
+
+    fn instrument_override(&self, target: &Target, task: &Task) -> Option<Vec<String>> {
+        reporting::instrument_override(target, task)
     }
 }

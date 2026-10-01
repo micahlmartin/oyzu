@@ -118,7 +118,20 @@ fn explicit_task_overrides_are_not_replaced_by_native_builder_planning() {
         .find(|a| a["id"] == "project:test")
         .unwrap();
     assert_eq!(task["argv"], json!(["node", "custom-tests.mjs"]));
-    assert!(task["reports"].as_array().unwrap().is_empty());
+    assert_eq!(task["reports"].as_array().unwrap().len(), 2);
+    assert!(task["reports"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|r| r["required"] == true));
+    assert_eq!(
+        task["env"]["OYZU_TEST_REPORT"],
+        "/out/project/reports/junit.xml"
+    );
+    assert_eq!(
+        task["env"]["OYZU_COVERAGE_REPORT"],
+        "/out/project/reports/coverage.lcov"
+    );
 }
 
 #[test]
@@ -154,6 +167,9 @@ fn single_target_build_honors_root_tasks_and_hooks_without_cross_target_fanout()
         .collect();
     assert_eq!(selected.len(), 3);
     assert_eq!(selected[1]["argv"], json!(["custom-test"]));
+    assert_eq!(selected[1]["reports"].as_array().unwrap().len(), 2);
+    assert!(selected[0]["reports"].as_array().unwrap().is_empty());
+    assert!(selected[2]["reports"].as_array().unwrap().is_empty());
     assert!(!actions.iter().any(|a| a["id"] == "project:test"));
     fs::write(
         root.path().join("build.yaml"),
@@ -166,4 +182,82 @@ fn single_target_build_honors_root_tasks_and_hooks_without_cross_target_fanout()
     assert!(!actions.iter().any(|a| a["id"] == "test"));
     assert!(actions.iter().any(|a| a["id"] == "a:test"));
     assert!(actions.iter().any(|a| a["id"] == "b:test"));
+}
+
+#[test]
+fn node_override_reporting_recognizes_exact_commands_without_parsing_shell_programs() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    for (definition, instrumented) in [
+        ("argv=['node','--test']", true),
+        ("run='node --test'", true),
+        ("argv=['npm','run','test']", true),
+        ("run='npm run test'", true),
+        ("run='node --test && node cleanup.mjs'", false),
+        ("argv=['node','custom-tests.mjs']", false),
+    ] {
+        fs::write(
+            root.path().join("oyzu.toml"),
+            format!("[tasks.\"project:test\"]\n{definition}\n"),
+        )
+        .unwrap();
+        let capture = tempfile::tempdir().unwrap();
+        let plan = planned(root.path(), capture.path());
+        let task = plan["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["id"] == "project:test")
+            .unwrap();
+        let argv = task["argv"].as_array().unwrap();
+        assert_eq!(
+            argv.contains(&json!("--test-reporter=junit")),
+            instrumented,
+            "{definition}"
+        );
+        assert_eq!(
+            argv.contains(&json!("--test-reporter=lcov")),
+            instrumented,
+            "{definition}"
+        );
+        assert_eq!(task["reports"].as_array().unwrap().len(), 2);
+    }
+}
+
+#[test]
+fn unknown_go_override_requires_files_instead_of_interpreting_arbitrary_stdout() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("go.mod"),
+        "module example.test/demo\n\ngo 1.24\n",
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("main.go"),
+        "package main\nfunc main() {}\n",
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[tasks.\"project:test\"]\nargv=['custom-test']\n",
+    )
+    .unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let task = plan["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "project:test")
+        .unwrap();
+    assert_eq!(task["argv"], json!(["custom-test"]));
+    assert_eq!(task["reports"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        task["extensions"]["oyzu.dev/report-sources"]["project:test"],
+        "file"
+    );
 }

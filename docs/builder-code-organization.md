@@ -14,6 +14,7 @@ src/
       mod.rs                  # Descriptor and interface implementation
       discovery.rs            # Native metadata, managers and scripts
       planning.rs             # npm commands and artifact/report intent
+      reporting.rs            # Native test reporters and exact-command override adaptation
     python/
       mod.rs                  # Descriptor and interface implementation
       discovery.rs            # pip / uv / Poetry inference
@@ -66,9 +67,12 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 | `toolchain` | Select the provisioned toolchain for the detected manager, or report unsupported integration |
 | `prepare` | Capture native dependencies through the scoped broker and executor; return an immutable-input record |
 | `plan` | Return typed command, task, artifact and report intent using captured source and prepared inputs |
+| `instrument_override` | Optionally add native reporting to an exactly recognized replacement command; required evidence stays owned by the operation |
 | `runtime_files` | Declare compiled-in adapter assets needed by isolated native processes |
 
 `BuilderPlan`, `CommandSpec`, `TaskPlan`, `ArtifactSpec` and `ReportSpec` are Rust structures. A builder does not assemble arbitrary build-plan JSON. The common planner expands hooks, preserves TOML replacements, assigns action identities, binds source/dependency/toolchain identities and serializes the versioned plan. Report formats and input conversions are explicit types.
+
+Command replacement and evidence requirements have separate ownership. A TOML override cannot remove the builder's required reports. The optional override adapter may instrument an exact known native command; the shared planner does not parse ecosystem commands or shell programs. Unknown replacements retain their arguments and receive `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` destinations when those kinds are required. Native stdout conversion applies only to native or recognized commands; arbitrary replacement output is not assumed to use the native event protocol. Explicit custom report declarations and collection after post-hooks remain separate pending work.
 
 Artifact names are owned strings, and artifacts can override the target-level version. This lets a native workspace expose multiple independently versioned package outputs without adding Cargo-specific cases to the engine. Cargo preparation uses the same captured-input interface as acquisition, recording native workspace metadata and a version-projected manifest/lock overlay; it does not require a separate execution path.
 

@@ -145,26 +145,48 @@ pub(super) fn plan_with_dependencies(
                 if !task.target.is_empty() && task.target != id {
                     bail!("{step}: cross-target task prerequisites require graph integration");
                 }
-                // TOML replacements and hooks retain their own commands; only a
-                // native task is eligible for its builder's specialized execution.
-                let native = if step == task_id && task.provider == target.manager {
+                // The operation owns its required evidence even when TOML
+                // replaces its body. Runner-specific adaptation belongs to the
+                // builder; the engine never guesses how to modify a command.
+                let contract = if step == task_id {
                     intent.tasks.get(*stage)
                 } else {
                     None
                 };
-                let argv = native.map_or_else(|| task.argv.clone(), |v| v.argv.clone());
+                let native = contract.filter(|_| task.provider == target.manager);
+                let instrumented = contract
+                    .filter(|_| native.is_none())
+                    .and_then(|_| builder.instrument_override(target, task));
+                let native_reporting = native.is_some() || instrumented.is_some();
+                let argv = native.map_or_else(
+                    || instrumented.unwrap_or_else(|| task.argv.clone()),
+                    |v| v.argv.clone(),
+                );
                 let mut env = intent.env.clone();
                 env.extend(task.env.clone());
                 let mut report_intents = Vec::new();
                 let mut paths = BTreeMap::new();
                 let mut report_sources = BTreeMap::new();
-                if let Some(native) = native {
-                    for report in &native.reports {
+                if let Some(contract) = contract {
+                    for report in &contract.reports {
                         let kind = report.format.kind();
                         let report_id = format!("{id}:{kind}");
                         report_intents.push(json!({"id":report_id,"kind":kind,"format":report.format.name(),"required":true,"subject":id}));
-                        report_sources.insert(report_id.clone(), report.source);
-                        paths.insert(report_id, format!("{id}/reports/{}", report.filename));
+                        // For example, arbitrary Go overrides need not emit
+                        // go test JSON on stdout. Require the report file unless
+                        // the adapter recognizes the command producing events.
+                        let source = if native_reporting {
+                            report.source
+                        } else {
+                            crate::reports::ReportSource::File
+                        };
+                        report_sources.insert(report_id.clone(), source);
+                        let path = format!("{id}/reports/{}", report.filename);
+                        env.insert(
+                            format!("OYZU_{}_REPORT", kind.to_ascii_uppercase()),
+                            format!("/out/{path}"),
+                        );
+                        paths.insert(report_id, path);
                     }
                 }
                 let mut a = action(
