@@ -1,0 +1,20 @@
+{
+  "routes": [
+    {
+      "protocol": "pypi-simple",
+      "path": "/simple/greeting/"
+    },
+    {
+      "protocol": "npm",
+      "path": "/@oyzu-example%2fgreeting"
+    }
+  ],
+  "lease": {
+    "scope": "artifact.read:approved-packages",
+    "ttlSeconds": 30,
+    "synthetic": true
+  },
+  "redirect": "https://example.invalid/forbidden",
+  "localCapability": "generated-in-memory-by-harness",
+  "upstreamToken": "generated-in-memory-by-harness"
+}

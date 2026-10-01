@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-028",
+  "title": "Helm packaging with a local library dependency",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-01",
+    "BUILDER-05"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Prepare the chart's local dependency and honor its generated lock.",
+    "Lint/render/package charts; never deploy to a cluster."
+  ],
+  "cases": [
+    {
+      "name": "invalid-values",
+      "change": "Set replicaCount to 0.",
+      "expect": "Schema validation fails before packaging success is reported."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "helm",
+        "dependency",
+        "build",
+        "chart"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project",
+      "argv": [
+        "helm",
+        "lint",
+        "chart"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project",
+      "argv": [
+        "helm",
+        "template",
+        "example",
+        "chart"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/labels/Chart.yaml",
+    "project/labels/templates/_helpers.tpl",
+    "project/chart/Chart.yaml",
+    "project/chart/templates/deployment.yaml",
+    "project/chart/values.schema.json",
+    "project/chart/values.yaml"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

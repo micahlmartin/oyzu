@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-033",
+  "title": "Shared input and transitive affected targets",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-05",
+    "CACHE-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "A shared input change affects API and web; an API-only change leaves web unaffected.",
+    "Unknown undeclared dependencies force a conservative full rebuild."
+  ],
+  "cases": [
+    {
+      "name": "shared-change",
+      "change": "Edit shared/message.mjs.",
+      "expect": "API and web tests/actions are affected."
+    },
+    {
+      "name": "api-change",
+      "change": "Edit api/index.mjs.",
+      "expect": "API changes; unrelated web action remains reusable."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "impact-cases.json",
+    "project/api/index.mjs",
+    "project/api/index.test.mjs",
+    "project/package.json",
+    "project/shared/message.mjs",
+    "project/web/index.mjs",
+    "project/web/index.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

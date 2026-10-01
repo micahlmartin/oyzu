@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-044",
+  "title": "Service-dependent test evidence is explicit",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "EXEC-05"
+  ],
+  "expected": [
+    "A local service can be an explicitly declared integration-test dependency.",
+    "Tests using live external systems disclose weaker reproducibility and cannot be called hermetic by default."
+  ],
+  "cases": [
+    {
+      "name": "service-unavailable",
+      "change": "Stop the service before the integration action.",
+      "expect": "Record failed/unavailable integration evidence; do not silently skip."
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "project/test/service.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

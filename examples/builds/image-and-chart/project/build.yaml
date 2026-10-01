@@ -1,0 +1,10 @@
+app:
+  uses: go/app
+  path: app
+image:
+  uses: docker/image
+  depends_on: [app]
+chart:
+  uses: helm/chart
+  path: chart
+  depends_on: [image]

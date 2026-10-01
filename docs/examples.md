@@ -1,8 +1,8 @@
 # Executable example catalog
 
-Status: **all examples proposed, none implemented or verified**. IDs are stable. These examples are the intended rich guides and acceptance fixtures, not claims of current support.
+Status: **all 48 design-contract scenarios are now checked in** under [examples](../examples/README.md). They contain project source/configuration, expected behavior, and negative cases for review. Oyzu implementation and behavioral verification remain pending.
 
-Each row is a scenario family. Manager/runtime/platform variants get separate fixture directories when implemented; one row must not hide an untested compatibility claim. Public managed examples use a mock platform and synthetic registry identities so they run without private access.
+Each row is a scenario family. Manager/runtime/platform variants have separate project roots or explicit candidate variant definitions. Managed examples contain synthetic context/evidence inputs, not a running platform implementation or real credentials. The [review guide](../examples/REVIEW.md) highlights the shape decisions to discuss.
 
 ## Catalog
 
@@ -61,7 +61,7 @@ Each row is a scenario family. Manager/runtime/platform variants get separate fi
 
 An implemented example has a short README, minimum native source/manifests/locks, only necessary Oyzu configuration, exact commands, expected semantic plan/bundle assertions, negative cases, host/target support, and a record of verification. No repository-wide hidden env or credentials may be required.
 
-Proposed layout is `examples/<area>/<scenario>/`, with test harness code outside user-facing project roots. Source is locally authored/minimal or carries compatible licensing; do not download arbitrary repositories as fixtures. Secrets use throwaway local/mock credentials.
+The checked-in layout is `examples/<area>/<scenario>/`, with expectation data outside user-facing project roots. Source is locally authored and minimal. Secret/identity examples use synthetic metadata.
 
 The smallest build example contains native project files and **no build.yaml**. A customization example adds only the field necessary to explain its exception. Task examples explicitly demonstrate `oyzu run list`, qualified names, overrides, and naming-based hooks. No fixture should normalize boilerplate tests/outputs configuration.
 
@@ -69,7 +69,7 @@ Assertions compare meaningful graph edges, tool identities, artifact versions/di
 
 ## Progress and host coverage
 
-An example becomes implemented when executable source and assertions exist. It becomes verified only with recorded results on its advertised host/toolchain matrix. Verified on Linux does not imply Windows/macOS. Native shell examples and native-target builds need real matching-host coverage; mocked OS names do not count.
+Current state is design-contract authored. A scenario becomes behaviorally implemented when its Oyzu integration and executable assertions exist; it becomes verified only with recorded results on its advertised host/toolchain matrix. Native source and generated package-manager locks do not imply Oyzu support. Verified on Linux does not imply Windows/macOS.
 
 Organizational policy tests use the public mock contract. Private server integration adds its own tests without becoming a prerequisite for the public examples.
 

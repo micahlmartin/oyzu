@@ -1,0 +1,2 @@
+[cache]
+remote = "oci://registry.example.invalid/team/oyzu-cache"

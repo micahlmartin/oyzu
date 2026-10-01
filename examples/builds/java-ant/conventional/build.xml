@@ -1,0 +1,5 @@
+<project name="oyzu-ant" default="jar">
+  <target name="compile"><mkdir dir="build/classes"/><javac srcdir="src" destdir="build/classes" release="17" includeantruntime="false"/></target>
+  <target name="test" depends="compile"><javac srcdir="test" destdir="build/classes" release="17" includeantruntime="false"><classpath path="build/classes"/></javac><java classname="example.GreetingCheck" fork="true" failonerror="true"><classpath path="build/classes"/></java></target>
+  <target name="jar" depends="compile"><mkdir dir="dist"/><jar destfile="dist/greeting.jar" basedir="build/classes"/></target>
+</project>

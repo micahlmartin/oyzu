@@ -1,0 +1,15 @@
+{
+  "requiredStates": [
+    "succeeded",
+    "failed",
+    "skipped",
+    "incomplete"
+  ],
+  "reportStates": [
+    "not-detected",
+    "missing",
+    "produced",
+    "invalid"
+  ],
+  "note": "Semantic expectations only; no fabricated schema-v1 manifest"
+}

@@ -1,0 +1,11 @@
+Representative task listing; exact formatting remains open.
+
+api
+  api:build       implicit python/app
+  api:test        implicit Python test discovery
+web
+  web:build       native package.json build script
+  web:test        native package.json test script
+
+From the root, `oyzu run test` is ambiguous.
+`oyzu run api:test` runs only the API target's task and prerequisites.

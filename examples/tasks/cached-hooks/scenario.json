@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-010",
+  "title": "Hooks around cached computation",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "TASK-05",
+    "CACHE-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu run api:test",
+    "oyzu build"
+  ],
+  "expected": [
+    "Noncacheable hooks run on a cache hit.",
+    "Changing hook-produced input invalidates the dependent action."
+  ],
+  "cases": [
+    {
+      "name": "pre-fails",
+      "change": "Use FAILURE_POINT=pre in a disposable development invocation.",
+      "expect": "Only pre event recorded."
+    },
+    {
+      "name": "main-fails",
+      "change": "Use FAILURE_POINT=main.",
+      "expect": "Pre and main recorded, no post."
+    },
+    {
+      "name": "post-fails",
+      "change": "Use FAILURE_POINT=post.",
+      "expect": "All events recorded and invocation fails."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project/api",
+      "argv": [
+        "node",
+        "hook.mjs",
+        "pre"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project/api",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/api/build.mjs",
+    "project/api/hook.mjs",
+    "project/api/package.json",
+    "project/api/src/greeting.mjs",
+    "project/api/test/failure.test.mjs",
+    "project/api/test/greeting.test.mjs",
+    "project/build.yaml",
+    "project/oyzu.toml",
+    "project/api/test/prepared.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-027",
+  "title": "Separate host execution and container target platforms",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-05",
+    "EXEC-04"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Produce distinct linux/amd64 and linux/arm64 image identities.",
+    "Do not interpret a multi-platform image as proof tests executed on both architectures."
+  ],
+  "cases": [
+    {
+      "name": "missing-executor",
+      "change": "Request native target tests without a matching executor.",
+      "expect": "Explicit unsupported capability; no fabricated test evidence."
+    }
+  ],
+  "nativeChecks": [],
+  "requiredFiles": [
+    "project/Dockerfile",
+    "project/payload.txt",
+    "variants.json",
+    "project/build.yaml"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "The matrix request is harness data. Running one native command does not verify all variants.",
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

@@ -1,0 +1,1 @@
+Synthetic distribution payload for routing/integrity tests. Not a Node executable.

@@ -1,0 +1,21 @@
+{
+  "note": "Harness input, not build.yaml syntax",
+  "variants": [
+    {
+      "target": "linux/amd64",
+      "kind": "image"
+    },
+    {
+      "target": "linux/arm64",
+      "kind": "image"
+    }
+  ],
+  "nativeCommand": [
+    "docker",
+    "buildx",
+    "build",
+    "--platform=linux/amd64,linux/arm64",
+    "--output=type=oci,dest=images.tar",
+    "."
+  ]
+}

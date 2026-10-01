@@ -1,0 +1,15 @@
+# Authored dependency-free workspace fixture; regenerate with cargo generate-lockfile.
+version = 3
+
+[[package]]
+name = "example-app"
+version = "0.1.0"
+dependencies = ["example-core", "example-macros"]
+
+[[package]]
+name = "example-core"
+version = "0.1.0"
+
+[[package]]
+name = "example-macros"
+version = "0.1.0"

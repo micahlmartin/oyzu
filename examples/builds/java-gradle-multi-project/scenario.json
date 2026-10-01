@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-024",
+  "title": "Gradle subprojects and an included build",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "TOOL-01",
+    "BUILDER-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Respect subprojects plus composite-build dependency substitution.",
+    "Prepare Gradle and JDK before execution; wrapper-generated downloads must obey acquisition routing."
+  ],
+  "cases": [
+    {
+      "name": "wrapper-request",
+      "change": "Generate a wrapper for an approved Gradle distribution.",
+      "expect": "Validate distribution checksum and route; wrapper execution cannot bypass managed acquisition."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "gradle",
+        "--no-daemon",
+        "test",
+        "jar"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/app/build.gradle",
+    "project/app/src/main/java/example/App.java",
+    "project/build.gradle",
+    "project/library/build.gradle",
+    "project/library/src/main/java/example/Greeting.java",
+    "project/library/src/test/java/example/GreetingTest.java",
+    "project/settings.gradle",
+    "project/support/build.gradle",
+    "project/support/settings.gradle",
+    "project/support/src/main/java/example/Support.java",
+    "wrapper-guidance.md"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Installed-Gradle fixture; wrapper generation/integrity variant is specified but not checked in or verified.",
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

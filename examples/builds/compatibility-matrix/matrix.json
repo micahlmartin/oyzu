@@ -1,0 +1,14 @@
+{
+  "note": "Harness request; user-facing matrix syntax is not finalized",
+  "axes": {
+    "node": [
+      "22.14.0",
+      "24.14.1"
+    ]
+  },
+  "expectedVariants": 2,
+  "requiredReportPartition": [
+    "target",
+    "node"
+  ]
+}

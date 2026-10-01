@@ -1,0 +1,3 @@
+rootProject.name = "oyzu-gradle-example"
+include("app", "library")
+includeBuild("support")

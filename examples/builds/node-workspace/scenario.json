@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-020",
+  "title": "Native npm workspace dependency graph",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-02",
+    "PLAN-05"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "The app consumes a shared package through workspace metadata.",
+    "Changing shared code affects the app; changing app code does not rebuild unrelated targets."
+  ],
+  "cases": [
+    {
+      "name": "duplicate-execution",
+      "change": "Select both workspace root and package targets.",
+      "expect": "Do not run the same native workspace task twice."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "npm",
+        "install",
+        "--offline",
+        "--ignore-scripts",
+        "--no-audit",
+        "--no-fund"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project",
+      "argv": [
+        "npm",
+        "test",
+        "--workspaces"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/package.json",
+    "project/packages/app/app.test.mjs",
+    "project/packages/app/package.json",
+    "project/packages/shared/index.mjs",
+    "project/packages/shared/package.json",
+    "project/packages/shared/shared.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

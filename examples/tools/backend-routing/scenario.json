@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-047",
+  "title": "All backend acquisition paths must be mediated",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu install"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "MISE-01",
+    "MISE-04",
+    "TOOL-04"
+  ],
+  "expected": [
+    "No separate mise executable is launched.",
+    "Direct HTTP, Git, and package-manager backend paths all use approved acquisition or report unsupported managed capability."
+  ],
+  "cases": [
+    {
+      "name": "subprocess-bypass",
+      "change": "Backend invokes a child downloader outside the broker.",
+      "expect": "Blocked by managed acquisition boundary."
+    },
+    {
+      "name": "alias-bypass",
+      "change": "Use explicit backend syntax for a denied tool.",
+      "expect": "Same canonical identity denial."
+    }
+  ],
+  "requiredFiles": [
+    "backend-cases.json",
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

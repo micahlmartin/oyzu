@@ -1,0 +1,16 @@
+{
+  "name": "native-scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "build": "node build.mjs",
+    "prefoo": "node lifecycle.mjs prefoo",
+    "foo": "node lifecycle.mjs foo",
+    "postfoo": "node lifecycle.mjs postfoo"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "note": "Expected artifact relation, not a published configuration schema",
+  "bindings": [
+    {
+      "from": "app binary for linux target",
+      "to": "Docker context app/dist/server"
+    },
+    {
+      "from": "image output digest",
+      "to": "generated chart image.digest value"
+    }
+  ]
+}

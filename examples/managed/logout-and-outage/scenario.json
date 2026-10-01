@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-041",
+  "title": "Management persists through logout and outages",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "CFG-02",
+    "AGENT-04",
+    "PROTO-05"
+  ],
+  "expected": [
+    "Logout removes session access, not mandatory management.",
+    "Cached permission works only within explicit scope and validity; expiry fails closed."
+  ],
+  "cases": [
+    {
+      "name": "agent-offline",
+      "change": "Stop the agent.",
+      "expect": "Native package operations fail, no public source fallback."
+    },
+    {
+      "name": "expired-snapshot",
+      "change": "Advance beyond snapshot validity.",
+      "expect": "No authorization based on stale cached metadata."
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "state-cases.json"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

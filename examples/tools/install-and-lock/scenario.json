@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-001",
+  "title": "Install a tool and preserve its identity",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "TOOL-01",
+    "TOOL-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu install",
+    "oyzu exec -- node probe.mjs"
+  ],
+  "expected": [
+    "Resolve node 22.14.0 to a platform-specific distribution and generate oyzu.lock.",
+    "Repeated installation preserves the exact version and digest; a revoked cached distribution is denied."
+  ],
+  "cases": [
+    {
+      "name": "mutable-upstream",
+      "change": "Serve different bytes under the locked version.",
+      "expect": "Integrity error; the installed tool and lock remain unchanged."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "probe.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "lock-expectations.json",
+    "project/oyzu.toml",
+    "project/probe.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

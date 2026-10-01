@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-019",
+  "title": "Equivalent npm pnpm and Yarn projects",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-04",
+    "PLAN-04"
+  ],
+  "projects": [
+    "npm",
+    "pnpm",
+    "yarn"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Select the package manager matching the native lock and packageManager metadata.",
+    "Competing locks are an explicit negative case, not normal fixture state."
+  ],
+  "cases": [
+    {
+      "name": "competing-locks",
+      "change": "Copy another variant's lock into one project.",
+      "expect": "Explain conflicting manager evidence."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "npm",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "pnpm",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "yarn",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "npm/build.mjs",
+    "npm/package.json",
+    "npm/src/greeting.mjs",
+    "npm/test/greeting.test.mjs",
+    "pnpm/build.mjs",
+    "pnpm/package.json",
+    "pnpm/src/greeting.mjs",
+    "pnpm/test/greeting.test.mjs",
+    "yarn/build.mjs",
+    "yarn/package.json",
+    "yarn/src/greeting.mjs",
+    "yarn/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

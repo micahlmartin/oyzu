@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "managed": true,
+      "session": false,
+      "policy": "valid",
+      "expected": "authentication-required"
+    },
+    {
+      "managed": true,
+      "session": true,
+      "policy": "expired",
+      "expected": "authorization-expired"
+    },
+    {
+      "managed": true,
+      "session": true,
+      "policy": "valid-offline-read",
+      "expected": "only-authorized-offline-reads"
+    },
+    {
+      "managed": true,
+      "session": true,
+      "policy": "wrong-tenant",
+      "expected": "deny"
+    }
+  ]
+}

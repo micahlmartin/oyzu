@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-007",
+  "title": "Native npm scripts and their lifecycle hooks",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "TASK-01",
+    "BUILDER-03"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu run list",
+    "oyzu run foo"
+  ],
+  "expected": [
+    "Expose foo, test, and build from package.json.",
+    "npm prefoo/postfoo execute exactly once in native order."
+  ],
+  "cases": [
+    {
+      "name": "native-hooks",
+      "change": "Run foo through Oyzu.",
+      "expect": "stdout contains prefoo, foo, postfoo exactly once each."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project",
+      "argv": [
+        "npm",
+        "run",
+        "foo"
+      ],
+      "exitCode": 0,
+      "stdoutIncludes": [
+        "prefoo",
+        "foo",
+        "postfoo"
+      ]
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/lifecycle.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

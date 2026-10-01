@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-005",
+  "title": "Untrusted repository tasks do not run on entry",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "ENV-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu run list",
+    "oyzu run mark"
+  ],
+  "expected": [
+    "Entering the directory or listing tasks never creates marker.txt.",
+    "Explicit execution follows repository trust approval; material command changes invalidate that approval."
+  ],
+  "cases": [
+    {
+      "name": "modified-task",
+      "change": "Change the task command after approval.",
+      "expect": "Executable trust is reevaluated before execution."
+    }
+  ],
+  "nativeChecks": [],
+  "requiredFiles": [
+    "project/mark.mjs",
+    "project/oyzu.toml"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

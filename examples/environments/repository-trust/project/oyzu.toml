@@ -1,0 +1,2 @@
+[tasks.mark]
+run = "node mark.mjs"

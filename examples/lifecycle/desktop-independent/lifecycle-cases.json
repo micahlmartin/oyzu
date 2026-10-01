@@ -1,0 +1,19 @@
+{
+  "protocols": [
+    {
+      "client": 1,
+      "agent": 1,
+      "expected": "compatible"
+    },
+    {
+      "client": 99,
+      "agent": 1,
+      "expected": "reject"
+    }
+  ],
+  "ownership": {
+    "build": "cli",
+    "packageTransfer": "agent",
+    "desktop": "observer"
+  }
+}

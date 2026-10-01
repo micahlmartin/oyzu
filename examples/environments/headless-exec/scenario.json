@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-004",
+  "title": "Execute without shell hooks or a desktop",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "ENV-04",
+    "DIST-01"
+  ],
+  "projects": [
+    "project with spaces"
+  ],
+  "oyzu": [
+    "oyzu exec -- node probe.mjs",
+    "oyzu exec -- node probe.mjs --fail"
+  ],
+  "expected": [
+    "The configured tool/env resolve with no profile changes or UI.",
+    "Arguments, Unicode paths, and exit code 7 survive execution."
+  ],
+  "cases": [
+    {
+      "name": "nonzero",
+      "change": "Pass --fail.",
+      "expect": "The process and Oyzu both exit 7."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project with spaces",
+      "argv": [
+        "node",
+        "probe.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project with spaces",
+      "argv": [
+        "node",
+        "probe.mjs",
+        "--fail"
+      ],
+      "exitCode": 7
+    }
+  ],
+  "requiredFiles": [
+    "project with spaces/oyzu.toml",
+    "project with spaces/probe.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

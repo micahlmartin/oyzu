@@ -1,0 +1,10 @@
+Representative bundle layout; native files remain associated with their producing module.
+
+dist/
+  manifest.json
+  artifacts/library/<variant>/library-0.1.0-SNAPSHOT.jar
+  artifacts/app/<variant>/app-0.1.0-SNAPSHOT.jar
+  reports/library/<variant>/... normalized references to Surefire JUnit files
+  reports/app/<variant>/... normalized references to Surefire JUnit files
+
+Do not invoke each module again after the root reactor already built it.

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-022",
+  "title": "Cargo workspace features code generation and proc macros",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-02",
+    "EXEC-01",
+    "PLAN-05"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Respect Cargo workspace and feature dependencies without YAML copies.",
+    "Capture build.rs source input; proc-macro execution stays inside the constrained toolchain context."
+  ],
+  "cases": [
+    {
+      "name": "generated-input-change",
+      "change": "Edit core/message.txt.",
+      "expect": "Regenerate the constant and invalidate downstream consumers."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-features",
+        "--locked",
+        "--offline"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/Cargo.lock",
+    "project/Cargo.toml",
+    "project/app/Cargo.toml",
+    "project/app/src/main.rs",
+    "project/core/Cargo.toml",
+    "project/core/build.rs",
+    "project/core/message.txt",
+    "project/core/src/lib.rs",
+    "project/macros/Cargo.toml",
+    "project/macros/src/lib.rs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

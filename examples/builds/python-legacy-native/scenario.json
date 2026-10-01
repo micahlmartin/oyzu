@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-015",
+  "title": "Legacy setup.py package with a C extension",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "EXEC-01",
+    "EXEC-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Recognize legacy setuptools without evaluating arbitrary metadata on the host.",
+    "Declare Python headers and the C compiler before isolated execution; package the platform-specific extension."
+  ],
+  "cases": [
+    {
+      "name": "missing-compiler",
+      "change": "Execute on a worker without the declared C toolchain.",
+      "expect": "Capability/preflight failure, no fallback to a random host compiler."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/fallback.py",
+    "project/native_math.c",
+    "project/setup.py",
+    "project/tests/native_check.py",
+    "project/tests/test_math.py"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Native smoke tests cover the Python reference function only. Compiled extension verification requires a C toolchain and tests/native_check.py after building.",
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

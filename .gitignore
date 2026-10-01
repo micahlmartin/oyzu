@@ -4,6 +4,17 @@
 **/node_modules/
 **/.vite/
 **/coverage/
+**/__pycache__/
+**/.venv/
+**/.pytest_cache/
+**/.gradle/
+/examples/**/target/
+/examples/**/dist/
+/examples/**/build/
+/examples/**/.events/
+/examples/**/generated/
+/examples/**/coverage.out
+/examples/**/*.egg-info/
 # Local configuration and credentials
 .env
 .env.*

@@ -1,0 +1,6 @@
+api:
+  uses: python/app
+  path: api
+web:
+  uses: node/app
+  path: web

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-037",
+  "title": "Version text and branch labels do not authorize production",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "REL-01",
+    "REL-02",
+    "REL-03"
+  ],
+  "expected": [
+    "Resolve versions using ecosystem rules and verified source facts.",
+    "A protected branch or release-looking version cannot make a workstation artifact production-eligible."
+  ],
+  "cases": [
+    {
+      "name": "spoofed-ci",
+      "change": "Set CI=true locally.",
+      "expect": "Still local/unverified."
+    },
+    {
+      "name": "protected-local",
+      "change": "Build locally from a protected ref.",
+      "expect": "Production denied."
+    }
+  ],
+  "requiredFiles": [
+    "evidence-cases.json",
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

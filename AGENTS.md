@@ -18,3 +18,5 @@ This is the public Oyzu repository. It must be buildable and usable without priv
 Draft visions and OEPs are indexed in docs/README.md. All current designs are draft and implementation is not started. There is no source workspace or product build/test command yet.
 
 Run `node tooling/check-docs.mjs` for documentation structure. Do not imply this validates product behavior. Preserve agreed constraints in docs/decisions.md, distinguish proposed syntax from stable contracts, and never mark a design accepted without recorded maintainer review.
+
+The examples/ tree contains design-contract fixtures for review, not an implemented acceptance suite. Keep project configuration minimal and expectations outside project roots. Validate their structure with `python tooling/check-examples.py` (Python 3.11+ and tooling/examples-requirements.txt). Do not implement a fake Oyzu engine to make example outcomes pass.

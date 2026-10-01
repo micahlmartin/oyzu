@@ -1,0 +1,21 @@
+{
+  "edges": [
+    [
+      "schema.json",
+      "generate"
+    ],
+    [
+      "generate.mjs",
+      "generate"
+    ],
+    [
+      "generate",
+      "api:test"
+    ],
+    [
+      "generate",
+      "web:test"
+    ]
+  ],
+  "note": "Semantic expectation, not task-dependency syntax"
+}

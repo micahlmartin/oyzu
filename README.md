@@ -9,7 +9,8 @@ This repository will contain the CLI, headless agent, build engine, and optional
 - [Design library](docs/README.md): reading paths, architecture, decisions, and delivery plan.
 - [Visions](docs/vision/README.md): platform and component direction.
 - [Proposals](docs/proposals/README.md): detailed Oyzu Enhancement Proposals (OEPs).
-- [Example catalog](docs/examples.md): progressively complex implementation targets.
+- [Examples](examples/README.md): 48 checked-in design-contract scenarios with source, configuration, expected behavior, and failures.
+- [Example catalog](docs/examples.md): acceptance-criteria traceability.
 - [Reference](docs/reference/README.md): reserved for verified implemented contracts.
 - `.github/`: contribution templates.
 

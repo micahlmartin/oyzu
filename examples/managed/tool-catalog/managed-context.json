@@ -1,0 +1,17 @@
+{
+  "note": "Test input, not an OS enrollment file or client-authoritative policy",
+  "organization": "example-org",
+  "managementRequired": true,
+  "platform": "http://127.0.0.1:dynamic",
+  "allowedTools": [
+    {
+      "backend": "node",
+      "version": "22.14.0"
+    }
+  ],
+  "route": {
+    "connector": "example-artifactory",
+    "operation": "artifact.read",
+    "repository": "approved-tools"
+  }
+}

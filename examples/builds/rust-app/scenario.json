@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-021",
+  "title": "A Cargo application with no Oyzu configuration",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-01",
+    "BUNDLE-03"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Select Cargo from native metadata, build a binary and collect test results.",
+    "Unsupported coverage is disclosed until a pinned coverage adapter is available."
+  ],
+  "cases": [
+    {
+      "name": "failed-test",
+      "change": "Change the expected greeting.",
+      "expect": "Tests fail; report collection never reports success."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/Cargo.lock",
+    "project/Cargo.toml",
+    "project/src/main.rs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

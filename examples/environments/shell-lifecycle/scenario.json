@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-046",
+  "title": "Cross-platform profile and activation lifecycle",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "ENV-04",
+    "ENV-05",
+    "DIST-05"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu exec -- node probe.mjs"
+  ],
+  "expected": [
+    "Profile installation preserves preexisting content and is idempotent.",
+    "Activation/deactivation restores owned values without removing unrelated edits."
+  ],
+  "cases": [
+    {
+      "name": "install-twice",
+      "change": "Install the shell hook twice in a temporary profile.",
+      "expect": "One owned block."
+    },
+    {
+      "name": "uninstall",
+      "change": "Remove the Oyzu block.",
+      "expect": "Original profile bytes outside that block are preserved."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "probe.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "profiles/config.fish",
+    "profiles/profile.ps1",
+    "profiles/profile.sh",
+    "project/oyzu.toml",
+    "project/probe.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

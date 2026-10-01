@@ -1,0 +1,10 @@
+The following describes an intended failed bundle; these files are not fabricated execution results.
+
+dist/
+  manifest.json          aggregate status failed; failed action and report completeness recorded
+  artifacts/...          only outputs actually completed and verified
+  reports/...            available test/coverage reports, including failed tests
+  evidence/...           actual execution/input records, never a manufactured success attestation
+
+A crash before finalization leaves an incomplete run rather than a success manifest.
+A separate publication receipt never rewrites these historical execution facts.

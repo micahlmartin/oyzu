@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-025",
+  "title": "Conventional and custom Ant task names",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-04",
+    "TASK-01"
+  ],
+  "projects": [
+    "conventional",
+    "custom"
+  ],
+  "oyzu": [
+    "oyzu run list",
+    "oyzu run test",
+    "oyzu build"
+  ],
+  "expected": [
+    "Infer conventional compile/test/jar where semantics are known.",
+    "The custom target uses a single task override; no attempt to reverse-engineer arbitrary Ant behavior.",
+    "A Java main assertion is not a JUnit report; missing report support stays visible."
+  ],
+  "cases": [
+    {
+      "name": "unknown-task",
+      "change": "Rename verify-contract without updating the override.",
+      "expect": "A precise missing-target failure."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "conventional",
+      "argv": [
+        "ant",
+        "test",
+        "jar"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "custom",
+      "argv": [
+        "ant",
+        "verify-contract",
+        "jar"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "conventional/build.xml",
+    "conventional/src/example/Greeting.java",
+    "conventional/test/example/GreetingCheck.java",
+    "custom/build.xml",
+    "custom/oyzu.toml",
+    "custom/src/example/Greeting.java",
+    "custom/test/example/GreetingCheck.java"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

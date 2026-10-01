@@ -1,0 +1,6 @@
+# This dependency-free lock is authored fixture data; regenerate with cargo generate-lockfile.
+version = 3
+
+[[package]]
+name = "oyzu-greeting-example"
+version = "0.1.0"

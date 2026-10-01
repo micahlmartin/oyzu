@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-011",
+  "title": "A Python library with uv and automatic reports",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-01",
+    "EXEC-02",
+    "BUNDLE-01"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build",
+    "oyzu run test"
+  ],
+  "expected": [
+    "Discover uv from its generated lock and package metadata; no Oyzu configuration.",
+    "Produce wheel/sdist and collect pytest JUnit and coverage via the builder."
+  ],
+  "cases": [
+    {
+      "name": "unlocked-build-requirement",
+      "change": "Change the pinned build backend without preparing inputs.",
+      "expect": "Frozen preparation fails; no download from inside an action."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/greeting/__init__.py",
+    "project/pyproject.toml",
+    "project/tests/test_greeting.py"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

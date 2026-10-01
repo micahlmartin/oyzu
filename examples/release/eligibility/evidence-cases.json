@@ -1,0 +1,36 @@
+{
+  "cases": [
+    {
+      "name": "local",
+      "context": "local",
+      "protectedRef": true,
+      "verifiedWorkload": false,
+      "dirty": false,
+      "production": false
+    },
+    {
+      "name": "spoofed",
+      "context": "ci-variable-only",
+      "protectedRef": true,
+      "verifiedWorkload": false,
+      "dirty": false,
+      "production": false
+    },
+    {
+      "name": "verified-ci",
+      "context": "ci",
+      "protectedRef": true,
+      "verifiedWorkload": true,
+      "dirty": false,
+      "production": "requires all checks and current authorization"
+    },
+    {
+      "name": "dirty",
+      "context": "local",
+      "protectedRef": false,
+      "verifiedWorkload": false,
+      "dirty": true,
+      "production": false
+    }
+  ]
+}

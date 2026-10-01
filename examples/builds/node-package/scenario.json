@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-018",
+  "title": "A Node package with native build and test scripts",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-01",
+    "BUILDER-04"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Infer build/test from package.json and report the generated package output.",
+    "No Oyzu files and no invented application framework."
+  ],
+  "cases": [
+    {
+      "name": "missing-script",
+      "change": "Remove the native build script.",
+      "expect": "Do not invent a frontend bundler command."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "build.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

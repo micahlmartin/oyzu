@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-045",
+  "title": "Closing the desktop does not own the build process",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "DIST-01",
+    "DIST-02",
+    "DIST-03"
+  ],
+  "expected": [
+    "Headless build remains valid without desktop processes.",
+    "Attaching/closing a compatible desktop does not cancel agent/CLI-owned work; incompatible protocol reports recovery."
+  ],
+  "cases": [
+    {
+      "name": "desktop-close",
+      "change": "Close the desktop during a long action.",
+      "expect": "CLI-owned action continues."
+    },
+    {
+      "name": "protocol-mismatch",
+      "change": "Connect a deliberately incompatible desktop client.",
+      "expect": "Reject without corrupting agent state."
+    }
+  ],
+  "requiredFiles": [
+    "lifecycle-cases.json",
+    "project/build.mjs",
+    "project/long-action.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

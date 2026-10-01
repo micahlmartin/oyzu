@@ -1,0 +1,11 @@
+Representative bundle layout, not mandatory user configuration or a frozen output schema.
+
+dist/
+  manifest.json
+  artifacts/api/<variant>/... application package and container references/content
+  reports/api/<variant>/junit.xml
+  reports/api/<variant>/coverage.xml   when the supported coverage adapter is available
+  evidence/... source, execution and artifact subject records
+
+The manifest distinguishes missing coverage from measured zero coverage.
+Application entrypoint comes from project.scripts; runtime/base inputs must be pinned during preparation.

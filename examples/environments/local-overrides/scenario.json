@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-003",
+  "title": "Checked-in defaults and local overrides",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "CFG-01",
+    "CFG-05"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu config explain",
+    "oyzu exec -- node probe.mjs"
+  ],
+  "expected": [
+    "APP_MODE defaults to development; an explicitly copied local override selects sandbox.",
+    "CI records ignored local overrides and retains checked-in configuration."
+  ],
+  "cases": [
+    {
+      "name": "local-override",
+      "change": "Copy local-override.toml.example to project/oyzu.local.toml in a disposable copy.",
+      "expect": "Only local scope changes; the local file stays ignored by Git."
+    }
+  ],
+  "nativeChecks": [],
+  "requiredFiles": [
+    "local-override.toml.example",
+    "project/.gitignore",
+    "project/oyzu.toml",
+    "project/probe.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

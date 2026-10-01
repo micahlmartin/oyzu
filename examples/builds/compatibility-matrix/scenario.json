@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-032",
+  "title": "One project tested across runtime versions",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-05",
+    "BUNDLE-01"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Expand a finite requested Node matrix without copying project task definitions.",
+    "Keep test reports separated by runtime variant; runtime tests do not automatically imply distinct distributable artifacts."
+  ],
+  "cases": [
+    {
+      "name": "unsupported-variant",
+      "change": "Request a runtime outside package engines.",
+      "expect": "Explain unsatisfiable variant before scheduling."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "matrix.json",
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "project/build.yaml"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "The matrix request is harness data. Running one native command does not verify all variants.",
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

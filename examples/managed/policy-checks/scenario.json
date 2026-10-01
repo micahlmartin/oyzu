@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-043",
+  "title": "Change mandatory scanning without editing a repository",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "PROTO-03",
+    "PLAN-06"
+  ],
+  "expected": [
+    "The same source under two policy revisions has different required checks.",
+    "A client unable to enforce the new required scanner rejects the plan."
+  ],
+  "cases": [
+    {
+      "name": "scanner-required",
+      "change": "Select revision two.",
+      "expect": "Plan includes the required check with pinned rules/database input."
+    },
+    {
+      "name": "unsupported-client",
+      "change": "Remove scanner capability from client advertisement.",
+      "expect": "Explicit update/capability error."
+    }
+  ],
+  "requiredFiles": [
+    "policy-cases.json",
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

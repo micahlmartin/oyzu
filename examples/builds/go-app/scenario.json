@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-016",
+  "title": "A zero-configuration Go application",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-01",
+    "BUILDER-01"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Compile the single main package and run tests with coverage.",
+    "Produce a binary and associated reports without build.yaml."
+  ],
+  "cases": [
+    {
+      "name": "multiple-main-packages",
+      "change": "Add a second command directory.",
+      "expect": "Discover distinct commands or explain artifact ambiguity."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "go",
+        "test",
+        "-coverprofile=coverage.out",
+        "./..."
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/go.mod",
+    "project/main.go",
+    "project/main_test.go"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

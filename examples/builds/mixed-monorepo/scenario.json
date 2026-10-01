@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-030",
+  "title": "Python API Node frontend Go command image and chart",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-02",
+    "TASK-06"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu run list",
+    "oyzu build"
+  ],
+  "expected": [
+    "Discover target-specific toolchains and grouped tasks.",
+    "Infer native dependencies and add only cross-artifact relationships that cannot be inferred."
+  ],
+  "cases": [
+    {
+      "name": "target-collision",
+      "change": "Introduce a second target with the same output identity.",
+      "expect": "Planning rejects collision before execution."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project/api",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project/web",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project/command",
+      "argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/Dockerfile",
+    "project/api/api/__init__.py",
+    "project/api/pyproject.toml",
+    "project/api/tests/test_api.py",
+    "project/build.yaml",
+    "project/chart/Chart.yaml",
+    "project/chart/templates/deployment.yaml",
+    "project/chart/values.schema.json",
+    "project/chart/values.yaml",
+    "project/command/go.mod",
+    "project/command/main.go",
+    "project/command/main_test.go",
+    "project/web/build.mjs",
+    "project/web/package.json",
+    "project/web/src/greeting.mjs",
+    "project/web/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Container assembly requires a Linux target binary supplied to the declared Docker context path. Artifact binding awaits Oyzu; no native combined pipeline is supplied.",
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

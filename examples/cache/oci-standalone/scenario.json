@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-034",
+  "title": "OCI cache configuration without pipeline cache scripts",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "CACHE-01",
+    "CACHE-03",
+    "CACHE-06"
+  ],
+  "expected": [
+    "A standalone user configures only an OCI destination.",
+    "Cold build stores complete blobs/results; warm build restores verified content; unavailable cache falls back to computation."
+  ],
+  "cases": [
+    {
+      "name": "interrupted-write",
+      "change": "Disconnect before result manifest commit.",
+      "expect": "No reusable partial entry."
+    },
+    {
+      "name": "concurrent-writers",
+      "change": "Publish incompatible outputs for the same action key.",
+      "expect": "Record conflict; never silently overwrite trusted results."
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/oyzu.toml",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "registry-cases.json"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

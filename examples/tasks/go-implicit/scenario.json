@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-006",
+  "title": "Implicit Go tasks without Oyzu configuration",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "TASK-01",
+    "BUILDER-01"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu run list",
+    "oyzu run test",
+    "oyzu build"
+  ],
+  "expected": [
+    "Discover Go compile/test/dependency/format capabilities without TOML or YAML.",
+    "Do not invent a linter that is not configured; explain its absence."
+  ],
+  "cases": [
+    {
+      "name": "test-failure",
+      "change": "Change the expected greeting.",
+      "expect": "Test task fails and build records failed tests."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/go.mod",
+    "project/main.go",
+    "project/main_test.go"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

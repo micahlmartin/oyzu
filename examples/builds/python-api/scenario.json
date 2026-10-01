@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-012",
+  "title": "A Python HTTP API with minimal builder intent",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-01",
+    "BUILDER-04",
+    "BUILDER-05"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "The sole explicit Oyzu hint is api: uses: python/app.",
+    "Use the declared console entrypoint; build/test the app and plan a pinned-runtime container when supported.",
+    "No mandatory test or output section."
+  ],
+  "cases": [
+    {
+      "name": "ambiguous-entrypoint",
+      "change": "Add a second equally plausible app entrypoint.",
+      "expect": "Ask for a focused choice; do not guess the service."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/api/__init__.py",
+    "project/build.yaml",
+    "project/pyproject.toml",
+    "project/tests/test_api.py"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

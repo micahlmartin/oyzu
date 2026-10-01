@@ -1,0 +1,26 @@
+{
+  "note": "Review data for a managed baseline, not a policy DSL",
+  "rows": [
+    {
+      "origin": "local",
+      "ref": "protected",
+      "registry": "development only",
+      "signing": "nonproduction if authorized",
+      "production": false
+    },
+    {
+      "origin": "unverified CI",
+      "ref": "release-looking",
+      "registry": "development only",
+      "signing": "nonproduction if authorized",
+      "production": false
+    },
+    {
+      "origin": "verified CI",
+      "ref": "policy-eligible",
+      "registry": "release destination only after required evidence",
+      "signing": "production authority only after server authorization",
+      "production": "conditional"
+    }
+  ]
+}

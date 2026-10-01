@@ -1,0 +1,27 @@
+{
+  "cases": [
+    {
+      "producer": {
+        "context": "local",
+        "verified": false
+      },
+      "consumer": {
+        "context": "ci",
+        "verified": true
+      },
+      "expectedProduction": false
+    },
+    {
+      "producer": {
+        "context": "ci",
+        "verified": true
+      },
+      "consumer": {
+        "context": "ci",
+        "verified": true
+      },
+      "expectedProduction": "requires remaining policy evidence"
+    }
+  ],
+  "note": "Trust examples are claims for future verification, not cryptographic proof"
+}

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-038",
+  "title": "Idempotent publication with separate receipts",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "REL-04",
+    "BUNDLE-05"
+  ],
+  "expected": [
+    "Identical content at an existing immutable coordinate is idempotent.",
+    "Retry only failed operations; do not modify original manifest or claim a cross-registry transaction."
+  ],
+  "cases": [
+    {
+      "name": "partial-success",
+      "change": "First artifact succeeds, second returns 503 then succeeds.",
+      "expect": "Receipt preserves both attempts; first artifact is not republished with different bytes."
+    },
+    {
+      "name": "coordinate-conflict",
+      "change": "Existing coordinate has a different digest.",
+      "expect": "Fail conflict."
+    }
+  ],
+  "requiredFiles": [
+    "image.txt",
+    "package.txt",
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "publication-cases.json"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

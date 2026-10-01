@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-002",
+  "title": "Switch between independent tool environments",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "ENV-01",
+    "ENV-03"
+  ],
+  "projects": [
+    "project-a",
+    "project-b"
+  ],
+  "oyzu": [
+    "oyzu install",
+    "oyzu exec -- node probe.mjs"
+  ],
+  "expected": [
+    "project-a selects Node 22; project-b selects Node 24.",
+    "Leaving a project restores previous PATH and values; independent terminals keep their own selection."
+  ],
+  "cases": [
+    {
+      "name": "nested-terminal",
+      "change": "Open both directories in separate activated terminals.",
+      "expect": "Neither changes the other's tool or APP_MODE."
+    }
+  ],
+  "nativeChecks": [],
+  "requiredFiles": [
+    "project-a/oyzu.toml",
+    "project-a/probe.mjs",
+    "project-b/oyzu.toml",
+    "project-b/probe.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

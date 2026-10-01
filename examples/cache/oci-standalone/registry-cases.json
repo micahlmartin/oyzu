@@ -1,0 +1,23 @@
+{
+  "note": "Synthetic result cases for a future OCI adapter; no registry credentials required",
+  "cases": [
+    {
+      "name": "miss",
+      "status": 404
+    },
+    {
+      "name": "outage",
+      "status": 503
+    },
+    {
+      "name": "corrupt-blob",
+      "digestMatches": false
+    },
+    {
+      "name": "race",
+      "sameActionKey": true,
+      "sameOutputs": false
+    }
+  ],
+  "transport": "loopback harness; production OCI interoperability still pending"
+}

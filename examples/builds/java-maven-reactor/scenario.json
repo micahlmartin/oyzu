@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-023",
+  "title": "Maven multi-module reactor",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-02",
+    "BUNDLE-01"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Use the native parent/modules/dependency graph once.",
+    "Associate library and app jars plus Surefire reports with their modules."
+  ],
+  "cases": [
+    {
+      "name": "shared-code-change",
+      "change": "Change the library greeting.",
+      "expect": "Re-test the consuming app through the reactor graph."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "mvn",
+        "--batch-mode",
+        "verify"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/app/pom.xml",
+    "project/app/src/main/java/example/App.java",
+    "project/app/src/test/java/example/AppTest.java",
+    "project/library/pom.xml",
+    "project/library/src/main/java/example/Greeting.java",
+    "project/library/src/test/java/example/GreetingTest.java",
+    "project/pom.xml"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

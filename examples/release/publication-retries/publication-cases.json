@@ -1,0 +1,25 @@
+{
+  "artifacts": [
+    {
+      "name": "package",
+      "version": "0.1.0",
+      "content": "package.txt"
+    },
+    {
+      "name": "image",
+      "version": "0.1.0",
+      "content": "image.txt"
+    }
+  ],
+  "attempts": [
+    {
+      "package": 201,
+      "image": 503
+    },
+    {
+      "package": 200,
+      "image": 201
+    }
+  ],
+  "note": "Synthetic protocol inputs, not real OCI images or production receipts"
+}

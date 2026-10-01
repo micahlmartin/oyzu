@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-031",
+  "title": "A shared deterministic generator with two consumers",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-06",
+    "CACHE-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Capture schema and generator as declared inputs.",
+    "Generate once; both consumers depend on the generated module's content."
+  ],
+  "cases": [
+    {
+      "name": "schema-change",
+      "change": "Change schema.json's greeting.",
+      "expect": "Only the generator and affected consumer actions invalidate."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "generate.mjs"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "expected-graph.json",
+    "project/api.test.mjs",
+    "project/generate.mjs",
+    "project/package.json",
+    "project/schema.json",
+    "project/web.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "happy": [
+    "api:pre_test",
+    "api:test",
+    "api:post_test"
+  ],
+  "preFailure": [
+    "api:pre_test"
+  ],
+  "mainFailure": [
+    "api:pre_test",
+    "api:test"
+  ],
+  "postFailure": [
+    "api:pre_test",
+    "api:test",
+    "api:post_test"
+  ],
+  "outcomes": {
+    "happy": "success",
+    "preFailure": "failed",
+    "mainFailure": "failed",
+    "postFailure": "failed"
+  },
+  "appliesTo": [
+    "oyzu run api:test",
+    "oyzu build"
+  ],
+  "engineCleanup": "always independent of success-only post hook"
+}

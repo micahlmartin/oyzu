@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-042",
+  "title": "Explicit probes for host and network access",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [],
+  "acceptance": [
+    "EXEC-01",
+    "EXEC-06"
+  ],
+  "expected": [
+    "Build actions and hooks cannot read an undeclared host sentinel or access an unapproved loopback service.",
+    "Development execution is not evidence of sandbox enforcement."
+  ],
+  "cases": [
+    {
+      "name": "host-file",
+      "change": "Supply a temporary sentinel outside captured inputs to the probe.",
+      "expect": "Build action cannot read it."
+    },
+    {
+      "name": "network",
+      "change": "Request the harness loopback endpoint from an isolated action.",
+      "expect": "Network denied."
+    },
+    {
+      "name": "symlink",
+      "change": "Create an escaping link in an isolated copy.",
+      "expect": "Capture/output validation rejects it."
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/package.json",
+    "project/probe.mjs",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "safety.md"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-040",
+  "title": "Local package routes and expiring upstream leases",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "AGENT-02",
+    "AGENT-03",
+    "CONN-03"
+  ],
+  "expected": [
+    "Native npm/pip use local endpoints; the agent obtains a scoped upstream lease.",
+    "Neither native environment nor package config contains the upstream token; redirects cannot exfiltrate it."
+  ],
+  "cases": [
+    {
+      "name": "expired-token",
+      "change": "Expire the upstream lease between requests.",
+      "expect": "Refresh with approved scope or fail; no static privileged fallback."
+    },
+    {
+      "name": "redirect",
+      "change": "Return an upstream redirect to an unapproved host.",
+      "expect": "Reject without forwarding Authorization."
+    },
+    {
+      "name": "wrong-scope",
+      "change": "Request a different repository.",
+      "expect": "Deny."
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "proxy-cases.json"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

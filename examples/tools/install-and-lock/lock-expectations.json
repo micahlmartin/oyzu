@@ -1,0 +1,14 @@
+{
+  "note": "Assertions for a future generated lock, not an invented lock schema",
+  "required": [
+    "exact version",
+    "platform/architecture",
+    "digest",
+    "backend identity"
+  ],
+  "forbidden": [
+    "credentials",
+    "loopback ports",
+    "absolute machine paths"
+  ]
+}

@@ -1,0 +1,13 @@
+[project]
+name = "oyzu-greeting-example"
+version = "0.1.0"
+description = "A small authored Oyzu example"
+requires-python = ">=3.10"
+dependencies = []
+
+[build-system]
+requires = ["poetry-core==2.2.1"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+packages = [{ include = "greeting" }]

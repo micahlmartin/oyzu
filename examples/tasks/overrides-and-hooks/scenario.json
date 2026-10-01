@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-009",
+  "title": "Replace an implicit task and attach hooks",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "TASK-02",
+    "TASK-03",
+    "TASK-04"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu run api:test",
+    "oyzu build"
+  ],
+  "expected": [
+    "pre_test → test → post_test in both entrypoints.",
+    "Pre failure prevents main; main failure skips post; post failure fails the invocation.",
+    "Overrides retain the builder report contract."
+  ],
+  "cases": [
+    {
+      "name": "pre-fails",
+      "change": "Use FAILURE_POINT=pre in a disposable development invocation.",
+      "expect": "Only pre event recorded."
+    },
+    {
+      "name": "main-fails",
+      "change": "Use FAILURE_POINT=main.",
+      "expect": "Pre and main recorded, no post."
+    },
+    {
+      "name": "post-fails",
+      "change": "Use FAILURE_POINT=post.",
+      "expect": "All events recorded and invocation fails."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project/api",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project/api",
+      "argv": [
+        "node",
+        "hook.mjs",
+        "pre"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/api/build.mjs",
+    "project/api/hook.mjs",
+    "project/api/package.json",
+    "project/api/src/greeting.mjs",
+    "project/api/test/failure.test.mjs",
+    "project/api/test/greeting.test.mjs",
+    "project/build.yaml",
+    "project/oyzu.toml"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

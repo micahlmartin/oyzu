@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-014",
+  "title": "Poetry-managed package",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-01",
+    "BUNDLE-03"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build",
+    "oyzu run test"
+  ],
+  "expected": [
+    "Select Poetry using poetry.lock and native metadata.",
+    "Collect unittest outcomes; coverage requires a pinned supported reporting integration, never fabricated results."
+  ],
+  "cases": [
+    {
+      "name": "manager-conflict",
+      "change": "Add an unrelated competing manager lock.",
+      "expect": "A clear manager ambiguity error."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/greeting/__init__.py",
+    "project/pyproject.toml",
+    "project/tests/test_greeting.py"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

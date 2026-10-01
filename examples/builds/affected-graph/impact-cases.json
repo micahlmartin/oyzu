@@ -1,0 +1,31 @@
+{
+  "cases": [
+    {
+      "changed": [
+        "shared/message.mjs"
+      ],
+      "affected": [
+        "api",
+        "web"
+      ]
+    },
+    {
+      "changed": [
+        "api/index.mjs"
+      ],
+      "affected": [
+        "api"
+      ]
+    },
+    {
+      "changed": [
+        "unknown generated input"
+      ],
+      "affected": [
+        "api",
+        "web"
+      ],
+      "reason": "conservative"
+    }
+  ]
+}

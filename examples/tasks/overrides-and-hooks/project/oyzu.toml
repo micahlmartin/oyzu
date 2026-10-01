@@ -1,0 +1,8 @@
+[tasks."api:test"]
+run = "node --test"
+
+[tasks."api:pre_test"]
+run = "node hook.mjs pre"
+
+[tasks."api:post_test"]
+run = "node hook.mjs post"

@@ -1,0 +1,10 @@
+[tasks."api:test"]
+run = "node --test"
+inputs = ["src/**", "test/**", "generated/input.json"]
+
+[tasks."api:pre_test"]
+run = "node hook.mjs pre"
+outputs = ["generated/input.json"]
+
+[tasks."api:post_test"]
+run = "node hook.mjs post"

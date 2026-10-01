@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-013",
+  "title": "Requirements-based application",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "EXEC-02",
+    "BUILDER-04"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Discover pip requirements without synthesizing package metadata.",
+    "Prepare pinned hashed requirements; a requirements-only script must not silently become a wheel.",
+    "The entrypoint may need a minimal app hint if discovery is ambiguous."
+  ],
+  "cases": [
+    {
+      "name": "unhashed-requirement",
+      "change": "Remove the wheel hash from requirements.txt.",
+      "expect": "Disclose incomplete reproducibility and enforce applicable locked-input policy."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "python",
+        "-m",
+        "pip",
+        "install",
+        "-r",
+        "requirements.txt"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/app.py",
+    "project/requirements.txt",
+    "project/tests/test_app.py",
+    "unlocked-requirements.txt"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

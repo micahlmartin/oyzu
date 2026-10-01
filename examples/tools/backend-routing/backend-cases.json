@@ -1,0 +1,19 @@
+{
+  "note": "Synthetic adapters only; this is not a tested mise compatibility claim",
+  "backends": [
+    {
+      "kind": "http",
+      "source": "https://example.invalid/releases/tool.zip"
+    },
+    {
+      "kind": "git",
+      "source": "https://example.invalid/tool.git"
+    },
+    {
+      "kind": "package-manager",
+      "source": "example-tool"
+    }
+  ],
+  "canonicalIdentity": "example/tool",
+  "expectedRoute": "approved-connector"
+}

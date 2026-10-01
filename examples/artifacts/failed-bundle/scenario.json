@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-036",
+  "title": "Failed tests and tampered artifacts remain visible",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "BUNDLE-02",
+    "BUNDLE-04",
+    "BUNDLE-06"
+  ],
+  "expected": [
+    "A failed test still produces an accurate failed bundle with available reports.",
+    "Changing a finalized output fails digest validation; interrupted finalization is incomplete, not success."
+  ],
+  "cases": [
+    {
+      "name": "controlled-test-failure",
+      "change": "Set EXAMPLE_FAIL=1 for the test action.",
+      "expect": "Nonzero exit and failed tests in the bundle."
+    },
+    {
+      "name": "tamper",
+      "change": "Append bytes to a finalized artifact.",
+      "expect": "Publishing refuses its stale digest."
+    }
+  ],
+  "requiredFiles": [
+    "artifact.txt",
+    "bundle-cases.json",
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/failure.test.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

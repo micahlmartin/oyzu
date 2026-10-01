@@ -1,0 +1,9 @@
+apiVersion: v2
+name: greeting
+version: 0.1.0
+appVersion: "0.1.0"
+type: application
+dependencies:
+  - name: labels
+    version: 0.1.0
+    repository: file://../labels

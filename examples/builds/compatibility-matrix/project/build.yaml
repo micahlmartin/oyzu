@@ -1,0 +1,4 @@
+app:
+  uses: node/app
+  matrix:
+    node: ["22.14.0", "24.14.1"]

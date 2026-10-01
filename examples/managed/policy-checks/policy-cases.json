@@ -1,0 +1,24 @@
+{
+  "note": "Semantic policy fixtures, not a policy language",
+  "revisions": [
+    {
+      "id": "one",
+      "requiredChecks": [
+        "test"
+      ]
+    },
+    {
+      "id": "two",
+      "requiredChecks": [
+        "test",
+        "dependency-scan"
+      ],
+      "scanner": {
+        "identity": "example-scanner",
+        "version": "1.0.0",
+        "database": "fixture-db"
+      }
+    }
+  ],
+  "sameSource": true
+}

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-048",
+  "title": "Provider facts retain unknown states",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "CONN-06",
+    "REL-02",
+    "REL-05"
+  ],
+  "expected": [
+    "GitHub/GitLab protection responses do not grant release authority on their own.",
+    "Permission denied, fork-origin events, and unverified workload identity cannot be interpreted as trusted execution."
+  ],
+  "cases": [
+    {
+      "name": "permission-denied",
+      "change": "Source-control API returns 403.",
+      "expect": "Protection unknown; required positive evidence absent."
+    },
+    {
+      "name": "fork-pr",
+      "change": "Use an untrusted fork PR event with CI variables.",
+      "expect": "No production authority from the label."
+    }
+  ],
+  "requiredFiles": [
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs",
+    "provider-cases.json"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

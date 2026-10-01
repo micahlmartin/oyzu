@@ -1,0 +1,35 @@
+{
+  "note": "Synthetic normalized facts, not exact vendor API payloads",
+  "cases": [
+    {
+      "provider": "github",
+      "httpStatus": 200,
+      "protection": "protected",
+      "workloadVerified": false,
+      "eligible": false
+    },
+    {
+      "provider": "gitlab",
+      "httpStatus": 200,
+      "protection": "protected",
+      "workloadVerified": false,
+      "eligible": false
+    },
+    {
+      "provider": "github",
+      "httpStatus": 403,
+      "protection": "unknown",
+      "workloadVerified": true,
+      "eligible": false
+    },
+    {
+      "provider": "github",
+      "event": "pull_request",
+      "fork": true,
+      "protection": "unknown",
+      "workloadVerified": false,
+      "eligible": false
+    }
+  ],
+  "requiresRealProviderConformance": true
+}

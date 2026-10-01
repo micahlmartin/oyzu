@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-039",
+  "title": "Approved tool discovery and direct upstream acquisition",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu install",
+    "oyzu exec -- node --version"
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "acceptance": [
+    "AGENT-01",
+    "CONN-05",
+    "PROTO-02"
+  ],
+  "expected": [
+    "Protected management state selects the platform before login.",
+    "Only allowed exact distributions resolve; package bytes use the approved direct upstream route."
+  ],
+  "cases": [
+    {
+      "name": "denied-version",
+      "change": "Request a version excluded by the allowlist.",
+      "expect": "Deny exact installation even with direct backend syntax."
+    },
+    {
+      "name": "missing-session",
+      "change": "Remove the user session while leaving protected management state.",
+      "expect": "Require authentication; do not use public sources."
+    }
+  ],
+  "requiredFiles": [
+    "distribution.txt",
+    "managed-context.json",
+    "project/build.mjs",
+    "project/package.json",
+    "project/src/greeting.mjs",
+    "project/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

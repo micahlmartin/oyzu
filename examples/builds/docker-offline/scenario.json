@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-026",
+  "title": "Multi-stage image requiring no external base",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "EXEC-01",
+    "BUILDER-05"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Build a data-only OCI image without network or downloaded base layers.",
+    "scratch is Docker's empty base, not an unpinned remote tag."
+  ],
+  "cases": [
+    {
+      "name": "external-add",
+      "change": "Use the negative Dockerfile.",
+      "expect": "Reject undeclared external acquisition before a hermetic action."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "docker",
+        "build",
+        "--network=none",
+        "--tag",
+        "oyzu-example-data:local",
+        "."
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "negative/Dockerfile",
+    "project/.dockerignore",
+    "project/Dockerfile",
+    "project/greeting.txt"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

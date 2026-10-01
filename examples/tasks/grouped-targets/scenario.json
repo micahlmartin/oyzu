@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-008",
+  "title": "Qualified tasks in a mixed target build",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "TASK-06",
+    "PLAN-02"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu run list",
+    "oyzu run api:test",
+    "oyzu run web:test"
+  ],
+  "expected": [
+    "api:test and web:test use their own working directories and tools.",
+    "An unqualified ambiguous test from the root reports both choices."
+  ],
+  "cases": [
+    {
+      "name": "ambiguous-root",
+      "change": "Run oyzu run test from the multi-target root.",
+      "expect": "Ambiguity error, not an arbitrary target."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project/web",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project/api",
+      "argv": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/api/greeting/__init__.py",
+    "project/api/pyproject.toml",
+    "project/api/tests/test_greeting.py",
+    "project/build.yaml",
+    "project/web/build.mjs",
+    "project/web/package.json",
+    "project/web/src/greeting.mjs",
+    "project/web/test/greeting.test.mjs"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

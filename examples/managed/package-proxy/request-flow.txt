@@ -1,0 +1,10 @@
+Proposed flow
+
+pip/npm -> loopback agent route -> approved Artifactory/Nexus repository
+                    |
+                    +-> platform: identity, current route/policy and scoped lease
+
+Package bytes do not transit the platform.
+The native client sees a local capability if needed, not the upstream registry token.
+Upstream tokens remain short-lived, scoped and agent-held.
+A redirect to another host is rejected before Authorization can be forwarded.

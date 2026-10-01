@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-029",
+  "title": "Application image and chart artifact relationship",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-05",
+    "BUNDLE-01"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Build image and chart targets with an explicit dependency.",
+    "Bind the actual image digest in generated chart values; preserve original values.yaml.",
+    "Artifact-binding syntax remains a design decision; binding intent is fixture data outside the project."
+  ],
+  "cases": [
+    {
+      "name": "digest-mismatch",
+      "change": "Attempt publication with a different image digest.",
+      "expect": "Reject mismatched evidence/binding."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project/app",
+      "argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project/chart",
+      "argv": [
+        "helm",
+        "lint",
+        "."
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "artifact-bindings.json",
+    "project/Dockerfile",
+    "project/app/go.mod",
+    "project/app/main.go",
+    "project/app/main_test.go",
+    "project/build.yaml",
+    "project/chart/Chart.yaml",
+    "project/chart/templates/deployment.yaml",
+    "project/chart/values.schema.json",
+    "project/chart/values.yaml"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Container assembly requires a Linux target binary supplied to the declared Docker context path. Artifact binding awaits Oyzu; no native combined pipeline is supplied.",
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}

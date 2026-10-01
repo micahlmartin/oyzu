@@ -1,0 +1,16 @@
+api:
+  uses: python/app
+  path: api
+web:
+  uses: node/app
+  path: web
+command:
+  uses: go/app
+  path: command
+image:
+  uses: docker/image
+  depends_on: [command]
+chart:
+  uses: helm/chart
+  path: chart
+  depends_on: [image]

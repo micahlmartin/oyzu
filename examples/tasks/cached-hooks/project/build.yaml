@@ -1,0 +1,3 @@
+api:
+  uses: node/app
+  path: api

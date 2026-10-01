@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-017",
+  "title": "Go workspace with an explicit native compiler dependency",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "BUILDER-02",
+    "EXEC-04"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Discover both workspace modules and their dependency once.",
+    "cgo requires a declared compiler and target ABI; cross-compiling is not assumed to work."
+  ],
+  "cases": [
+    {
+      "name": "cgo-disabled",
+      "change": "Set CGO_ENABLED=0.",
+      "expect": "Report unsupported build capability instead of substituting a different implementation."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project",
+      "argv": [
+        "go",
+        "test",
+        "./math/...",
+        "./cmd/..."
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "project/cmd/go.mod",
+    "project/cmd/main.go",
+    "project/go.work",
+    "project/math/go.mod",
+    "project/math/math.go",
+    "project/math/math_test.go"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+  ]
+}
