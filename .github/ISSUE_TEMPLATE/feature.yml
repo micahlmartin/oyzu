@@ -1,0 +1,23 @@
+name: Feature or proposal
+description: Propose a capability or design discussion.
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: experience
+    attributes:
+      label: Proposed user experience
+      description: Explain the default experience and any configuration needed.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and tradeoffs
+  - type: textarea
+    id: links
+    attributes:
+      label: Related issues or proposals

@@ -1,0 +1,26 @@
+name: Bug report
+description: Report incorrect behavior.
+title: "[Bug]: "
+body:
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Oyzu version, operating system, architecture, and shell.
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Relevant evidence
+      description: Remove credentials, private source code, and other sensitive information.

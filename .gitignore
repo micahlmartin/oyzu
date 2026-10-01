@@ -1,0 +1,18 @@
+# Build output and dependencies
+/target/
+/dist/
+**/node_modules/
+**/.vite/
+**/coverage/
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+oyzu.local.toml
+*.pem
+*.key
+# Editor and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

@@ -1,0 +1,22 @@
+name: Implementation task
+description: Track bounded implementation work.
+title: "[Task]: "
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and related design
+      description: Link the tracking issue and accepted design where applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Include relevant platforms and failure cases.
