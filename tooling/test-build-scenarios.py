@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 import zipfile
 import email
 import xml.etree.ElementTree as ET
@@ -72,7 +73,10 @@ def main():
 
     def invoke(root, *command, success=True):
         nonlocal invocation
+        started = time.monotonic()
+        print(f"[{root.name}] oyzu {' '.join(command)}", flush=True)
         result = subprocess.run([str(cli), "-C", str(root), *command], capture_output=True, text=True, timeout=900)
+        print(f"[{root.name}] exit {result.returncode} after {time.monotonic()-started:.1f}s", flush=True)
         if evidence and command == ('build',):
             invocation += 1
             destination = evidence / f'{invocation:02d}-{root.name}'
@@ -93,6 +97,7 @@ def main():
 
     with tempfile.TemporaryDirectory(prefix="oyzu-build-check-") as temporary:
         base = Path(temporary)
+        rust.verify(ROOT,base,invoke,validate,source_files,verified)
         for example in ["node-package", "go-app"]:
             project = base / example
             shutil.copytree(ROOT / "examples/builds" / example / "project", project)
@@ -291,8 +296,6 @@ def test_acquired_dependency_and_offline_boundary():
         assert stale['status']=='failed' and stale['planDigest'] is None
         assert 'stale' in stale['diagnostics'][0]['message'].lower()
         verified.append('Poetry: native lock freshness/export, captured poetry-core backend, snapshot wheel/sdist and unittest results through pytest')
-
-        rust.verify(ROOT,base,invoke,validate,source_files,verified)
 
     summary={"verified":verified,"scope":"initial Node/npm, Go, Python manager and local Cargo workspace builds; full builder catalog remains pending"}
     if evidence:

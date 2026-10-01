@@ -189,7 +189,9 @@ def acquire():
     threading.Thread(target=server.serve_forever,daemon=True).start()
     index='http://127.0.0.1:'+str(server.server_port)+'/index/'
     Path('/out/wheels').mkdir()
-    args=[sys.executable,'-I','-m','pip','--isolated','download','--only-binary=:all:','--no-cache-dir','--disable-pip-version-check','--dest','/out/wheels','--index-url',index,'--trusted-host','127.0.0.1']
+    # The bridge waits up to 55s for the broker (whose upstream timeout is 45s).
+    # pip's 15s default otherwise abandons healthy in-flight work and queues retries.
+    args=[sys.executable,'-I','-m','pip','--isolated','download','--timeout','120','--retries','2','--only-binary=:all:','--no-cache-dir','--disable-pip-version-check','--dest','/out/wheels','--index-url',index,'--trusted-host','127.0.0.1']
     run(args+constraint_args+requirements)
     if manager in {'uv','poetry'}:
         run(args+['--no-deps','--require-hashes','-r',str(export)])
