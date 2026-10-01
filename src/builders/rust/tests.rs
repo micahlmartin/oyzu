@@ -130,7 +130,9 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
         assert!(plan.tasks[stage].argv.contains(&"--offline".into()));
     }
     assert_eq!(plan.tasks["test"].reports[0].format.name(), "junit");
+    assert_eq!(plan.tasks["test"].reports[1].format.name(), "cobertura");
     assert_eq!(plan.env["CARGO_NET_OFFLINE"], "true");
+    assert_eq!(plan.env["CARGO_LLVM_COV_SETUP"], "no");
 }
 
 #[test]

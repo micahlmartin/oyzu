@@ -28,6 +28,7 @@ src/
       preparation.rs          # Offline lock validation and captured manifest overlay
       planning.rs             # Binary, native checks and JUnit intent
       reporting.rs            # Private nextest settings and exact report destinations
+      runtime/test.sh         # Native coverage/test reporting with failure preservation
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
     docker/                   # Container builder

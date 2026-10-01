@@ -6,7 +6,9 @@ mod reporting;
 #[cfg(test)]
 mod tests;
 
-use crate::builders::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext};
+use crate::builders::{
+    Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile,
+};
 use crate::dependencies::Prepared;
 use crate::model::Target;
 use anyhow::Result;
@@ -17,7 +19,14 @@ pub(super) struct Rust;
 
 impl Builder for Rust {
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
-        Ok("oyzu-toolchain/rust:1.94.0-nextest0.9.146")
+        Ok("oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1")
+    }
+
+    fn runtime_files(&self) -> &'static [RuntimeFile] {
+        &[RuntimeFile {
+            name: "rust-test.sh",
+            contents: include_str!("runtime/test.sh"),
+        }]
     }
 
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {

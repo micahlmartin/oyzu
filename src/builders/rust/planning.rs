@@ -95,20 +95,18 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         ]),
     );
     let mut test = TaskPlan::command(&[
-        "cargo",
-        "nextest",
-        "--config-file",
-        "/dependencies/nextest.toml",
-        "run",
-        "--workspace",
-        "--locked",
-        "--offline",
-        "--profile",
-        "default",
+        "sh",
+        "/oyzu/rust-test.sh",
+        &format!("/out/{id}/reports/coverage.xml"),
     ]);
     test.reports.push(ReportSpec {
         format: ReportFormat::Junit,
         filename: "junit.xml",
+        source: crate::reports::ReportSource::File,
+    });
+    test.reports.push(ReportSpec {
+        format: ReportFormat::Cobertura,
+        filename: "coverage.xml",
         source: crate::reports::ReportSource::File,
     });
     plan.tasks.insert("test".into(), test);

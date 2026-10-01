@@ -16,9 +16,14 @@ pub(super) fn environment() -> BTreeMap<String, String> {
         ("CARGO_BUILD_JOBS".into(), "2".into()),
         ("CARGO_INCREMENTAL".into(), "0".into()),
         (
-            "RUSTFLAGS".into(),
-            "--remap-path-prefix=/workspace=/src".into(),
+            "CARGO_LLVM_COV_TARGET_DIR".into(),
+            ".oyzu-build/target/coverage".into(),
         ),
+        (
+            "CARGO_LLVM_COV_BUILD_DIR".into(),
+            ".oyzu-build/target/coverage".into(),
+        ),
+        ("CARGO_LLVM_COV_SETUP".into(), "no".into()),
     ])
 }
 
@@ -75,6 +80,9 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         .find_map(|line| line.strip_prefix("host: "))
         .context("rustc host missing")?;
     let cargo = runner.run(&["cargo", "--version"])?;
+    let nextest = runner.run(&["cargo", "nextest", "--version"])?;
+    let coverage = runner.run(&["cargo", "llvm-cov", "--version"])?;
+    runner.run(&["cargo", "llvm-cov", "show-env", "--sh"])?;
     let manager_version = cargo
         .split_whitespace()
         .nth(1)
@@ -107,7 +115,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         "manager":{"id":"cargo","version":manager_version,"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&root.join("Cargo.lock"))?],
         "targetPlatform":platform,"packages":[],"preparedTree":tree.digest,
-        "extensions":{"oyzu.dev/cargo-workspace":{"original":original,"projected":projected}}
+        "extensions":{"oyzu.dev/cargo-workspace":{"original":original,"projected":projected},"oyzu.dev/cargo-tools":{"rustc":rustc.trim(),"nextest":nextest.trim(),"llvmCov":coverage.trim()}}
     });
     Ok(Prepared {
         root: context.destination.into(),

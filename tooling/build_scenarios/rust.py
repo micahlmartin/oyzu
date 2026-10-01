@@ -4,11 +4,12 @@ import shutil
 import subprocess
 import tarfile
 import tomllib
+import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator
 
 
-IMAGE = 'oyzu-toolchain/rust:1.94.0-nextest0.9.146'
+IMAGE = 'oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1'
 
 
 def binary(manifest):
@@ -31,6 +32,16 @@ def archives(project, manifest, count):
             for dependency in metadata.get('dependencies', {}).values():
                 assert '-dev.g' in dependency['version']
                 assert 'path' not in dependency
+
+
+def application_coverage(project, manifest, source, expression):
+    report = next(r for r in manifest['reports'] if r['kind']=='coverage')
+    assert report['summary']['covered'] > 0
+    line = next(i for i, text in enumerate((project/source).read_text().splitlines(), 1) if expression in text)
+    document = ET.parse(project/'dist'/report['path'])
+    classes = [c for c in document.findall('.//class') if c.attrib['filename'].replace('\\','/').endswith(source)]
+    assert classes, f'coverage did not include {source}'
+    assert any(int(n.attrib['number'])==line and int(n.attrib['hits'])>0 for c in classes for n in c.findall('./lines/line')), f'coverage did not measure executed application line {source}:{line}'
 
 
 def run_binary(project, artifact):
@@ -61,6 +72,7 @@ def verify(root, base, invoke, validate, source_files, verified):
         assert '-dev.g' in artifact['version']
         assert run_binary(project, artifact) == 'Hello, Oyzu!'
         assert next(r for r in manifest['reports'] if r['kind']=='test')['summary']['passed'] > 0
+        application_coverage(project, manifest, 'core/src/lib.rs' if example=='rust-workspace' else 'src/main.rs', 'MESSAGE.to_owned()' if example=='rust-workspace' else 'format!("Hello, {name}!")')
         for stage in ['build', 'test', 'lint', 'format-check', 'archive', 'package']:
             assert next(a for a in manifest['actions'] if a['id']==f'project:{stage}')['status']=='succeeded'
         dependency = json.loads((project/'dist/dependencies/project.json').read_text())
@@ -82,6 +94,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert len(library_manifest['artifacts']) == 1
     assert source_files(project) == before
     assert next(r for r in library_manifest['reports'] if r['kind']=='test')['summary']['passed'] > 0
+    application_coverage(project, library_manifest, 'src/lib.rs', 'MESSAGE.to_owned()')
     verified.append('Cargo library-only project produces a native verified snapshot crate without a binary')
 
     project = base/'rust-workspace'
@@ -103,6 +116,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     failed = validate(project/'dist')
     assert not failed['artifacts']
     assert next(r for r in failed['reports'] if r['kind']=='test')['summary']['failed'] > 0
+    application_coverage(project, failed, 'src/main.rs', 'format!("Hello, {name}!")')
     assert next(a for a in failed['actions'] if a['id']=='project:package')['status']=='blocked'
     source.write_text(good.replace('fn main() {', 'fn main(){'))
     unformatted = source_files(project)
