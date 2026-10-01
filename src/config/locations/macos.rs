@@ -34,6 +34,11 @@ pub(super) fn check_acl(file: &File) -> Result<()> {
     // ACL_TYPE_EXTENDED; the descriptor pins the object being checked.
     let acl = Allocation(unsafe { acl_get_fd_np(file.as_raw_fd(), 0x100) });
     if acl.0.is_null() {
+        // On an already-open descriptor Darwin reports an absent FILESEC_ACL
+        // property as ENOENT. Other retrieval failures remain blocking errors.
+        if std::io::Error::last_os_error().raw_os_error() == Some(2) {
+            return Ok(());
+        }
         bail!("POLICY_INVALID: cannot inspect administrative extended ACL");
     }
     if unsafe { acl_valid(acl.0) } != 0 {
