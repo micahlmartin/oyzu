@@ -80,7 +80,7 @@ fn run() -> Result<i32> {
         Commands::Config { command } => {
             println!(
                 "{}",
-                serde_json::to_string_pretty(&config::operations::run(
+                serde_json::to_string_pretty(&oyzu::invocation::configuration(
                     &command.operation(),
                     &directory,
                     &options

@@ -43,26 +43,7 @@ pub enum WriteScope {
     Local,
 }
 
-pub fn run(command: &Command, directory: &Path, options: &Options) -> Result<Value> {
-    match run_inner(command, directory, options) {
-        Err(error) if matches!(command, Command::Show | Command::Explain { .. }) => {
-            // Inspection must work even when policy or ordinary syntax blocks
-            // execution. Never serialize unreviewed parser/transport error bodies.
-            let description = format!("{error:#}");
-            let code = description
-                .split(|c: char| c == ':' || c.is_whitespace())
-                .find(|part| part.starts_with("CONFIG_") || part.starts_with("POLICY_"))
-                .unwrap_or("CONFIG_UNRESOLVED");
-            Ok(json!({"status":"unresolved","values":null,"diagnostics":[{
-                "code":code,"severity":"error","key":null,"sourceSpan":null,"target":null,
-                "message":"Configuration resolution is blocked; no effective snapshot is available",
-                "remedy":"Run config validate for local diagnostics, or config status and config refresh for managed policy"
-            }]}))
-        }
-        result => result,
-    }
-}
-fn run_inner(command: &Command, directory: &Path, options: &Options) -> Result<Value> {
+pub(crate) fn execute(command: &Command, directory: &Path, options: &Options) -> Result<Value> {
     if matches!(command, Command::Status) {
         return status(directory, options);
     }
@@ -135,17 +116,15 @@ fn run_inner(command: &Command, directory: &Path, options: &Options) -> Result<V
         )?;
         return Ok(json!({"destination":path,"updated":key}));
     }
-    let mut session = Session::open(directory, options)?;
-    let mut selected = vec![directory.canonicalize()?];
-    let (inventory, inventory_diagnostics) = super::targets_with_diagnostics(&session.root)?;
-    if let Some(targets) = inventory {
-        for target in targets.values() {
-            selected.push(super::contained(
-                &session.root,
-                target.path.as_deref().unwrap_or(Path::new(".")),
-            )?);
-        }
-    }
+    bail!("CONFIG_INVALID_VALUE: inspection requires captured target selection")
+}
+pub(crate) fn inspect(
+    command: &Command,
+    directory: &Path,
+    mut session: Session,
+    selected: Vec<std::path::PathBuf>,
+    inventory_diagnostics: Vec<super::sources::Diagnostic>,
+) -> Result<Value> {
     session.select_for_targets(&selected)?;
     let all = matches!(
         command,

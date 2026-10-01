@@ -180,3 +180,49 @@ fn ordinary_edit_repairs_invalid_value_without_executing_configuration() {
         .unwrap()
         .contains("# keep this"));
 }
+
+#[test]
+fn implicit_target_profiles_share_selection_and_report_real_sources() {
+    let temp = tempfile::tempdir().unwrap();
+    for name in ["alpha", "beta"] {
+        fs::create_dir(temp.path().join(name)).unwrap();
+        fs::write(temp.path().join(name).join("package.json"), "{}").unwrap();
+    }
+    fs::write(
+        temp.path().join("alpha/oyzu.toml"),
+        "[profiles.integration.build]\njobs=3\n",
+    )
+    .unwrap();
+    fs::write(
+        temp.path().join("oyzu.toml"),
+        "[profile]\ndefault='integration'\n",
+    )
+    .unwrap();
+    let profiles = value(temp.path(), &["config", "profiles"]);
+    assert_eq!(profiles["selected"], "integration");
+    let origins = profiles["profiles"]["integration"].as_array().unwrap();
+    assert_eq!(origins.len(), 1);
+    assert!(origins[0].as_str().unwrap().ends_with("oyzu.toml"));
+    assert!(!origins[0].as_str().unwrap().contains("catalogue"));
+    value(temp.path(), &["config", "validate", "--all-profiles"]);
+    fs::write(
+        temp.path().join("beta/oyzu.toml"),
+        "[profiles.integration.compatibility]\nrequires=['future/v99']\n",
+    )
+    .unwrap();
+    assert!(!run(temp.path(), &["config", "validate"]).status.success());
+}
+
+#[test]
+fn validation_rejects_unknown_builders_and_incompatible_language_axes() {
+    let temp = tempfile::tempdir().unwrap();
+    for inventory in [
+        "app:\n  uses: future/unknown\n",
+        "app:\n  uses: node/package\n  matrix:\n    python: ['3.12']\n",
+    ] {
+        fs::write(temp.path().join("build.yaml"), inventory).unwrap();
+        let result = run(temp.path(), &["config", "validate"]);
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains("CONFIG_INVALID_VALUE"));
+    }
+}

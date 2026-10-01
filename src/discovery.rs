@@ -1,4 +1,5 @@
 pub(crate) mod detectors;
+pub(crate) mod inventory;
 mod source;
 use crate::{
     builders, config,
@@ -77,82 +78,26 @@ pub(crate) fn discover_with_session(
     default_shell: Option<&str>,
 ) -> Result<Workspace> {
     let root = session.root.clone();
+    let selected = inventory::select(&root)?;
+    for diagnostic in selected.diagnostics {
+        eprintln!(
+            "{}: {}: {}",
+            diagnostic.code, diagnostic.source, diagnostic.message
+        );
+    }
     let mut targets = BTreeMap::new();
-    if let Some(configs) = config::targets(&root)? {
-        for (name, config) in configs {
-            let dir = config::contained(&root, config.path.as_deref().unwrap_or(Path::new(".")))?;
-            targets.insert(
-                name.clone(),
-                discover_target(&name, &dir, Some(&config.uses))?,
-            );
-        }
-    } else {
-        let candidates: Vec<_> = builders::all()
-            .iter()
-            .filter_map(|builder| builder.detect(&root))
-            .collect();
-        if !candidates.is_empty() {
-            targets.insert("project".into(), discover_target("project", &root, None)?);
-        } else {
-            let mut owned = Vec::new();
-            let walker = walkdir::WalkDir::new(&root)
-                .max_depth(32)
-                .follow_links(false)
-                .into_iter()
-                .filter_entry(|entry| {
-                    entry.depth() == 0
-                        || !matches!(
-                            entry.file_name().to_str(),
-                            Some(
-                                ".git"
-                                    | ".oyzu"
-                                    | ".cache"
-                                    | "dist"
-                                    | "target"
-                                    | "build"
-                                    | "node_modules"
-                                    | "vendor"
-                                    | ".venv"
-                                    | "venv"
-                                    | "__pycache__"
-                            )
-                        )
-                });
-            for entry in walker {
-                let entry = entry?;
-                if !entry.file_type().is_dir()
-                    || entry.path() == root
-                    || owned
-                        .iter()
-                        .any(|path: &std::path::PathBuf| entry.path().starts_with(path))
-                {
-                    continue;
-                }
-                if entry.path().join(".git").exists() {
-                    owned.push(entry.path().to_path_buf());
-                    continue;
-                }
-                if builders::all()
-                    .iter()
-                    .any(|builder| builder.detect(entry.path()).is_some())
-                {
-                    let relative = entry
-                        .path()
-                        .strip_prefix(&root)?
-                        .to_string_lossy()
-                        .replace('\\', "/");
-                    let name = crate::names::scoped("project", &relative);
-                    targets.insert(name.clone(), discover_target(&name, entry.path(), None)?);
-                    owned.push(entry.path().to_path_buf());
-                    if targets.len() > 1024 {
-                        bail!("CONFIG_LIMIT: too many targets");
-                    }
-                }
-            }
-            if targets.is_empty() {
-                bail!("no conventional projects discovered");
-            }
-        }
+    for candidate in selected.targets {
+        targets.insert(
+            candidate.name.clone(),
+            discover_target(
+                &candidate.name,
+                &candidate.path,
+                candidate.builder.as_deref(),
+            )?,
+        );
+    }
+    if targets.is_empty() {
+        bail!("no conventional projects discovered");
     }
     let mut native_units = std::collections::BTreeSet::new();
     for target in targets.values() {
