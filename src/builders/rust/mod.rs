@@ -2,6 +2,7 @@ use crate::builders::task::insert;
 mod metadata;
 mod planning;
 mod preparation;
+mod reporting;
 #[cfg(test)]
 mod tests;
 

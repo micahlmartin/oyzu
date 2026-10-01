@@ -95,9 +95,16 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         ]),
     );
     let mut test = TaskPlan::command(&[
-        "sh", "-c",
-        "cargo nextest run --workspace --locked --offline --profile default; result=$?; cp .oyzu-build/target/nextest/default/junit.xml \"$1\" || exit $?; exit \"$result\"",
-        "oyzu-test", &format!("/out/{id}/reports/junit.xml"),
+        "cargo",
+        "nextest",
+        "--config-file",
+        "/dependencies/nextest.toml",
+        "run",
+        "--workspace",
+        "--locked",
+        "--offline",
+        "--profile",
+        "default",
     ]);
     test.reports.push(ReportSpec {
         format: ReportFormat::Junit,

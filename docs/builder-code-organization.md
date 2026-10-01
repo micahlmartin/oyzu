@@ -27,6 +27,7 @@ src/
       metadata.rs             # Typed native workspace metadata and version projection
       preparation.rs          # Offline lock validation and captured manifest overlay
       planning.rs             # Binary, native checks and JUnit intent
+      reporting.rs            # Private nextest settings and exact report destinations
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
     docker/                   # Container builder

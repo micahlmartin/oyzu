@@ -132,3 +132,30 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
     assert_eq!(plan.tasks["test"].reports[0].format.name(), "junit");
     assert_eq!(plan.env["CARGO_NET_OFFLINE"], "true");
 }
+
+#[test]
+fn nextest_report_destination_is_independent_of_native_store_and_source_config() {
+    let root = tempfile::tempdir().unwrap();
+    fs::create_dir(root.path().join(".config")).unwrap();
+    let source = "[store]\ndir='custom-store'\n[profile.default]\nretries=2\n[profile.default.junit]\npath='previous.xml'\nstore-failure-output=false\n";
+    let path = root.path().join(".config/nextest.toml");
+    fs::write(&path, source).unwrap();
+    let configured: toml::Value = toml::from_str(
+        &super::reporting::configuration(root.path(), "/out/api/reports/junit.xml").unwrap(),
+    )
+    .unwrap();
+    assert_eq!(configured["store"]["dir"].as_str(), Some("custom-store"));
+    assert_eq!(
+        configured["profile"]["default"]["retries"].as_integer(),
+        Some(2)
+    );
+    assert_eq!(
+        configured["profile"]["default"]["junit"]["path"].as_str(),
+        Some("/out/api/reports/junit.xml")
+    );
+    assert_eq!(
+        configured["profile"]["default"]["junit"]["store-failure-output"].as_bool(),
+        Some(false)
+    );
+    assert_eq!(fs::read_to_string(path).unwrap(), source);
+}

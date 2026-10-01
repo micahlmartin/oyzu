@@ -87,31 +87,12 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         fs::create_dir_all(out.parent().unwrap())?;
         fs::copy(workspace.join(file), out)?;
     }
-    // Preserve native nextest settings, supplying only the required report destination.
-    let nextest_path = workspace.join(".config/nextest.toml");
-    let mut nextest: toml::Value = if nextest_path.exists() {
-        toml::from_str(&fs::read_to_string(nextest_path)?)?
-    } else {
-        toml::Value::Table(Default::default())
-    };
-    let mut table = nextest
-        .as_table_mut()
-        .context("invalid nextest configuration")?;
-    for part in ["profile", "default", "junit"] {
-        table = table
-            .entry(part)
-            .or_insert_with(|| toml::Value::Table(Default::default()))
-            .as_table_mut()
-            .context("invalid nextest profile")?;
-    }
-    table.insert("path".into(), "junit.xml".into());
-    table
-        .entry("report-skipped")
-        .or_insert_with(|| "ignored".into());
-    fs::create_dir_all(overlay.join(".config"))?;
     fs::write(
-        overlay.join(".config/nextest.toml"),
-        toml::to_string(&nextest)?,
+        context.destination.join("nextest.toml"),
+        super::reporting::configuration(
+            &workspace,
+            &format!("/out/{}/reports/junit.xml", context.target.name),
+        )?,
     )?;
     records::write(
         &context.destination.join("metadata.json"),
