@@ -181,6 +181,8 @@ The build runs one offline reactor lifecycle with a pinned JaCoCo integration, p
 
 Private repositories, full wrapper/toolchain selection, custom report locations, Failsafe attribution, arbitrary native classifier/plugin outputs and complete dependency-edge/purpose metadata remain required. Native offline execution is the completeness check for dynamic plugin inputs; unresolved inputs remain failures. This does not complete the Maven/Java builder catalog or mark EX-023 fully accepted.
 
+[Run 36847332491](https://github.com/micahlmartin/oyzu/actions/runs/36847332491) passed all host CLI/task jobs and completed the first native Maven acquisition/offline build. Its downloaded bundle contains three snapshot POMs, two JARs, two passing Surefire reports and two JaCoCo reports. The harness then rejected zero covered app lines: the fixture's app test called only the library. The test now invokes `App.main` and asserts its output; the positive application-coverage check remains unchanged. Repeatability and failing-reactor cases were not reached in that run and remain unverified.
+
 ## Gradle native model groundwork
 
 An ecosystem-owned Gradle initialization script now exports evaluated project models, included-build ownership, registered task names, native archive providers and JUnit locations. Each included build exports its own model through a native task dependency; the adapter does not parse build scripts to reconstruct the composite graph. Paths must remain under the captured workspace, and unset archive versions are represented explicitly. This script is not yet wired into compiled-CLI preparation or execution.
