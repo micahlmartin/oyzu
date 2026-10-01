@@ -107,6 +107,34 @@ def main():
         invoke(project,"inspect","dist")
         verified.append("failed tests retain reports and block packaging")
 
+        go_project = base / "go-app"
+        (go_project / "main.go").write_text('package main\nimport "fmt"\nfunc greeting(name string) string { return "Hello, " + name + "!" }\nfunc main(){fmt.Println(greeting("Oyzu"))}\n')
+        unformatted = source_files(go_project)
+        invoke(go_project,"build",success=False)
+        manifest = validate(go_project / "dist")
+        assert next(a for a in manifest["actions"] if a["id"] == "project:format-check")["status"] == "failed"
+        assert next(a for a in manifest["actions"] if a["id"] == "project:package")["status"] == "blocked"
+        assert source_files(go_project) == unformatted
+        verified.append("Go formatting failure blocks packaging without editing checkout")
+
+        hooked = base / "hooks"
+        shutil.copytree(ROOT / "examples/builds/node-package/project",hooked)
+        (hooked / "hook.mjs").write_text("""import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const phase=process.argv[2];
+if(phase==='pre')fs.writeFileSync('.hook-order','pre');
+else {assert.equal(fs.readFileSync('.hook-order','utf8'),'pre,build'); fs.writeFileSync('.hook-order','pre,build,post');}
+""")
+        with (hooked / "build.mjs").open("a") as build_script:
+            build_script.write("\nconst hookFs=await import('node:fs');if(hookFs.readFileSync('.hook-order','utf8')!=='pre')throw new Error('missing pre hook');hookFs.appendFileSync('.hook-order',',build');\n")
+        (hooked / "oyzu.toml").write_text('[tasks."project:pre_build"]\nargv=["node","hook.mjs","pre"]\n[tasks."project:post_build"]\nargv=["node","hook.mjs","post"]\n')
+        invoke(hooked,"build")
+        manifest = validate(hooked / "dist")
+        ids = [a["id"] for a in manifest["actions"]]
+        assert ids.index("project:pre_build") < ids.index("project:build") < ids.index("project:post_build")
+        assert not (hooked / ".hook-order").exists()
+        verified.append("build hooks execute around native build inside captured source")
+
         # A real build script checks the actual process environment and filesystem.
         isolated = base / "isolation"
         shutil.copytree(ROOT / "examples/builds/node-package/project",isolated)
