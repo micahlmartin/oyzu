@@ -22,7 +22,7 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 | --- | --- |
 | Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Initial source-copy/digest primitive tested; full plan/build integration pending |
 | Dependency preparation and private-registry credential isolation for every native manager | Pending |
-| Capability-enforced executor, cancellation/process containment and offline build actions | Pending |
+| Capability-enforced executor, cancellation/process containment and offline build actions | Initial Docker execution primitive; full integration and boundary verification pending |
 | Build/test/lint/read-only formatting orchestration with native ownership and reports | Task discovery foundation only |
 | Native snapshot version projection and verified dist artifacts/manifests, including failures | Pending |
 | Container convenience packaging, Dockerfile contexts/materialization, multi-platform outputs | Discovery only |
@@ -36,6 +36,8 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 The implementation must not read scenario expectation JSON as instructions for manufacturing outputs. Native source/configuration determines behavior. Existing authored scenarios retain pending-implementation status until their actual acceptance cases, including negatives, are exercised. No fixture is marked passing merely because a CLI command exists.
 
 ## Next checkpoint
+
+Initial executor and report helpers are also checked in as foundations for OEP-0007 and OEP-0012. The Docker helper requires a provisioned Linux image, resolves its identity, disables container networking and mounts only supplied workspace/output directories. JUnit, Go test-event conversion and LCOV/Go coverage summaries have focused parser tests. Neither helper is wired into an `oyzu build` command yet. Container execution, cancellation, mount containment, complete report validation and package-level Go failures still require integration and acceptance verification; compilation and parser tests do not establish those guarantees.
 
 Wire captured source into build-plan/manifest plumbing, then implement the first complete Node/Python/Go source-to-snapshot build with enforced executor boundaries. Add artifact-content and failure/report assertions to the compiled-CLI scenario job, and expand the same engine across the other managers. Keep committing incremental verified changes.
 
