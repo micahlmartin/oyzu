@@ -28,6 +28,8 @@ fn cargo_paths_cannot_escape_the_captured_target() {
     }
     let mut native = metadata();
     native.validate().unwrap();
+    native.packages[0].dependencies[0].path = Some("/workspace".into());
+    native.validate().unwrap();
     native.packages[0].dependencies[0].source = Some("registry+https://example.invalid".into());
     assert!(native
         .validate()
@@ -73,4 +75,51 @@ fn cargo_projection_preserves_workspace_settings_and_updates_aliased_requirement
         read("Cargo.toml")["workspace"]["dependencies"]["alias"]["version"].as_str(),
         Some("=2.0.0-dev.gaaaaaaaaaaaa")
     );
+}
+
+#[test]
+fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
+    use crate::{builders::PlanningContext, dependencies::Prepared, discovery, snapshot};
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("Cargo.toml"), "[workspace]\nmembers=[]\n").unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &capture.path().join("source")).unwrap();
+    let workspace = discovery::discover(&capture.path().join("source")).unwrap();
+    let mut native = metadata();
+    native.packages[0].version = "1.2.3-dev.gaaaaaaaaaaaa".into();
+    native.packages[1].version = "2.0.0-dev.gaaaaaaaaaaaa".into();
+    native.packages[1].targets[0].kind = vec!["bin".into()];
+    let prepared = Prepared {
+        root: capture.path().join("prepared"),
+        digest: source.digest.clone(),
+        record: json!({}),
+    };
+    fs::create_dir(&prepared.root).unwrap();
+    fs::write(
+        prepared.root.join("metadata.json"),
+        serde_json::to_vec(&native).unwrap(),
+    )
+    .unwrap();
+    fs::write(prepared.root.join("host.txt"), "x86_64-unknown-linux-gnu").unwrap();
+    let plan = super::planning::plan(PlanningContext {
+        target: &workspace.targets["project"],
+        source: &source,
+        dependencies: Some(&prepared),
+    })
+    .unwrap();
+    assert_eq!(plan.artifacts.len(), 2);
+    for (artifact, package) in plan.artifacts.iter().zip(&native.packages) {
+        assert_eq!(artifact.version.as_ref(), Some(&package.version));
+        assert!(artifact.filename.contains(&package.version));
+        assert!(plan
+            .package
+            .argv
+            .contains(&format!("/out/project/artifacts/{}", artifact.filename)));
+    }
+    for stage in ["build", "lint"] {
+        assert!(plan.tasks[stage].argv.contains(&"--locked".into()));
+        assert!(plan.tasks[stage].argv.contains(&"--offline".into()));
+    }
+    assert_eq!(plan.tasks["test"].reports[0].format.name(), "junit");
+    assert_eq!(plan.env["CARGO_NET_OFFLINE"], "true");
 }

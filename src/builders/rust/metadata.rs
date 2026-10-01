@@ -67,12 +67,13 @@ impl Metadata {
                         dependency.name
                     );
                 }
-                relative(
-                    dependency
-                        .path
-                        .as_deref()
-                        .context("unresolved Cargo path dependency")?,
-                )?;
+                let path = dependency
+                    .path
+                    .as_deref()
+                    .context("unresolved Cargo path dependency")?;
+                if path != "/workspace" {
+                    relative(path)?;
+                }
             }
             for target in &package.targets {
                 relative(&target.src_path)?;

@@ -13,7 +13,11 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         serde_json::from_slice(&fs::read(prepared.root.join("metadata.json"))?)?;
     metadata.validate()?;
     let host = fs::read_to_string(prepared.root.join("host.txt"))?;
-    if host.is_empty() || !host.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+    if host.is_empty()
+        || !host
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
         bail!("invalid Rust compiler host triple");
     }
     let id = &context.target.name;
