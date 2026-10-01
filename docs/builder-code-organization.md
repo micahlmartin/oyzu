@@ -47,6 +47,7 @@ src/
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
     java/repository_preparation.rs # Shared sandbox/broker lifecycle for native repository capture
     docker/                   # Container builder
+      runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
       metadata.rs             # Chart discovery and contained local dependency order
       preparation.rs          # Native lock handling and captured chart closure

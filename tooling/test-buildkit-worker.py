@@ -99,7 +99,9 @@ def main():
         (source / 'go.mod').write_text('module example.invalid/worker-probe\n\ngo 1.24\n')
         output = base / 'probe-output'
         output.mkdir()
+        owner = output.stat()
         docker('run', '--rm', '--pull=never', '--network=none', '--read-only', '--cap-drop=ALL',
+               '--user', f'{owner.st_uid}:{owner.st_gid}',
                '--security-opt=no-new-privileges', '--tmpfs', '/tmp:rw,exec,nosuid,nodev',
                '--mount', f'type=bind,source={source},target=/src,readonly',
                '--mount', f'type=bind,source={output},target=/out', '--workdir', '/src',

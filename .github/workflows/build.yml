@@ -84,6 +84,8 @@ jobs:
         run: |
           docker pull moby/buildkit:v0.25.0-rootless
           docker pull golang:1.24-bookworm
+      - name: Compile and test native Dockerfile metadata adapter
+        run: docker build -f tooling/images/docker-metadata.Dockerfile -t oyzu-toolchain/docker:buildkit0.25.0 .
       - name: Verify native worker isolation and reproducible OCI export
         run: python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence
       - name: Retain worker logs and native OCI outputs
