@@ -163,3 +163,71 @@ fn existing_builder_examples_are_discoverable_without_native_toolchains() {
         assert!(!ws.tasks.is_empty(), "{project}");
     }
 }
+
+#[test]
+fn detector_profiles_preserve_native_evidence_conflicts_and_fallbacks() {
+    let node = tempfile::tempdir().unwrap();
+    write(
+        node.path(),
+        "package.json",
+        r#"{"packageManager":"pnpm@10.0.0"}"#,
+    );
+    write(node.path(), "pnpm-lock.yaml", "lockfileVersion: 9\n");
+    let ws = discovery::discover(node.path()).unwrap();
+    let target = &ws.targets["project"];
+    assert_eq!(target.manager, "pnpm");
+    let evidence = serde_json::to_value(&target.discovery["package-manager"]).unwrap();
+    assert_eq!(evidence["selected"], "pnpm");
+    assert!(evidence["observations"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|o| o["finding"]["evidence"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["path"] == "pnpm-lock.yaml")));
+    write(
+        node.path(),
+        "package.json",
+        r#"{"packageManager":"npm@10.0.0"}"#,
+    );
+    let error = discovery::discover(node.path()).unwrap_err().to_string();
+    assert!(
+        error.contains("conflicting")
+            && error.contains("package.json")
+            && error.contains("pnpm-lock.yaml")
+    );
+    write(
+        node.path(),
+        "package.json",
+        r#"{"packageManager":"unknown@1"}"#,
+    );
+    assert!(
+        format!("{:#}", discovery::discover(node.path()).unwrap_err())
+            .contains("unsupported Node manager")
+    );
+    write(node.path(), "package.json", "not valid JSON");
+    assert!(discovery::discover(node.path()).is_err());
+
+    let python = tempfile::tempdir().unwrap();
+    write(python.path(), "pyproject.toml", "[project]\nname='demo'\n");
+    assert_eq!(
+        discovery::discover(python.path()).unwrap().targets["project"].manager,
+        "pip"
+    );
+    write(python.path(), "uv.lock", "version = 1\n");
+    assert_eq!(
+        discovery::discover(python.path()).unwrap().targets["project"].manager,
+        "uv"
+    );
+    write(
+        python.path(),
+        "pyproject.toml",
+        "[tool.poetry]\nname='demo'\n",
+    );
+    let error = discovery::discover(python.path()).unwrap_err().to_string();
+    assert!(
+        error.contains("conflicting") && error.contains("uv.lock") && error.contains("tool.poetry")
+    );
+}

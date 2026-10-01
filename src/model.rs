@@ -37,6 +37,8 @@ pub struct Target {
     pub path: PathBuf,
     pub version: String,
     pub tasks: BTreeMap<String, Task>,
+    #[serde(default)]
+    pub discovery: BTreeMap<String, crate::discovery::Resolution>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

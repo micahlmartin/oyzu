@@ -6,7 +6,7 @@ DEC-029 makes implicit testing, detected-framework/default selection and automat
 
 ## Checkpoint 1: native discovery and development tasks
 
-DEC-030 requires a [specialized detector registry and deterministic resolver](proposals/OEP-0006-discovery-and-planning/detectors.md). Current discovery already queries registered builders for coarse matches, but manager/framework inference still resides in builder-specific discovery functions that mutate targets. The independent detector interface, typed findings, role composition, deferred metadata integration and order-independent resolution tests remain implementation work. This design update does not claim that migration is complete.
+DEC-030 requires a [specialized detector registry and deterministic resolver](proposals/OEP-0006-discovery-and-planning/detectors.md). Coarse builder matching still uses the original builder registry. Node and Python manager inference now uses the independent detector interface and evidence-based exclusive-role resolver described below. Framework detection, compatible role/suite composition, deferred metadata integration and remaining ecosystem migration are still implementation work.
 
 Implemented in Rust:
 
@@ -261,3 +261,14 @@ The new compiled-CLI cases build the authored offline Dockerfile, compare repeat
 The typed builder contract now allows an optional source-file selection. Shared snapshot projection applies it to the target's private workspace before materialization. Collision checks use the same selection, so an ignored existing source binary no longer blocks an explicit artifact at that path. Selected files, their required parent directories and Docker definition/ignore control files retain collision protection. The plan and manifest retain the projection as a namespaced target extension. Other workspace targets remain available; this projection is source selection, not a new sandbox boundary or a narrower source identity.
 
 Focused tests check scoped selection, parent preservation, sibling preservation, invalid paths, serialization and collision behavior. Docker's compiled-CLI assembly case now includes a stale ignored binary and requires the delivered image to contain the tested producer bytes while the original file remains unchanged. Native verification of this added case is pending.
+
+
+[Run 36853962020](https://github.com/micahlmartin/oyzu/actions/runs/36853962020) passed at `c5c0e34df341818c45d01125d99a8fc685402392`. Downloaded native bundles show repeatable OCI identities for the authored offline Dockerfile, a tested Go artifact embedded and executed in a scratch image, and explicit failures for uncaptured remote ADD and a post-admission Dockerfile change. The complete initial native build suite and all three host CLI/task jobs passed. This verifies the initial Docker profile; the later stale-ignored-source case and full container acceptance remain separate gates.
+
+## Checkpoint 13: independent package-manager detectors
+
+Node and Python now select managers through a crate-private `Detector<C>` contract and a shared exclusive-role resolver. Independent native declaration/lock detectors return typed findings with metadata paths, digests and structural locations. npm/pip defaults are explicit fallback findings. Corroborating native observations combine; conflicting native candidates fail with their evidence regardless of registration order. No detector mutates tasks or executes project code.
+
+Each ecosystem parses its primary manifest once over a bounded read-once metadata view. The initial reader accepts at most 128 declared metadata files, 4 MiB per file, rejects unsafe paths/symlinks/nonregular files and records the exact bytes' identities. Task discovery consumes the resolved manager. The common planner retains the selected manager, full applicable registry versions and observations under the target's `oyzu.dev/discovery` extension, which is included in plan identity and carried into the manifest. Source contents and execution behavior remain governed by the existing capture/preparation contracts.
+
+Focused checks cover registration-order independence, corroboration, native conflicts, duplicate registration, fallback, metadata bounds/mutation, malformed declarations and plan evidence. Existing real CLI discovery/task checks and Linux builder scenarios remain the behavioral regression gates. This is the first detector migration, not completed framework inference: coarse builder ownership, compatible roles and multi-suite composition, deferred metadata, other ecosystems and automatic default-test/report integration remain required under PLAN-09–12 and BUILDER-09–12.

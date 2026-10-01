@@ -1,3 +1,4 @@
+mod detection;
 mod discovery;
 mod planning;
 mod reporting;

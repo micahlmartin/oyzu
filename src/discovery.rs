@@ -1,8 +1,11 @@
+pub(crate) mod detectors;
+mod source;
 use crate::{
     builders, config,
     model::{Target, Task, Workspace},
 };
 use anyhow::{bail, Context, Result};
+pub use detectors::Resolution;
 use std::{collections::BTreeMap, path::Path};
 
 pub fn discover_target(name: &str, path: &Path, explicit: Option<&str>) -> Result<Target> {
@@ -29,6 +32,7 @@ pub fn discover_target(name: &str, path: &Path, explicit: Option<&str>) -> Resul
         path: path.into(),
         version: "0.0.0".into(),
         tasks: BTreeMap::new(),
+        discovery: BTreeMap::new(),
     };
     builders::get(&builder)?.discover(&mut target)?;
     for name in ["lint", "format"] {

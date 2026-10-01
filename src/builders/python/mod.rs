@@ -1,4 +1,5 @@
 mod acquisition;
+mod detection;
 mod discovery;
 mod planning;
 

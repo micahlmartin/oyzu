@@ -1,30 +1,14 @@
 use super::super::task::insert;
 use crate::model::Target;
 use anyhow::{bail, Result};
-use std::fs;
 
 pub(super) fn discover(target: &mut Target) -> Result<()> {
-    let file = target.path.join("pyproject.toml");
-    let value: toml::Value = if file.is_file() {
-        toml::from_str(&fs::read_to_string(file)?)?
-    } else {
-        toml::Value::Table(Default::default())
-    };
-    let uv = target.path.join("uv.lock").is_file()
-        || value.get("tool").and_then(|v| v.get("uv")).is_some();
-    let poetry = target.path.join("poetry.lock").is_file()
-        || value.get("tool").and_then(|v| v.get("poetry")).is_some();
-    if uv && poetry {
-        bail!("{}: conflicting Python managers", target.name);
-    }
-    target.manager = if uv {
-        "uv"
-    } else if poetry {
-        "poetry"
-    } else {
-        "pip"
-    }
-    .into();
+    let profile = super::detection::detect(&target.path)?;
+    let value = profile.project;
+    target.manager = profile.manager.selected().to_string();
+    target
+        .discovery
+        .insert("package-manager".into(), profile.manager);
     if let Some(version) = value
         .get("project")
         .and_then(|v| v.get("version"))
@@ -32,15 +16,15 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     {
         target.version = version.into();
     }
-    if uv {
+    if target.manager == "uv" {
         insert(target, "install", &["uv", "sync", "--locked"], false);
         insert(target, "build", &["uv", "build"], true);
         insert(target, "test", &["uv", "run", "--locked", "pytest"], true);
-    } else if poetry {
+    } else if target.manager == "poetry" {
         insert(target, "install", &["poetry", "install"], false);
         insert(target, "build", &["poetry", "build"], true);
         insert(target, "test", &["poetry", "run", "pytest"], true);
-    } else {
+    } else if target.manager == "pip" {
         if target.path.join("requirements.txt").is_file() {
             insert(
                 target,
@@ -53,6 +37,11 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             insert(target, "build", &["python", "-m", "build"], true);
         }
         insert(target, "test", &["python", "-m", "pytest"], true);
+    } else {
+        bail!(
+            "no task adapter for detected Python manager {}",
+            target.manager
+        );
     }
     let has_tests = target.path.join("tests").is_dir() || target.path.join("test").is_dir();
     if !has_tests {

@@ -39,6 +39,9 @@ fn plans_are_location_independent_bind_toolchain_and_keep_hooks() {
     let sb = tempfile::tempdir().unwrap();
     let p = planned(a.path(), sa.path());
     assert_eq!(p, planned(b.path(), sb.path()));
+    let discovery = &p["targets"][0]["extensions"]["oyzu.dev/discovery"]["package-manager"];
+    assert_eq!(discovery["selected"], "npm");
+    assert_eq!(discovery["registry"]["node/default-manager"], "1");
     let ids: Vec<_> = p["actions"]
         .as_array()
         .unwrap()

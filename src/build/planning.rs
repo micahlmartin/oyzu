@@ -133,6 +133,9 @@ pub(super) fn plan_with_dependencies(
             );
         }
         let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)});
+        if !target.discovery.is_empty() {
+            record["extensions"]["oyzu.dev/discovery"] = json!(target.discovery);
+        }
         if let Some(projection) = projection {
             record["extensions"]["oyzu.dev/source-projection"] = json!(projection);
         }
