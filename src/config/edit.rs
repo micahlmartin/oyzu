@@ -18,21 +18,7 @@ pub struct Edit {
 }
 impl Edit {
     pub fn read(path: &Path) -> Result<Self> {
-        if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
-            bail!("CONFIG_SCOPE: edit destination must not be a symlink");
-        }
-        let original = match fs::File::open(path) {
-            Ok(file) => {
-                let mut bytes = Vec::new();
-                file.take(1024 * 1024 + 1).read_to_end(&mut bytes)?;
-                if bytes.len() > 1024 * 1024 {
-                    bail!("CONFIG_LIMIT: oversized edit source");
-                }
-                Some(bytes)
-            }
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => return Err(e.into()),
-        };
+        let original = read_source(path)?;
         let text = std::str::from_utf8(original.as_deref().unwrap_or_default())
             .context("CONFIG_SYNTAX: invalid UTF-8")?;
         let document = text
@@ -128,11 +114,8 @@ impl Edit {
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
         temporary.write_all(text.as_bytes())?;
         temporary.as_file().sync_all()?;
-        let current = match fs::read(path) {
-            Ok(v) => Some(v),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-            Err(e) => return Err(e.into()),
-        };
+        let current =
+            read_source(path).context("CONFIG_EDIT_CONFLICT: cannot revalidate edit source")?;
         if current != self.original {
             bail!("CONFIG_EDIT_CONFLICT: source changed since it was read");
         }
@@ -148,4 +131,23 @@ impl Edit {
 #[derive(serde::Serialize)]
 struct BTreeWrapper {
     value: toml::Value,
+}
+
+// Both capture and commit revalidation obey the ordinary-source byte limit.
+fn read_source(path: &Path) -> Result<Option<Vec<u8>>> {
+    if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        bail!("CONFIG_SCOPE: edit destination must not be a symlink");
+    }
+    match fs::File::open(path) {
+        Ok(file) => {
+            let mut bytes = Vec::new();
+            file.take(1024 * 1024 + 1).read_to_end(&mut bytes)?;
+            if bytes.len() > 1024 * 1024 {
+                bail!("CONFIG_LIMIT: oversized edit source");
+            }
+            Ok(Some(bytes))
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e.into()),
+    }
 }

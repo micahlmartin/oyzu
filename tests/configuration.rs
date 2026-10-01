@@ -409,3 +409,23 @@ fn task_environment_cannot_case_alias_global_environment() {
         assert_eq!(result.is_ok(), succeeds);
     }
 }
+
+#[test]
+fn edit_revalidation_rejects_oversized_concurrent_source_without_replacing_it() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("oyzu.toml");
+    std::fs::write(&path, "[build]\njobs=2\n").unwrap();
+    let edit = oyzu::config::edit::Edit::read(&path).unwrap();
+    let concurrent = vec![b' '; 1024 * 1024 + 1];
+    std::fs::write(&path, &concurrent).unwrap();
+    let error = edit
+        .commit(&path, Scope::Project, false, &Registry::default())
+        .unwrap_err();
+    assert!(error.to_string().contains("CONFIG_EDIT_CONFLICT"));
+    assert_eq!(std::fs::read(&path).unwrap(), concurrent);
+    assert!(oyzu::config::edit::Edit::read(&path)
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("CONFIG_LIMIT"));
+}
