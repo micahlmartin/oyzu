@@ -6,6 +6,8 @@ DEC-029 makes implicit testing, detected-framework/default selection and automat
 
 ## Checkpoint 1: native discovery and development tasks
 
+DEC-030 requires a [specialized detector registry and deterministic resolver](proposals/OEP-0006-discovery-and-planning/detectors.md). Current discovery already queries registered builders for coarse matches, but manager/framework inference still resides in builder-specific discovery functions that mutate targets. The independent detector interface, typed findings, role composition, deferred metadata integration and order-independent resolution tests remain implementation work. This design update does not claim that migration is complete.
+
 Implemented in Rust:
 
 - CLI project selection, JSON discovery and grouped task listing.

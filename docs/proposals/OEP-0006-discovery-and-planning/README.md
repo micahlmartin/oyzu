@@ -24,7 +24,9 @@ A conventional repository should need only `oyzu build`. One build can include s
 
 Discovery MUST inspect the captured repository boundary, applicable configuration, native manifests and lockfiles, and versioned builder descriptors. It MUST NOT execute arbitrary repository scripts merely to identify a builder. Generated metadata may require a declared, sandboxed discovery action. Its inputs, toolchain, output, and effect on planning are recorded.
 
-Each builder reports candidates with evidence, root, supported tasks, artifact kinds, native dependency relationships, and uncertainty. Deterministic rules resolve unambiguous cases. A Python library manifest does not by itself establish that the project is an HTTP application or that its desired output is a container. When intent cannot be established, Oyzu explains the ambiguity and requests a small configuration choice; it never silently invents application entrypoints.
+Discovery is implemented by registered specialized detectors behind a shared internal interface. Detectors report facts and candidates with evidence, root/scope and native relationships. A separate deterministic resolver establishes ownership, combines compatible roles and explains exclusive-choice conflicts; detector registration order never selects a winner. Builders consume resolved facts to declare tasks, artifact kinds and report integrations. See the [detector contract](detectors.md) for interfaces, evidence, phased metadata and migration.
+
+A Python library manifest does not by itself establish that the project is an HTTP application or that its desired output is a container. When intent cannot be established, Oyzu explains the ambiguity and requests a small configuration choice; it never silently invents application entrypoints.
 
 Minimal explicit configuration remains:
 
@@ -99,6 +101,10 @@ Plans MUST explain why a target, scanner, variant, or hook is included and where
 - PLAN-06: A newly introduced hook changes the planned action identity and appears in explanation output.
 - PLAN-07: Materialization creates artifact dependencies and stable consumer paths without reading dist or mutating source.
 - PLAN-08: Consumer platforms select matching producer variants, reject conflicting constraints, and preserve actual testing evidence.
+- PLAN-09: Registered detectors independently report typed findings and evidence without executing project code, mutating targets or installing tools during static discovery.
+- PLAN-10: Permuting detector registration/completion order yields identical resolution; exclusive-role conflicts are diagnosed while compatible roles and distinct native suites compose.
+- PLAN-11: Native workspace ownership, explicit intent and fallback selection preserve source facts; unknown custom runners, malformed relevant metadata and unsupported versions cannot silently disappear into a fallback.
+- PLAN-12: Deferred native metadata is acquired through bounded declared preparation, and detector/resolver identities plus evidence bind reproducible plan explanations without ambient host influence.
 
 ## Alternatives and open decisions
 

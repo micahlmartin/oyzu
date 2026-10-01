@@ -12,6 +12,8 @@ For source-bearing projects, tests MUST request both JUnit XML and measured code
 
 ## Deterministic selection
 
+Framework recognition is implemented by specialized [detectors](../OEP-0006-discovery-and-planning/detectors.md), separate from command planning. Detectors report native evidence and suite scope; the resolver selects or composes frameworks before the builder requests test and coverage integrations. Registration order and arbitrary numeric scores never choose a framework. Distinct suites may coexist without forcing one global winner.
+
 Selection follows this order:
 
 1. An explicit same-name Oyzu task override supplies the body, while inheriting the builder's required reports.

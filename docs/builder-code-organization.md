@@ -124,6 +124,8 @@ Tests cover unique registrations, native ownership ambiguity, required prepared 
 
 ## Encapsulation as builders grow
 
+Discovery will move from coarse `Builder::detect` and mutable per-builder inference to [specialized detectors plus a resolver](proposals/OEP-0006-discovery-and-planning/detectors.md). Shared types/orchestration/resolution belong in `src/discovery/`; native detector implementations stay under each ecosystem's `detection/` modules. Detectors report typed facts and provenance without creating tasks. Builders consume resolved facts to create typed intent. The current coarse registry is a starting point, not completed framework-detector support. No public plugin ABI or user priority/configuration DSL is introduced.
+
 Use private child modules by default and the narrowest useful visibility (`pub(super)` or `pub(in crate::builders)`) for implementation seams. The engine depends on the `Builder` contract, never a concrete manager's metadata or runtime modules. Keep native representations inside their ecosystem and convert them to shared intent at that boundary.
 
 Extract shared behavior when multiple implementations have the same responsibility and invariants. Place it at their nearest common owner: Maven repository operations belong under Java, while scheduling, integrity verification and sandbox enforcement belong to the shared engine. Similar-looking native commands alone do not justify merging adapters. Prefer concrete types and small functions; introduce another trait only when there are distinct implementations or an actual substitution boundary.

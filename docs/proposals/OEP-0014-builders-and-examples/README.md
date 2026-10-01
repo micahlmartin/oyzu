@@ -24,6 +24,8 @@ Builders encode expert defaults, while runnable examples define their intended b
 
 A versioned builder supplies safe discovery, native workspace/module interpretation, task providers, preparation rules, planned outputs, report adapters, execution requirements, and cacheability rules. The engine owns configuration, dependency graph validation, hooks, isolation, policy, and manifest integrity.
 
+Discovery contributions use [specialized detectors](../OEP-0006-discovery-and-planning/detectors.md). Ecosystem-owned detectors recognize native managers/frameworks and return evidence; the shared resolver decides ownership and compatible selections. Builders consume the resolved profile to plan work. Adding a framework does not require extending a central framework-name conditional chain, and multiple compatible capabilities can coexist.
+
 Builders SHOULD delegate ecosystem semantics to the pinned native tools. Oyzu must not reimplement Maven resolution, Cargo workspace rules, or Python package metadata interpretation with inconsistent shortcuts. Native tool invocation is allowed; invoking a separate mise executable is not.
 
 Initial builders ship with the CLI to reduce distribution and compatibility complexity. An extension ABI and remotely distributed builders are future design work. Adding a builder requires conformance examples, supported-version boundaries, and a security review of acquisition and execution paths.
