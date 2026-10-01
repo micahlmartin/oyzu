@@ -8,7 +8,7 @@ import re
 import sys
 import tomllib
 import xml.etree.ElementTree as ET
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 try:
     import yaml
@@ -50,6 +50,46 @@ def contained(base, value):
         raise ValueError("path escapes scenario: " + value)
     return path
 
+def check_materialization(base, contract):
+    # Compare authored expectations, not build execution or discovered artifact metadata.
+    build = yaml.load(contained(base, contract["buildFile"]).read_text(encoding="utf-8"), Loader=UniqueLoader)
+    expected = json.loads(contained(base, contract["expectedFile"]).read_text(encoding="utf-8"))
+    image = build["image"]
+    mappings = image["materialize"]
+    if mappings != expected["materialize"]:
+        raise ValueError("materialize YAML and expected mappings differ")
+    if "platform" in image and "platform" in image.get("matrix", {}):
+        raise ValueError("single platform and platform matrix cannot both select the same target")
+    platforms = [image["platform"]] if "platform" in image else image["matrix"]["platform"]
+    if len(platforms) != len(set(platforms)):
+        raise ValueError("duplicate consumer platform")
+    if [c["platform"] for c in expected["contexts"]] != platforms:
+        raise ValueError("expected contexts do not match consumer platforms")
+    destinations = []
+    for mapping in mappings:
+        source = mapping["from"]
+        if source not in build or source == "image":
+            raise ValueError("unknown/self-referencing materialization producer")
+        if source in image.get("depends_on", []):
+            raise ValueError("materialization redundantly declares depends_on")
+        target = PurePosixPath(mapping["to"])
+        if target.is_absolute() or ".." in target.parts or "\\" in mapping["to"] or ":" in mapping["to"] or str(target) == ".":
+            raise ValueError("materialization destination is not a contained relative path")
+        if any(target == old or target in old.parents or old in target.parents for old in destinations):
+            raise ValueError("overlapping materialization destinations")
+        destinations.append(target)
+    for context in expected["contexts"]:
+        if context["consumer"] != "image" or len(context["entries"]) != len(mappings):
+            raise ValueError("incorrect expected consumer/entry count")
+        for entry, mapping in zip(context["entries"], mappings):
+            if (entry["path"], entry["producer"], entry["artifact"]) != (mapping["to"], mapping["from"], mapping.get("artifact", "primary")):
+                raise ValueError("expected entry differs from materialize mapping")
+            if entry["producerPlatform"] != context["platform"]:
+                if entry["producerPlatform"] != "independent" or not expected.get("sharingRequirement"):
+                    raise ValueError("expected producer has incompatible or unexplained platform")
+    if any(expected[key] for key in ["dependencyDeclaredSeparately", "writesSourceCheckout", "readsDist"]):
+        raise ValueError("expected behavior contradicts materialization contract")
+
 criteria = set()
 for proposal in (ROOT / "docs/proposals").glob("OEP-*/README.md"):
     criteria.update(re.findall(r"^- ([A-Z]+(?:-[A-Z]+)*-\d{2}):", proposal.read_text(encoding="utf-8"), re.M))
@@ -85,6 +125,8 @@ for file in files:
                         raise ValueError("invalid native command directory")
                 if not (file.parent / "README.md").is_file():
                     raise ValueError("missing scenario guide")
+                if "materializationContract" in data:
+                    check_materialization(file.parent, data["materializationContract"])
         elif file.suffix == ".toml" or file.name in {"Cargo.lock", "poetry.lock", "uv.lock"}:
             tomllib.loads(text)
             counts["toml"] += 1

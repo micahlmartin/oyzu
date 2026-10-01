@@ -63,6 +63,18 @@ The canonical semantic plan contains target/action identities, edges, selected t
 
 Artifact names and versions are planned; final content digests exist only after execution. An artifact whose content determines its name uses an explicit placeholder binding, finalized and recorded by the engine.
 
+## Materialization and platform propagation
+
+The agreed example contract uses consumer-owned `materialize` entries with `from`, optional `artifact`, and `to`. A target reference selects its unambiguous primary artifact; an explicit artifact selector identifies one of several discovered outputs. The reference establishes a dependency without requiring a duplicate `depends_on`.
+
+The planner fixes logical artifact identity, destination, and compatibility requirements before execution. A file maps to an exact filename; a directory places its contents beneath the destination. Paths are relative to the consumer's isolated input workspace, which supplies a Docker target's context. They are not paths in the source checkout or final dist bundle. Missing/ambiguous references, source collisions, overlapping destinations, and path escapes fail. Digest verification and platform compatibility checks precede consumption.
+
+A consumer's `platform`, or each `matrix.platform` value, propagates to its runtime artifact producers. The planner distinguishes invocation host, action execution platform, and artifact target platform. It does not propagate the runtime target requirement to build tools that must execute on the execution platform. A target constraint conflict fails before execution; required native ABI/runtime compatibility is checked in addition to OS/architecture.
+
+Each platform variant has its own consumer workspace and matching input artifact. Shared platform-independent output may be reused only when the producer establishes that property and all relevant inputs agree. Cache identities distinguish incompatible variants. A cross-compiled artifact is not evidence that target-platform tests ran; required tests need a suitable executor, and unavailable capability cannot silently remove a required test.
+
+Standalone defaults and managed defaults/constraints resolve omitted platform settings into the frozen plan. The standalone container default remains open. Managed policy may constrain platforms, toolchains, runtime bases, and testing/execution capabilities, but cannot change an artifact's recorded origin. See the [example contract](../../../examples/MATERIALIZATION.md).
+
 ## Scheduling and advanced builds
 
 The planner expands finite matrices of supported runtime/platform/toolchain variants. Initial syntax is deferred until examples justify it. Expansion MUST detect incompatible variants, bound total actions, and include variant identity in paths and cache keys. This is declarative data, not loops, conditionals, or an expression language.
@@ -83,7 +95,9 @@ Plans MUST explain why a target, scanner, variant, or hook is included and where
 - PLAN-04: Ambiguous app entrypoints, cycles, and duplicate artifact paths fail before action execution.
 - PLAN-05: Matrix variants cannot overwrite one another and affected selection includes transitive dependents.
 - PLAN-06: A newly introduced hook changes the planned action identity and appears in explanation output.
+- PLAN-07: Materialization creates artifact dependencies and stable consumer paths without reading dist or mutating source.
+- PLAN-08: Consumer platforms select matching producer variants, reject conflicting constraints, and preserve actual testing evidence.
 
 ## Alternatives and open decisions
 
-Reject a general pipeline DSL and configuration generated in bulk just to encode discovery. Decide supported matrix axes, artifact-edge syntax, versioned builder distribution, and the first remote executor only after executable examples establish their needs.
+Reject a general pipeline DSL and configuration generated in bulk just to encode discovery. Materialization and platform propagation now have agreed example contracts. Decide remaining matrix axes, standalone container platform defaults, non-file artifact bindings, versioned builder distribution, and the first remote executor through further examples.

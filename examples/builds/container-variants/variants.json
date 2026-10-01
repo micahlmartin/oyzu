@@ -1,21 +1,18 @@
 {
-  "note": "Harness input, not build.yaml syntax",
+  "note": "Agreed image platform matrix; producer requirements follow each consumer variant.",
   "variants": [
     {
-      "target": "linux/amd64",
-      "kind": "image"
+      "imagePlatform": "linux/amd64",
+      "producer": "api",
+      "producerPlatform": "linux/amd64",
+      "contextPath": "bin/server"
     },
     {
-      "target": "linux/arm64",
-      "kind": "image"
+      "imagePlatform": "linux/arm64",
+      "producer": "api",
+      "producerPlatform": "linux/arm64",
+      "contextPath": "bin/server"
     }
   ],
-  "nativeCommand": [
-    "docker",
-    "buildx",
-    "build",
-    "--platform=linux/amd64,linux/arm64",
-    "--output=type=oci,dest=images.tar",
-    "."
-  ]
+  "nativeDockerAloneInsufficient": "Oyzu must build/select and materialize the inputs before invoking Docker."
 }

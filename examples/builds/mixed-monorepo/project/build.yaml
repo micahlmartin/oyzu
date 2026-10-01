@@ -9,7 +9,10 @@ command:
   path: command
 image:
   uses: docker/image
-  depends_on: [command]
+  platform: linux/amd64
+  materialize:
+    - from: command
+      to: bin/server
 chart:
   uses: helm/chart
   path: chart

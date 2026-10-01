@@ -1,6 +1,6 @@
 # Validation scope
 
-These examples are a **design contract**, not an implemented Oyzu conformance suite. All 48 scenario families have checked-in input projects/data, expected behavior, and negative cases.
+These examples are a **design contract**, not an implemented Oyzu conformance suite. All 50 scenario families have checked-in input projects/data, expected behavior, and negative cases.
 
 Validation for this change checks document links, catalog/acceptance references, scenario coverage, file existence, and native JSON/TOML/YAML/XML syntax. It does not run or certify Oyzu. Source programs illustrate the intended native projects; cross-platform execution is future implementation work.
 
@@ -10,4 +10,4 @@ The Gradle example contains an installed-Gradle project and a wrapper preparatio
 
 Versions are fixture choices, not current-version recommendations. Registry endpoints under example.invalid are deliberate non-routable placeholders; no real enterprise credentials or infrastructure are needed for review.
 
-Candidate matrix syntax and artifact conventions are proposals to discuss. Contract JSON alongside each project records expectations and is not required user configuration, a new policy language, or a substitute build engine.
+Consumer-owned materialization and platform propagation are now agreed example contracts. The structural checker compares those YAML mappings and platforms with their expectation files. This does not execute a build or prove binary compatibility. Other matrix axes and chart value bindings remain under review. Contract JSON alongside projects records expectations, not required user configuration or a substitute engine.

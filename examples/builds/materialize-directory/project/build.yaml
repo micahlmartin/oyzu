@@ -1,10 +1,10 @@
-api:
-  uses: go/app
-  path: api
+frontend:
+  uses: node/app
+  path: frontend
 image:
   uses: docker/image
   matrix:
     platform: [linux/amd64, linux/arm64]
   materialize:
-    - from: api
-      to: bin/server
+    - from: frontend
+      to: site

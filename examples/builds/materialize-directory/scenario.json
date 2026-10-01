@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-050",
+  "title": "Materialize a directory and share compatible content",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-07",
+    "PLAN-08",
+    "BUILDER-07"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "The frontend's primary directory artifact contains index.html.",
+    "to: site yields site/index.html, not site/dist/index.html.",
+    "Each context has the same layout; static content can be shared when the builder establishes independence and equivalent inputs.",
+    "Images retain distinct platform metadata even when their content is identical."
+  ],
+  "cases": [
+    {
+      "name": "native-addon",
+      "change": "Change the frontend to require platform-dependent native output.",
+      "expect": "Do not share the independent result; resolve newly required variants."
+    },
+    {
+      "name": "directory-overlap",
+      "change": "Map another artifact to site/index.html.",
+      "expect": "Reject overlapping file/directory destinations."
+    },
+    {
+      "name": "escaping-link",
+      "change": "Put a symlink escaping the artifact tree in the output.",
+      "expect": "Reject the captured/materialized tree."
+    },
+    {
+      "name": "ignore-removes-input",
+      "change": "Exclude site/** in source context ignore rules.",
+      "expect": "Explicit materialized inputs remain present or trigger an error; never silently omit them."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project/frontend",
+      "argv": [
+        "node",
+        "--test"
+      ],
+      "exitCode": 0
+    },
+    {
+      "cwd": "project/frontend",
+      "argv": [
+        "node",
+        "build.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "expected-materialization.json",
+    "project/build.yaml",
+    "project/Dockerfile",
+    "project/frontend/build.mjs",
+    "project/frontend/package.json",
+    "project/frontend/src/page.mjs",
+    "project/frontend/test/page.test.mjs",
+    "project/frontend/package-lock.json"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Implementation pending; native commands do not prove materialization, policy, or platform propagation."
+  ],
+  "materializationContract": {
+    "buildFile": "project/build.yaml",
+    "expectedFile": "expected-materialization.json"
+  }
+}

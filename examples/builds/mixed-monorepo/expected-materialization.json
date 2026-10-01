@@ -1,0 +1,31 @@
+{
+  "purpose": "Semantic design expectations, not an executable plan or result manifest",
+  "invocationHostExample": "windows/amd64",
+  "executionPlatform": "selected from supported capabilities; not inferred from invocation host",
+  "materialize": [
+    {
+      "from": "command",
+      "to": "bin/server"
+    }
+  ],
+  "contexts": [
+    {
+      "consumer": "image",
+      "platform": "linux/amd64",
+      "entries": [
+        {
+          "path": "bin/server",
+          "producer": "command",
+          "artifact": "primary",
+          "kind": "file",
+          "producerPlatform": "linux/amd64",
+          "contentDigest": "verified after production or cache retrieval"
+        }
+      ]
+    }
+  ],
+  "dependencyDeclaredSeparately": false,
+  "writesSourceCheckout": false,
+  "readsDist": false,
+  "testEvidence": "actual test execution platform recorded; cross-compilation is not target test execution"
+}

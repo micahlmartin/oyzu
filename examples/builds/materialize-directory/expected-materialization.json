@@ -1,0 +1,46 @@
+{
+  "purpose": "Semantic design expectations, not an executable plan or result manifest",
+  "invocationHostExample": "windows/amd64",
+  "executionPlatform": "selected from supported capabilities; not inferred from invocation host",
+  "materialize": [
+    {
+      "from": "frontend",
+      "to": "site"
+    }
+  ],
+  "contexts": [
+    {
+      "consumer": "image",
+      "platform": "linux/amd64",
+      "entries": [
+        {
+          "path": "site",
+          "producer": "frontend",
+          "artifact": "primary",
+          "kind": "directory",
+          "producerPlatform": "independent",
+          "contentDigest": "verified after production or cache retrieval"
+        }
+      ]
+    },
+    {
+      "consumer": "image",
+      "platform": "linux/arm64",
+      "entries": [
+        {
+          "path": "site",
+          "producer": "frontend",
+          "artifact": "primary",
+          "kind": "directory",
+          "producerPlatform": "independent",
+          "contentDigest": "verified after production or cache retrieval"
+        }
+      ]
+    }
+  ],
+  "dependencyDeclaredSeparately": false,
+  "writesSourceCheckout": false,
+  "readsDist": false,
+  "testEvidence": "actual test execution platform recorded; cross-compilation is not target test execution",
+  "sharingRequirement": "Builder establishes platform independence and equivalent inputs; do not assume it for arbitrary Node scripts."
+}

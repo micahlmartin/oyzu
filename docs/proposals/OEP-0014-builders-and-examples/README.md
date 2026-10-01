@@ -50,6 +50,8 @@ An explicit application builder may produce a conventional container with pinned
 
 Helm packaging can consume an image digest from another target through a declared artifact binding. It must not silently edit source values or imply deployment. Container and chart publication are separate artifact operations.
 
+Dockerfile consumers use `materialize` to place producer artifacts into a prepared context. The consumer selects a single target platform or a platform matrix; the engine resolves compatible producer variants and preserves ordinary Dockerfile COPY paths. EX-027, EX-029, EX-030, EX-049, and EX-050 define this agreed example contract. Chart digest-value binding is still a separate open design; it must not be confused with copying a file into a context.
+
 ## Examples as the implementation contract
 
 The [example catalog](../../examples.md) defines stable EX identifiers, expected commands, inferred facts, outputs, and acceptance links. Each implemented fixture includes minimal source, native metadata/locks, expected semantic results, supported host matrix, and a short guide. Oyzu configuration appears only when the scenario requires an override.
@@ -66,6 +68,7 @@ A fixture progresses proposed → implemented → verified; a document listing a
 - BUILDER-04: Ambiguous managers, entrypoints, outputs, or unsupported report formats fail or disclose limitations precisely.
 - BUILDER-05: Container and chart composition preserves artifact digests without deploying anything.
 - BUILDER-06: Every supported builder passes common planning, task, sandbox, report, and cache conformance cases.
+- BUILDER-07: Docker contexts contain declared file/directory artifacts at deterministic paths with compatible platform identities and no manual copy scripts.
 
 ## Open decisions
 

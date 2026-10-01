@@ -1,39 +1,33 @@
-# EX-027: Separate host execution and container target platforms
+# EX-027: Platform-matched artifacts for multi-platform images
 
-Status: **design contract for review**. Intended hosts: Windows, macOS, Linux. See the [validation scope](../../VERIFICATION.md).
+The agreed design uses one Go producer and an image target with a platform matrix. See the [shared contract](../../MATERIALIZATION.md) and [expected contexts](expected-materialization.json).
 
-## Purpose
-
-- Produce distinct linux/amd64 and linux/arm64 image identities.
-- Do not interpret a multi-platform image as proof tests executed on both architectures.
-
-## Review the project
-
-Open the checked-in project roots: `project`. Source, native manifests, and Oyzu configuration are included here so we can review the intended experience directly.
-
-The intended Oyzu interface is:
-
-```text
-oyzu build
+```yaml
+api:
+  uses: go/app
+  path: api
+image:
+  uses: docker/image
+  matrix:
+    platform: [linux/amd64, linux/arm64]
+  materialize:
+    - from: api
+      to: bin/server
 ```
 
+Run `oyzu build`. The intended graph is:
 
-The target's `matrix.platform` list in build.yaml is candidate syntax for review. Artifact paths and manifests must retain each target platform identity.
+```text
+api [linux/amd64] -> image [linux/amd64]
+api [linux/arm64] -> image [linux/arm64]
+```
 
-## Native checks available now
+Each context contains its matching binary at bin/server. The same Dockerfile copies it to /server. These programs use only Go's standard library and need no external shared-library dependency; other runtime requirements must still be checked before choosing scratch.
 
-This is an interaction/evidence contract. Review its input files and expected outcomes; no substitute Oyzu implementation is supplied.
+The invoking workstation can be Windows, macOS, or Linux. Its host executable is never substituted for the required Linux target. The binary prints its actual compiled GOOS/GOARCH, making target identity observable on a suitable executor.
 
-Native commands document the underlying ecosystem workflow. They are supporting context, not a prerequisite for accepting or revising this design contract.
+Image variants and digests remain separate and can be combined into an OCI index. Required ARM tests need a suitable executor; cross-compilation alone cannot satisfy them.
 
-## Failure and variation cases
+Negative cases cover incompatible cached variants, target capability gaps, ABI mismatch, collisions, and path escapes. See [scenario.json](scenario.json).
 
-- **missing-executor:** Request native target tests without a matching executor. Expected: Explicit unsupported capability; no fabricated test evidence.
-
-## Contract and limitations
-
-Acceptance criteria: PLAN-05, EXEC-04. See the [design catalog](../../../docs/examples.md) and [scenario input](scenario.json).
-
-- The matrix request is harness data. Running one native command does not verify all variants.
-
-Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+Acceptance: PLAN-05, EXEC-04, PLAN-07, PLAN-08, BUILDER-07. This is the agreed example contract, not verified Oyzu behavior.

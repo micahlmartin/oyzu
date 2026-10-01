@@ -65,6 +65,8 @@ Start with zero-configuration projects, then exceptions and composition. Configu
 | EX-046 | [Cross-platform profile and activation lifecycle](environments/shell-lifecycle/README.md) | environments |
 | EX-047 | [All backend acquisition paths must be mediated](tools/backend-routing/README.md) | tools |
 | EX-048 | [Provider facts retain unknown states](release/source-control-facts/README.md) | release |
+| EX-049 | [Select multiple artifacts from one producer](builds/materialize-selected-artifacts/README.md) | builds |
+| EX-050 | [Materialize a directory and share compatible content](builds/materialize-directory/README.md) | builds |
 
 ## Directory convention
 
@@ -72,6 +74,6 @@ Each scenario contains a README, one or more actual project roots, a scenario.js
 
 The README describes commands, defaults, outcomes, and failures. The JSON file links acceptance criteria and records intended checks; it is review metadata, not a shipped schema or extra configuration developers must maintain.
 
-All examples are drafts. Zero-config roots intentionally omit build.yaml. The smallest app hint stays `api: { uses: python/app }`. Tests, reports, and output sections are inferred. Candidate matrix syntax is included for discussion and clearly identified in those guides.
+Examples describe intended behavior, not implementation. Zero-config roots intentionally omit build.yaml. The smallest app hint stays `api: { uses: python/app }`. Tests, reports, and output sections are inferred. Consumer-owned materialization and platform propagation now follow the [agreed example contract](MATERIALIZATION.md); other matrix axes and chart value binding remain under review.
 
 See the [design catalog](../docs/examples.md), [review guide](REVIEW.md), and [validation scope](VERIFICATION.md). No CLI, policy service, or fake engine has been implemented to make these examples appear to work.

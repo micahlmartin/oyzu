@@ -6,7 +6,10 @@
   "oyzuStatus": "pending-implementation",
   "acceptance": [
     "PLAN-05",
-    "EXEC-04"
+    "EXEC-04",
+    "PLAN-07",
+    "PLAN-08",
+    "BUILDER-07"
   ],
   "projects": [
     "project"
@@ -15,22 +18,63 @@
     "oyzu build"
   ],
   "expected": [
-    "Produce distinct linux/amd64 and linux/arm64 image identities.",
-    "Do not interpret a multi-platform image as proof tests executed on both architectures."
+    "Resolve api's primary artifact for each consumer platform: linux/amd64, linux/arm64.",
+    "Materialize verified bytes at bin/server in each image's isolated context; COPY bin/server /server stays unchanged.",
+    "Infer the producer dependency from materialize; do not scrape dist or mutate the source checkout.",
+    "Host, execution, and target platforms remain distinct; required tests report where they actually executed.",
+    "Produce an image per platform and a combined OCI index; retain per-variant evidence."
   ],
   "cases": [
     {
       "name": "missing-executor",
       "change": "Request native target tests without a matching executor.",
       "expect": "Explicit unsupported capability; no fabricated test evidence."
+    },
+    {
+      "name": "wrong-platform-cache",
+      "change": "Offer a Windows or wrong-architecture producer result for the Linux consumer.",
+      "expect": "Do not reuse it; resolve a compatible variant or fail capability validation."
+    },
+    {
+      "name": "destination-collision",
+      "change": "Add a source file or second materialization at the same or overlapping destination.",
+      "expect": "Reject before consumer execution; never silently overwrite."
+    },
+    {
+      "name": "path-escape",
+      "change": "Set to to ../outside.",
+      "expect": "Reject a destination outside the consumer workspace."
+    },
+    {
+      "name": "missing-target-tests",
+      "change": "Require target tests but provide no suitable native/emulated executor.",
+      "expect": "Fail the required capability; never claim cross-compilation as passing target tests."
+    },
+    {
+      "name": "abi-mismatch",
+      "change": "Supply a dynamically linked artifact requiring libraries absent from the selected base.",
+      "expect": "Reject incompatible runtime requirements; do not assume scratch is valid for every binary."
+    },
+    {
+      "name": "producer-platform-conflict",
+      "change": "Constrain the producer to windows/amd64 while its image consumer requires Linux.",
+      "expect": "Fail planning with both constraint origins; do not materialize the incompatible artifact."
+    },
+    {
+      "name": "managed-platform-denial",
+      "change": "Apply an organization constraint denying a requested consumer platform.",
+      "expect": "Fail policy validation before execution; project configuration cannot relax the restriction."
     }
   ],
   "nativeChecks": [],
   "requiredFiles": [
     "project/Dockerfile",
-    "project/payload.txt",
     "variants.json",
-    "project/build.yaml"
+    "project/build.yaml",
+    "project/api/go.mod",
+    "project/api/main.go",
+    "project/api/main_test.go",
+    "expected-materialization.json"
   ],
   "hosts": {
     "intended": [
@@ -41,7 +85,10 @@
     "verified": []
   },
   "limitations": [
-    "The matrix request is harness data. Running one native command does not verify all variants.",
-    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
-  ]
+    "Implementation pending; these are agreed example contracts, not successful execution evidence."
+  ],
+  "materializationContract": {
+    "buildFile": "project/build.yaml",
+    "expectedFile": "expected-materialization.json"
+  }
 }

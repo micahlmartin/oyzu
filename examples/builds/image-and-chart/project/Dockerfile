@@ -1,3 +1,3 @@
 FROM scratch
-COPY app/dist/server /server
+COPY bin/server /server
 ENTRYPOINT ["/server"]

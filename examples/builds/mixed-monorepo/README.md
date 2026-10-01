@@ -5,7 +5,7 @@ Status: **design contract for review**. Intended hosts: Windows, macOS, Linux. S
 ## Purpose
 
 - Discover target-specific toolchains and grouped tasks.
-- Infer native dependencies and add only cross-artifact relationships that cannot be inferred.
+- Infer native dependencies. The image's materialize reference selects the command artifact for linux/amd64 and places it at bin/server; no manual copy or duplicate dependency is needed.
 
 ## Review the project
 
@@ -44,8 +44,8 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 
 ## Contract and limitations
 
-Acceptance criteria: PLAN-02, TASK-06. See the [design catalog](../../../docs/examples.md) and [scenario input](scenario.json).
+Acceptance criteria: PLAN-02, TASK-06, PLAN-07, PLAN-08, BUILDER-07. See the [design catalog](../../../docs/examples.md) and [scenario input](scenario.json).
 
-- Container assembly requires a Linux target binary supplied to the declared Docker context path. Artifact binding awaits Oyzu; no native combined pipeline is supplied.
+- Materialization/platform behavior follows the [agreed contract](../../MATERIALIZATION.md) and [expected context](expected-materialization.json). Image-to-chart digest-value binding remains under review.
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.

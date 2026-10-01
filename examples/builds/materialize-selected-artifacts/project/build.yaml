@@ -1,0 +1,13 @@
+tools:
+  uses: go/app
+  path: tools
+image:
+  uses: docker/image
+  platform: linux/amd64
+  materialize:
+    - from: tools
+      artifact: server
+      to: bin/server
+    - from: tools
+      artifact: migrate
+      to: bin/migrate

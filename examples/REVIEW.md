@@ -8,8 +8,8 @@ Review project files first, then compare the README's expected behavior. Judge t
 - Does the minimal Python app hint select sensible artifacts and an entrypoint without mandatory test/output sections?
 - Are `api:test`, same-name overrides, and `api:pre_test`/`api:post_test` understandable? Should success-only post hooks remain the rule?
 - Do directory-local tools/env and ignored overrides have clear ownership and restoration behavior?
-- Should target-local matrix axes be the proposed YAML shape, or can a builder infer the desired compatibility set?
-- Does an image depending on an application imply a conventional binary/context mapping? What minimal binding should be needed when that convention does not hold?
+- Beyond the agreed platform matrix, which runtime compatibility axes require explicit configuration?
+- Do the fixed-platform, multi-platform, named-output, and directory examples fully capture the agreed materialization behavior?
 - Can the chart consume the image digest without editing source values or describing deployment?
 - Are absent tests, unsupported coverage, failed tests, and missing required reports visibly different?
 - Do local-origin artifacts remain ineligible for production after cache reuse, upload, or later signing?
@@ -17,9 +17,9 @@ Review project files first, then compare the README's expected behavior. Judge t
 
 ## Candidate syntax under discussion
 
-The compatibility matrix and container variants include a small `matrix` map under their target. This is a review proposal, not accepted syntax. It expresses finite values, not loops or a programming language.
+The image target's `platform` or `matrix.platform` requirement propagates to its runtime artifact producers. This example contract is agreed. Other axes, such as the Node runtime matrix, remain proposals. Matrices express finite values, not loops or a programming language.
 
-Cross-artifact examples currently declare `depends_on` and record intended bindings alongside the project. We should decide whether builder conventions are enough before adding binding fields to build.yaml.
+Cross-artifact file/directory examples now use `materialize` entries with `from`, optional `artifact`, and `to`. The reference implies its dependency and places compatible outputs in the consumer's isolated workspace. See the [agreed contract](MATERIALIZATION.md). Chart image-digest value binding is separate and still open.
 
 Generated-source and affected-build examples provide native scripts/imports and expected dependency edges. They intentionally avoid requiring users to duplicate the native graph.
 

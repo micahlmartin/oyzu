@@ -31,6 +31,9 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | DEC-023 | No proactive universal mirror or OCI repackaging of all tools | OEP-0004 |
 | DEC-024 | No developer-authored pipeline product; future CI derives work from builders and policy | VIS-006 |
 | DEC-025 | Public client/contracts and separate private platform repository | OEP-0001 |
+| DEC-026 | Consumer-owned materialize mappings select producer artifacts and place them in isolated input workspaces; dependency edges are inferred | OEP-0006 |
+| DEC-027 | Consumer platform requirements propagate to runtime artifact producers; host, execution and target platforms remain distinct | OEP-0006 |
+| DEC-028 | Platform matrix variants receive matching artifacts at identical logical paths in separate contexts; target test evidence remains explicit | OEP-0014 |
 
 ## Proposed choices needing review or experiments
 
@@ -49,7 +52,8 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | OPEN-011 | Stack and distribution | Rust core, React/TypeScript, optional Tauri proposed; packaging and license/dependency audit required |
 | OPEN-012 | Offline management and revocation | Specify bounded validity windows, cached snapshot verification and fail-closed behavior |
 | OPEN-013 | Initial implementation slice | Python/uv plus tool/env/task foundation proposed; retain all agreed ecosystems in roadmap |
-| OPEN-014 | Advanced graph syntax | Matrix/artifact-binding/config fields only after examples justify them |
+| OPEN-014 | Remaining graph syntax | Materialize from/artifact/to and platform/platform-matrix contracts agreed; chart digest bindings and other matrix axes remain open |
+| OPEN-017 | Default container target platform | Resolve omitted values visibly from defaults and managed policy; choose standalone default separately |
 | OPEN-015 | Full hosted CI/CD and first-party registry | Future scope; event scheduler, runners, deploys and registry need separate proposals |
 | OPEN-016 | Portable user commands | Define argv/shell portability and native hook ownership without a new language |
 

@@ -1,6 +1,6 @@
 # Executable example catalog
 
-Status: **all 48 design-contract scenarios are now checked in** under [examples](../examples/README.md). They contain project source/configuration, expected behavior, and negative cases for review. Oyzu implementation and behavioral verification remain pending.
+Status: **all 50 design-contract scenarios are now checked in** under [examples](../examples/README.md). They contain project source/configuration, expected behavior, and negative cases for review. Oyzu implementation and behavioral verification remain pending.
 
 Each row is a scenario family. Manager/runtime/platform variants have separate project roots or explicit candidate variant definitions. Managed examples contain synthetic context/evidence inputs, not a running platform implementation or real credentials. The [review guide](../examples/REVIEW.md) highlights the shape decisions to discuss.
 
@@ -34,10 +34,10 @@ Each row is a scenario family. Manager/runtime/platform variants have separate p
 | EX-024 | Gradle multi-project | Wrapper with multi-project/included build | Verified wrapper/toolchain; native task graph and reports | TOOL-01, BUILDER-02 |
 | EX-025 | Ant project | Conventional and unconventional Ant targets | Safe known tasks inferred; arbitrary semantics require a focused hint | BUILDER-04, TASK-01 |
 | EX-026 | Dockerfile | Multi-stage image with pinned prepared inputs | Network-disabled execution, OCI output; external ADD/download rejected | EXEC-01, BUILDER-05 |
-| EX-027 | Container platform variants | One application for supported target architectures | Platform-distinct artifacts; no host/execution/target confusion | PLAN-05, EXEC-04 |
+| EX-027 | Container platform variants | Go producer feeding two image platforms through materialize | Matching binary variants at identical context paths; actual test platform recorded | PLAN-05, EXEC-04, PLAN-07, PLAN-08, BUILDER-07 |
 | EX-028 | Helm chart | Chart.yaml with locked dependencies | Dependency preparation, lint/render checks where valid, chart package | BUILDER-01, BUILDER-05 |
-| EX-029 | Image and Helm composition | Application, image, chart targets with digest binding | Chart references produced image without source mutation or deployment | BUILDER-05, BUNDLE-01 |
-| EX-030 | Mixed monorepo | API, frontend, shared package, image and chart | One graph, qualified tasks, inferred and explicit artifact edges | PLAN-02, TASK-06 |
+| EX-029 | Image and Helm composition | Materialize a compatible Go artifact into an image context; chart depends on image | Stable bin/server path without producer dist coupling; chart value binding remains separate | BUILDER-05, BUNDLE-01, PLAN-07, PLAN-08, BUILDER-07 |
+| EX-030 | Mixed monorepo | API, frontend, Go command, image and chart | One graph, qualified tasks, consumer-owned materialization and propagated platform | PLAN-02, TASK-06, PLAN-07, PLAN-08, BUILDER-07 |
 | EX-031 | Generated source | Declared schema/code generator used by two targets | Generator action inputs/outputs captured; correct invalidation | PLAN-06, CACHE-02 |
 | EX-032 | Compatibility matrix | Tests across supported runtimes without repeated YAML | Finite variants, collision-free output/report paths and constrained expansion | PLAN-05, BUNDLE-01 |
 | EX-033 | Affected builds | Edit leaf/shared source in a mixed graph | Conservative transitive rebuilds; unknown inputs force rebuild | PLAN-05, CACHE-02 |
@@ -56,6 +56,8 @@ Each row is a scenario family. Manager/runtime/platform variants have separate p
 | EX-046 | Cross-platform shell lifecycle | Activation/profile install/remove on supported shells | Idempotent profile edits, environment restoration, signal/exit behavior | ENV-04, ENV-05, DIST-05 |
 | EX-047 | Backend compatibility | Pinned supported mise backends with synthetic acquisition servers | No separate mise executable; all enterprise acquisition routes accounted for | MISE-01, MISE-04, TOOL-04 |
 | EX-048 | Source-control evidence | GitHub/GitLab protected refs, tags, fork PRs, missing permissions | Unknown/protection facts accurate; verified identity required for release | CONN-06, REL-02, REL-05 |
+| EX-049 | Named artifact selection | One Go target produces server and migrate; image selects both | Explicit selectors, inferred dependency, platform-compatible binaries at stable paths | PLAN-07, PLAN-08, BUILDER-07 |
+| EX-050 | Directory materialization | Static frontend directory feeds two image variants | Directory contents under site; reuse only with established platform independence | PLAN-07, PLAN-08, BUILDER-07 |
 
 ## Fixture contract
 

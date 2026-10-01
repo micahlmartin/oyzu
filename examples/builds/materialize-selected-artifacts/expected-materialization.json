@@ -1,0 +1,45 @@
+{
+  "purpose": "Semantic design expectations, not an executable plan or result manifest",
+  "invocationHostExample": "windows/amd64",
+  "executionPlatform": "selected from supported capabilities; not inferred from invocation host",
+  "materialize": [
+    {
+      "from": "tools",
+      "artifact": "server",
+      "to": "bin/server"
+    },
+    {
+      "from": "tools",
+      "artifact": "migrate",
+      "to": "bin/migrate"
+    }
+  ],
+  "contexts": [
+    {
+      "consumer": "image",
+      "platform": "linux/amd64",
+      "entries": [
+        {
+          "path": "bin/server",
+          "producer": "tools",
+          "artifact": "server",
+          "kind": "file",
+          "producerPlatform": "linux/amd64",
+          "contentDigest": "verified after production or cache retrieval"
+        },
+        {
+          "path": "bin/migrate",
+          "producer": "tools",
+          "artifact": "migrate",
+          "kind": "file",
+          "producerPlatform": "linux/amd64",
+          "contentDigest": "verified after production or cache retrieval"
+        }
+      ]
+    }
+  ],
+  "dependencyDeclaredSeparately": false,
+  "writesSourceCheckout": false,
+  "readsDist": false,
+  "testEvidence": "actual test execution platform recorded; cross-compilation is not target test execution"
+}

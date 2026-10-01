@@ -1,48 +1,24 @@
-# EX-029: Application image and chart artifact relationship
+# EX-029: Build a Go artifact, materialize it, then package a chart
 
-Status: **design contract for review**. Intended hosts: Windows, macOS, Linux. See the [validation scope](../../VERIFICATION.md).
+The [build file](project/build.yaml) selects linux/amd64 on the image consumer and materializes the app's primary artifact at bin/server. No producer platform declaration, duplicate depends_on, manual copy task, or producer dist path is required.
 
-## Purpose
-
-- Build image and chart targets with an explicit dependency.
-- Bind the actual image digest in generated chart values; preserve original values.yaml.
-- Artifact-binding syntax remains a design decision; binding intent is fixture data outside the project.
-
-## Review the project
-
-Open the checked-in project roots: `project`. Source, native manifests, and Oyzu configuration are included here so we can review the intended experience directly.
-
-The intended Oyzu interface is:
-
-```text
-oyzu build
+```yaml
+image:
+  uses: docker/image
+  platform: linux/amd64
+  materialize:
+    - from: app
+      to: bin/server
 ```
 
+The ordinary [Dockerfile](project/Dockerfile) uses COPY bin/server /server. Oyzu prepares that isolated path after building/testing or retrieving an eligible matching artifact. It preserves the exact artifact digest and executable metadata.
 
-The build YAML uses draft OEP syntax and contains only target intent/relationships. It is not a stable schema.
+The [expected context](expected-materialization.json) records platform and path relationships. A Windows or wrong-architecture artifact cannot satisfy this consumer. These Go sources need no external runtime library; the builder must still check that scratch is suitable.
 
-## Native checks available now
+The chart still depends on the image. Passing its digest into generated chart values is a separate, still-proposed value-binding mechanism in [artifact-bindings.json](artifact-bindings.json). Materialize does not silently mutate chart source.
 
-With the named toolchains already installed, run:
+Intended command: `oyzu build`. Supporting native checks are `go test ./...` from project/app and `helm lint .` from project/chart. Native Docker alone does not provide materialization.
 
-```text
-# From project/app
-go test ./...
+Failure cases include digest mismatch, wrong platform/ABI, path escapes, collisions, and unavailable required target tests. See [scenario.json](scenario.json) and the [shared contract](../../MATERIALIZATION.md).
 
-# From project/chart
-helm lint .
-```
-
-Native commands document the underlying ecosystem workflow. They are supporting context, not a prerequisite for accepting or revising this design contract.
-
-## Failure and variation cases
-
-- **digest-mismatch:** Attempt publication with a different image digest. Expected: Reject mismatched evidence/binding.
-
-## Contract and limitations
-
-Acceptance criteria: BUILDER-05, BUNDLE-01. See the [design catalog](../../../docs/examples.md) and [scenario input](scenario.json).
-
-- Container assembly requires a Linux target binary supplied to the declared Docker context path. Artifact binding awaits Oyzu; no native combined pipeline is supplied.
-
-Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+Acceptance: BUILDER-05, BUNDLE-01, PLAN-07, PLAN-08, BUILDER-07. Implementation remains pending.

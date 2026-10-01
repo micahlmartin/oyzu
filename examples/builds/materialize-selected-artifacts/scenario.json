@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "id": "EX-049",
+  "title": "Select multiple artifacts from one producer",
+  "fixtureStatus": "authored",
+  "oyzuStatus": "pending-implementation",
+  "acceptance": [
+    "PLAN-07",
+    "PLAN-08",
+    "BUILDER-07"
+  ],
+  "projects": [
+    "project"
+  ],
+  "oyzu": [
+    "oyzu build"
+  ],
+  "expected": [
+    "Discover server and migrate artifacts from Go command packages; there is no unique primary executable.",
+    "Explicit selectors choose both compatible Linux artifacts at separate stable context paths.",
+    "Infer the producer dependency once; preserve executable metadata and verified digests."
+  ],
+  "cases": [
+    {
+      "name": "missing-selector",
+      "change": "Remove artifact from the multi-output reference.",
+      "expect": "Ambiguity error listing server and migrate."
+    },
+    {
+      "name": "unknown-artifact",
+      "change": "Select artifact: worker.",
+      "expect": "Fail planning with available artifact names; do not select the first output."
+    },
+    {
+      "name": "wrong-platform-cache",
+      "change": "Offer a Windows or wrong-architecture producer result for the Linux consumer.",
+      "expect": "Do not reuse it; resolve a compatible variant or fail capability validation."
+    },
+    {
+      "name": "destination-collision",
+      "change": "Add a source file or second materialization at the same or overlapping destination.",
+      "expect": "Reject before consumer execution; never silently overwrite."
+    },
+    {
+      "name": "path-escape",
+      "change": "Set to to ../outside.",
+      "expect": "Reject a destination outside the consumer workspace."
+    }
+  ],
+  "nativeChecks": [
+    {
+      "cwd": "project/tools",
+      "argv": [
+        "go",
+        "test",
+        "./..."
+      ],
+      "exitCode": 0
+    }
+  ],
+  "requiredFiles": [
+    "expected-materialization.json",
+    "project/build.yaml",
+    "project/Dockerfile",
+    "project/tools/go.mod",
+    "project/tools/cmd/migrate/main.go",
+    "project/tools/cmd/migrate/main_test.go",
+    "project/tools/cmd/server/main.go",
+    "project/tools/cmd/server/main_test.go"
+  ],
+  "hosts": {
+    "intended": [
+      "windows",
+      "macos",
+      "linux"
+    ],
+    "verified": []
+  },
+  "limitations": [
+    "Implementation pending; native commands do not prove materialization, policy, or platform propagation."
+  ],
+  "materializationContract": {
+    "buildFile": "project/build.yaml",
+    "expectedFile": "expected-materialization.json"
+  }
+}
