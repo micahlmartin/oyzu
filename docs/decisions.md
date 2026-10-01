@@ -36,6 +36,7 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | DEC-028 | Platform matrix variants receive matching artifacts at identical logical paths in separate contexts; target test evidence remains explicit | OEP-0014 |
 | DEC-029 | Every builder exposes an implicit test command, detects the existing framework or selects a documented standard default, and automatically collects JUnit and applicable code coverage in dist with manifest references; ordinary projects need no reporting configuration | OEP-0014 / OEP-0012 |
 | DEC-030 | Discovery uses registered specialized detectors behind an interface; detectors report evidence and a deterministic resolver composes compatible findings, resolves exclusive roles and explains ambiguity without registration-order precedence | OEP-0006 |
+| DEC-031 | Oyzu is an opinionated, batteries-included developer platform: integrate the developer workflow with documented defaults and minimal configuration; distinguish this product vision from delivered capabilities. Positioning reaffirmed by maintainer direction on 2026-10-01; technical designs remain drafts | VIS-001 |
 
 ## Proposed choices needing review or experiments
 

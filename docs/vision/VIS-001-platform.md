@@ -9,7 +9,15 @@ updated: 2026-10-01
 > Vision draft consolidating agreed product direction. No feature is implemented by this document. Unresolved implementation choices are identified explicitly.
 
 
-Oyzu unifies tool installation, environment activation, lightweight tasks, and convention-driven builds in one CLI. An optional enterprise platform supplies organization-wide identity, configuration, policy, and visibility. Humans, automation, and AI agents use the same commands; normal operation is deterministic and does not require an LLM.
+Oyzu is an **opinionated, batteries-included developer platform**. It unifies tool installation, environment activation, lightweight tasks, and convention-driven builds in one CLI. An optional enterprise platform supplies organization-wide identity, configuration, policy, and visibility. Humans, automation, and AI agents use the same commands; normal operation is deterministic and does not require an LLM.
+
+## What batteries included means
+
+The product should own the routine integration work between a project's tools, environment, tasks, tests, reports, build outputs, and cache. A developer should be able to move from a checkout to an inspectable result through a coherent workflow, without assembling and maintaining that wiring for each repository.
+
+Opinionated means choosing documented defaults from ecosystem conventions, explaining those choices, and offering small, explicit overrides where a project needs them. Existing native manifests and lockfiles remain inputs to that experience. Minimal configuration must still produce useful testing, reporting, artifacts, and evidence.
+
+Batteries included describes the intended integrated experience, not a promise that every tool is bundled or every capability is available today. The current CLI requires provisioned native tools; tool installation and the wider platform remain incremental delivery work. The [implementation status](../implementation-status.md) is the source for measured capabilities.
 
 ## Product contract
 

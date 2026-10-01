@@ -1,8 +1,30 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/assets/oyzu-full-logo-reverse.svg">
+    <img src="docs/brand/assets/oyzu-full-logo-color.svg" alt="Oyzu" width="320">
+  </picture>
+</p>
+
 # Oyzu
 
-An opinionated developer platform for tools, environments, tasks, and builds.
+**An opinionated, batteries-included developer platform.**
 
-**Oyzu is 100% AI-built and community-directed.** AI generates our first-party code; people define requirements, guide implementation, review and validate results. Handcrafted code patches are not our contribution workflow. See the [contribution guide](CONTRIBUTING.md) for how to participate and the current license status.
+From a project checkout to a build you can inspect, Oyzu aims to bring tools, environments, tasks, builds, and evidence into one consistent workflow. It understands your ecosystem's conventions, chooses useful defaults, and keeps configuration focused on intent and exceptions.
+
+[Platform vision](docs/vision/VIS-001-platform.md) · [Current capabilities](docs/implementation-status.md) · [Design library](docs/README.md) · [Contribute](CONTRIBUTING.md)
+
+## The vision
+
+- **Batteries included.** Tool management, environment activation, native tasks, testing, reports, artifacts, and caching belong in a coordinated developer experience.
+- **Opinionated defaults.** Conventional supported projects should build without an Oyzu build file. Builders own the routine wiring; you declare the exceptions.
+- **Evidence built in.** Plans should be explainable, execution constrained, and outputs accompanied by manifests and test evidence.
+- **A foundation you can use independently.** The standalone CLI needs no platform account. Humans, CI, and AI agents share the same deterministic commands; a desktop interface is optional.
+
+The intended host platforms are Windows, macOS, and Linux. Optional managed capabilities extend the same foundation with organizational identity, configuration, policy, and visibility. The [platform vision](docs/vision/VIS-001-platform.md) describes the full direction; delivery is incremental.
+
+## Try the current CLI
+
+**Early implementation.** The vision above is broader than today's capabilities.
 
 The Rust CLI is under active implementation. Native builder/task discovery and development tasks support overrides and hooks. An initial container build command produces snapshot bundles for simple Node/npm and Go projects. The complete builder catalog and scenario suite remain in progress; see the [implementation status](docs/implementation-status.md).
 
@@ -29,7 +51,11 @@ All designs remain drafts for maintainer review. Run `cargo test --locked`, `car
 
 ## Contributing
 
+**Oyzu is 100% AI-built and community-directed.** AI generates our first-party code; people define requirements, guide implementation, review and validate results. Handcrafted code patches are not our contribution workflow.
+
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
+
+Logos, color tokens, and usage guidance are in the [brand guide](docs/brand/README.md).
 
 ## License status
 
