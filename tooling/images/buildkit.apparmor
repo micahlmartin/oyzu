@@ -1,6 +1,6 @@
 # Explicitly selected only by the ephemeral CI worker container.
 # Retain Ubuntu's global restriction on unprivileged user namespaces.
 abi <abi/4.0>,
-profile oyzu-buildkit-probe flags=(default_allow) {
+profile oyzu-buildkit flags=(default_allow) {
   userns,
 }

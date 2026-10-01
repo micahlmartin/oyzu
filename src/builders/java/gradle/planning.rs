@@ -57,6 +57,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
                 };
                 exports.push(json!({"source":archive.file,"destination":format!("/out/{}/artifacts/{filename}", context.target.name)}));
                 plan.artifacts.push(ArtifactSpec {
+                    kind: crate::builders::ArtifactKind::File,
                     name,
                     filename,
                     media_type,

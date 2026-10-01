@@ -37,6 +37,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             format!("/out/{}/artifacts/{filename}", context.target.name),
         ]);
         artifacts.push(ArtifactSpec {
+            kind: crate::builders::ArtifactKind::File,
             name: crate::names::scoped("jar", stem),
             filename,
             media_type: "application/java-archive",

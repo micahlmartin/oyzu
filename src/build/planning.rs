@@ -60,14 +60,19 @@ fn action(
     argv: Vec<String>,
     cwd: &str,
     env: &BTreeMap<String, String>,
-    execution: (&executor::Image, &str),
+    execution: (&executor::Image, &str, &executor::Mode),
 ) -> Value {
-    let (image, source) = execution;
-    json!({"id":id,"target":target,"operation":operation,"dependsOn":[],"argv":argv,"cwd":cwd,"env":env,
+    let (image, source, mode) = execution;
+    let argv = mode
+        .argv(&format!("{}/{}", image.os, image.arch))
+        .unwrap_or(argv);
+    let mut action = json!({"id":id,"target":target,"operation":operation,"dependsOn":[],"argv":argv,"cwd":cwd,"env":env,
         "tools":[target],"executionPlatform":platform(image),"targetPlatform":platform(image),
         "inputs":[{"kind":"tree","digest":source,"mount":"workspace"}],"outputs":[],"reports":[],
         "required":true,"cacheable":false,"network":"none",
-        "limits":{"timeoutSeconds":600,"cpu":2,"memoryBytes":2147483648u64,"outputBytes":16777216}})
+        "limits":{"timeoutSeconds":600,"cpu":2,"memoryBytes":2147483648u64,"outputBytes":16777216}});
+    action["extensions"]["oyzu.dev/executor"] = json!(mode);
+    action
 }
 
 /// Pure planning after source capture and image resolution; never invokes project code.
@@ -131,7 +136,7 @@ pub(super) fn plan_with_dependencies(
                 command.argv.clone(),
                 &cwd,
                 &intent.env,
-                (image, &source.digest),
+                (image, &source.digest, &command.execution),
             ));
         }
         let operation_id = |stage: &str| {
@@ -217,10 +222,18 @@ pub(super) fn plan_with_dependencies(
                     argv,
                     &relative(&workspace.root, &task.cwd)?,
                     &env,
-                    (image, &source.digest),
+                    (
+                        image,
+                        &source.digest,
+                        native.map_or(&executor::Mode::Process, |v| &v.execution),
+                    ),
                 );
                 a["reports"] = json!(bindings.intents);
-                a["extensions"] = json!({"oyzu.dev/report-paths":bindings.paths,"oyzu.dev/stdout-must-be-empty":task.stdout_must_be_empty,"oyzu.dev/report-sources":bindings.sources,"oyzu.dev/report-inputs":bindings.inputs,"oyzu.dev/collect-after":boundary});
+                a["extensions"]["oyzu.dev/report-paths"] = json!(bindings.paths);
+                a["extensions"]["oyzu.dev/stdout-must-be-empty"] = json!(task.stdout_must_be_empty);
+                a["extensions"]["oyzu.dev/report-sources"] = json!(bindings.sources);
+                a["extensions"]["oyzu.dev/report-inputs"] = json!(bindings.inputs);
+                a["extensions"]["oyzu.dev/collect-after"] = json!(boundary);
                 planned.push(a);
             }
         }
@@ -232,13 +245,13 @@ pub(super) fn plan_with_dependencies(
             intent.package.argv.clone(),
             &cwd,
             &intent.env,
-            (image, &source.digest),
+            (image, &source.digest, &intent.package.execution),
         );
         let mut outputs = Vec::new();
         for artifact in &intent.artifacts {
             let artifact_id = format!("{id}/{}", artifact.name);
             outputs.push(artifact_id.clone());
-            artifacts.push(json!({"id":artifact_id,"target":id,"variant":{},"name":artifact.name,"producer":producer,"kind":"file","version":artifact.version.as_ref().unwrap_or(&intent.version),"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
+            artifacts.push(json!({"id":artifact_id,"target":id,"variant":{},"name":artifact.name,"producer":producer,"kind":artifact.kind,"version":artifact.version.as_ref().unwrap_or(&intent.version),"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
         }
         package["outputs"] = json!(outputs);
         planned.push(package);
@@ -291,12 +304,16 @@ pub(super) fn resolve_images(
     }
     let mut images = BTreeMap::new();
     for (id, target) in &workspace.targets {
-        let default = builders::get(&target.builder)?.toolchain(target)?;
+        let builder = builders::get(&target.builder)?;
+        let default = builder.toolchain(target)?;
         let reference = refs
             .get(target.manager.as_str())
             .copied()
             .unwrap_or(default);
-        images.insert(id.clone(), executor::resolve(reference)?);
+        images.insert(
+            id.clone(),
+            executor::resolve_for(reference, builder.executor_profile())?,
+        );
     }
     Ok(images)
 }

@@ -1,5 +1,8 @@
 //! Container execution never mounts the live checkout, user home or Docker socket.
+mod mode;
+mod worker;
 use anyhow::{bail, Context, Result};
+pub(crate) use mode::{Mode, Profile};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -27,6 +30,10 @@ pub struct Execution {
 }
 
 pub fn resolve(reference: &str) -> Result<Image> {
+    resolve_for(reference, Profile::Process)
+}
+
+pub(crate) fn resolve_for(reference: &str, profile: Profile) -> Result<Image> {
     let result = Command::new("docker")
         .args(["image", "inspect", reference])
         .output()
@@ -64,11 +71,22 @@ pub fn resolve(reference: &str) -> Result<Image> {
     if !image.digest.starts_with("sha256:") || image.digest.len() != 71 {
         bail!("unverifiable image identity");
     }
-    if info["Config"]["Volumes"]
-        .as_object()
-        .is_some_and(|v| !v.is_empty())
-    {
-        bail!("builder images with implicit volumes are unsupported");
+    let volumes = info["Config"]["Volumes"].as_object();
+    match profile {
+        Profile::Process if volumes.is_some_and(|v| !v.is_empty()) => {
+            bail!("builder images with implicit volumes are unsupported")
+        }
+        Profile::RootlessBuildkit => {
+            if !matches!(info["Config"]["User"].as_str(), Some("1000" | "1000:1000"))
+                || volumes
+                    .is_some_and(|v| v.keys().any(|k| k != "/home/user/.local/share/buildkit"))
+            {
+                bail!(
+                    "BuildKit toolchain requires UID 1000 and only its private worker-store volume"
+                );
+            }
+        }
+        _ => (),
     }
     Ok(image)
 }
@@ -160,6 +178,10 @@ pub fn execute_with_mounts(request: Request<'_>, mounts: &[Mount<'_>]) -> Result
     command
         .args(["--entrypoint", executable, &request.image.digest])
         .args(&request.argv[1..]);
+    run(command, &request)
+}
+
+fn run(mut command: Command, request: &Request<'_>) -> Result<Execution> {
     let stdout = fs::File::create(request.stdout)?;
     let stderr = fs::File::create(request.stderr)?;
     command.stdin(Stdio::null()).stdout(stdout).stderr(stderr);
@@ -181,7 +203,7 @@ pub fn execute_with_mounts(request: Request<'_>, mounts: &[Mount<'_>]) -> Result
             || fs::metadata(request.stderr)?.len() > log_limit;
         if start.elapsed() > request.timeout || too_large {
             let _ = Command::new("docker")
-                .args(["rm", "--force", request.name])
+                .args(["rm", "--force", "--volumes", request.name])
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .status();
@@ -194,6 +216,19 @@ pub fn execute_with_mounts(request: Request<'_>, mounts: &[Mount<'_>]) -> Result
             });
         }
         thread::sleep(Duration::from_millis(100));
+    }
+}
+
+pub(crate) fn execute_mode(
+    request: Request<'_>,
+    mounts: &[Mount<'_>],
+    mode: &Mode,
+    materialized: &[String],
+) -> Result<Execution> {
+    mode.validate()?;
+    match mode {
+        Mode::Process => execute_with_mounts(request, mounts),
+        Mode::Buildkit { .. } => worker::execute(request, mode, materialized),
     }
 }
 

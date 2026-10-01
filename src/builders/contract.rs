@@ -1,6 +1,6 @@
 use crate::{
     dependencies::Prepared,
-    executor::Image,
+    executor::{Image, Mode, Profile},
     model::{Target, Task},
     snapshot::Snapshot,
 };
@@ -20,6 +20,10 @@ pub(crate) trait Builder: Sync {
     fn descriptor(&self) -> Descriptor;
     fn detect(&self, path: &Path) -> Option<&'static str>;
     fn discover(&self, target: &mut Target) -> Result<()>;
+
+    fn executor_profile(&self) -> Profile {
+        Profile::Process
+    }
 
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
         bail!(
@@ -91,6 +95,13 @@ pub(crate) struct BuilderPlan {
 
 impl BuilderPlan {
     pub fn validate(&self) -> Result<()> {
+        self.package.execution.validate()?;
+        for command in &self.prepare {
+            command.execution.validate()?;
+        }
+        for task in self.tasks.values() {
+            task.execution.validate()?;
+        }
         let mut names = BTreeSet::new();
         let mut paths = BTreeSet::new();
         for artifact in &self.artifacts {
@@ -136,6 +147,7 @@ impl BuilderPlan {
 pub(crate) struct CommandSpec {
     pub operation: &'static str,
     pub argv: Vec<String>,
+    pub execution: Mode,
 }
 
 impl CommandSpec {
@@ -143,11 +155,13 @@ impl CommandSpec {
         Self {
             operation,
             argv: strings(argv),
+            execution: Mode::Process,
         }
     }
 }
 
 pub(crate) struct ArtifactSpec {
+    pub kind: ArtifactKind,
     pub name: String,
     pub filename: String,
     pub media_type: &'static str,
@@ -155,8 +169,16 @@ pub(crate) struct ArtifactSpec {
     pub version: Option<String>,
 }
 
+#[derive(serde::Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum ArtifactKind {
+    File,
+    OciImage,
+}
+
 #[derive(Default)]
 pub(crate) struct TaskPlan {
+    pub execution: Mode,
     pub argv: Vec<String>,
     pub reports: Vec<ReportSpec>,
 }

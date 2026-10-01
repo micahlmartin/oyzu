@@ -1,6 +1,11 @@
 use crate::builders::task::insert;
 use crate::builders::task::unavailable;
-use crate::builders::{Builder, Descriptor};
+mod metadata;
+mod planning;
+mod preparation;
+#[cfg(test)]
+mod tests;
+use crate::builders::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext};
 use crate::model::Target;
 use anyhow::Result;
 use std::path::Path;
@@ -8,6 +13,21 @@ use std::path::Path;
 pub(super) struct Docker;
 
 impl Builder for Docker {
+    fn executor_profile(&self) -> crate::executor::Profile {
+        crate::executor::Profile::RootlessBuildkit
+    }
+    fn toolchain(&self, _target: &Target) -> Result<&'static str> {
+        Ok("oyzu-toolchain/docker:buildkit0.25.0")
+    }
+    fn prepare(
+        &self,
+        context: PreparationContext<'_>,
+    ) -> Result<Option<crate::dependencies::Prepared>> {
+        preparation::prepare(context).map(Some)
+    }
+    fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
+        planning::plan(context)
+    }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             ids: &["docker/image"],
@@ -23,6 +43,12 @@ impl Builder for Docker {
         target.manager = "docker".into();
         insert(target, "build", &["docker", "build", "."], true);
         unavailable(target, "test", "No image smoke-test contract is configured");
+        unavailable(target, "lint", "No Dockerfile linter is configured");
+        unavailable(
+            target,
+            "format-check",
+            "No read-only Dockerfile formatter is configured",
+        );
 
         Ok(())
     }

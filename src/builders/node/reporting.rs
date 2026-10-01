@@ -20,6 +20,7 @@ pub(super) fn test(id: &str) -> TaskPlan {
         &format!("/out/{id}/reports/coverage.lcov"),
     ));
     TaskPlan {
+        execution: Default::default(),
         argv,
         reports: vec![
             ReportSpec {

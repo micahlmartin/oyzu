@@ -47,6 +47,9 @@ src/
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
     java/repository_preparation.rs # Shared sandbox/broker lifecycle for native repository capture
     docker/                   # Container builder
+      metadata.rs             # Typed native facts and captured-input admission
+      preparation.rs          # Offline native metadata and worker-profile capture
+      planning.rs             # Snapshot OCI output and typed BuildKit action intent
       runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
       metadata.rs             # Chart discovery and contained local dependency order
@@ -65,7 +68,9 @@ src/
   dependencies.rs             # Shared prepared dependency snapshot
   broker.rs                   # Source-scoped transport and credential boundary
   broker/runtime/transport.py # Shared credential-free acquisition channel client
-  executor.rs                 # Enforced execution boundary
+  executor.rs                 # Image admission and ordinary process execution
+  executor/mode.rs            # Typed process/BuildKit capabilities
+  executor/worker.rs          # Private rootless worker lifecycle and filtered context assembly
   oci/                        # Bounded layout/archive and descriptor integrity verification
   reports.rs                  # Native report conversion and validation
   reports/contract.rs         # Typed declarations and bounded contained glob discovery
@@ -80,6 +85,7 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 | `descriptor` | Declare the builder IDs the adapter owns |
 | `detect` | Identify conventional native manifests without executing code |
 | `discover` | Read native metadata and declare implicit development tasks |
+| `executor_profile` | Select a finite engine-owned toolchain capability profile |
 | `toolchain` | Select the provisioned toolchain for the detected manager, or report unsupported integration |
 | `prepare` | Capture native dependencies through the scoped broker and executor; return an immutable-input record |
 | `plan` | Return typed command, task, artifact and report intent using captured source and prepared inputs |
@@ -119,3 +125,8 @@ Use private child modules by default and the narrowest useful visibility (`pub(s
 Extract shared behavior when multiple implementations have the same responsibility and invariants. Place it at their nearest common owner: Maven repository operations belong under Java, while scheduling, integrity verification and sandbox enforcement belong to the shared engine. Similar-looking native commands alone do not justify merging adapters. Prefer concrete types and small functions; introduce another trait only when there are distinct implementations or an actual substitution boundary.
 
 Keep this as one crate while module privacy provides the needed separation. Separate crates become useful when a component has independent reuse, dependency or release requirements. A future external plugin interface needs its own versioning and isolation design; the internal Rust trait does not promise that interface.
+
+
+Container actions use a typed executor mode declared by the Docker builder. The shared planner binds its exact BuildKit argv and capability description into the action; the scheduler dispatches by that mode, not by ecosystem name. Normal hooks and explicit command overrides remain ordinary process actions. The worker owns context mounts, rootless startup, readiness checks, timeout/log enforcement and confirmed shutdown before copying outputs. Builders cannot add arbitrary host mounts or privileged entitlements through this interface.
+
+Artifact kind is also typed (`File` or `OciImage` in the current adapters). Shared collection verifies OCI structure/content before recording an image's publication digest; the Docker adapter does not manufacture manifest records. The OCI module is shared integrity infrastructure, separate from Dockerfile semantics and the BuildKit process lifecycle.

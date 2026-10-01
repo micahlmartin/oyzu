@@ -91,11 +91,11 @@ jobs:
       - name: Compile and test native Dockerfile metadata adapter
         run: docker build -f tooling/images/docker-metadata.Dockerfile -t oyzu-toolchain/docker:buildkit0.25.0 .
       - name: Provision explicit worker user-namespace profile
-        run: sudo apparmor_parser -r tooling/images/buildkit-probe.apparmor
+        run: sudo apparmor_parser -r tooling/images/buildkit.apparmor
       - name: Verify native worker isolation and reproducible OCI export
         run: |
           chmod +x cli/oyzu
-          python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence --apparmor-profile oyzu-buildkit-probe --cli cli/oyzu
+          python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence --apparmor-profile oyzu-buildkit --cli cli/oyzu
       - name: Retain worker logs and native OCI outputs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -132,10 +132,14 @@ jobs:
           docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile tooling/images
           docker build --tag oyzu-toolchain/maven:3.9.11-jdk17 --file tooling/images/maven.Dockerfile .
           docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile tooling/images
+          docker build --tag oyzu-toolchain/docker:buildkit0.25.0 --file tooling/images/docker-metadata.Dockerfile .
+          sudo apparmor_parser -r tooling/images/buildkit.apparmor
           python3 -m venv .ci-python
           .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
           .ci-python/bin/python -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
       - name: Build and verify native snapshot artifacts through the compiled CLI
+        env:
+          OYZU_BUILDKIT_APPARMOR_PROFILE: oyzu-buildkit
         run: |
           chmod +x cli/oyzu
           .ci-python/bin/python tooling/test-python-adapter.py

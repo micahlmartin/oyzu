@@ -67,6 +67,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     ];
     plan.tasks.insert("test".into(), test);
     plan.artifacts.push(ArtifactSpec {
+        kind: crate::builders::ArtifactKind::File,
         name: "primary".into(),
         version: None,
         filename,

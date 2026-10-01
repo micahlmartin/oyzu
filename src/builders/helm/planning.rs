@@ -80,6 +80,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         ]),
     );
     plan.artifacts = vec![ArtifactSpec {
+        kind: crate::builders::ArtifactKind::File,
         name: "chart".into(),
         filename,
         media_type: "application/gzip",
@@ -87,6 +88,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     }];
     if !library {
         plan.artifacts.push(ArtifactSpec {
+            kind: crate::builders::ArtifactKind::File,
             name: "rendered".into(),
             filename: "rendered.yaml".into(),
             media_type: "application/yaml",

@@ -137,7 +137,16 @@ fn explicit_task_overrides_are_not_replaced_by_native_builder_planning() {
 #[test]
 fn unsupported_builder_preserves_preflight_failure_bundle() {
     let root = tempfile::tempdir().unwrap();
-    fs::write(root.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"unsupported","packageManager":"pnpm@10.0.0"}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("pnpm-lock.yaml"),
+        "lockfileVersion: '9.0'\n",
+    )
+    .unwrap();
     let failed = build::run(root.path(), &[], false).unwrap();
     assert_eq!(failed["status"], "failed");
     assert!(failed["planDigest"].is_null());

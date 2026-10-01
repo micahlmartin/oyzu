@@ -93,6 +93,7 @@ fn generated_artifact_identifiers_are_bounded_and_invalid_contracts_fail_early()
     );
     let mut plan = BuilderPlan::new("1.0.0".into(), CommandSpec::new("package", &["package"]));
     plan.artifacts.push(ArtifactSpec {
+        kind: crate::builders::ArtifactKind::File,
         name: "crate.invalid".into(),
         filename: "package.crate".into(),
         media_type: "application/gzip",
@@ -105,6 +106,7 @@ fn generated_artifact_identifiers_are_bounded_and_invalid_contracts_fail_early()
     assert!(plan.validate().is_err());
     plan.artifacts[0].filename = "package.crate".into();
     plan.artifacts.push(ArtifactSpec {
+        kind: crate::builders::ArtifactKind::File,
         name: "CRATE-VALID".into(),
         filename: "other.crate".into(),
         media_type: "application/gzip",

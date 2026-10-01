@@ -183,7 +183,16 @@ pub(super) fn execute_plan(
                 readonly: true,
             });
         }
-        let result = executor::execute_with_mounts(
+        let mode: executor::Mode =
+            serde_json::from_value(a["extensions"]["oyzu.dev/executor"].clone())?;
+        let materialized: Vec<String> = a["inputs"]
+            .as_array()
+            .context("missing inputs")?
+            .iter()
+            .filter(|input| input["kind"] == "artifact")
+            .filter_map(|input| input["mount"].as_str().map(str::to_owned))
+            .collect();
+        let result = executor::execute_mode(
             executor::Request {
                 image: &images[target],
                 workspace: &workspaces[target],
@@ -197,6 +206,8 @@ pub(super) fn execute_plan(
                 name: &format!("oyzu-{run_id}-{index}"),
             },
             &mounts,
+            &mode,
+            &materialized,
         );
         let mut code = match result {
             Ok(result) => {
@@ -252,11 +263,7 @@ pub(super) fn execute_plan(
         outcome["exitCode"] = json!(code);
         // A Docker startup failure is not evidence that a sandbox ran.
         if code == 0 {
-            outcome["enforced"] = json!([
-                "docker-network-none",
-                "docker-read-only-root",
-                "docker-cap-drop-all"
-            ]);
+            outcome["enforced"] = json!(mode.enforced());
         }
         failed = code != 0;
         records.actions.push(outcome);

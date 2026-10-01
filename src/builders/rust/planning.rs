@@ -48,6 +48,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             format!("/out/{id}/artifacts/{archive_name}"),
         ]);
         artifacts.push(ArtifactSpec {
+            kind: crate::builders::ArtifactKind::File,
             name: crate::names::scoped("crate", &package_metadata.name),
             filename: archive_name,
             version: Some(package_metadata.version.clone()),
@@ -67,6 +68,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
                 format!("/out/{id}/artifacts/{filename}"),
             ]);
             artifacts.push(ArtifactSpec {
+                kind: crate::builders::ArtifactKind::File,
                 name: crate::names::scoped("bin", &target.name),
                 filename,
                 version: Some(version.clone()),
