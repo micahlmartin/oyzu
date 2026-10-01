@@ -1,4 +1,11 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/assets/oyzu-full-logo-reverse.svg">
+  <img src="brand/assets/oyzu-full-logo-color.svg" alt="Oyzu" width="240">
+</picture>
+
 # Oyzu design library
+
+**An opinionated, batteries-included developer platform.** One coherent workflow for tools, environments, tasks, builds, and evidence, with useful defaults and minimal project configuration.
 
 This library consolidates the product direction discussed through 2026-10-01. **Visions and OEPs remain drafts; implementation is in progress.** Measured capabilities are recorded in [implementation status](implementation-status.md). Agreed product constraints are distinguished from proposed implementation choices in the [decision register](decisions.md).
 
@@ -9,6 +16,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Goal | Documents |
 | --- | --- |
 | Understand the product and component boundaries | [Vision index](vision/README.md), [architecture](architecture.md) |
+| Present Oyzu consistently | [Brand guide and assets](brand/README.md) |
 | Design tools, environment, shell switching, and tasks | OEP-0002 through OEP-0005 and OEP-0008 in the [proposal index](proposals/README.md) |
 | Design discovery, execution, caching, and artifacts | OEP-0006, OEP-0007, OEP-0011 through OEP-0014 |
 | Design managed clients, credentials, and distribution | OEP-0009, OEP-0010, OEP-0015, OEP-0016 |

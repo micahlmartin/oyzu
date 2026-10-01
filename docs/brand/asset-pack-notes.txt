@@ -1,0 +1,103 @@
+# Oyzu logo asset pack — v1
+
+Created September 2, 2026 from the user-selected reference in `source/approved-reference.png`.
+
+## Start here
+
+- **Website header:** `vector/oyzu-full-logo-color.svg`.
+- **Mark only:** `vector/oyzu-mark-color.svg`.
+- **Dark website header:** `vector/oyzu-full-logo-reverse.svg`.
+- **Favicon and app icons:** the ready-to-copy files in `web/`.
+- **Print:** `print/oyzu-print-masters.pdf` or the matching outlined EPS/SVG.
+- **Office, slides, or software without SVG support:** transparent PNGs.
+- **Everything at once:** sibling archive `oyzu-brand-kit-v1.zip`.
+- **Visual overview:** `preview.png` (a proof sheet, not a logo master).
+
+## What is authoritative
+
+This is a vector reconstruction of the approved small raster, not an original editable designer file. The symbol uses measured Bézier curves; the lettering was traced for guidance and reconstructed as smooth outlines rather than replaced by a font. Small contour differences from the raster are unavoidable. The screenshot's two-blue appearance has been normalized to flat colors for predictable reproduction. No generative redraw was used for these exports.
+
+The SVG masters are resolution-independent, genuine vector paths with no embedded bitmap and no required fonts. Scale them to any size. EPS and PDF derive from those same shapes. `.ai` and `.psd` files are not included: changing an extension would not make genuine native Illustrator/Photoshop documents. Illustrator can open the SVG, EPS, or PDF and save a native AI file if required.
+
+## Variants
+
+| Suffix | Artwork | Background |
+|---|---|---|
+| `color` | Two-blue mark and navy wordmark | Transparent; intended for light surfaces |
+| `black` | All black | Transparent; one-ink use |
+| `white` | All white | Transparent; dark surfaces |
+| `reverse` | Two-blue mark and white wordmark | Transparent; dark surfaces |
+
+White artwork may look empty in an image viewer on a white background. Do not recolor its transparent cutouts white: they should show the underlying surface.
+
+## Sizes and formats
+
+- **Mark PNG/WebP widths:** 16, 20, 24, 32, 40, 48, 64, 96, 128, 180, 192, 256, 384, 512, 1024, 2048, 4096 pixels. All four variants.
+- **Full-logo PNG/WebP widths:** 160, 240, 320, 480, 640, 960, 1280, 1920, 2560, 4096 pixels. All four variants, proportional height.
+- **PNG:** straight-alpha transparency, lossless.
+- **WebP:** lossless transparency; useful for web applications that need raster formats.
+- **JPG:** white background, high quality; color and black versions. JPG cannot preserve transparency.
+- **TIFF:** flattened white-background RGB, LZW compression, 300 dpi. Mark is 2400 px wide (8 inches at 300 dpi); full logo is 3600 px wide (12 inches at 300 dpi).
+- **SVG/EPS:** color, black, white, reverse; standalone mark and full horizontal logo. All lettering is outlined.
+- **PDF:** one eight-page vector master document; see page map below.
+- **ICO:** one multi-resolution file containing 16, 24, 32, 48, 64, 128, 256 px frames.
+- **Web icons:** individual square favicon PNGs, SVG favicon, 180 px Apple touch icon, 192/512 px Android/PWA icons, 512 px maskable icon, and a 1024 px app-icon base.
+
+The mark's square icon canvas includes padding. Do not stretch or independently resize the width and height. Start with the vector whenever possible. A 2x raster should be twice the intended CSS display width.
+
+## Print PDF page map
+
+1. Mark — color
+2. Mark — black
+3. Mark — reverse
+4. Mark — white
+5. Full logo — color
+6. Full logo — black
+7. Full logo — reverse
+8. Full logo — white
+
+Pages have artwork only, without labels or background rectangles, so the artwork can be placed into a layout. Use PDF bookmarks to identify the pages. Reverse/white pages need a dark surface behind them to preview properly. Mark pages are 4 inches wide and full-logo pages are 10 inches wide; vector artwork can be scaled without loss. EPS page boxes include the same clear space.
+
+## Print color limitations
+
+These are **RGB vector masters and RGB raster exports**, not certified PDF/X files or printer-profiled CMYK separations. Do not treat generic CMYK numbers as an exact match for the bright blue. Have the printer convert using the actual press/paper ICC profile and approve a physical proof. Foil, embroidery, engraving, vinyl cutting, Pantone matching, and white ink require vendor-specific preparation. Use the black outlined master as the starting silhouette for a single-color process.
+
+No bleed/crop marks are added to a standalone logo: those belong to the final page or product layout. The white version is RGB white artwork, not a named white-ink spot plate.
+
+## Color tokens
+
+| Name | RGB hex | RGB |
+|---|---|---|
+| Navy wordmark | `#06144D` | 6, 20, 77 |
+| Deep blue | `#0A1DBB` | 10, 29, 187 |
+| Bright blue | `#0879FF` | 8, 121, 255 |
+| White | `#FFFFFF` | 255, 255, 255 |
+| Black | `#000000` | 0, 0, 0 |
+
+## Small-size and clear-space guidance
+
+- Use the **mark only** at favicon sizes. The full logo is not designed for 16/32 px total width.
+- A starting minimum for the full logo is 160 CSS pixels wide; inspect the z cut on the actual display. For print, start around 30 mm wide and request a proof.
+- The supplied canvases include modest padding. When placing among other content, allow additional clear space of roughly one quarter of the mark diameter.
+- Do not distort, rotate, add glows, or independently shift the mark and lettering.
+- At very small sizes the two-blue boundary and fine cuts naturally lose detail. The silhouette remains the priority.
+
+## Website installation
+
+Copy the contents of `web/` to the site's public root (or change the URLs to your asset path). Add the tags in `web/head-snippet.html` to your document head. Copy the desired full-logo SVG separately and render it with descriptive alt text, for example:
+
+```html
+<a href="/" aria-label="Oyzu home">
+  <img src="/oyzu-full-logo-color.svg" alt="Oyzu" width="240" height="75">
+</a>
+```
+
+`site.webmanifest` is an icon/branding starter, not a complete installable PWA configuration. Set application-specific start URL, scope, and other behavior during implementation. Maskable artwork is padded to stay within the central safe area. The 1024 px icon is a base export, not proof of compliance with every store's current submission rules.
+
+No website, domain DNS, or running application has been changed by preparing this pack.
+
+## Reproduction and checks
+
+`build_assets.py` rebuilds the exports using the retained reference. Dependencies: Pillow, numpy, vtracer, svglib, reportlab, and PyMuPDF. `qa/validation.json` records checks for outlined vectors, PNG transparency, ICO sizes, and eight raster-free PDF pages. `qa/` contains tracing and rendering intermediates, not production logo files.
+
+The PDF skill informed print-file generation and rendered validation. Image generation was not used for the production exports because this task requires preserving approved artwork and creating scalable vector formats.
