@@ -102,7 +102,7 @@ fn plan_with_dependencies(
     let mut emitted = BTreeSet::new();
     for id in target_order(workspace)? {
         let target = &workspace.targets[&id];
-        if !matches!(target.manager.as_str(), "npm" | "go" | "pip") {
+        if !matches!(target.manager.as_str(), "npm" | "go" | "pip" | "uv") {
             bail!(
                 "{id}: {} build integration is not yet implemented",
                 target.manager
@@ -112,7 +112,7 @@ fn plan_with_dependencies(
             .get(&id)
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
         let cwd = relative(&workspace.root, &target.path)?;
-        let version = if target.manager == "pip" {
+        let version = if matches!(target.manager.as_str(), "pip" | "uv") {
             format!(
                 "{}.dev0+g{}",
                 target.version.split('+').next().unwrap_or("0.0.0"),
@@ -138,7 +138,7 @@ fn plan_with_dependencies(
         } else {
             None
         };
-        let python_project = if target.manager == "pip" {
+        let python_project = if matches!(target.manager.as_str(), "pip" | "uv") {
             Some(toml::from_str::<toml::Value>(&fs::read_to_string(
                 target.path.join("pyproject.toml"),
             )?)?)
@@ -155,6 +155,9 @@ fn plan_with_dependencies(
                 ("PIP_DISABLE_PIP_VERSION_CHECK".into(), "1".into()),
                 ("SOURCE_DATE_EPOCH".into(), "0".into()),
                 ("OYZU_TARGET".into(), id.clone()),
+                ("OYZU_PYTHON_MANAGER".into(), target.manager.clone()),
+                ("UV_CACHE_DIR".into(), "/tmp/uv-cache".into()),
+                ("UV_PROJECT_ENVIRONMENT".into(), ".oyzu-build/venv".into()),
             ]));
             planned.push(action(
                 &format!("{id}:prepare"),
@@ -252,7 +255,7 @@ fn plan_with_dependencies(
                 if task.provider == "go" && stage == "build" && step == task_id {
                     argv = strings(&["go", "build", "-trimpath", "-o", ".oyzu-build/app", "."]);
                 }
-                if task.provider == "pip" && step == task_id {
+                if matches!(task.provider.as_str(), "pip" | "uv") && step == task_id {
                     if stage == "build" {
                         argv = strings(&["python", "-I", "/oyzu/python.py", "build"]);
                     }
@@ -279,10 +282,25 @@ fn plan_with_dependencies(
                                 argv.push(format!("--cov={package}"));
                             }
                         }
+                        if task.provider == "uv" {
+                            let mut native = strings(&[
+                                "uv",
+                                "run",
+                                "--offline",
+                                "--no-sync",
+                                "--no-python-downloads",
+                                "--no-managed-python",
+                                "--python",
+                                ".oyzu-build/venv/bin/python",
+                                "--",
+                            ]);
+                            native.extend(argv);
+                            argv = native;
+                        }
                     }
                 }
                 if python_project.is_some()
-                    && task.provider == "pip"
+                    && matches!(task.provider.as_str(), "pip" | "uv")
                     && task.argv.first().is_some_and(|v| v == "ruff")
                 {
                     argv[0] = ".oyzu-build/venv/bin/ruff".into();
@@ -302,16 +320,18 @@ fn plan_with_dependencies(
                     && task.provider == "npm";
                 if stage == "test"
                     && step == task_id
-                    && (task.provider == "go" || task.provider == "pip" || node_test)
+                    && (task.provider == "go"
+                        || matches!(task.provider.as_str(), "pip" | "uv")
+                        || node_test)
                 {
-                    let coverage_format = if task.provider == "pip" {
+                    let coverage_format = if matches!(task.provider.as_str(), "pip" | "uv") {
                         "cobertura"
                     } else if node_test {
                         "lcov"
                     } else {
                         "go-cover"
                     };
-                    let coverage_file = if task.provider == "pip" {
+                    let coverage_file = if matches!(task.provider.as_str(), "pip" | "uv") {
                         "coverage.xml"
                     } else if node_test {
                         "coverage.lcov"
@@ -475,6 +495,7 @@ fn resolve_images(
         ("npm".to_string(), NODE_IMAGE.to_string()),
         ("go".to_string(), GO_IMAGE.to_string()),
         ("pip".to_string(), acquisition::PYTHON_IMAGE.to_string()),
+        ("uv".to_string(), acquisition::UV_IMAGE.to_string()),
     ]);
     for value in overrides {
         let (manager, reference) = value
@@ -795,7 +816,7 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
         let resolved = resolve_images(&workspace, images)?;
         let mut dependencies = BTreeMap::new();
         for (id, target) in &workspace.targets {
-            if target.manager == "pip" {
+            if matches!(target.manager.as_str(), "pip" | "uv") {
                 eprintln!("{id}: acquire Python dependency closure");
                 let prepared = acquisition::python(
                     &target.path,
@@ -803,6 +824,7 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
                     &resolved[id],
                     &source.digest,
                     &format!("oyzu-acquire-{run_id}-{id}"),
+                    &target.manager,
                 )?;
                 dependencies.insert(id.clone(), prepared);
             }

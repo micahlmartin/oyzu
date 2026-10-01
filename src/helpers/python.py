@@ -140,12 +140,36 @@ class Bridge(BaseHTTPRequestHandler):
 
 def acquire():
     requirements,purposes=requirement_lines()
+    manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
+    constraint_args=[]
+    if manager=='uv':
+        lock=tomllib.loads(Path('uv.lock').read_text())
+        for package in lock.get('package',[]):
+            registry=package.get('source',{}).get('registry')
+            if registry and registry.rstrip('/')!='https://pypi.org/simple':
+                raise ValueError('uv lock references an unconfigured source')
+        run(['uv','export','--locked','--offline','--no-python-downloads','--no-managed-python','--python',sys.executable,'--no-emit-project','--format','requirements-txt','--output-file','/out/uv-export.txt'],stdout=subprocess.DEVNULL)
+        from pip._vendor.packaging.requirements import Requirement
+        constraints=[]
+        for line in Path('/out/uv-export.txt').read_text().replace('\\\n',' ').splitlines():
+            line=line.strip()
+            if not line or line.startswith('#'):
+                continue
+            declaration=line.split(' --hash=',1)[0].strip()
+            parsed=Requirement(declaration)
+            if parsed.url or parsed.extras:
+                raise ValueError('Unsupported uv locked source form')
+            constraints.append(declaration)
+        Path('/out/constraints.txt').write_text('\n'.join(constraints)+'\n')
+        constraint_args=['-c','/out/constraints.txt']
     server=ThreadingHTTPServer(('127.0.0.1',0),Bridge)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     index='http://127.0.0.1:'+str(server.server_port)+'/index/'
     Path('/out/wheels').mkdir()
     args=[sys.executable,'-I','-m','pip','--isolated','download','--only-binary=:all:','--no-cache-dir','--disable-pip-version-check','--dest','/out/wheels','--index-url',index,'--trusted-host','127.0.0.1']
-    run(args+requirements)
+    run(args+constraint_args+requirements)
+    if manager=='uv':
+        run(args+['--no-deps','-r','/out/uv-export.txt'])
     if Path('requirements.txt').exists():
         run(args+['--no-deps','-r','requirements.txt'])
     server.shutdown()
@@ -195,7 +219,8 @@ def inventory(purposes, roots):
                     changed=True
     for package in packages.values():
         package['dependencies'].sort()
-    Path('/out/packages.json').write_text(json.dumps({'packages':list(packages.values()),'python':sys.version.split()[0],'pip':pip.__version__},sort_keys=True))
+    manager_version=subprocess.check_output(['uv','--version'],text=True).strip().split()[1] if os.environ.get('OYZU_PYTHON_MANAGER')=='uv' else pip.__version__
+    Path('/out/packages.json').write_text(json.dumps({'packages':list(packages.values()),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
 
 
 def prepare():
@@ -218,7 +243,10 @@ def prepare():
 
 def build():
     python='.oyzu-build/venv/bin/python'
-    run([python,'-I','-m','build','--no-isolation','--outdir','.oyzu-build/dist'])
+    if os.environ.get('OYZU_PYTHON_MANAGER')=='uv':
+        run(['uv','build','--offline','--no-python-downloads','--no-managed-python','--python',python,'--no-build-isolation','--out-dir','.oyzu-build/dist'])
+    else:
+        run([python,'-I','-m','build','--no-isolation','--outdir','.oyzu-build/dist'])
     wheels=list(Path('.oyzu-build/dist').glob('*.whl'))
     if len(wheels)!=1:
         raise ValueError('Expected one project wheel')

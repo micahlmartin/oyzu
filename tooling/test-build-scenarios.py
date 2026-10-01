@@ -206,6 +206,26 @@ def test_acquired_dependency_and_offline_boundary():
         assert {a['name']:a['digest'] for a in rebuilt['artifacts']}=={a['name']:a['digest'] for a in python_manifest['artifacts']}
         verified.append("Python: broker acquisition, captured dependency closure, offline wheel/sdist builds, snapshot metadata, native tests/coverage and repeatable artifacts")
 
+        uv_project=base / "python-uv-library"
+        shutil.copytree(ROOT / "examples/builds/python-uv-library/project",uv_project)
+        uv_before=source_files(uv_project)
+        invoke(uv_project,"build")
+        uv_manifest=validate(uv_project / "dist")
+        assert source_files(uv_project)==uv_before
+        uv_dependencies=json.loads((uv_project / "dist/dependencies/project.json").read_text())
+        Draft202012Validator(schema).validate(uv_dependencies)
+        assert uv_dependencies['manager']['id']=='uv'
+        assert digest(uv_project/'uv.lock') in uv_dependencies['lockDigests']
+        assert next(r for r in uv_manifest['reports'] if r['kind']=='test')['summary']['passed']>0
+        assert {a['name'] for a in uv_manifest['artifacts']}=={'wheel','sdist'}
+        # A stale native lock must fail before the final execution plan exists.
+        pyproject=uv_project / 'pyproject.toml'
+        pyproject.write_text(pyproject.read_text().replace('pytest==8.3.5','pytest==8.3.4'))
+        invoke(uv_project,'build',success=False)
+        stale=validate(uv_project/'dist')
+        assert stale['status']=='failed' and stale['planDigest'] is None
+        verified.append('uv: native locked export, hash-checked wheel closure, native build/test wrappers and stale-lock rejection')
+
     print(json.dumps({"verified":verified,"scope":"initial Node/npm, Go and Python/pip builds; full builder catalog remains pending"},indent=2))
 
 

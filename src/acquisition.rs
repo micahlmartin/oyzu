@@ -10,6 +10,7 @@ use std::{
 };
 
 pub const PYTHON_IMAGE: &str = "python:3.12-slim-bookworm";
+pub const UV_IMAGE: &str = "ghcr.io/astral-sh/uv:0.12.21-python3.12-bookworm-slim";
 pub const PYTHON_HELPER: &str = include_str!("helpers/python.py");
 
 pub struct Prepared {
@@ -24,6 +25,7 @@ pub fn python(
     image: &executor::Image,
     source_digest: &str,
     name: &str,
+    manager: &str,
 ) -> Result<Prepared> {
     fs::create_dir(destination)?;
     let control = tempfile::tempdir()?;
@@ -36,6 +38,8 @@ pub fn python(
     fs::create_dir(&private)?;
     let _session = broker::Session::start(&spool, &private, broker::python_sources()?)?;
     let env = BTreeMap::from([
+        ("OYZU_PYTHON_MANAGER".into(), manager.into()),
+        ("UV_CACHE_DIR".into(), "/tmp/uv-cache".into()),
         ("HOME".into(), "/tmp/oyzu-home".into()),
         ("PYTHONNOUSERSITE".into(), "1".into()),
         ("PIP_CONFIG_FILE".into(), "/dev/null".into()),
@@ -96,7 +100,12 @@ pub fn python(
         Ok(json!({"id":p["id"],"name":p["name"],"version":p["version"],"sourceId":"pypi","digest":snapshot::file_digest(&path)?,"size":info.len(),"purpose":p["purpose"],"dependencies":p["dependencies"],"verification":"digest-only"}))
     }).collect::<Result<_>>()?;
     let platform = json!({"os":image.os,"arch":image.arch,"runtime":metadata["python"]});
-    let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot","adapter":{"id":"python/pip-wheels","digest":records::digest("oyzu.adapter.v1alpha1",&json!(PYTHON_HELPER))?,"layoutVersion":"1"},"manager":{"id":"pip","version":metadata["pip"],"digest":image.digest,"platform":platform},"sourceDigest":source_digest,"lockDigests":[],"targetPlatform":platform,"packages":packages,"preparedTree":tree.digest});
+    let lock_digests = ["uv.lock", "requirements.txt"]
+        .iter()
+        .filter_map(|file| root.join(file).is_file().then_some(root.join(file)))
+        .map(|file| snapshot::file_digest(&file))
+        .collect::<Result<Vec<_>>>()?;
+    let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot","adapter":{"id":format!("python/{manager}-wheels"),"digest":records::digest("oyzu.adapter.v1alpha1",&json!(PYTHON_HELPER))?,"layoutVersion":"1"},"manager":{"id":manager,"version":metadata["managerVersion"],"digest":image.digest,"platform":platform},"sourceDigest":source_digest,"lockDigests":lock_digests,"targetPlatform":platform,"packages":packages,"preparedTree":tree.digest});
     let digest = records::digest("oyzu.dependencies.v1alpha1", &record)?;
     Ok(Prepared {
         root: destination.into(),
