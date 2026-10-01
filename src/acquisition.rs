@@ -10,7 +10,7 @@ use std::{
 };
 
 pub const PYTHON_IMAGE: &str = "python:3.12-slim-bookworm";
-pub const UV_IMAGE: &str = "ghcr.io/astral-sh/uv:0.12.21-python3.12-bookworm-slim";
+pub const UV_IMAGE: &str = "ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim";
 pub const PYTHON_HELPER: &str = include_str!("helpers/python.py");
 
 pub struct Prepared {

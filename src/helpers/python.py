@@ -176,6 +176,27 @@ def acquire():
     inventory(purposes,requirements)
 
 
+def wheel_metadata(path):
+    """Read the distribution's metadata, excluding vendored distributions."""
+    from pip._vendor.packaging.utils import canonicalize_name, parse_wheel_filename
+    from pip._vendor.packaging.version import Version
+    expected_name, expected_version, _, _ = parse_wheel_filename(path.name)
+    with zipfile.ZipFile(path) as wheel:
+        metadata = [i for i in wheel.infolist()
+                    if i.filename.count('/') == 1 and i.filename.endswith('.dist-info/METADATA')]
+        if len(metadata) != 1 or metadata[0].file_size > 4*1024*1024:
+            raise ValueError('Invalid top-level wheel metadata: ' + path.name)
+        directory = metadata[0].filename.split('/')[0][:-len('.dist-info')]
+        name, separator, version = directory.rpartition('-')
+        if not separator or canonicalize_name(name) != expected_name or Version(version) != expected_version:
+            raise ValueError('Wheel metadata directory does not match filename: ' + path.name)
+        info = email.message_from_bytes(wheel.read(metadata[0]))
+    if (len(info.get_all('Name', [])) != 1 or len(info.get_all('Version', [])) != 1
+            or canonicalize_name(info['Name']) != expected_name or Version(info['Version']) != expected_version):
+        raise ValueError('Wheel metadata identity does not match filename: ' + path.name)
+    return info
+
+
 def inventory(purposes, roots):
     import pip
     from pip._vendor.packaging.requirements import Requirement
@@ -188,11 +209,7 @@ def inventory(purposes, roots):
         item=Requirement(value)
         extras.setdefault(canonicalize_name(item.name),set()).update(item.extras)
     for path in sorted(Path('/out/wheels').glob('*.whl')):
-        with zipfile.ZipFile(path) as wheel:
-            metadata=[i for i in wheel.infolist() if i.filename.endswith('.dist-info/METADATA')]
-            if len(metadata)!=1 or metadata[0].file_size>4*1024*1024:
-                raise ValueError('Invalid wheel metadata')
-            info=email.message_from_bytes(wheel.read(metadata[0]))
+        info=wheel_metadata(path)
         name=canonicalize_name(info['Name'])
         if name in packages:
             raise ValueError('Multiple resolved versions for '+name)
