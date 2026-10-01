@@ -17,7 +17,9 @@ def main():
     args = parser.parse_args()
     go = shutil.which(args.go) or args.go
     with tempfile.TemporaryDirectory(prefix='oyzu-go-metadata-') as temporary:
-        base = Path(temporary)
+        # macOS exposes /var through /private/var; Go workspace identity needs
+        # the same physical root for cwd and an explicit GOWORK path.
+        base = Path(temporary).resolve()
         env = dict(os.environ, GOENV='off', GOTOOLCHAIN='local', GOPROXY='off', GOSUMDB='off',
                    GOWORK='off', GO111MODULE='off', GOFLAGS='-p=2', GOMAXPROCS='2',
                    GOPATH=str(base/'gopath'), GOCACHE=str(base/'cache'), CGO_ENABLED='1')
