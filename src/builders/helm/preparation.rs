@@ -88,8 +88,8 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     value["version"] = serde_yaml::Value::String(version);
     fs::write(chart_file, serde_yaml::to_string(&value)?)?;
     let manager_version = run(&["helm", "version", "--template", "{{.Version}}"])?;
-    snapshot::capture(&chart_root, &context.destination.join("chart"))?;
-    let tree = snapshot::capture(context.destination, &control.path().join("frozen"))?;
+    snapshot::capture_prepared(&chart_root, &context.destination.join("chart"))?;
+    let tree = snapshot::capture_prepared(context.destination, &control.path().join("frozen"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
         "adapter":{"id":"helm/local-charts","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"1"},

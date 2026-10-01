@@ -26,11 +26,15 @@ pub(super) fn test(id: &str) -> TaskPlan {
                 format: ReportFormat::Junit,
                 filename: "junit.xml",
                 source: ReportSource::File,
+                name: None,
+                input: None,
             },
             ReportSpec {
                 format: ReportFormat::Lcov,
                 filename: "coverage.lcov",
                 source: ReportSource::File,
+                name: None,
+                input: None,
             },
         ],
     }

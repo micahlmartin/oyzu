@@ -4,7 +4,7 @@ use crate::{
     model::Task,
     reports::{self, Input, Root},
 };
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, path::Path};
 
@@ -24,23 +24,6 @@ pub(super) fn bind(
     contract: Option<&TaskPlan>,
 ) -> Result<Bindings> {
     let mut result = Bindings::default();
-    if let Some(contract) = contract {
-        for report in &contract.reports {
-            let kind = report.format.kind();
-            if task.reports.iter().any(|r| r.kind == kind) {
-                continue;
-            }
-            let id = format!("{target}:{kind}");
-            let path = format!("{target}/reports/{}", report.filename);
-            result.intents.push(json!({"id":id,"kind":kind,"format":report.format.name(),"required":true,"subject":target}));
-            result.env.insert(
-                format!("OYZU_{}_REPORT", kind.to_ascii_uppercase()),
-                format!("/out/{path}"),
-            );
-            result.sources.insert(id.clone(), report.source);
-            result.paths.insert(id, path);
-        }
-    }
     let cwd = task
         .cwd
         .strip_prefix(root)
@@ -48,14 +31,77 @@ pub(super) fn bind(
         .to_str()
         .context("non-UTF8 report cwd")?
         .replace('\\', "/");
+    let workspace_path = |path: &str| {
+        if cwd.is_empty() {
+            path.to_string()
+        } else {
+            format!("{cwd}/{path}")
+        }
+    };
+    if let Some(contract) = contract {
+        for report in &contract.reports {
+            let kind = report.format.kind();
+            if task.reports.iter().any(|r| r.kind == kind) {
+                continue;
+            }
+            let (id, mut path) = if let Some(name) = &report.name {
+                if !crate::names::valid(name) {
+                    bail!("invalid report module identity");
+                }
+                (
+                    format!("{target}:{kind}:{name}"),
+                    format!("{target}/reports/{name}/{}", report.filename),
+                )
+            } else {
+                (
+                    format!("{target}:{kind}"),
+                    format!("{target}/reports/{}", report.filename),
+                )
+            };
+            let mut destination = format!("/out/{path}");
+            if let Some(input) = &report.input {
+                reports::validate_declarations(&[reports::Declaration {
+                    kind: kind.into(),
+                    format: report.format,
+                    path: input.clone(),
+                }])?;
+                let input = workspace_path(input);
+                destination = format!("/workspace/{input}");
+                if input.contains(['*', '?']) {
+                    path.push_str(".files");
+                }
+                result.inputs.insert(
+                    id.clone(),
+                    Input {
+                        root: Root::Workspace,
+                        path: input,
+                    },
+                );
+            }
+            result.intents.push(json!({"id":id,"kind":kind,"format":report.format.name(),"required":true,"subject":target}));
+            if !destination.contains(['*', '?'])
+                && contract
+                    .reports
+                    .iter()
+                    .filter(|r| r.format.kind() == kind)
+                    .count()
+                    == 1
+            {
+                result.env.insert(
+                    format!("OYZU_{}_REPORT", kind.to_ascii_uppercase()),
+                    destination,
+                );
+            }
+            result.sources.insert(id.clone(), report.source);
+            if result.paths.insert(id, path).is_some() {
+                bail!("colliding native report identity");
+            }
+        }
+    }
     for (index, report) in task.reports.iter().enumerate() {
         let name = crate::names::scoped("task", &task.id());
         let id = format!("{target}:{name}:{}:{index}", report.kind);
-        let path = if cwd.is_empty() {
-            report.path.clone()
-        } else {
-            format!("{cwd}/{}", report.path)
-        };
+        let path = workspace_path(&report.path);
         let mut destination = format!("{target}/reports/{name}-{}-{index}", report.kind);
         if !path.contains(['*', '?']) {
             destination.push('.');

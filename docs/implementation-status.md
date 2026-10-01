@@ -21,13 +21,13 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 | Requirement | State |
 | --- | --- |
 | Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Captured source, serial plans and initial Node/npm and Go build command; graph/platform expansion pending |
-| Dependency preparation and private-registry credential isolation for every native manager | Initial public Python wheel acquisition and broker boundary tests; all-manager/private-source integration pending |
+| Dependency preparation and private-registry credential isolation for every native manager | Public Python wheel acquisition verified; Maven Central preparation integrated pending CI; all-manager/private-source integration pending |
 | Capability-enforced executor, cancellation/process containment and offline build actions | Docker offline executor integrated; full boundary/cancellation verification pending |
-| Build/test/lint/read-only formatting orchestration with native ownership and reports | Node/npm and Go verified in Linux CI; Python/pip, uv and Poetry integration under native verification |
-| Native snapshot version projection and verified dist artifacts/manifests, including failures | Node packages and Go binaries verified; Python wheel/source archive checks added |
+| Build/test/lint/read-only formatting orchestration with native ownership and reports | Initial Node, Go, Python, Cargo, Helm and Ant profiles verified in Linux CI; Maven reactor verification pending |
+| Native snapshot version projection and verified dist artifacts/manifests, including failures | Initial Node, Go, Python, Cargo, Helm and Ant outputs verified; Maven module outputs under verification |
 | Container convenience packaging, Dockerfile contexts/materialization, multi-platform outputs | Discovery only |
-| Helm dependency capture, chart output and image digest bindings | Discovery only |
-| Java multi-module, Go workspace/cgo, Rust features, Node workspaces and all Python variants | Discovery only; native build integration pending |
+| Helm dependency capture, chart output and image digest bindings | Local charts/dependencies verified; remote charts and image bindings pending |
+| Java multi-module, Go workspace/cgo, Rust features, Node workspaces and all Python variants | Local Cargo workspace profiles and initial Ant verified; Maven reactor under verification; remaining managers/variants still required |
 | OCI action cache, producer evidence and snapshot publication/retry | Pending |
 | Managed policy, source-control facts, service-test/sandbox negative cases and broker behavior | Pending |
 | Complete scenario runner with native registry fixtures and accurate per-scenario evidence | Pending |
@@ -103,6 +103,8 @@ Required builder reports now survive root and qualified TOML task overrides, add
 
 Task `reports` declarations now use typed registered formats with kind/path validation, rather than discarded JSON. Relative paths resolve against captured task cwd. Simple `*`, `?`, `**` globs collect sorted contained files with independent digests and summaries; empty or malformed matches fail the check. Declaring custom JUnit output retains the operation's coverage requirement. Collection runs after the post-hook, including when the main process failed and post was blocked; a failed post still retains available reports and prevents packaging. The checked-in EX-009 custom runner now generates native Node JUnit/LCOV, and CI exercises exact paths, multiple native report files, post finalization, native test failure and malformed report retention. This extension awaits end-to-end CI verification and does not establish full cache, cancellation or native Windows/macOS sandbox behavior.
 
+[Run 36844867682](https://github.com/micahlmartin/oyzu/actions/runs/36844867682) passed at `be706d5ad6d2f30d382bf9e599805095c415c44f`. Downloaded bundles verify declared reports, post-hook finalization, separate glob members, retained native test/post failures and malformed raw evidence. Failure cases have no exported artifacts. This verifies the preceding reporting extension; full EX-009 cache/cancellation and sandbox acceptance remains outstanding.
+
 ## Checkpoint 5: initial Cargo workspace builds
 
 [Run 36839115549](https://github.com/micahlmartin/oyzu/actions/runs/36839115549) passed at `ede93d0915843ae8d192bcc313f35b3637cd5955`. Downloaded bundles confirm native application/workspace/library crate archives, delivered binaries, repeated artifact digests, Clippy/rustfmt checks and actual application coverage (6/9, 13/18 and 10/12 lines respectively). Failed tests retained JUnit and coverage while blocking artifacts; the formatting failure also blocked packaging. This is evidence for the implemented local Cargo profiles, not registry acquisition, full feature/platform matrices or all Rust acceptance requirements.
@@ -166,3 +168,15 @@ The existing custom fixture's root `tasks.test` now participates in a single-tar
 Local native JDK checks compile and execute a delivered JAR, verify unchanged class bytes and retained Main-Class, compare repeated archive bytes, reject already signed inputs, and exercise Ant's native property-based output discovery. Rust tests cover output containment, native task planning and single/multi-target override scope. The compiled-CLI CI harness now runs both EX-025 source fixtures, verifies artifact contents and execution, and checks assertion failure and a renamed custom target block packaging. End-to-end CI verification of this increment is pending.
 
 The Ant profile currently discovers native top-level jar tasks with destinations resolvable during project evaluation. Runtime-computed/custom packaging destinations, full imported-target discovery, Ivy/private dependencies, JUnit/JaCoCo collection and additional archive/classifier kinds remain required. The fixture's plain Java assertion program produces native process evidence, not JUnit or coverage. Maven and Gradle build integration remain outstanding. These are implementation checkpoints, not completion of the Java builder catalog.
+
+## Checkpoint 8: Maven reactor integration under verification
+
+The Maven builder now has separate native metadata, preparation and planning modules. A small Maven core lifecycle extension reads the actual reactor models after parent/property/dependency interpolation. Local offline checks against Maven 3.9.11 prove inherited reactor versions, resolved dependency management, custom finalName interpolation, unchanged source and rejection of output paths outside captured source. The extension does not reconstruct the graph by traversing arbitrary POM XML in the engine.
+
+A separate native Versions 2.19.1 probe in a disposable checkout verified snapshot projection of the parent POM and both child parent references. This development probe used an isolated repository and explicit Central settings; it does not replace the pending broker/executor build verification.
+
+Preparation evaluates a private source copy, projects snapshot versions using the pinned native Versions plugin, validates the resulting coordinates and captures a POM overlay. Maven resolves application/plugin inputs through a loopback Central mirror backed by the shared scoped broker; only the host transport can reach upstream. Native checksum checks are strict. Prepared repositories, toolchain identities and acquired file digests bind the subsequent plan. Repository entries retain their native versions and are currently an inventory, explicitly marked as lacking complete transitive edge attribution.
+
+The build runs one offline reactor lifecycle with a pinned JaCoCo integration, preserving native configured checks. Module JAR/WAR and POM outputs come from native metadata; Surefire JUnit and JaCoCo retain separate module identities. On native failure, reporting is attempted without repeating compilation or tests, and packaging stays blocked. A provisioned Maven/JDK image is built by CI; tool installation is not implemented by Oyzu. The compiled-CLI EX-023 cases check module artifacts, native reports, execution of delivered JARs, repeated artifact digests, source preservation and shared-code test failure. End-to-end acquisition/build verification of this increment is pending.
+
+Private repositories, full wrapper/toolchain selection, custom report locations, Failsafe attribution, arbitrary native classifier/plugin outputs and complete dependency-edge/purpose metadata remain required. Native offline execution is the completeness check for dynamic plugin inputs; unresolved inputs remain failures. This does not complete the Maven/Java builder catalog or mark EX-023 fully accepted.

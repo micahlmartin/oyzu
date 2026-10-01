@@ -107,7 +107,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         &serde_json::to_value(&projected)?,
     )?;
     fs::write(context.destination.join("host.txt"), host)?;
-    let tree = snapshot::capture(context.destination, &control.path().join("frozen"))?;
+    let tree = snapshot::capture_prepared(context.destination, &control.path().join("frozen"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch,"abi":host});
     let record = json!({
         "schemaVersion":"v1alpha1", "kind":"dependency-snapshot",

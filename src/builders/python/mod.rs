@@ -56,6 +56,10 @@ impl Builder for Python {
                 contents: acquisition::PYTHON_HELPER,
             },
             RuntimeFile {
+                name: "broker_transport.py",
+                contents: crate::broker::RUNTIME,
+            },
+            RuntimeFile {
                 name: "python-reporting.py",
                 contents: include_str!("runtime/reporting.py"),
             },

@@ -16,6 +16,8 @@ use std::{
     time::Duration,
 };
 
+pub(crate) const RUNTIME: &str = include_str!("broker/runtime/transport.py");
+
 pub struct Source {
     pub id: String,
     base: Url,

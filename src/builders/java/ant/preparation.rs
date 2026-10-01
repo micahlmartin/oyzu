@@ -80,7 +80,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     );
     query(Some(&version))?;
     metadata::read(&context.destination.join("metadata.xml"))?;
-    let tree = snapshot::capture(context.destination, &control.path().join("frozen"))?;
+    let tree = snapshot::capture_prepared(context.destination, &control.path().join("frozen"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
         "adapter":{"id":"java/ant-native-metadata","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"1"},

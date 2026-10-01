@@ -54,11 +54,15 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             format: ReportFormat::Junit,
             filename: "junit.xml",
             source: crate::reports::ReportSource::GoTestEvents,
+            name: None,
+            input: None,
         },
         ReportSpec {
             format: ReportFormat::GoCover,
             filename: "coverage.out",
             source: crate::reports::ReportSource::File,
+            name: None,
+            input: None,
         },
     ];
     plan.tasks.insert("test".into(), test);

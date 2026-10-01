@@ -183,6 +183,45 @@ pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
     let text = read_report(path)?;
     let (mut total, mut covered) = (0u64, 0u64);
     match format {
+        "jacoco" => {
+            // JaCoCo's static external DTD is inert; never resolve entities or
+            // fetch remote content while reading a native coverage report.
+            let declaration =
+                "<!DOCTYPE report PUBLIC \"-//JACOCO//DTD Report 1.1//EN\" \"report.dtd\">";
+            let allow_dtd = text.matches("<!DOCTYPE").count() == 1
+                && text.contains(declaration)
+                && !text.contains("<!ENTITY");
+            let doc = roxmltree::Document::parse_with_options(
+                &text,
+                roxmltree::ParsingOptions {
+                    allow_dtd,
+                    nodes_limit: 1_000_000,
+                },
+            )?;
+            let root = doc.root_element();
+            if !root.has_tag_name("report") {
+                bail!("invalid JaCoCo report root");
+            }
+            let counters: Vec<_> = root
+                .children()
+                .filter(|n| n.has_tag_name("counter") && n.attribute("type") == Some("LINE"))
+                .collect();
+            if counters.len() != 1 {
+                bail!("JaCoCo report requires one aggregate line counter");
+            }
+            let counter = counters[0];
+            covered = counter
+                .attribute("covered")
+                .ok_or_else(|| anyhow::anyhow!("missing JaCoCo covered count"))?
+                .parse()?;
+            let missed: u64 = counter
+                .attribute("missed")
+                .ok_or_else(|| anyhow::anyhow!("missing JaCoCo missed count"))?
+                .parse()?;
+            total = covered
+                .checked_add(missed)
+                .ok_or_else(|| anyhow::anyhow!("JaCoCo counter overflow"))?;
+        }
         "cobertura" => {
             let doc = xml_report(&text, true)?;
             let root = doc.root_element();

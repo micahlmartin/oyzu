@@ -1,5 +1,12 @@
 use crate::builders::task::insert;
-use crate::builders::{Builder, Descriptor};
+mod metadata;
+mod planning;
+mod preparation;
+#[cfg(test)]
+mod tests;
+use crate::builders::{
+    Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile,
+};
 use crate::model::Target;
 use anyhow::Result;
 use std::fs;
@@ -7,7 +14,33 @@ use std::path::Path;
 
 pub(in crate::builders) struct Maven;
 
+const RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "maven.py",
+        contents: include_str!("runtime/adapter.py"),
+    },
+    RuntimeFile {
+        name: "broker_transport.py",
+        contents: crate::broker::RUNTIME,
+    },
+];
+
 impl Builder for Maven {
+    fn toolchain(&self, _target: &Target) -> Result<&'static str> {
+        Ok("oyzu-toolchain/maven:3.9.11-jdk17")
+    }
+    fn prepare(
+        &self,
+        context: PreparationContext<'_>,
+    ) -> Result<Option<crate::dependencies::Prepared>> {
+        preparation::prepare(context).map(Some)
+    }
+    fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
+        planning::plan(context)
+    }
+    fn runtime_files(&self) -> &'static [RuntimeFile] {
+        RUNTIME
+    }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             ids: &["java/maven"],

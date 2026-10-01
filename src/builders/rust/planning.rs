@@ -103,11 +103,15 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         format: ReportFormat::Junit,
         filename: "junit.xml",
         source: crate::reports::ReportSource::File,
+        name: None,
+        input: None,
     });
     test.reports.push(ReportSpec {
         format: ReportFormat::Cobertura,
         filename: "coverage.xml",
         source: crate::reports::ReportSource::File,
+        name: None,
+        input: None,
     });
     plan.tasks.insert("test".into(), test);
     plan.tasks.insert(

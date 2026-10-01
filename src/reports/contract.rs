@@ -10,6 +10,7 @@ pub enum Format {
     Cobertura,
     Lcov,
     GoCover,
+    Jacoco,
 }
 
 impl Format {
@@ -19,6 +20,7 @@ impl Format {
             Self::Cobertura => "cobertura",
             Self::Lcov => "lcov",
             Self::GoCover => "go-cover",
+            Self::Jacoco => "jacoco",
         }
     }
     pub fn kind(&self) -> &'static str {
@@ -29,7 +31,7 @@ impl Format {
     }
     pub(crate) fn extension(&self) -> &'static str {
         match self {
-            Self::Junit | Self::Cobertura => "xml",
+            Self::Junit | Self::Cobertura | Self::Jacoco => "xml",
             Self::Lcov => "lcov",
             Self::GoCover => "out",
         }

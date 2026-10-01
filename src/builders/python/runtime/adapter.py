@@ -5,6 +5,8 @@ channel mediates GET requests; only the host broker can contact approved sources
 The same helper provides offline install/build/report operations after freeze.
 """
 import email
+import functools
+import importlib.util
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
@@ -14,10 +16,8 @@ import re
 import subprocess
 import sys
 import threading
-import time
 import tomllib
 import urllib.parse
-import uuid
 import zipfile
 
 
@@ -99,6 +99,14 @@ class Links(HTMLParser):
         self.links.append('<a href="'+html.escape(rewritten)+'"'+extra+'>'+html.escape(urllib.parse.unquote(url.split('/')[-1].split('#')[0]))+'</a>')
 
 
+@functools.lru_cache(maxsize=1)
+def transport():
+    spec = importlib.util.spec_from_file_location('oyzu_broker_transport', Path(__file__).with_name('broker_transport.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 class Bridge(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
@@ -111,20 +119,11 @@ class Bridge(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         # pip appends .metadata to the rewritten wheel URL; unwrap before forwarding.
-        request_id=uuid.uuid4().hex
-        root=Path('/broker')
-        temporary=root/(request_id+'.pending')
-        temporary.write_text(json.dumps({'url':url}))
-        temporary.rename(root/(request_id+'.request'))
-        response=root/(request_id+'.response')
-        deadline=time.monotonic()+55
-        while not response.exists():
-            if time.monotonic()>deadline:
-                self.send_error(504)
-                return
-            time.sleep(.01)
-        info=json.loads(response.read_text())
-        body=(root/(request_id+'.body')).read_bytes()
+        try:
+            info, body = transport().fetch(url)
+        except TimeoutError:
+            self.send_error(504)
+            return
         if 'text/html' in info['contentType'] and info['status']==200:
             parser=Links(url)
             parser.feed(body.decode('utf-8'))
@@ -134,8 +133,6 @@ class Bridge(BaseHTTPRequestHandler):
         self.send_header('Content-Length',str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-        response.unlink()
-        (root/(request_id+'.body')).unlink()
 
 
 def locked_export(manager, destination):

@@ -32,6 +32,10 @@ src/
       runtime/test.sh         # Native coverage/test reporting with failure preservation
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
+      maven/metadata.rs       # Typed native reactor metadata and output validation
+      maven/preparation.rs    # Scoped native repository capture and POM overlay
+      maven/planning.rs       # One native lifecycle with module artifact/report identities
+      maven/runtime/          # Maven core metadata extension and native acquisition/lifecycle adapter
       ant/metadata.rs         # Typed native Ant output metadata and containment
       ant/preparation.rs      # Sandboxed native project evaluation
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
@@ -52,6 +56,7 @@ src/
   discovery.rs                # Workspace ownership, ambiguity and task overrides
   dependencies.rs             # Shared prepared dependency snapshot
   broker.rs                   # Source-scoped transport and credential boundary
+  broker/runtime/transport.py # Shared credential-free acquisition channel client
   executor.rs                 # Enforced execution boundary
   reports.rs                  # Native report conversion and validation
   reports/contract.rs         # Typed declarations and bounded contained glob discovery
@@ -77,6 +82,8 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 Command replacement and evidence requirements have separate ownership. A TOML override cannot remove the builder's required reports. The optional override adapter may instrument an exact known native command; the shared planner does not parse ecosystem commands or shell programs. Unknown replacements retain their arguments and receive `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` destinations when those kinds have one concrete destination. Native stdout conversion applies only to native or recognized commands; arbitrary replacement output is not assumed to use the native event protocol. The shared reporting binder resolves custom declarations against captured task cwd and retains requirements for undeclared kinds. Hooks inherit the operation's report destinations. The Node adapter receives resolved destinations and owns conversion to reporter arguments.
 
 Artifact names are owned strings, and artifacts can override the target-level version. This lets a native workspace expose multiple independently versioned package outputs without adding Cargo-specific cases to the engine. Cargo preparation uses the same captured-input interface as acquisition, recording native workspace metadata and a version-projected manifest/lock overlay; it does not require a separate execution path.
+
+Native report intent can also identify a module and a contained file/glob under the task's working directory. Maven uses this to attribute Surefire and JaCoCo reports to reactor modules without adding Maven branches to the planner or collector. Shared report formats include native JaCoCo aggregate line counters. Prepared input snapshots include the entire acquired tree, even native coordinate directories named `target`; source checkout exclusion rules do not apply to repositories.
 
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 

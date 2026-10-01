@@ -1,0 +1,10 @@
+<component-set>
+  <components>
+    <component>
+      <role>org.apache.maven.AbstractMavenLifecycleParticipant</role>
+      <role-hint>oyzu-metadata</role-hint>
+      <implementation>dev.oyzu.maven.OyzuMetadata</implementation>
+      <instantiation-strategy>singleton</instantiation-strategy>
+    </component>
+  </components>
+</component-set>

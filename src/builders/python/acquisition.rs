@@ -23,6 +23,7 @@ pub(super) fn prepare(
     let helper = control.path().join("helper");
     fs::create_dir(&helper)?;
     fs::write(helper.join("python.py"), PYTHON_HELPER)?;
+    fs::write(helper.join("broker_transport.py"), broker::RUNTIME)?;
     let spool = control.path().join("spool");
     fs::create_dir(&spool)?;
     let private = control.path().join("private");
@@ -89,7 +90,7 @@ pub(super) fn prepare(
         );
     }
     let metadata = records::read(&destination.join("packages.json"))?;
-    let tree = snapshot::capture(destination, &control.path().join("frozen"))?;
+    let tree = snapshot::capture_prepared(destination, &control.path().join("frozen"))?;
     let packages: Vec<Value> = metadata["packages"].as_array().context("missing acquired package graph")?.iter().map(|p| -> Result<Value> {
         let file = p["file"].as_str().context("missing wheel filename")?;
         if file.contains(['/', '\\', ':']) || !file.ends_with(".whl") {bail!("invalid wheel filename");}

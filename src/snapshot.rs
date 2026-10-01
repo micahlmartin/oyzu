@@ -80,6 +80,16 @@ pub fn file_digest(path: &Path) -> Result<String> {
 
 /// Destination must be new and outside source. Failed capture is never reusable.
 pub fn capture(source: &Path, destination: &Path) -> Result<Snapshot> {
+    capture_tree(source, destination, true)
+}
+
+/// Prepared repositories are complete inputs: source-tree ignore rules do not
+/// apply to native package coordinates or resolver metadata.
+pub(crate) fn capture_prepared(source: &Path, destination: &Path) -> Result<Snapshot> {
+    capture_tree(source, destination, false)
+}
+
+fn capture_tree(source: &Path, destination: &Path, source_rules: bool) -> Result<Snapshot> {
     let source = source.canonicalize()?;
     if destination.exists() {
         bail!("snapshot destination already exists");
@@ -98,7 +108,7 @@ pub fn capture(source: &Path, destination: &Path) -> Result<Snapshot> {
     for item in WalkDir::new(&source)
         .follow_links(false)
         .into_iter()
-        .filter_entry(included)
+        .filter_entry(|entry| !source_rules || included(entry))
     {
         let item = item?;
         if item.depth() == 0 {
@@ -192,4 +202,27 @@ pub fn capture(source: &Path, destination: &Path) -> Result<Snapshot> {
         digest: format!("sha256:{:x}", hasher.finalize()),
         entries,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn prepared_repository_names_are_never_filtered_as_source_outputs() {
+        let input = tempfile::tempdir().unwrap();
+        let output = tempfile::tempdir().unwrap();
+        fs::create_dir_all(input.path().join("repository/example/target/1.0")).unwrap();
+        let jar = input
+            .path()
+            .join("repository/example/target/1.0/target-1.0.jar");
+        fs::write(&jar, "first acquired bytes").unwrap();
+        let first = capture_prepared(input.path(), &output.path().join("first")).unwrap();
+        assert!(first
+            .entries
+            .iter()
+            .any(|e| e.path.ends_with("target-1.0.jar")));
+        fs::write(jar, "different acquired bytes").unwrap();
+        let second = capture_prepared(input.path(), &output.path().join("second")).unwrap();
+        assert_ne!(first.digest, second.digest);
+    }
 }

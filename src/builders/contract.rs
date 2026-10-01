@@ -176,6 +176,9 @@ pub(crate) struct ReportSpec {
     pub format: ReportFormat,
     pub filename: &'static str,
     pub source: crate::reports::ReportSource,
+    /// Optional module identity and native report location relative to task cwd.
+    pub name: Option<String>,
+    pub input: Option<String>,
 }
 
 pub(crate) fn strings(values: &[&str]) -> Vec<String> {

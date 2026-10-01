@@ -136,3 +136,23 @@ fn report_declarations_reject_unknown_formats_mismatched_kinds_and_escaping_glob
         1
     );
 }
+#[test]
+fn jacoco_uses_native_aggregate_lines_without_double_counting_nested_counters() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("jacoco.xml");
+    let document = "<!DOCTYPE report PUBLIC \"-//JACOCO//DTD Report 1.1//EN\" \"report.dtd\"><report name=\"app\"><package name=\"example\"><counter type=\"LINE\" missed=\"1\" covered=\"2\"/></package><counter type=\"LINE\" missed=\"1\" covered=\"2\"/></report>";
+    std::fs::write(&path, document).unwrap();
+    assert_eq!(
+        oyzu::reports::coverage_summary(&path, "jacoco").unwrap(),
+        serde_json::json!({"covered":2,"total":3,"metric":"lines"})
+    );
+    for invalid in [
+        document.replace("report.dtd", "https://example.invalid/foreign.dtd"),
+        document.replace("covered=\"2\"", "covered=\"-2\""),
+        "<!DOCTYPE report [<!ENTITY secret SYSTEM 'file:///secret'>]><report>&secret;</report>"
+            .into(),
+    ] {
+        std::fs::write(&path, invalid).unwrap();
+        assert!(oyzu::reports::coverage_summary(&path, "jacoco").is_err());
+    }
+}
