@@ -80,6 +80,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: oyzu-ubuntu-latest
+          path: cli
       - name: Provision native worker and probe compiler
         run: |
           docker pull moby/buildkit:v0.25.0-rootless
@@ -89,7 +93,9 @@ jobs:
       - name: Provision explicit worker user-namespace profile
         run: sudo apparmor_parser -r tooling/images/buildkit-probe.apparmor
       - name: Verify native worker isolation and reproducible OCI export
-        run: python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence --apparmor-profile oyzu-buildkit-probe
+        run: |
+          chmod +x cli/oyzu
+          python3 tooling/test-buildkit-worker.py --evidence-dir worker-evidence --apparmor-profile oyzu-buildkit-probe --cli cli/oyzu
       - name: Retain worker logs and native OCI outputs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

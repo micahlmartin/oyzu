@@ -8,7 +8,6 @@ mod reporting;
 
 use crate::{builders, discovery, records, snapshot};
 use anyhow::{bail, Context, Result};
-pub use bundle::inspect;
 use execution::{execute_plan, ExecutionRecords};
 pub use planning::plan;
 use planning::{plan_with_dependencies, resolve_images};
@@ -19,6 +18,22 @@ use std::{
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+/// Read-only content verification for a build bundle or exported OCI layout tar.
+/// This does not authenticate the producer or establish release eligibility.
+pub fn inspect(path: &Path) -> Result<Value> {
+    if path.is_file() {
+        if fs::symlink_metadata(path)?.file_type().is_symlink() {
+            bail!("OCI archive must not be a symlink");
+        }
+        let verified = crate::oci::verify(path)?;
+        return Ok(json!({"schemaVersion":"v1alpha1","kind":"oci-verification",
+            "artifactKind":verified.kind,"ociDigest":verified.digest,
+            "platforms":verified.platforms,"digest":snapshot::file_digest(path)?,
+            "size":fs::metadata(path)?.len(),"verification":"content-integrity"}));
+    }
+    bundle::inspect(path)
+}
 
 /// Build an immutable local bundle. Prior bundles are retained under .oyzu/history.
 pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {

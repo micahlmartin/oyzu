@@ -20,14 +20,14 @@ The GitHub Actions workflow builds/tests the CLI on Linux, Windows and macOS and
 
 | Requirement | State |
 | --- | --- |
-| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Captured source and serial plans; file artifact edges/private consumer workspaces integrated pending CI; platform expansion pending |
-| Dependency preparation and private-registry credential isolation for every native manager | Public Python wheel acquisition verified; Maven/Gradle Central preparation integrated pending complete CI; all-manager/private-source integration pending |
+| Immutable source capture, deterministic plan, graph/platform expansion and actual build command | Captured source and serial plans; file artifact edges/private consumer workspaces verified in Linux CI; platform expansion pending |
+| Dependency preparation and private-registry credential isolation for every native manager | Public Python wheel acquisition verified; initial Maven/Gradle Central preparation verified in Linux CI; all-manager/private-source integration pending |
 | Capability-enforced executor, cancellation/process containment and offline build actions | Docker offline executor integrated; full boundary/cancellation verification pending |
-| Build/test/lint/read-only formatting orchestration with native ownership and reports | Initial Node, Go, Python, Cargo, Helm and Ant profiles verified in Linux CI; Maven reactor verification pending |
-| Native snapshot version projection and verified dist artifacts/manifests, including failures | Initial Node, Go, Python, Cargo, Helm and Ant outputs verified; Maven module outputs under verification |
-| Container convenience packaging, Dockerfile contexts/materialization, multi-platform outputs | Discovery only |
+| Build/test/lint/read-only formatting orchestration with native ownership and reports | Initial Node, Go, Python, Cargo, Helm, Ant, Maven reactor and Gradle composite profiles verified in Linux CI |
+| Native snapshot version projection and verified dist artifacts/manifests, including failures | Initial Node, Go, Python, Cargo, Helm, Ant, Maven and Gradle outputs verified in Linux CI |
+| Container convenience packaging, Dockerfile contexts/materialization, multi-platform outputs | Native metadata and OCI integrity foundations; worker verification and CLI build integration pending |
 | Helm dependency capture, chart output and image digest bindings | Local charts/dependencies verified; remote charts and image bindings pending |
-| Java multi-module, Go workspace/cgo, Rust features, Node workspaces and all Python variants | Local Cargo workspace profiles and initial Ant verified; Maven reactor and Gradle composite under verification; remaining variants still required |
+| Java multi-module, Go workspace/cgo, Rust features, Node workspaces and all Python variants | Local Cargo workspace profiles and initial Ant verified; initial Maven reactor and Gradle composite verified in Linux CI; remaining variants still required |
 | OCI action cache, producer evidence and snapshot publication/retry | Pending |
 | Managed policy, source-control facts, service-test/sandbox negative cases and broker behavior | Pending |
 | Complete scenario runner with native registry fixtures and accurate per-scenario evidence | Pending |
@@ -227,3 +227,12 @@ The Docker adapter now has a pinned native BuildKit metadata executable under `b
 [Run 36850135395](https://github.com/micahlmartin/oyzu/actions/runs/36850135395) passed at `fa63636a101bd46860e7b24030b73250e4b0bbcf`. Downloaded bundles confirm the Go producer and Node consumer artifacts, a digest-bound materialization receipt, and empty artifact lists for destination collision and graph-cycle failures. All host CLI/task jobs and the existing native builder suite passed. This validates the initial file-materialization profile, not platform propagation or complete container integration.
 
 In worker run `36851638488`, the native Docker metadata image compiled and its Linux tests passed. Worker startup was denied by Ubuntu's AppArmor restriction on unprivileged user namespaces. The CI worker now selects a named, explicitly provisioned `userns` profile; it does not disable that host-wide restriction. Seccomp/system-path relaxations remain explicit worker requirements, and BuildKit's process sandbox stays enabled. Native worker execution is still pending verification. See [Ubuntu's application-specific user namespace guidance](https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces).
+
+
+## Checkpoint 11: OCI archive integrity
+
+`oyzu inspect <image.tar>` now verifies an exported OCI layout archive without extracting files or contacting a registry. The same verifier is used for bundle artifacts declared as `oci-image` or `oci-index`. It checks layout version, a single publication root, complete referenced blob closure, SHA-256 identities and sizes, manifest/config relationships, platform claims and uncompressed layer diff IDs. Image indices require complete, unambiguous platform entries. The ordinary artifact digest continues to identify archive bytes; `ociDigest` identifies the root manifest/index for registry publication.
+
+The verifier bounds archive size (10 GiB), entries (100,000), metadata (16 MiB), descriptor depth/count (8/1,024) and total expanded layer bytes (20 GiB). It rejects duplicate layout files, links/special layout entries and trailing nonzero archive data. The initial profile accepts uncompressed and gzip OCI layers; zstd, Docker media types, inline descriptors, arbitrary OCI artifacts/referrers and filesystem semantic validation of layer contents remain outstanding. Content verification does not authenticate a producer, inspect credentials, qualify a release or prove safe image execution.
+
+Rust checks cover image/index closure, altered blobs/descriptors, wrong diff IDs/platforms, duplicate platforms/paths, links, appended data and a wrong publication digest despite a matching archive checksum. The worker CI probe now invokes the compiled CLI to inspect actual native BuildKit exports; that native verification remains pending. Container builds through `oyzu build`, convenience assembly and the full OEP-0018 acceptance set are still incomplete.

@@ -8,6 +8,7 @@ pub mod executor;
 mod launch;
 pub mod model;
 mod names;
+mod oci;
 pub mod records;
 pub mod reports;
 pub mod snapshot;

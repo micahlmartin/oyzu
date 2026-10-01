@@ -133,14 +133,31 @@ pub fn inspect(root: &Path) -> Result<Value> {
             .as_array()
             .context("missing bundle records")?
         {
+            if field == "artifacts"
+                && matches!(item["kind"].as_str(), Some("oci-image" | "oci-index"))
+                && item["path"].as_str().is_none()
+            {
+                bail!("OCI bundle artifact has no contained archive path");
+            }
             if let Some(path) = item["path"].as_str() {
                 let file = safe_file(root, path)?;
                 if snapshot::file_digest(&file)? != item["digest"] {
                     bail!("{path}: content digest mismatch");
                 }
-                if field == "artifacts" && Some(fs::metadata(file)?.len()) != item["size"].as_u64()
+                if field == "artifacts" && Some(fs::metadata(&file)?.len()) != item["size"].as_u64()
                 {
                     bail!("{path}: size mismatch");
+                }
+                if field == "artifacts"
+                    && matches!(item["kind"].as_str(), Some("oci-image" | "oci-index"))
+                {
+                    let verified = crate::oci::verify(&file)?;
+                    if item["ociDigest"] != verified.digest
+                        || item["kind"] != verified.kind
+                        || verified.platforms.is_empty()
+                    {
+                        bail!("{path}: OCI publication identity mismatch");
+                    }
                 }
             }
         }

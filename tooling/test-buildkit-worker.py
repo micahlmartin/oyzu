@@ -78,6 +78,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--evidence-dir', type=Path, required=True)
     parser.add_argument('--apparmor-profile', default='unconfined')
+    parser.add_argument('--cli', type=Path)
     args = parser.parse_args()
     evidence = args.evidence_dir.resolve()
     evidence.mkdir(parents=True, exist_ok=False)
@@ -154,6 +155,14 @@ def main():
                 (destination / 'build.stderr').write_text(result.stderr)
                 assert result.returncode == 0, result.stdout + result.stderr
                 digest, files = inspect_layout(destination / 'image.tar', sentinel)
+                if args.cli:
+                    inspected = subprocess.run([str(args.cli.resolve()), 'inspect', str(destination / 'image.tar')],
+                                               capture_output=True, text=True, timeout=60)
+                    assert inspected.returncode == 0, inspected.stdout + inspected.stderr
+                    record = json.loads(inspected.stdout)
+                    assert record['ociDigest'] == digest and record['artifactKind'] == 'oci-image'
+                    assert record['verification'] == 'content-integrity'
+                    (destination / 'inspection.json').write_text(inspected.stdout)
                 assert files['greeting.txt'] == (context / 'greeting.txt').read_bytes()
                 assert files['probe'] == (context / 'probe').read_bytes()
                 digests.append(digest)

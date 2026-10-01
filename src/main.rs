@@ -33,7 +33,7 @@ enum Commands {
         #[arg(long)]
         image: Vec<String>,
     },
-    /// Verify the recorded digests in an existing build bundle.
+    /// Verify recorded content in a build bundle or exported OCI layout tar.
     Inspect { bundle: PathBuf },
 }
 

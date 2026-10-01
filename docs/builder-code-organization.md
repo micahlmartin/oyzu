@@ -66,6 +66,7 @@ src/
   broker.rs                   # Source-scoped transport and credential boundary
   broker/runtime/transport.py # Shared credential-free acquisition channel client
   executor.rs                 # Enforced execution boundary
+  oci/                        # Bounded layout/archive and descriptor integrity verification
   reports.rs                  # Native report conversion and validation
   reports/contract.rs         # Typed declarations and bounded contained glob discovery
 ```

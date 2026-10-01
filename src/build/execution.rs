@@ -229,7 +229,14 @@ pub(super) fn execute_plan(
                     let file = capture_output(out, bundle, path)?;
                     let mut artifact = intent.clone();
                     artifact["digest"] = json!(snapshot::file_digest(&file)?);
-                    artifact["size"] = json!(fs::metadata(file)?.len());
+                    artifact["size"] = json!(fs::metadata(&file)?.len());
+                    if matches!(intent["kind"].as_str(), Some("oci-image" | "oci-index")) {
+                        let verified = crate::oci::verify(&file)?;
+                        if intent["kind"] != verified.kind {
+                            bail!("OCI output does not match planned image/index kind");
+                        }
+                        artifact["ociDigest"] = json!(verified.digest);
+                    }
                     Ok(artifact)
                 })();
                 match capture {
