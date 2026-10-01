@@ -50,7 +50,7 @@ impl Builder for Node {
     }
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
         match target.manager.as_str() {
-            "npm" => Ok("node:22-bookworm-slim"),
+            "npm" => Ok("oyzu-toolchain/node:npm11.11.0-node22"),
             manager => bail!(
                 "{}: {manager} build integration is not implemented yet",
                 target.name

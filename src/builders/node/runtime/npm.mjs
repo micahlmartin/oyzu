@@ -12,7 +12,7 @@ function npm(args, workspace, cache) {
   const prefix = process.platform === 'win32'
     ? [join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')] : [];
   const result = spawnSync(command, [...prefix, ...args, '--offline', '--audit=false', '--fund=false',
-    '--update-notifier=false', '--cache', cache, '--userconfig', join(cache, 'user.npmrc'),
+    '--update-notifier=false', '--engine-strict=true', '--force=false', '--cache', cache, '--userconfig', join(cache, 'user.npmrc'),
     '--globalconfig', join(cache, 'global.npmrc')], {
     cwd: workspace, encoding: 'utf8', timeout: 240_000, maxBuffer: 8 * 1024 * 1024,
   });
@@ -26,9 +26,17 @@ if (!['acquire', 'install'].includes(mode)) throw new Error('expected npm acquir
 const lock = readLock(workspace);
 const cache = mkdtempSync(join(tmpdir(), 'oyzu-npm-'));
 try {
+  const version = npm(['--version'], workspace, cache).trim();
+  const packageJson = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
+  if (packageJson.packageManager != null && packageJson.packageManager !== `npm@${version}`) {
+    throw new Error(`declared packageManager ${packageJson.packageManager} does not match provisioned npm@${version}; select a matching provisioned toolchain image`);
+  }
   const packages = [];
   const loaded = new Set();
   const inventory = mode === 'install' ? JSON.parse(readFileSync(join(root, 'inventory.json'), 'utf8')) : null;
+  if (inventory && (inventory.version !== version || inventory.nodeVersion !== process.versions.node)) {
+    throw new Error('Node/npm runtime differs from the captured preflight toolchain');
+  }
   if (mode === 'acquire') mkdirSync(join(root, 'tarballs'), {recursive: true});
   for (const entry of lock.packages) {
     let body, sourceId;
@@ -51,10 +59,10 @@ try {
   }
   // Native npm rejects stale lockfiles and validates target installation. Never
   // execute lifecycle code while the broker is mounted. Execution has no broker.
-  npm(['ci', `--ignore-scripts=${mode === 'acquire'}`, '--include=dev', '--include=optional', '--include=peer'], workspace, cache);
+  const install = lock.filename ? ['ci'] : ['install', '--package-lock=false'];
+  npm([...install, `--ignore-scripts=${mode === 'acquire'}`, '--include=dev', '--include=optional', '--include=peer'], workspace, cache);
   if (mode === 'acquire') {
-    const version = npm(['--version'], workspace, cache).trim();
-    writeFileSync(join(root, 'inventory.json'), JSON.stringify({version, lockfile: lock.filename, packages}, null, 2) + '\n');
+    writeFileSync(join(root, 'inventory.json'), JSON.stringify({version, nodeVersion: process.versions.node, lockfile: lock.filename, packages}, null, 2) + '\n');
   }
 } finally {
   rmSync(cache, {recursive: true, force: true});

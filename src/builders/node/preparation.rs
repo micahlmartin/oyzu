@@ -42,19 +42,24 @@ pub(super) fn required(root: &Path, package: &Value) -> Result<bool> {
 
 pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Option<Prepared>> {
     let package = records::read(&context.target.path.join("package.json"))?;
-    if !required(&context.target.path, &package)? {
-        return Ok(None);
-    }
+    // Validate the admitted input profile, including dependency-free projects.
+    // Every native build must verify its provisioned manager and runtime first.
+    let needs_registry = required(&context.target.path, &package)?;
+    let sources = if needs_registry {
+        vec![broker::Source::new(
+            "npm-public",
+            "https://registry.npmjs.org/",
+            None,
+        )?]
+    } else {
+        vec![]
+    };
     let tree = crate::dependencies::preparation::capture(
         &context,
         RUNTIME,
         &["node".into(), "/oyzu/npm.mjs".into(), "acquire".into()],
         &BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]),
-        vec![broker::Source::new(
-            "npm-public",
-            "https://registry.npmjs.org/",
-            None,
-        )?],
+        sources,
     )?;
     let inventory = records::read(&context.destination.join("inventory.json"))?;
     let packages: Vec<Value> = inventory["packages"].as_array().context("missing npm inventory")?
@@ -63,14 +68,19 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Option<Prepared
             "sourceId":p["sourceId"], "digest":format!("sha256:{}",p["sha256"].as_str().unwrap_or("")),
             "size":p["size"], "purpose":p["purpose"], "dependencies":[], "verification":"digest-only"
         })).collect();
-    let lock = lockfile(&context.target.path).context("missing npm lockfile")?;
+    let lock = lockfile(&context.target.path);
+    let lock_digests: Vec<String> = lock
+        .map(|name| snapshot::file_digest(&context.target.path.join(name)))
+        .transpose()?
+        .into_iter()
+        .collect();
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
         "adapter":{"id":"node/npm-registry-tarballs","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"1"},
         "manager":{"id":"npm","version":inventory["version"],"digest":context.image.digest,"platform":platform},
-        "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&context.target.path.join(lock))?],
+        "sourceDigest":context.source_digest,"lockDigests":lock_digests,
         "targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,
-        "extensions":{"oyzu.dev/npm":{"lockfile":lock,"inventory":"all-locked-registry-tarballs","dependencyEdges":"not-modeled","integrity":"lockfile-sha512"}}});
+        "extensions":{"oyzu.dev/npm":{"lockfile":lock,"nodeVersion":inventory["nodeVersion"],"inventory":"all-locked-registry-tarballs","dependencyEdges":"not-modeled","integrity":"lockfile-sha512"}}});
     Ok(Some(Prepared {
         root: context.destination.into(),
         digest: records::digest("oyzu.dependencies.v1alpha1", &record)?,

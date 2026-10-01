@@ -48,7 +48,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let script="const fs=require('node:fs');for(const f of ['package.json','package-lock.json','npm-shrinkwrap.json']){if(!fs.existsSync(f))continue;const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=process.env.OYZU_VERSION;if(p.packages?.[''])p.packages[''].version=p.version;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\\n');}";
     plan.prepare
         .push(CommandSpec::new("version", &["node", "-e", script]));
-    if captured {
+    if context.dependencies.is_some() {
         plan.prepare.push(CommandSpec::new(
             "prepare",
             &["node", "/oyzu/npm.mjs", "install", "/dependencies", "."],

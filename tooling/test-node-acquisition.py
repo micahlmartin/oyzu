@@ -62,7 +62,7 @@ def main():
         try:
             def execute(mode, output, project, success=True):
                 result = subprocess.run(['node', str(runtime / 'npm.mjs'), mode, str(output), str(project), str(spool)],
-                                        capture_output=True, text=True, timeout=180)
+                                        capture_output=True, text=True, encoding='utf-8', timeout=180)
                 assert (result.returncode == 0) == success, result.stdout + result.stderr
                 return result
 
@@ -89,6 +89,44 @@ def main():
                 result = subprocess.run(['node', '--test'], cwd=project, capture_output=True, text=True)
                 assert result.returncode == 0, result.stdout + result.stderr
             assert captures[0] == captures[1], 'capture depends on cache timestamp or absolute location'
+            native = json.loads((output / 'inventory.json').read_text())
+            empty = base / 'empty-project'
+            empty.mkdir()
+            empty_package = {'name':'runtime-contract', 'version':'1.0.0',
+                             'packageManager': 'npm@' + native['version'],
+                             'scripts': {'preinstall': 'node lifecycle.cjs'}}
+            (empty / 'package.json').write_text(json.dumps(empty_package))
+            (empty / 'lifecycle.cjs').write_text("require('node:fs').writeFileSync('lifecycle-ran','yes');\n")
+            empty_output = base / 'empty-capture'
+            empty_output.mkdir()
+            count = len(requests)
+            execute('acquire', empty_output, empty)
+            assert not (empty / 'lifecycle-ran').exists()
+            empty_inventory = json.loads((empty_output / 'inventory.json').read_text())
+            assert empty_inventory['packages'] == [] and empty_inventory['lockfile'] is None
+            assert empty_inventory['nodeVersion'] == native['nodeVersion']
+            execute('install', empty_output, empty)
+            assert (empty / 'lifecycle-ran').read_text() == 'yes'
+            assert len(requests) == count and not (empty / 'package-lock.json').exists()
+            empty_package['packageManager'] = 'npm@0.0.0'
+            (empty / 'package.json').write_text(json.dumps(empty_package))
+            mismatch = base / 'wrong-manager'
+            mismatch.mkdir()
+            assert 'does not match provisioned' in execute('acquire', mismatch, empty, False).stderr
+            assert len(requests) == count
+            empty_package['packageManager'] = 'npm@' + native['version']
+            empty_package['engines'] = {'node':'>=999'}
+            (empty / 'package.json').write_text(json.dumps(empty_package))
+            (empty / '.npmrc').write_text('force=true\nengine-strict=false\n')
+            wrong_engine = base / 'wrong-engine'
+            wrong_engine.mkdir()
+            assert 'EBADENGINE' in execute('acquire', wrong_engine, empty, False).stderr
+            (empty / '.npmrc').unlink()
+            del empty_package['engines']
+            (empty / 'package.json').write_text(json.dumps(empty_package))
+            empty_inventory['nodeVersion'] = '0.0.0'
+            (empty_output / 'inventory.json').write_text(json.dumps(empty_inventory))
+            assert 'differs from the captured' in execute('install', empty_output, empty, False).stderr
             lock_path = project / 'package-lock.json'
             lock = json.loads(lock_path.read_text())
             entry = lock['packages']['node_modules/is-number']
@@ -107,7 +145,7 @@ def main():
         finally:
             stop.set()
             thread.join()
-    print('Native npm capture/replay passed: deterministic tarballs, offline installation, lifecycle isolation, integrity and source denial')
+    print('Native npm capture/replay passed: deterministic inputs, offline installation, lifecycle isolation, integrity/source denial, declared manager and engine checks, runtime binding')
 
 
 if __name__ == '__main__':

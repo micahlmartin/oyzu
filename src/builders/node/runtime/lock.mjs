@@ -7,6 +7,14 @@ import {join} from 'node:path';
 export function readLock(workspace) {
   const filename = existsSync(join(workspace, 'npm-shrinkwrap.json'))
     ? 'npm-shrinkwrap.json' : 'package-lock.json';
+  if (!existsSync(join(workspace, filename))) {
+    const packageJson = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
+    if (['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies']
+      .some(field => Object.keys(packageJson[field] ?? {}).length > 0)) {
+      throw new Error('npm dependencies require a captured lockfile');
+    }
+    return {filename: null, packages: []};
+  }
   const lock = JSON.parse(readFileSync(join(workspace, filename), 'utf8'));
   if (![2, 3].includes(lock.lockfileVersion) || !lock.packages || Array.isArray(lock.packages)) {
     throw new Error('npm acquisition requires a v2/v3 lockfile with packages');
