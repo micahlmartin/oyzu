@@ -1,0 +1,7 @@
+{
+  "name": "oyzu-jest-contract",
+  "version": "1.2.0",
+  "files": ["src"],
+  "scripts": {"build": "node --check src/greeting.js", "lint": "node --check src/greeting.js"},
+  "devDependencies": {"jest": "29.7.0"}
+}

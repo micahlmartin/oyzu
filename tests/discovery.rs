@@ -274,7 +274,11 @@ fn node_framework_detectors_keep_scripts_and_choose_a_no_config_default() {
         ws.targets["project"].discovery["test-framework"].selected(),
         "jest"
     );
-    assert!(ws.tasks["project:test"].availability.is_some());
+    assert!(ws.tasks["project:test"].availability.is_none());
+    assert_eq!(
+        ws.tasks["project:test"].argv,
+        ["node", "node_modules/jest/bin/jest.js", "--ci"]
+    );
     write(
         root.path(),
         "vitest.config.ts",

@@ -70,10 +70,16 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         .context("missing resolved Node test framework")?
         .selected();
     let script = package["scripts"]["test"].as_str();
-    if framework != "node-test" && script.is_none() {
+    if !["node-test", "jest"].contains(&framework) && script.is_none() {
         bail!("{id}: {framework} test/report integration is not implemented yet; refusing to omit its test operation");
     }
-    let command = if script.is_some() {
+    let command = if framework == "jest" && script.is_none_or(super::jest::recognized) {
+        super::jest::wrap(super::super::strings(if script.is_some() {
+            &["npm", "run", "test", "--"]
+        } else {
+            super::jest::DEFAULT
+        }))
+    } else if script.is_some() {
         super::super::strings(if script == Some("node --test") {
             &["npm", "run", "test", "--"]
         } else {

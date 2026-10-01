@@ -44,6 +44,8 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     if !target.tasks.contains_key("test") {
         if framework == "node-test" {
             insert(target, "test", &["node", "--test"], true);
+        } else if framework == "jest" {
+            insert(target, "test", super::jest::DEFAULT, true);
         } else {
             super::super::unavailable(target, "test", &format!("Detected {framework}; its implicit runner/report integration is not implemented yet"));
         }

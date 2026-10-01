@@ -19,6 +19,7 @@ src/
       preparation.rs          # Lock admission and scoped tarball snapshot records
       runtime/                # Native npm capture/replay and integrity validation
       reporting.rs            # Native test reporters and exact-command override adaptation
+      jest.rs                 # Jest default invocation and exact script/override adaptation
     python/
       mod.rs                  # Descriptor and interface implementation
       discovery.rs            # pip / uv / Poetry inference

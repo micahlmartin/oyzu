@@ -1,5 +1,6 @@
 mod detection;
 mod discovery;
+mod jest;
 mod planning;
 mod preparation;
 mod reporting;
@@ -13,6 +14,14 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "jest.mjs",
+        contents: include_str!("runtime/jest.mjs"),
+    },
+    RuntimeFile {
+        name: "jest-results.mjs",
+        contents: include_str!("runtime/jest-results.mjs"),
+    },
     RuntimeFile {
         name: "npm.mjs",
         contents: include_str!("runtime/npm.mjs"),
@@ -76,6 +85,15 @@ impl Builder for Node {
                 .tasks
                 .get("test")
                 .is_some_and(|t| t.argv == ["npm", "run", "test"]);
+        let jest_script = target
+            .discovery
+            .get("test-framework")
+            .is_some_and(|p| p.selected() == "jest")
+            && crate::records::read(&target.path.join("package.json"))
+                .ok()
+                .and_then(|p| p["scripts"]["test"].as_str().map(jest::recognized))
+                .unwrap_or(false);
         reporting::instrument_override(task, env, native_script)
+            .or_else(|| jest::instrument_override(task, jest_script))
     }
 }

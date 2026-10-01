@@ -127,7 +127,7 @@ pub(super) static DETECTORS: &[&dyn Detector<ContextData>] = &[
     &Framework {
         id: "node/test-jest",
         name: "jest",
-        commands: &["jest", "jest --ci"],
+        commands: super::super::jest::COMMANDS,
         configs: JEST_CONFIGS,
     },
     &Framework {

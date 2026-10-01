@@ -68,7 +68,10 @@ jobs:
         shell: bash
         run: |
           node --test tooling/test-node-lock.mjs
+          node --test tooling/test-jest-results.mjs
           python tooling/test-node-acquisition.py
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/jest
+          python tooling/test-jest-reporting.py --jest-cli tooling/fixtures/jest/node_modules/jest/bin/jest.js
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
           else
