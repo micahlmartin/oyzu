@@ -37,8 +37,17 @@ gradle.projectsEvaluated {
                      version: task.archiveVersion.getOrElse('')]
                 }.sort { it.task }
                 def tests = project.tasks.withType(Test).findAll { it.enabled }.collect { task ->
+                    def classes = task.testClassesDirs.files
+                    def sourceSets = project.extensions.findByName('sourceSets')
+                    def owners = sourceSets == null ? [] : sourceSets.findAll { sourceSet ->
+                        !sourceSet.output.classesDirs.files.intersect(classes).isEmpty()
+                    }
+                    def coverage = project.tasks.findByName("oyzuCoverage${task.name.capitalize()}")
                     [task: task.path, junit: relative(task.reports.junitXml.outputLocation.get().asFile),
-                     junitEnabled: task.reports.junitXml.required.get()]
+                     junitEnabled: task.reports.junitXml.required.get(),
+                     sourcesKnown: !owners.isEmpty(),
+                     sources: owners.collectMany { it.allSource.files }.collect { relative(it) }.unique().sort(),
+                     coverage: coverage == null ? null : relative(coverage.reports.xml.outputLocation.get().asFile)]
                 }.sort { it.task }
                 [path: project.path, directory: relative(project.projectDir),
                  buildDirectory: relative(project.layout.buildDirectory.get().asFile),

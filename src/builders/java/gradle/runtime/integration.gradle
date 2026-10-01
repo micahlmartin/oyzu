@@ -1,0 +1,113 @@
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
+// Native behavior injected only into a captured build. The executor, not this
+// script, enforces network/filesystem isolation and protects host credentials.
+def repository = System.getenv('OYZU_GRADLE_REPOSITORY')
+def suffix = System.getenv('OYZU_GRADLE_SNAPSHOT')
+def route = { repositories, boolean pluginWrappers = false ->
+    repositories.each { repo ->
+        if (!(repo instanceof MavenArtifactRepository)) {
+            // Gradle wraps Settings plugin repositories in its own internal
+            // ArtifactRepository type. Their public source definitions are
+            // checked below; don't depend on that internal wrapper's API.
+            if (pluginWrappers && repo.name == '__plugin_repository__oyzuPluginRepository') return
+            throw new GradleException("Unsupported prepared Gradle repository type: ${repo.class.simpleName}")
+        }
+        def uri = repo.url
+        if (uri.normalize() != new URI(repository).normalize() &&
+            !(uri.scheme == 'https' && uri.host in ['repo.maven.apache.org', 'repo1.maven.org'] && uri.path == '/maven2/')) {
+            throw new GradleException("Gradle repository requires an approved source adapter: ${uri}")
+        }
+        repo.url = repository
+        repo.allowInsecureProtocol = repository.startsWith('http://127.0.0.1:')
+    }
+}
+
+gradle.beforeSettings { settings ->
+    settings.pluginManagement.repositories {
+        maven {
+            name = 'oyzuPluginRepository'
+            url = repository
+            allowInsecureProtocol = repository.startsWith('http://127.0.0.1:')
+        }
+    }
+}
+gradle.settingsEvaluated { settings ->
+    route(settings.pluginManagement.repositories)
+    route(settings.dependencyResolutionManagement.repositories)
+}
+gradle.beforeProject { project ->
+    project.buildscript.configurations.configureEach {
+        incoming.beforeResolve { route(project.buildscript.repositories, true) }
+    }
+    project.configurations.configureEach {
+        incoming.beforeResolve { route(project.repositories) }
+    }
+    project.pluginManager.withPlugin('java') {
+        project.pluginManager.apply('jacoco')
+        project.jacoco.toolVersion = '0.8.13'
+    }
+}
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    root.allprojects.each { project ->
+        if (project.plugins.hasPlugin('java')) {
+            if (project.repositories.isEmpty()) {
+                project.repositories.maven {
+                    name = 'oyzuReportingRepository'
+                    url = repository
+                    allowInsecureProtocol = repository.startsWith('http://127.0.0.1:')
+                }
+            }
+            project.tasks.withType(Test).each { test ->
+                test.reports.junitXml.required = true
+                def coverage = project.tasks.register("oyzuCoverage${test.name.capitalize()}", JacocoReport) {
+                    executionData(test)
+                    sourceSets(project.sourceSets.main)
+                    reports.xml.required = true
+                    reports.xml.outputLocation = project.layout.buildDirectory.file("reports/oyzu/${test.name}/jacoco.xml")
+                    reports.html.required = false
+                    reports.csv.required = false
+                }
+                test.finalizedBy(coverage)
+            }
+        }
+        def original = project.version.toString()
+        if (!(original ==~ /[A-Za-z0-9_.-]+/)) {
+            throw new GradleException("Unsupported native Gradle project version: ${original}")
+        }
+        def base = original == 'unspecified' ? '0.0.0' : original.replaceFirst(/-SNAPSHOT$/, '')
+        project.version = "${base}-dev.g${suffix}"
+        project.tasks.withType(AbstractArchiveTask).configureEach {
+            archiveVersion = project.version.toString()
+            preserveFileTimestamps = false
+            reproducibleFileOrder = true
+        }
+    }
+    ['oyzuAcquire', 'oyzuBuild'].each { name ->
+        if (root.tasks.findByName(name) != null) {
+            throw new GradleException("Reserved native adapter task already exists: ${name}")
+        }
+    }
+    root.tasks.register('oyzuAcquire') {
+        dependsOn(root.tasks.named('oyzuCollectMetadata'))
+        dependsOn(gradle.includedBuilds.collect { it.task(':oyzuAcquire') })
+        doLast {
+            root.allprojects.each { project ->
+                project.configurations.findAll { it.canBeResolved }.each { configuration ->
+                    // Native resolution preserves composite substitution and
+                    // obtains external artifacts without executing compilation.
+                    configuration.resolve()
+                }
+            }
+        }
+    }
+    root.tasks.register('oyzuBuild') {
+        dependsOn(root.allprojects.collect { it.tasks.findByName('build') }.findAll { it != null })
+        dependsOn(root.allprojects.collectMany { it.tasks.withType(AbstractArchiveTask).findAll { task -> task.enabled } })
+        dependsOn(gradle.includedBuilds.collect { it.task(':oyzuBuild') })
+    }
+}

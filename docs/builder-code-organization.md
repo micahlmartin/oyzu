@@ -36,11 +36,15 @@ src/
       maven/preparation.rs    # Scoped native repository capture and POM overlay
       maven/planning.rs       # One native lifecycle with module artifact/report identities
       maven/runtime/          # Maven core metadata extension and native acquisition/lifecycle adapter
-      gradle/runtime/metadata.gradle # Native composite-build metadata (build integration pending)
+      gradle/metadata.rs      # Typed native composite models and path validation
+      gradle/preparation.rs   # Scoped repository capture without mutable daemon caches
+      gradle/planning.rs      # Native archive identities and module test evidence
+      gradle/runtime/         # Native model, snapshot/check integration and acquisition transport
       ant/metadata.rs         # Typed native Ant output metadata and containment
       ant/preparation.rs      # Sandboxed native project evaluation
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
       ant/runtime/            # Native Ant metadata and JDK archive integration
+    java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
     docker/                   # Container builder
     helm/
       metadata.rs             # Chart discovery and contained local dependency order
@@ -85,6 +89,8 @@ Command replacement and evidence requirements have separate ownership. A TOML ov
 Artifact names are owned strings, and artifacts can override the target-level version. This lets a native workspace expose multiple independently versioned package outputs without adding Cargo-specific cases to the engine. Cargo preparation uses the same captured-input interface as acquisition, recording native workspace metadata and a version-projected manifest/lock overlay; it does not require a separate execution path.
 
 Native report intent can also identify a module and a contained file/glob under the task's working directory. Maven uses this to attribute Surefire and JaCoCo reports to reactor modules without adding Maven branches to the planner or collector. Shared report formats include native JaCoCo aggregate line counters. Prepared input snapshots include the entire acquired tree, even native coordinate directories named `target`; source checkout exclusion rules do not apply to repositories.
+
+Gradle uses the same interface with its own composite metadata and native initialization scripts. Included builds export their own evaluated models. Preparation captures repository files through the shared broker; the offline lifecycle resolves a local file repository with a fresh private Gradle home. Mutable daemon/dependency caches are not prepared inputs. Maven and Gradle share only the Maven-layout file inventory, while their acquisition and native model semantics stay in separate adapters.
 
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 
