@@ -1,0 +1,4 @@
+# Proposed override when more than one manager is plausible in the context.
+image:
+  uses: docker/image
+  dependencies: python/pip

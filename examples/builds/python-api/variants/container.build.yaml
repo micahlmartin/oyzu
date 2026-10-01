@@ -1,0 +1,4 @@
+# Proposed v1alpha1 convenience packaging; not required for the baseline fixture.
+api:
+  uses: python/app
+  container: true

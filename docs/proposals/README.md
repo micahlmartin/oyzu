@@ -21,6 +21,14 @@ All proposals below are **draft / not-started**. No proposal has been accepted b
 | OEP-0015 | [Desktop integration and distribution](OEP-0015-desktop-and-distribution/README.md) | OEP-0009 |
 | OEP-0016 | [Public platform protocol and policy decisions](OEP-0016-platform-protocol/README.md) | OEP-0002, OEP-0010 |
 
+The build implementation pass adds detailed companions to OEP-0002/0004–0007/0011–0014/0016. Start with the [build implementation map](../build-implementation.md) and [draft record schemas](../contracts/README.md).
+
+| ID | Proposal | Dependencies |
+| --- | --- | --- |
+| OEP-0017 | [Package-manager acquisition and credential isolation](OEP-0017-dependency-acquisition/README.md) | OEP-0007, OEP-0009, OEP-0010, OEP-0014 |
+| OEP-0018 | [Container packaging materialization and Helm composition](OEP-0018-container-and-helm-packaging/README.md) | OEP-0006, OEP-0007, OEP-0012, OEP-0014, OEP-0017 |
+| OEP-0019 | [Versioned build records and implementation conformance](OEP-0019-build-records-and-conformance/README.md) | OEP-0006, OEP-0011, OEP-0012, OEP-0013, OEP-0017, OEP-0018 |
+
 Use the [template](TEMPLATE.md) for new proposals and follow [OEP-0001](OEP-0001-proposal-process/README.md). Contributors use a draft ID until maintainers allocate the next number. Tracking issues are currently null; this index does not claim issues exist.
 
 Private server implementation uses a separate OEP-E series. Public contracts remain self-contained here.

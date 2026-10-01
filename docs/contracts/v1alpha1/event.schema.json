@@ -1,0 +1,236 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oyzu.example.invalid/schemas/v1alpha1/event.schema.json",
+  "title": "Oyzu event draft v1alpha1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "v1alpha1"
+    },
+    "kind": {
+      "const": "build-event"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "payload": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "run-started"
+            },
+            "context": {
+              "enum": [
+                "local",
+                "ci-unverified",
+                "ci-verified"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "context"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "phase-changed"
+            },
+            "phase": {
+              "enum": [
+                "preflight",
+                "discovery",
+                "preparation",
+                "planning",
+                "execution",
+                "finalization"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "phase"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "action-started"
+            },
+            "action": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "action"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "action-finished"
+            },
+            "action": {
+              "type": "string",
+              "minLength": 1
+            },
+            "status": {
+              "enum": [
+                "succeeded",
+                "cached",
+                "failed",
+                "cancelled",
+                "blocked",
+                "skipped"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "diagnostic"
+            },
+            "diagnostic": {
+              "$ref": "#/$defs/diagnostic"
+            }
+          },
+          "required": [
+            "type",
+            "diagnostic"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "bundle-finalized"
+            },
+            "manifestDigest": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "status": {
+              "enum": [
+                "succeeded",
+                "failed",
+                "cancelled",
+                "interrupted"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "manifestDigest",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "run-finished"
+            },
+            "status": {
+              "enum": [
+                "succeeded",
+                "failed",
+                "cancelled",
+                "interrupted"
+              ]
+            },
+            "exitCode": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "type",
+            "status",
+            "exitCode"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "runId",
+    "sequence",
+    "timestamp",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "diagnostic": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,255}$"
+        },
+        "action": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,255}$"
+        }
+      },
+      "required": [
+        "code",
+        "phase",
+        "severity",
+        "message"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

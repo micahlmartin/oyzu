@@ -8,6 +8,8 @@ First review the agreed constraints and open choices in the [decision register](
 
 Immediate decisions are the public license, mise source integration boundary, and executable cross-platform isolation approach. Public schema stability and enterprise compatibility claims depend on evidence from those prototypes.
 
+The detailed [build implementation work packages](build-implementation.md) refine this high-level sequence with typed contracts, acceptance IDs and empirical release gates. OEP-0017–0019 cover shared package acquisition, container/Helm composition and build record schemas. The initial engineering defaults are specified in implementation companions; they remain draft choices pending review.
+
 ## Complete slices
 
 | Slice | User outcome | Designs | Initial example families |
@@ -18,6 +20,7 @@ Immediate decisions are the public license, mise source integration boundary, an
 | 4. Ecosystem breadth | Go/Node/Rust/Java and all agreed Python manager variants | OEP-0014 and shared contracts | EX-013–025 |
 | 5. Composition | Containers, Helm, multi-project graphs, generation and variants | OEP-0006/0007/0014 | EX-026–033, EX-044 |
 | 6. Reuse and publication | OCI caching, versioning, evidence and retryable publishing | OEP-0011/0012/0013 | EX-034–038, EX-048 |
+| 6a. Private dependencies | Credential-free captured package inputs across native managers and containers | OEP-0017/0018 | EX-051–058 |
 | 7. Managed workstation | Centrally selected tools/registries with local credential broker | OEP-0009/0010/0016 | EX-039–043 |
 | 8. Optional desktop | Inspect/manage the same agent without affecting headless operation | OEP-0015 | EX-045 |
 

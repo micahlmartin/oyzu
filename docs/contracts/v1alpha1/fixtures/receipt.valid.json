@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "publication-receipt",
+  "manifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "status": "completed",
+  "operations": [
+    {
+      "id": "publish.binary",
+      "idempotencyKey": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "artifact": "api/binary",
+      "artifactDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "operation": "publish",
+      "destination": "fixture-development",
+      "coordinate": "api/0.1.0-dev.g111111111111",
+      "state": "completed",
+      "decisionId": "fixture-allow-dev",
+      "policyRevision": "fixture-1",
+      "remoteDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ]
+}

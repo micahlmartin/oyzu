@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "build-manifest",
+  "runId": "synthetic-run",
+  "planDigest": null,
+  "planPath": null,
+  "status": "failed",
+  "source": null,
+  "targets": [],
+  "actions": [],
+  "artifacts": [],
+  "reports": [],
+  "evidence": [],
+  "diagnostics": [
+    {
+      "code": "AUTH_REQUIRED",
+      "phase": "preflight",
+      "severity": "error",
+      "message": "Managed authentication is required."
+    }
+  ],
+  "envelopePath": "envelope.json",
+  "envelopeDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

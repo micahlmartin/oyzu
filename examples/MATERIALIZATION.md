@@ -52,4 +52,4 @@ Managed defaults/constraints can select permitted platforms, approved toolchains
 | Select two outputs from one target | [EX-049](builds/materialize-selected-artifacts/README.md) |
 | Directory placement and reusable platform-independent content | [EX-050](builds/materialize-directory/README.md) |
 
-Chart image-digest values are not file materialization; their binding syntax remains under review. Dockerfile-free packaging is a related capability and is not replaced by this contract.
+Chart image-digest values are not file materialization. [OEP-0018](../docs/proposals/OEP-0018-container-and-helm-packaging/README.md) now proposes a finite typed binding and linux/amd64 standalone default; these remain review choices distinct from this agreed materialization contract. Dockerfile-free packaging is a related capability and is not replaced by this contract.

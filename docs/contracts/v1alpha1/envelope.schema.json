@@ -1,0 +1,207 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oyzu.example.invalid/schemas/v1alpha1/envelope.schema.json",
+  "title": "Oyzu envelope draft v1alpha1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": "v1alpha1"
+    },
+    "kind": {
+      "const": "execution-envelope"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "planDigest": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "host": {
+      "$ref": "#/$defs/platform"
+    },
+    "context": {
+      "enum": [
+        "local",
+        "ci-unverified",
+        "ci-verified"
+      ]
+    },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issuer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "verification": {
+          "enum": [
+            "unverified",
+            "verified",
+            "local"
+          ]
+        }
+      },
+      "required": [
+        "subject",
+        "verification"
+      ],
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "snapshotId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validUntil": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decisionIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "decisionIds"
+      ],
+      "additionalProperties": false
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "enum": [
+              "true",
+              "false",
+              "unknown"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verification": {
+            "enum": [
+              "unverified",
+              "verified",
+              "local"
+            ]
+          },
+          "observedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "value",
+          "subject",
+          "source",
+          "verification",
+          "observedAt",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "kind",
+    "runId",
+    "planDigest",
+    "startedAt",
+    "host",
+    "context",
+    "identity",
+    "policy",
+    "facts"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "platform": {
+      "type": "object",
+      "properties": {
+        "os": {
+          "enum": [
+            "linux",
+            "windows",
+            "darwin"
+          ]
+        },
+        "arch": {
+          "type": "string",
+          "minLength": 1
+        },
+        "abi": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runtime": {
+          "type": "string",
+          "minLength": 1
+        },
+        "emulation": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "os",
+        "arch"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

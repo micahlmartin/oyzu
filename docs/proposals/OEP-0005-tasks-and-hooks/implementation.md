@@ -1,0 +1,31 @@
+# Task execution implementation contract
+
+## Task definition and lookup
+
+An internal TaskDefinition contains qualified id, owning target, provider identity/digest, implementation, prerequisites, working directory, nonsecret environment, declared inputs/outputs, report intents, execution context and effect/cache classification. Each field carries a safe origin reference. Explicit definitions replace the provider body and its custom declarations as one unit; builder-required reports and mandatory engine gates remain attached separately.
+
+Initial TOML fields are `run` (shell string), `argv` (string array), `shell`, `cwd`, `env`, `depends_on`, `inputs`, `outputs`, `cache`, `interactive` and `reports`. Exactly one of run/argv is present. Defaults: cwd=owning project, env={}, prerequisites=[], inputs=whole captured project, outputs=[], cache=false, interactive=false. `cache=true` requires outputs and a declared bounded input set; policy may still deny caching. No string interpolation is added. Inputs/outputs are contained relative paths or simple `*`, `?`, `**` globs; no brace expansion or shell evaluation. Output matches are declared writable areas, not arbitrary host paths. Dependencies are qualified task ids; reject cycles and ambiguous names. Optional reports is an array of `{kind, format, path}` records for registered report adapters and contained relative paths/globs; it supplies missing custom-runner output locations without changing engine-owned mandatory checks.
+
+`argv` executes without a shell and preserves every argument, including Unicode, spaces and empty strings. `run` uses POSIX sh on Linux/macOS and PowerShell on Windows by default. These are explicit platform-dependent shell semantics, not a promise a shell string is portable. An explicit shell is a declared locked tool, never a login shell. CLI arguments after `--` are passed to the primary command through the executor's argument transport, never concatenated into shell source. For shell-string tasks the initial implementation rejects extra arguments with guidance to use argv; this avoids unsafe ad-hoc quoting. Native package-manager scripts use their manager's supported argument interface.
+
+Task `list` is reserved for listing unless preceded by `--`. No command lists root and target tasks without executing discovery scripts. Unqualified lookup prefers an explicit root task, then the single current target; multi-target ambiguity returns all qualified candidates. Group ownership is determined before override lookup, so an unqualified test cannot accidentally override every target.
+
+## Native lifecycle ownership
+
+The adapter marks native operations as atomic ownership units. `npm run test` retains npm's pretest/posttest; Oyzu only adds distinct `pre_test`/`post_test` hooks. Do not discover npm's pretest as another implicit Oyzu pre-hook. Maven verify and Gradle build already include subordinate phases/tasks; represent one native invocation when splitting would duplicate compilation/testing. Report ingestion associates native subtask outcomes with that invocation without claiming separate engine actions ran.
+
+The default build requests dependency preparation, compilation/package, detected tests, configured lint and read-only formatting validation, followed by artifact validation. Native task dependencies determine actual order. It does not run every script, an editor formatter, development server, publish script or install-to-global command. Go's dependency task means prepared module acquisition, not installing binaries globally. A missing configured linter is prepared as a locked tool; no linter configuration means unavailable rather than inventing a lint regime.
+
+## Hook state machine
+
+Prerequisites succeed → pre_hook → main/cache lookup → post_hook → collectors → contract validation. Missing hooks are no-ops. Pre failure blocks main and post. Main failure skips post. Post failure fails the logical task even if main outputs exist. Collector cleanup runs on all outcomes; post is never a finally block. Direct hook invocation executes once without recursive hooks. Cancellation prevents new hooks and propagates to the active process tree.
+
+Pre-hook output is hashed before main action cache lookup. A declared output needed by main is mounted from its captured tree; an implicit mutation of main's read-only source is denied. Noncacheable hooks run on every logical invocation, including a main cache hit. A cached main result can satisfy post's input only after content verification. Post outputs cannot retroactively mutate main's captured result; distinct outputs can be exported under their own producer identity.
+
+Task overrides and hooks inherit the build sandbox, policy and target toolchain. In `oyzu run` development mode they use the declared development environment and cannot produce hermetic build evidence; the displayed context is explicit. Long-lived interactive tasks are rejected from finite build plans unless an adapter models them as a scoped service test.
+
+## Exit and report semantics
+
+`oyzu run` propagates the primary/native exit status when possible; a failing hook instead determines the invocation status. Build aggregation uses the engine exit categories in OEP-0006. Record native numeric status and termination reason separately, including signal/cancellation. Never declare a successful report because a command exited zero. Required report validation is performed even on overridden bodies; absent evidence fails a mandatory check.
+
+Verification: TASK-01–06 plus native npm lifecycle nesting, shell argument injection, empty argv values, cross-platform paths, uncached pre-hook with cached main, failing post with available artifacts, formatter source mutation in build mode and native reactor ownership. Initial behavior excludes always-run user hooks and invocation of the hidden overridden original. Those are future features, not missing requirements for v1alpha1.

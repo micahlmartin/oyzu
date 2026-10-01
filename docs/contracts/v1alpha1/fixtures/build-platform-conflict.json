@@ -1,0 +1,20 @@
+{
+  "api": {
+    "uses": "go/app"
+  },
+  "image": {
+    "uses": "docker/image",
+    "platform": "linux/amd64",
+    "materialize": [
+      {
+        "from": "api",
+        "to": "bin/server"
+      }
+    ],
+    "matrix": {
+      "platform": [
+        "linux/arm64"
+      ]
+    }
+  }
+}

@@ -41,6 +41,10 @@ BuildKit secret mounts are available for exceptional approved secret-dependent a
 
 The future harness uses an ephemeral synthetic upstream canary and inspects process-visible input, full image layers, history/config, intermediate/exported caches, logs, reports and provenance. Deleting a secret in a later layer does not repair an earlier layer. Detection blocks export but does not prove arbitrary encoded exfiltration impossible; architectural isolation is the primary protection. No real credentials are checked in or needed for these examples.
 
+## Detailed implementation proposals
+
+[OEP-0017](../docs/proposals/OEP-0017-dependency-acquisition/README.md) defines adapter/session/snapshot contracts. [OEP-0018](../docs/proposals/OEP-0018-container-and-helm-packaging/README.md) proposes the `dependencies` selector and inference rule for custom Dockerfile contexts, plus supported offline OS-package integration. The choices are now concrete proposals for review, not implemented support. Original fixture expectations remain the security boundary.
+
 ## Review questions
 
 - What is the smallest explicit binding for prepared package-manager inputs in a custom Dockerfile, without a new scripting language?

@@ -1,0 +1,15 @@
+{
+  "api": {
+    "uses": "go/app"
+  },
+  "image": {
+    "uses": "docker/image",
+    "platform": "linux/amd64",
+    "materialize": [
+      {
+        "from": "api",
+        "to": "artifacts/fox/x01/0.txt"
+      }
+    ]
+  }
+}

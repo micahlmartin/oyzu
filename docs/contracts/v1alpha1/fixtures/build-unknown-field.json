@@ -1,0 +1,19 @@
+{
+  "api": {
+    "uses": "go/app",
+    "pipeline": [
+      "test",
+      "publish"
+    ]
+  },
+  "image": {
+    "uses": "docker/image",
+    "platform": "linux/amd64",
+    "materialize": [
+      {
+        "from": "api",
+        "to": "bin/server"
+      }
+    ]
+  }
+}

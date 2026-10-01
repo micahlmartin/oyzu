@@ -1,0 +1,19 @@
+# Proposed typed chart binding. Templates must consume image.digest.
+app:
+  uses: go/app
+  path: app
+image:
+  uses: docker/image
+  platform: linux/amd64
+  materialize:
+    - from: app
+      to: bin/server
+chart:
+  uses: helm/chart
+  path: chart
+  bindings:
+    - from: image
+      artifact: image
+      type: image-reference
+      repository: /image/repository
+      digest: /image/digest

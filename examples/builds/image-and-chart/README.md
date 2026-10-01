@@ -22,3 +22,7 @@ Intended command: `oyzu build`. Supporting native checks are `go test ./...` fro
 Failure cases include digest mismatch, wrong platform/ABI, path escapes, collisions, and unavailable required target tests. See [scenario.json](scenario.json) and the [shared contract](../../MATERIALIZATION.md).
 
 Acceptance: BUILDER-05, BUNDLE-01, PLAN-07, PLAN-08, BUILDER-07. Implementation remains pending.
+
+## Detailed specification candidate
+
+[Digest-binding candidate](variants/digest-binding.build.yaml) makes OEP-0018's proposed typed binding concrete. It requires compatible chart values/templates and a planned image repository; it is not a claim that the baseline chart already consumes a digest.

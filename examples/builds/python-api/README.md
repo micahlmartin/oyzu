@@ -42,3 +42,7 @@ Acceptance criteria: PLAN-01, BUILDER-04, BUILDER-05. See the [design catalog](.
 
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+
+## Detailed specification candidate
+
+[Container candidate](variants/container.build.yaml) demonstrates the optional v1alpha1 packaging hint specified by OEP-0018. It is separate from the minimal baseline, and entrypoint inference still requires sufficient native evidence.

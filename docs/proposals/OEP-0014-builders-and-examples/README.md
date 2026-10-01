@@ -14,6 +14,8 @@ tracking-issue: null
 
 > Design draft for review. MUST and SHOULD express proposed normative requirements, not shipped behavior. Example syntax and protocol fields are provisional unless identified as an agreed product constraint.
 
+Implementation detail: [builder profiles and adapter contracts](implementation.md), [dependency acquisition](../OEP-0017-dependency-acquisition/README.md), and [container/Helm packaging](../OEP-0018-container-and-helm-packaging/README.md). These specify initial draft implementation choices without marking support implemented.
+
 ## Problem and outcome
 
 Builders encode expert defaults, while runnable examples define their intended behavior. The project must demonstrate progressively harder real repositories rather than create configuration knobs speculatively.

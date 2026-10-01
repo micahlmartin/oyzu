@@ -30,3 +30,7 @@ All scenarios additionally cover denied managed routes, incomplete captures, cre
 Private package names and `example.invalid` URLs are synthetic fixture inputs, not live services. The future harness must serve minimal packages matching these manifests and generate native locks and real digests; no fake checksums, successful build records, credentials or registry infrastructure are included. Missing locks are preparation work or a policy error, never permission for unrecorded online execution. `nativeChecks` is empty because these private-dependency projects cannot currently resolve against a fixture registry.
 
 Acceptance: EXEC-07, BUILDER-08, BUILDER-05, CONN-03. These files demonstrate the intended design, not verified package-manager support. Host and target support require separate execution evidence.
+
+## Detailed specification candidate
+
+[Dependency-selector candidate](variants/dependencies.build.yaml) specifies the minimal override for ambiguous manager inference in OEP-0018. With one inferable manager and the named context reference it can be omitted. No authentication fields are added.

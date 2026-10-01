@@ -1,0 +1,85 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "build-manifest",
+  "runId": "synthetic-run",
+  "planDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+  "planPath": "plan.json",
+  "status": "succeeded",
+  "source": {
+    "treeDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "commit": null,
+    "dirty": true
+  },
+  "targets": [
+    {
+      "id": "api",
+      "builder": "go/app",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {},
+      "platform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "api.compile",
+      "target": "api",
+      "status": "succeeded",
+      "actionKey": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+      "exitCode": 0,
+      "producerEvidence": [
+        "producer.local"
+      ],
+      "enforced": [
+        "network-denied",
+        "readonly-inputs"
+      ],
+      "required": true
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "api/binary",
+      "target": "api",
+      "variant": {},
+      "name": "binary",
+      "producer": "api.compile",
+      "kind": "file",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/octet-stream",
+      "path": "artifacts/api/default/binary/server",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "size": 123
+    },
+    {
+      "id": "api/binary",
+      "target": "api",
+      "variant": {},
+      "name": "binary",
+      "producer": "api.compile",
+      "kind": "file",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/octet-stream",
+      "path": "artifacts/api/default/binary/server",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "size": 123
+    }
+  ],
+  "reports": [],
+  "evidence": [
+    {
+      "id": "producer.local",
+      "kind": "execution-observation",
+      "subjectDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "producer": "local-run",
+      "verification": "local"
+    }
+  ],
+  "diagnostics": [],
+  "envelopePath": "envelope.json",
+  "envelopeDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

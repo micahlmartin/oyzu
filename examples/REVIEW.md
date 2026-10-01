@@ -23,6 +23,10 @@ Cross-artifact file/directory examples now use `materialize` entries with `from`
 
 Generated-source and affected-build examples provide native scripts/imports and expected dependency edges. They intentionally avoid requiring users to duplicate the native graph.
 
+## Implementation-specification candidates
+
+The [build implementation map](../docs/build-implementation.md) links the detailed OEPs. Proposed `container`, custom Dockerfile `dependencies`, finite task `reports`, and Helm image bindings now have candidate files alongside existing fixtures. They are not required boilerplate or stable syntax; review whether each resolves a fact that discovery cannot supply. The original agreed materialize behavior is preserved.
+
 ## Capturing changes
 
 Change the example and its expectation together. Reference the relevant OEP when the behavior affects a contract. Do not turn an example-only preference into a mandatory field across every builder. Accepted examples will later become executable acceptance tests; their current value is making the proposed experience concrete.

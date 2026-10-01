@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "action-result",
+  "actionKey": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+  "recipeDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "inputDigests": [
+    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  ],
+  "outputs": [
+    {
+      "name": "binary",
+      "treeDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "archiveDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "size": 123
+    }
+  ],
+  "reports": [],
+  "executionPlatform": {
+    "os": "linux",
+    "arch": "amd64",
+    "abi": "static"
+  },
+  "targetPlatform": {
+    "os": "linux",
+    "arch": "amd64",
+    "abi": "static"
+  },
+  "enforced": [
+    "network-denied",
+    "readonly-inputs"
+  ],
+  "producerEvidence": [
+    {
+      "id": "producer.local",
+      "kind": "execution-observation",
+      "subjectDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "producer": "local-run",
+      "verification": "local"
+    }
+  ]
+}

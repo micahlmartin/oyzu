@@ -13,6 +13,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Design discovery, execution, caching, and artifacts | OEP-0006, OEP-0007, OEP-0011 through OEP-0014 |
 | Design managed clients, credentials, and distribution | OEP-0009, OEP-0010, OEP-0015, OEP-0016 |
 | Turn designs into bounded implementation work | [Delivery plan](delivery.md), [examples](examples.md), [proposal process](proposals/OEP-0001-proposal-process/README.md) |
+| Implement the build engine from detailed contracts | [Build implementation map and work packages](build-implementation.md), [record schemas](contracts/README.md) |
 | Check decisions requiring review | [Decision register](decisions.md) |
 | Find implemented behavior | [Reference status](reference/README.md); none yet |
 
@@ -26,4 +27,4 @@ The public repository holds all public client behavior and protocol contracts. P
 
 ## Validation
 
-Run `node tooling/check-docs.mjs` from the repository root to check local Markdown links, document identifiers, metadata, and proposal dependencies. This validates documentation structure, not product implementation.
+Run `node tooling/check-docs.mjs` from the repository root to check local Markdown links, document identifiers, metadata, and proposal dependencies. This validates documentation structure, not product implementation. Also run `python tooling/check-build-contracts.py` with tooling/design-requirements.txt for the draft build-record schema fixtures; this checks structure and selected invariants, not build execution or trusted evidence.

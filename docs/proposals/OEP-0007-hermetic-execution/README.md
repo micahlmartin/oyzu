@@ -14,6 +14,8 @@ tracking-issue: null
 
 > Design draft for review. MUST and SHOULD express proposed normative requirements, not shipped behavior. Example syntax and protocol fields are provisional unless identified as an agreed product constraint.
 
+Implementation detail: [v1alpha1 implementation contract](implementation.md). This companion resolves the initial engineering defaults below; it remains draft, and does not imply maintainer acceptance or verified platform support. Where an older paragraph leaves an implementation choice open, the companion is the proposed initial resolution.
+
 ## Problem and outcome
 
 A reproducible plan is insufficient if commands can download undeclared dependencies or read a developer's home directory. Execution must be constrained to captured source, acquired inputs, declared environment, and controlled outputs.

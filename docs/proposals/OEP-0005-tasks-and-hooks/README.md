@@ -15,6 +15,8 @@ tracking-issue: null
 > Design draft for review. MUST and SHOULD express proposed normative requirements, not shipped behavior. Example syntax and protocol fields are provisional unless identified as an agreed product constraint.
 
 
+Implementation detail: [v1alpha1 implementation contract](implementation.md). This companion resolves the initial engineering defaults below; it remains draft, and does not imply maintainer acceptance or verified platform support. Where an older paragraph leaves an implementation choice open, the companion is the proposed initial resolution.
+
 ## Problem and agreed behavior
 
 Tasks are the unified developer interface across all builders. They are inferred by builders, discovered from native ecosystems, or declared in TOML. Targets form groups: `oyzu run api:test`. `oyzu run list` lists tasks grouped by target with their origins.

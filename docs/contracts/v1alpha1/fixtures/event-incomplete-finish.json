@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "build-event",
+  "runId": "synthetic-run",
+  "sequence": 0,
+  "timestamp": "2026-10-01T12:00:00Z",
+  "payload": {
+    "type": "run-finished",
+    "status": "succeeded"
+  }
+}

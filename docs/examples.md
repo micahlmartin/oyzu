@@ -87,4 +87,6 @@ Organizational policy tests use the public mock contract. Private server integra
 
 Acceptance prefixes resolve through the [proposal index](proposals/README.md): DOC→0001, CFG→0002, MISE→0003, TOOL→0004, TASK→0005, PLAN→0006, EXEC→0007, ENV→0008, AGENT→0009, CONN→0010, CACHE→0011, BUNDLE→0012, REL→0013, BUILDER→0014, DIST→0015, PROTO→0016.
 
+Detailed draft implementation contracts are mapped in [the build implementation plan](build-implementation.md). New acceptance families DEP (OEP-0017), PACK (OEP-0018) and RECORD (OEP-0019) extend the original builder/executor criteria; the dependency scenario records link the applicable requirements.
+
 The [delivery plan](delivery.md) sequences examples into small complete slices. A proposed example is a requirement candidate for review, not an implementation issue already created.

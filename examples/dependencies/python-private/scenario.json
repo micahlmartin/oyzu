@@ -18,7 +18,14 @@
     "EXEC-02",
     "EXEC-07",
     "BUILDER-08",
-    "CONN-03"
+    "CONN-03",
+    "DEP-01",
+    "DEP-02",
+    "DEP-03",
+    "DEP-04",
+    "DEP-05",
+    "DEP-06",
+    "DEP-07"
   ],
   "expected": [
     "oyzu build discovers the native manager without per-project authentication fields.",

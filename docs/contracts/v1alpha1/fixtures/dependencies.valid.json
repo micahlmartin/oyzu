@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "dependency-snapshot",
+  "adapter": {
+    "id": "go/modules",
+    "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "layoutVersion": "1"
+  },
+  "manager": {
+    "id": "go",
+    "version": "1.24.0",
+    "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "platform": {
+      "os": "linux",
+      "arch": "amd64",
+      "abi": "static"
+    }
+  },
+  "sourceDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "lockDigests": [],
+  "targetPlatform": {
+    "os": "linux",
+    "arch": "amd64",
+    "abi": "static"
+  },
+  "packages": [],
+  "preparedTree": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+}

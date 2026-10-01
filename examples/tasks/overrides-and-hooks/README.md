@@ -48,3 +48,7 @@ Acceptance criteria: TASK-02, TASK-03, TASK-04. See the [design catalog](../../.
 
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+
+## Detailed specification candidate
+
+[Custom report candidate](variants/reports.oyzu.toml) illustrates the finite report-path escape hatch in OEP-0005/0014. The custom runner is a future fixture; no new parser code or pipeline language is implied.

@@ -1,0 +1,165 @@
+[
+  {
+    "file": "build.valid.json",
+    "schema": "build",
+    "valid": true
+  },
+  {
+    "file": "plan.valid.json",
+    "schema": "plan",
+    "valid": true
+  },
+  {
+    "file": "dependencies.valid.json",
+    "schema": "dependencies",
+    "valid": true
+  },
+  {
+    "file": "manifest.valid.json",
+    "schema": "manifest",
+    "valid": true
+  },
+  {
+    "file": "cache.valid.json",
+    "schema": "cache",
+    "valid": true
+  },
+  {
+    "file": "receipt.valid.json",
+    "schema": "receipt",
+    "valid": true
+  },
+  {
+    "file": "plan-unknown-version.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "plan-secret-field.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "plan-missing-edge.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "references"
+  },
+  {
+    "file": "plan-cycle.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "cycle"
+  },
+  {
+    "file": "manifest-traversal.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "manifest-false-success.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "status"
+  },
+  {
+    "file": "manifest-duplicate-artifact.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "duplicates"
+  },
+  {
+    "file": "manifest-unknown-producer.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "references"
+  },
+  {
+    "file": "receipt-partial-complete.json",
+    "schema": "receipt",
+    "valid": false,
+    "reason": "status"
+  },
+  {
+    "file": "build-platform-conflict.json",
+    "schema": "build",
+    "valid": false,
+    "reason": "platform"
+  },
+  {
+    "file": "build-escape.json",
+    "schema": "build",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "build-unknown-field.json",
+    "schema": "build",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "envelope.valid.json",
+    "schema": "envelope",
+    "valid": true
+  },
+  {
+    "file": "event.valid.json",
+    "schema": "event",
+    "valid": true
+  },
+  {
+    "file": "envelope-secret-field.json",
+    "schema": "envelope",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "event-incomplete-finish.json",
+    "schema": "event",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "manifest-optional-failure.valid.json",
+    "schema": "manifest",
+    "valid": true
+  },
+  {
+    "file": "build-valid-paths.json",
+    "schema": "build",
+    "valid": true
+  },
+  {
+    "file": "build-nested-escape.json",
+    "schema": "build",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "build-backslash.json",
+    "schema": "build",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "build-absolute.json",
+    "schema": "build",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "manifest-preflight-failure.valid.json",
+    "schema": "manifest",
+    "valid": true
+  },
+  {
+    "file": "manifest-no-plan-success.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "status"
+  }
+]

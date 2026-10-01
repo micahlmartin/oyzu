@@ -57,4 +57,22 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | OPEN-015 | Full hosted CI/CD and first-party registry | Future scope; event scheduler, runners, deploys and registry need separate proposals |
 | OPEN-016 | Portable user commands | Define argv/shell portability and native hook ownership without a new language |
 
+## Initial implementation resolutions for review
+
+The [build implementation map](build-implementation.md) proposes concrete v1alpha1 resolutions without marking OEPs accepted. These replace open-ended implementation discretion while preserving the agreed constraints above.
+
+| Open item | Proposed initial resolution |
+| --- | --- |
+| OPEN-003 | Root target-map YAML, scoped TOML origins, whole-task replacement, bounded strict parsing and no expressions; OEP-0002 implementation |
+| OPEN-004 / OPEN-016 | Success-only nonrecursive hooks; argv for portable commands; explicit sh/PowerShell string semantics; extra CLI arguments require argv/native adapter |
+| OPEN-005 | Linux capability-qualified executor first, Windows/macOS host transport qualification; native targets require separate gates, never host fallback |
+| OPEN-006 / OPEN-012 | Job-scoped broker sessions and explicitly granted offline reuse; IPC/runtime implementation and cached grant verification are release gates |
+| OPEN-008 | Draft v1alpha1 build schemas and positive/negative fixtures; no stability or signature-validity claim |
+| OPEN-009 | Verified OCI candidate manifests and optional mutable lookup hints; bounded listing for observed conflicts, no global atomicity assumption |
+| OPEN-010 | Native-source-v1 development versions and immutable publication receipts; real provider/signing interoperability remains gated |
+| OPEN-014 | Finite native runtime axes and typed Helm image-reference bindings, specified in draft schema and candidate examples |
+| OPEN-017 | linux/amd64 proposed standalone image default; explicit/managed target choice remains supported |
+
+Private dependency builds must keep upstream credentials out of project/dependency execution and exported outputs across all supported managers (OEP-0017). New Dockerfile context bindings and convenience fields remain draft UX choices. Public license, mise import boundaries and backend qualification are not silently decided by this specification pass.
+
 The [proposal index](proposals/README.md) resolves OEP IDs. Detailed open decisions inside each OEP remain part of its review; this register highlights choices spanning components.

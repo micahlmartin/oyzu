@@ -14,6 +14,8 @@ tracking-issue: null
 
 > Design draft for review. MUST and SHOULD express proposed normative requirements, not shipped behavior. Example syntax and protocol fields are provisional unless identified as an agreed product constraint.
 
+Implementation detail: [v1alpha1 implementation contract](implementation.md). This companion resolves the initial engineering defaults below; it remains draft, and does not imply maintainer acceptance or verified platform support. Where an older paragraph leaves an implementation choice open, the companion is the proposed initial resolution.
+
 ## Problem and outcome
 
 A public CLI must remain usable independently while supporting a stable enterprise control-plane contract. Login, management state, entitlement, policy, and upstream authorization are different concepts and must not be conflated.
