@@ -103,7 +103,7 @@ pub fn execute(request: Request<'_>) -> Result<Execution> {
         "--memory=2g",
         "--cpus=2",
         "--tmpfs",
-        "/tmp:rw,nosuid,size=536870912",
+        "/tmp:rw,exec,nosuid,nodev,size=536870912",
     ]);
     let workspace = request.workspace.canonicalize()?;
     let output = request.output.canonicalize()?;

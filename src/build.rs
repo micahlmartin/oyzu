@@ -395,6 +395,20 @@ fn safe_report_parent(root: &Path, relative: &str) -> Result<()> {
     Ok(())
 }
 
+fn capture_output(out: &Path, bundle: &Path, relative: &str) -> Result<PathBuf> {
+    let source = safe_file(out, relative)?;
+    let destination = bundle.join(relative);
+    fs::create_dir_all(destination.parent().context("missing output parent")?)?;
+    let mut input = fs::File::open(source)?;
+    let mut output = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&destination)?;
+    std::io::copy(&mut input, &mut output)?;
+    output.sync_all()?;
+    Ok(destination)
+}
+
 #[derive(Default)]
 struct ExecutionRecords {
     actions: Vec<Value>,
@@ -500,7 +514,8 @@ fn execute_plan(
                     report["status"] = json!("collected");
                     report["summary"] = summary;
                     report["path"] = json!(path);
-                    report["digest"] = json!(snapshot::file_digest(&out.join(path))?);
+                    let captured = capture_output(out, bundle, path)?;
+                    report["digest"] = json!(snapshot::file_digest(&captured)?);
                     report["subjectDigest"] = plan["source"]["treeDigest"].clone();
                 }
                 Err(error) => {
@@ -520,7 +535,7 @@ fn execute_plan(
             {
                 let capture = (|| -> Result<Value> {
                     let path = intent["path"].as_str().context("missing artifact path")?;
-                    let file = safe_file(out, path)?;
+                    let file = capture_output(out, bundle, path)?;
                     let mut artifact = intent.clone();
                     artifact["digest"] = json!(snapshot::file_digest(&file)?);
                     artifact["size"] = json!(fs::metadata(file)?.len());
@@ -640,20 +655,6 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
     if let Err(error) = result {
         manifest["status"] = json!("failed");
         manifest["diagnostics"].as_array_mut().unwrap().push(json!({"code":"build-failed","phase":"build","severity":"error","message":format!("{error:#}")}));
-    }
-    // Copy only validated declared files. Unlisted output cannot enter the bundle.
-    for item in manifest["artifacts"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .chain(manifest["reports"].as_array().unwrap().iter())
-    {
-        if let Some(path) = item["path"].as_str() {
-            let source = safe_file(&out, path)?;
-            let destination = bundle.join(path);
-            fs::create_dir_all(destination.parent().unwrap())?;
-            fs::copy(source, destination)?;
-        }
     }
     records::write(&bundle.join("envelope.json"), &envelope)?;
     manifest["envelopeDigest"] = json!(snapshot::file_digest(&bundle.join("envelope.json"))?);
