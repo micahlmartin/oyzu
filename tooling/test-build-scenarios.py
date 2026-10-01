@@ -11,6 +11,8 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import zipfile
+import email
 
 from jsonschema import Draft202012Validator, FormatChecker
 
@@ -156,7 +158,55 @@ await new Promise((resolve,reject)=>{const s=net.connect({host:'1.1.1.1',port:44
         validate(isolated / "dist")
         verified.append("real container denies network, root writes, Docker socket and host environment inheritance")
 
-    print(json.dumps({"verified":verified,"scope":"initial Node/npm and Go builds; full builder catalog remains pending"},indent=2))
+        python_project = base / "python-api"
+        shutil.copytree(ROOT / "examples/builds/python-api/project",python_project)
+        metadata_path=python_project / "pyproject.toml"
+        metadata_path.write_text(metadata_path.read_text().replace('dependencies = []','dependencies = ["packaging==24.2"]'))
+        (python_project / "tests/test_dependencies.py").write_text('''import os
+import socket
+import packaging
+def test_acquired_dependency_and_offline_boundary():
+    assert packaging.__version__ == "24.2"
+    assert not os.path.exists("/broker")
+    assert "OYZU_HOST_SECRET" not in os.environ
+    try:
+        connection=socket.create_connection(("1.1.1.1",443),timeout=1)
+    except OSError:
+        return
+    connection.close()
+    raise AssertionError("build network escaped")
+''')
+        python_before=source_files(python_project)
+        invoke(python_project,"build")
+        python_manifest=validate(python_project / "dist")
+        assert source_files(python_project)==python_before
+        invoke(python_project,"inspect","dist")
+        assert {a["name"] for a in python_manifest["artifacts"]}=={"wheel","sdist"}
+        for artifact in python_manifest["artifacts"]:
+            assert ".dev0+g" in artifact["version"]
+            path=python_project / "dist" / artifact["path"]
+            if artifact["name"]=="wheel":
+                with zipfile.ZipFile(path) as archive:
+                    member=next(n for n in archive.namelist() if n.endswith('.dist-info/METADATA'))
+                    assert email.message_from_bytes(archive.read(member))["Version"]==artifact["version"]
+                    assert 'api/__init__.py' in archive.namelist()
+            else:
+                with tarfile.open(path) as archive:
+                    assert all(m.mtime==0 for m in archive.getmembers())
+        assert next(r for r in python_manifest["reports"] if r["kind"]=="test")["summary"]["passed"]>=3
+        assert next(r for r in python_manifest["reports"] if r["kind"]=="coverage")["summary"]["total"]>0
+        dependency_path=python_project / "dist/dependencies/api.json"
+        dependency=json.loads(dependency_path.read_text())
+        schema=json.loads((ROOT / "docs/contracts/v1alpha1/dependencies.schema.json").read_text())
+        Draft202012Validator(schema).validate(dependency)
+        assert any(p['name']=='packaging' and p['version']=='24.2' for p in dependency['packages'])
+        assert any(p['name']=='setuptools' for p in dependency['packages'])
+        assert all(p['digest'].startswith('sha256:') for p in dependency['packages'])
+        rebuilt=invoke(python_project,"build")
+        assert {a['name']:a['digest'] for a in rebuilt['artifacts']}=={a['name']:a['digest'] for a in python_manifest['artifacts']}
+        verified.append("Python: broker acquisition, captured dependency closure, offline wheel/sdist builds, snapshot metadata, native tests/coverage and repeatable artifacts")
+
+    print(json.dumps({"verified":verified,"scope":"initial Node/npm, Go and Python/pip builds; full builder catalog remains pending"},indent=2))
 
 
 if __name__ == "__main__":

@@ -78,6 +78,7 @@ jobs:
         run: |
           docker pull node:22-bookworm-slim
           docker pull golang:1.24-bookworm
+          docker pull python:3.12-slim-bookworm
           python3 -m pip install -r tooling/design-requirements.txt
       - name: Build and verify native snapshot artifacts through the compiled CLI
         run: |

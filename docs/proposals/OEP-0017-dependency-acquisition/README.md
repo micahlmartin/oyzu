@@ -2,7 +2,7 @@
 id: OEP-0017
 title: Package-manager acquisition and credential isolation
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []

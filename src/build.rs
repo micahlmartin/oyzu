@@ -1,5 +1,7 @@
 //! Captured-source builds and local evidence bundles (OEP-0006/0007/0012).
-use crate::{config, discovery, executor, model::Workspace, records, reports, snapshot, tasks};
+use crate::{
+    acquisition, config, discovery, executor, model::Workspace, records, reports, snapshot, tasks,
+};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
@@ -83,6 +85,15 @@ pub fn plan(
     source: &snapshot::Snapshot,
     images: &BTreeMap<String, executor::Image>,
 ) -> Result<Value> {
+    plan_with_dependencies(workspace, source, images, &BTreeMap::new())
+}
+
+fn plan_with_dependencies(
+    workspace: &Workspace,
+    source: &snapshot::Snapshot,
+    images: &BTreeMap<String, executor::Image>,
+    dependencies: &BTreeMap<String, acquisition::Prepared>,
+) -> Result<Value> {
     let mut planned = Vec::new();
     let mut target_records = Vec::new();
     let mut artifacts = Vec::new();
@@ -91,7 +102,7 @@ pub fn plan(
     let mut emitted = BTreeSet::new();
     for id in target_order(workspace)? {
         let target = &workspace.targets[&id];
-        if !matches!(target.manager.as_str(), "npm" | "go") {
+        if !matches!(target.manager.as_str(), "npm" | "go" | "pip") {
             bail!(
                 "{id}: {} build integration is not yet implemented",
                 target.manager
@@ -101,11 +112,19 @@ pub fn plan(
             .get(&id)
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
         let cwd = relative(&workspace.root, &target.path)?;
-        let version = format!(
-            "{}-dev.g{}",
-            target.version.split(['-', '+']).next().unwrap_or("0.0.0"),
-            &source.digest[7..19]
-        );
+        let version = if target.manager == "pip" {
+            format!(
+                "{}.dev0+g{}",
+                target.version.split('+').next().unwrap_or("0.0.0"),
+                &source.digest[7..19]
+            )
+        } else {
+            format!(
+                "{}-dev.g{}",
+                target.version.split(['-', '+']).next().unwrap_or("0.0.0"),
+                &source.digest[7..19]
+            )
+        };
         target_records.push(json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)}));
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));
         let mut env = BTreeMap::from([
@@ -119,7 +138,34 @@ pub fn plan(
         } else {
             None
         };
-        if let Some(p) = &package {
+        let python_project = if target.manager == "pip" {
+            Some(toml::from_str::<toml::Value>(&fs::read_to_string(
+                target.path.join("pyproject.toml"),
+            )?)?)
+        } else {
+            None
+        };
+        if python_project.is_some() {
+            if !dependencies.contains_key(&id) {
+                bail!("{id}: missing prepared Python dependency snapshot");
+            }
+            env.extend(BTreeMap::from([
+                ("PIP_NO_INDEX".into(), "1".into()),
+                ("PIP_CONFIG_FILE".into(), "/dev/null".into()),
+                ("PIP_DISABLE_PIP_VERSION_CHECK".into(), "1".into()),
+                ("SOURCE_DATE_EPOCH".into(), "0".into()),
+                ("OYZU_TARGET".into(), id.clone()),
+            ]));
+            planned.push(action(
+                &format!("{id}:prepare"),
+                &id,
+                "prepare",
+                strings(&["python", "-I", "/oyzu/python.py", "prepare"]),
+                &cwd,
+                &env,
+                (image, &source.digest),
+            ));
+        } else if let Some(p) = &package {
             if p.get("workspaces").is_some() {
                 bail!("{id}: npm workspace build integration is not implemented yet");
             }
@@ -206,6 +252,41 @@ pub fn plan(
                 if task.provider == "go" && stage == "build" && step == task_id {
                     argv = strings(&["go", "build", "-trimpath", "-o", ".oyzu-build/app", "."]);
                 }
+                if task.provider == "pip" && step == task_id {
+                    if stage == "build" {
+                        argv = strings(&["python", "-I", "/oyzu/python.py", "build"]);
+                    }
+                    if stage == "test" {
+                        argv = strings(&[
+                            ".oyzu-build/venv/bin/python",
+                            "-I",
+                            "-m",
+                            "pytest",
+                            "--import-mode=importlib",
+                            &format!("--junitxml=/out/{id}/reports/junit.xml"),
+                            "--cov",
+                            &format!("--cov-report=xml:/out/{id}/reports/coverage.xml"),
+                        ]);
+                        if let Some(packages) = python_project
+                            .as_ref()
+                            .and_then(|p| p.get("tool"))
+                            .and_then(|p| p.get("setuptools"))
+                            .and_then(|p| p.get("packages"))
+                            .and_then(|p| p.as_array())
+                        {
+                            argv.retain(|v| v != "--cov");
+                            for package in packages.iter().filter_map(|p| p.as_str()) {
+                                argv.push(format!("--cov={package}"));
+                            }
+                        }
+                    }
+                }
+                if python_project.is_some()
+                    && task.provider == "pip"
+                    && task.argv.first().is_some_and(|v| v == "ruff")
+                {
+                    argv[0] = ".oyzu-build/venv/bin/ruff".into();
+                }
                 if task.provider == "go" && stage == "test" && step == task_id {
                     argv = strings(&[
                         "go",
@@ -219,9 +300,20 @@ pub fn plan(
                     .as_ref()
                     .is_some_and(|p| p["scripts"]["test"].as_str() == Some("node --test"))
                     && task.provider == "npm";
-                if stage == "test" && step == task_id && (task.provider == "go" || node_test) {
-                    let coverage_format = if node_test { "lcov" } else { "go-cover" };
-                    let coverage_file = if node_test {
+                if stage == "test"
+                    && step == task_id
+                    && (task.provider == "go" || task.provider == "pip" || node_test)
+                {
+                    let coverage_format = if task.provider == "pip" {
+                        "cobertura"
+                    } else if node_test {
+                        "lcov"
+                    } else {
+                        "go-cover"
+                    };
+                    let coverage_file = if task.provider == "pip" {
+                        "coverage.xml"
+                    } else if node_test {
                         "coverage.lcov"
                     } else {
                         "coverage.out"
@@ -258,6 +350,47 @@ pub fn plan(
                 a["extensions"] = json!({"oyzu.dev/report-paths":paths,"oyzu.dev/stdout-must-be-empty":task.stdout_must_be_empty,"oyzu.dev/go-test-events": task.provider == "go" && stage == "test" && step == task_id});
                 planned.push(a);
             }
+        }
+        if let Some(python_project) = &python_project {
+            let name = python_project
+                .get("project")
+                .and_then(|v| v.get("name"))
+                .and_then(|v| v.as_str())
+                .context("Python project requires a static name")?;
+            if !name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+            {
+                bail!("invalid Python distribution name");
+            }
+            let name = name.replace(['-', '.'], "_").to_lowercase();
+            let producer = format!("{id}:package");
+            let mut pack = action(
+                &producer,
+                &id,
+                "package",
+                strings(&["python", "-I", "/oyzu/python.py", "package"]),
+                &cwd,
+                &env,
+                (image, &source.digest),
+            );
+            pack["outputs"] = json!([format!("{id}/wheel"), format!("{id}/sdist")]);
+            planned.push(pack);
+            for (kind, filename, media_type) in [
+                (
+                    "wheel",
+                    format!("{name}-{version}-py3-none-any.whl"),
+                    "application/zip",
+                ),
+                (
+                    "sdist",
+                    format!("{name}-{version}.tar.gz"),
+                    "application/gzip",
+                ),
+            ] {
+                artifacts.push(json!({"id":format!("{id}/{kind}"),"target":id,"variant":{},"name":kind,"producer":producer,"kind":"file","version":version,"mediaType":media_type,"path":format!("{id}/artifacts/{filename}")}));
+            }
+            continue;
         }
         let (argv, filename, media_type) = if let Some(p) = &package {
             let name = p["name"]
@@ -318,6 +451,11 @@ pub fn plan(
     // Initial scheduler is deliberately serial; every actual ordering edge is explicit.
     let mut previous: Option<String> = None;
     for a in &mut planned {
+        if let Some(dependency) = a["target"].as_str().and_then(|id| dependencies.get(id)) {
+            a["inputs"].as_array_mut().unwrap().push(
+                json!({"kind":"dependency","digest":dependency.digest,"mount":"dependencies"}),
+            );
+        }
         if let Some(p) = &previous {
             a["dependsOn"] = json!([p]);
         }
@@ -336,6 +474,7 @@ fn resolve_images(
     let mut refs = BTreeMap::from([
         ("npm".to_string(), NODE_IMAGE.to_string()),
         ("go".to_string(), GO_IMAGE.to_string()),
+        ("pip".to_string(), acquisition::PYTHON_IMAGE.to_string()),
     ]);
     for value in overrides {
         let (manager, reference) = value
@@ -432,8 +571,11 @@ fn execute_plan(
     out: &Path,
     bundle: &Path,
     images: &BTreeMap<String, executor::Image>,
+    dependencies: &BTreeMap<String, acquisition::Prepared>,
     run_id: &str,
 ) -> Result<ExecutionRecords> {
+    let helper = tempfile::tempdir()?;
+    fs::write(helper.path().join("python.py"), acquisition::PYTHON_HELPER)?;
     let mut outcomes = vec![];
     let mut collected = vec![];
     let mut artifacts = vec![];
@@ -465,18 +607,38 @@ fn execute_plan(
         let env: BTreeMap<String, String> = serde_json::from_value(a["env"].clone())?;
         let cwd = format!("/workspace/{}", a["cwd"].as_str().context("missing cwd")?);
         eprintln!("{id}");
-        let result = executor::execute(executor::Request {
-            image: &images[target],
-            workspace: work,
-            output: out,
-            cwd: &cwd,
-            argv: &argv,
-            env: &env,
-            stdout: &stdout,
-            stderr: &stderr,
-            timeout: Duration::from_secs(600),
-            name: &format!("oyzu-{run_id}-{index}"),
-        });
+        let mounts = dependencies
+            .get(target)
+            .map(|d| {
+                vec![
+                    executor::Mount {
+                        source: &d.root,
+                        destination: "/dependencies",
+                        readonly: true,
+                    },
+                    executor::Mount {
+                        source: helper.path(),
+                        destination: "/oyzu",
+                        readonly: true,
+                    },
+                ]
+            })
+            .unwrap_or_default();
+        let result = executor::execute_with_mounts(
+            executor::Request {
+                image: &images[target],
+                workspace: work,
+                output: out,
+                cwd: &cwd,
+                argv: &argv,
+                env: &env,
+                stdout: &stdout,
+                stderr: &stderr,
+                timeout: Duration::from_secs(600),
+                name: &format!("oyzu-{run_id}-{index}"),
+            },
+            &mounts,
+        );
         let mut code = match result {
             Ok(result) => {
                 outcome["durationMs"] = json!(result.duration_ms);
@@ -631,7 +793,21 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
         let source = snapshot::capture(&root, &source_path)?;
         let workspace = discovery::discover_with_shell(&source_path, Some("sh"))?;
         let resolved = resolve_images(&workspace, images)?;
-        let plan = plan(&workspace, &source, &resolved)?;
+        let mut dependencies = BTreeMap::new();
+        for (id, target) in &workspace.targets {
+            if target.manager == "pip" {
+                eprintln!("{id}: acquire Python dependency closure");
+                let prepared = acquisition::python(
+                    &target.path,
+                    &temp.path().join(format!("dependencies-{id}")),
+                    &resolved[id],
+                    &source.digest,
+                    &format!("oyzu-acquire-{run_id}-{id}"),
+                )?;
+                dependencies.insert(id.clone(), prepared);
+            }
+        }
+        let plan = plan_with_dependencies(&workspace, &source, &resolved, &dependencies)?;
         if plan_only {
             return Ok(plan);
         }
@@ -642,6 +818,14 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
         manifest["planPath"] = json!("plan.json");
         manifest["source"] = plan["source"].clone();
         manifest["targets"] = plan["targets"].clone();
+        if !dependencies.is_empty() {
+            fs::create_dir(bundle.join("dependencies"))?;
+        }
+        for (id, dependency) in &dependencies {
+            let path = format!("dependencies/{id}.json");
+            records::write(&bundle.join(&path), &dependency.record)?;
+            manifest["evidence"].as_array_mut().unwrap().push(json!({"id":format!("{id}/dependencies"),"kind":"dependency-snapshot","subjectDigest":dependency.digest,"producer":"oyzu-acquisition","verification":"local","path":path,"digest":snapshot::file_digest(&bundle.join(&path))?}));
+        }
         let work = temp.path().join("work");
         snapshot::capture(&source_path, &work)?;
         let ExecutionRecords {
@@ -649,7 +833,15 @@ pub fn run(root: &Path, images: &[String], plan_only: bool) -> Result<Value> {
             reports,
             artifacts,
             diagnostics,
-        } = execute_plan(&plan, &work, &out, bundle, &resolved, &run_id)?;
+        } = execute_plan(
+            &plan,
+            &work,
+            &out,
+            bundle,
+            &resolved,
+            &dependencies,
+            &run_id,
+        )?;
         let success = actions.iter().all(|a| a["status"] == "succeeded");
         manifest["actions"] = json!(actions);
         manifest["reports"] = json!(reports);
@@ -709,7 +901,10 @@ pub fn inspect(root: &Path) -> Result<Value> {
     } else if manifest["status"] == "succeeded" {
         bail!("successful bundle has no plan");
     }
-    for field in ["artifacts", "reports"] {
+    for field in ["artifacts", "reports", "evidence"] {
+        if field == "evidence" && manifest.get(field).is_none() {
+            continue;
+        }
         for item in manifest[field]
             .as_array()
             .context("missing bundle records")?

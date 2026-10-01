@@ -86,7 +86,18 @@ pub struct Request<'a> {
     pub name: &'a str,
 }
 
+/// Engine-owned mounts. Project configuration cannot grant arbitrary host mounts.
+pub struct Mount<'a> {
+    pub source: &'a Path,
+    pub destination: &'a str,
+    pub readonly: bool,
+}
+
 pub fn execute(request: Request<'_>) -> Result<Execution> {
+    execute_with_mounts(request, &[])
+}
+
+pub fn execute_with_mounts(request: Request<'_>, mounts: &[Mount<'_>]) -> Result<Execution> {
     let executable = request.argv.first().context("empty action command")?;
     let mut command = Command::new("docker");
     command.args([
@@ -128,6 +139,20 @@ pub fn execute(request: Request<'_>) -> Result<Execution> {
         "type=bind,source={},target=/out",
         docker_path(&output)
     ));
+    for mount in mounts {
+        let source = mount.source.canonicalize()?;
+        if source.to_string_lossy().contains(',')
+            || !["/broker", "/oyzu", "/dependencies"].contains(&mount.destination)
+        {
+            bail!("invalid engine-owned mount");
+        }
+        command.arg("--mount").arg(format!(
+            "type=bind,source={},target={}{}",
+            docker_path(&source),
+            mount.destination,
+            if mount.readonly { ",readonly" } else { "" }
+        ));
+    }
     command.args(["--workdir", request.cwd]);
     for (key, value) in request.env {
         command.arg("--env").arg(format!("{key}={value}"));

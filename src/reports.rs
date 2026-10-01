@@ -138,6 +138,24 @@ pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
     let text = read_report(path)?;
     let (mut total, mut covered) = (0u64, 0u64);
     match format {
+        "cobertura" => {
+            let doc = roxmltree::Document::parse(&text)?;
+            let root = doc.root_element();
+            if !root.has_tag_name("coverage") {
+                bail!("invalid coverage root");
+            }
+            total = root
+                .attribute("lines-valid")
+                .ok_or_else(|| anyhow::anyhow!("missing coverage denominator"))?
+                .parse()?;
+            covered = root
+                .attribute("lines-covered")
+                .ok_or_else(|| anyhow::anyhow!("missing covered lines"))?
+                .parse()?;
+            if covered > total {
+                bail!("covered lines exceed denominator");
+            }
+        }
         "lcov" => {
             for line in text.lines().filter_map(|line| line.strip_prefix("DA:")) {
                 let fields: Vec<_> = line.split(',').collect();
@@ -169,6 +187,6 @@ pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
         _ => bail!("unsupported coverage format {format}"),
     }
     Ok(
-        json!({"covered":covered,"total":total,"metric":if format=="lcov" {"lines"} else {"statements"}}),
+        json!({"covered":covered,"total":total,"metric":if format=="go-cover" {"statements"} else {"lines"}}),
     )
 }

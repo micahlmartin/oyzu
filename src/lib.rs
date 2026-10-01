@@ -1,3 +1,5 @@
+pub mod acquisition;
+pub mod broker;
 pub mod build;
 pub mod config;
 pub mod discovery;
