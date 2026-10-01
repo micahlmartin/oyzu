@@ -16,6 +16,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Implement the build engine from detailed contracts | [Build implementation map and work packages](build-implementation.md), [record schemas](contracts/README.md) |
 | Check decisions requiring review | [Decision register](decisions.md) |
 | Find implemented behavior | [Reference status](reference/README.md) and [implementation status](implementation-status.md) |
+| Extend an ecosystem adapter | [Builder code organization](builder-code-organization.md) |
 
 ## Document authority
 

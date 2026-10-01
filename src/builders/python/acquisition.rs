@@ -1,26 +1,16 @@
 //! Native Python wheel acquisition through the scoped broker (OEP-0017).
+use crate::dependencies::Prepared;
 use crate::{broker, executor, records, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
-use std::{
-    collections::BTreeMap,
-    fs,
-    path::{Path, PathBuf},
-    time::Duration,
-};
+use std::{collections::BTreeMap, fs, path::Path, time::Duration};
 
-pub const PYTHON_IMAGE: &str = "python:3.12-slim-bookworm";
-pub const UV_IMAGE: &str = "ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim";
-pub const POETRY_IMAGE: &str = "oyzu-toolchain/poetry:2.5.1-python3.12";
-pub const PYTHON_HELPER: &str = include_str!("helpers/python.py");
+pub(super) const PYTHON_IMAGE: &str = "python:3.12-slim-bookworm";
+pub(super) const UV_IMAGE: &str = "ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim";
+pub(super) const POETRY_IMAGE: &str = "oyzu-toolchain/poetry:2.5.1-python3.12";
+pub(super) const PYTHON_HELPER: &str = include_str!("runtime/adapter.py");
 
-pub struct Prepared {
-    pub root: PathBuf,
-    pub digest: String,
-    pub record: Value,
-}
-
-pub fn python(
+pub(super) fn prepare(
     root: &Path,
     destination: &Path,
     image: &executor::Image,
@@ -37,7 +27,15 @@ pub fn python(
     fs::create_dir(&spool)?;
     let private = control.path().join("private");
     fs::create_dir(&private)?;
-    let _session = broker::Session::start(&spool, &private, broker::python_sources()?)?;
+    let sources = vec![
+        broker::Source::new("pypi", "https://pypi.org/simple/", None)?,
+        broker::Source::new(
+            "pypi-files",
+            "https://files.pythonhosted.org/packages/",
+            None,
+        )?,
+    ];
+    let _session = broker::Session::start(&spool, &private, sources)?;
     let env = BTreeMap::from([
         ("OYZU_PYTHON_MANAGER".into(), manager.into()),
         ("UV_CACHE_DIR".into(), "/tmp/uv-cache".into()),

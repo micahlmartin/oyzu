@@ -97,6 +97,31 @@ fn semantic_digest_canonicalizes_unicode_property_order() {
 }
 
 #[test]
+fn explicit_task_overrides_are_not_replaced_by_native_builder_planning() {
+    let root = tempfile::tempdir().unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[tasks.\"project:test\"]\nargv=['node','custom-tests.mjs']\n",
+    )
+    .unwrap();
+    let plan = planned(root.path(), capture.path());
+    let task = plan["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "project:test")
+        .unwrap();
+    assert_eq!(task["argv"], json!(["node", "custom-tests.mjs"]));
+    assert!(task["reports"].as_array().unwrap().is_empty());
+}
+
+#[test]
 fn unsupported_builder_preserves_preflight_failure_bundle() {
     let root = tempfile::tempdir().unwrap();
     fs::write(

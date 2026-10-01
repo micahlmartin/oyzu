@@ -1,0 +1,64 @@
+# Builder code organization
+
+This describes the current Rust implementation structure. The behavioral design remains in [OEP-0014](proposals/OEP-0014-builders-and-examples/implementation.md), with acquisition in [OEP-0017](proposals/OEP-0017-dependency-acquisition/README.md). This refactor does not make unimplemented builder profiles complete; see [implementation status](implementation-status.md).
+
+## Ownership
+
+```text
+src/
+  builders/
+    mod.rs                    # Built-in registration and lookup
+    contract.rs               # Builder trait and typed planning contracts
+    task.rs                   # Shared implicit-task constructors
+    node/
+      mod.rs                  # Descriptor and interface implementation
+      discovery.rs            # Native metadata, managers and scripts
+      planning.rs             # npm commands and artifact/report intent
+    python/
+      mod.rs                  # Descriptor and interface implementation
+      discovery.rs            # pip / uv / Poetry inference
+      acquisition.rs          # Native locks and scoped wheel acquisition
+      planning.rs             # Python commands and artifact/report intent
+      runtime/adapter.py      # Embedded native Python adapter
+    go/                       # Discovery and Go planning
+    rust/                     # Cargo discovery; build implementation pending
+    java/{maven,gradle,ant}/   # Separate native-manager adapters
+    docker/                   # Container builder
+    helm/                     # Chart builder
+  build/
+    mod.rs                    # Capture, preparation, execution and finalization lifecycle
+    planning.rs               # Common hook expansion and execution-plan serialization
+    execution.rs              # Scheduling, executor invocation and outcome collection
+    bundle.rs                 # Output containment, capture and integrity inspection
+  discovery.rs                # Workspace ownership, ambiguity and task overrides
+  dependencies.rs             # Shared prepared dependency snapshot
+  broker.rs                   # Source-scoped transport and credential boundary
+  executor.rs                 # Enforced execution boundary
+  reports.rs                  # Native report conversion and validation
+```
+
+Modules are private unless a public CLI/library entry point needs them. The `Builder` trait and planning types are crate-private; they are not an external plugin ABI. A single crate is sufficient at this stage. A future crate split should follow an actual reuse or isolation boundary, rather than requiring separate crates for small adapters.
+
+## Builder contract
+
+| Method | Responsibility |
+| --- | --- |
+| `descriptor` | Declare the builder IDs the adapter owns |
+| `detect` | Identify conventional native manifests without executing code |
+| `discover` | Read native metadata and declare implicit development tasks |
+| `toolchain` | Select the provisioned toolchain for the detected manager, or report unsupported integration |
+| `prepare` | Capture native dependencies through the scoped broker and executor; return an immutable-input record |
+| `plan` | Return typed command, task, artifact and report intent using captured source and prepared inputs |
+| `runtime_files` | Declare compiled-in adapter assets needed by isolated native processes |
+
+`BuilderPlan`, `CommandSpec`, `TaskPlan`, `ArtifactSpec` and `ReportSpec` are Rust structures. A builder does not assemble arbitrary build-plan JSON. The common planner expands hooks, preserves TOML replacements, assigns action identities, binds source/dependency/toolchain identities and serializes the versioned plan. Report formats and input conversions are explicit types.
+
+The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
+
+Native runtime code belongs to its ecosystem. The embedded Python adapter exists to invoke native package tooling and inspect native metadata inside the isolated toolchain environment. It does not own scheduling, policy decisions or bundle finalization. Further Python growth should split manager and operation modules inside `builders/python`, not add unrelated ecosystems to a global helpers directory.
+
+## Adding a builder
+
+Implement the trait in the ecosystem module and register it once in `builders/mod.rs`. Put native inference and version projection in that adapter, reuse task constructors and shared report formats, and declare exact output identities before execution. Add native scenario verification for its artifacts and failure behavior. Do not add a new manager switch to the shared engine, let native acquisition contact arbitrary sources, or manufacture successful results for missing integrations.
+
+Tests cover unique registrations, native ownership ambiguity, required prepared inputs, typed Python output/report intent and preservation of explicit task overrides. Existing discovery, hook, bundle and native CI scenario tests remain the behavior checks across this structural change. Cross-platform runtime support must still be demonstrated independently.

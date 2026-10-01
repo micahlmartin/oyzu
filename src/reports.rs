@@ -7,6 +7,22 @@ use std::{
     path::Path,
 };
 
+/// How a native adapter supplies a report to the common collector.
+#[derive(Clone, Copy, Default, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) enum ReportSource {
+    #[default]
+    File,
+    GoTestEvents,
+}
+
+pub(crate) fn materialize(source: ReportSource, stdout: &Path, destination: &Path) -> Result<()> {
+    match source {
+        ReportSource::File => Ok(()),
+        ReportSource::GoTestEvents => go_to_junit(stdout, destination).map(|_| ()),
+    }
+}
+
 fn read_report(path: &Path) -> Result<String> {
     const LIMIT: u64 = 16 * 1024 * 1024;
     let mut text = String::new();

@@ -7,7 +7,7 @@ import warnings
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('oyzu_python', ROOT / 'src/helpers/python.py')
+spec = importlib.util.spec_from_file_location('oyzu_python', ROOT / 'src/builders/python/runtime/adapter.py')
 adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)
 

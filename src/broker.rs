@@ -58,17 +58,6 @@ impl Source {
     }
 }
 
-pub fn python_sources() -> Result<Vec<Source>> {
-    Ok(vec![
-        Source::new("pypi", "https://pypi.org/simple/", None)?,
-        Source::new(
-            "pypi-files",
-            "https://files.pythonhosted.org/packages/",
-            None,
-        )?,
-    ])
-}
-
 pub struct Response {
     pub status: u16,
     pub content_type: String,
