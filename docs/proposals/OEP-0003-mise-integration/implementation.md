@@ -29,8 +29,11 @@ the nearest physical locked scope and rejects stale requests or an unavailable
 target without parent fallback. Effective configuration projection now computes
 canonical request identities using a caller-trusted alias map, native constraints
 and capabilities, and checks both digest and request map during frozen selection.
-Catalog loading, native constraint discovery, version resolution and transactional
-lock editing remain unimplemented. No worker or
+An explicit lock-edit transaction now validates complete candidate graphs,
+preserves unchanged records/comments, exposes a semantic diff and atomically
+publishes after cooperative locking and captured-byte checks. Catalog loading,
+native constraint discovery, version resolution, migration and end-to-end update
+orchestration remain unimplemented. No worker or
 execution path is enabled by this boundary alone.
 
 The candidate fork additionally exposes `Session::tool_aliases`, projecting its

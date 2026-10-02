@@ -2,10 +2,12 @@
 //! cache/publication mutations require caller admission and confer no execution
 //! authority. Backend admission and current policy remain separate gates.
 mod backend;
+mod edit;
 mod lock;
 mod requests;
 mod selection;
 pub use backend::{inspect as inspect_backend, BackendInspection};
+pub use edit::{ToolLockChange, ToolLockChangeKind, ToolLockEdit, ToolLockProposal};
 pub use requests::{project_tool_requests, ToolRequestIdentity};
 pub use selection::{select_for_tool_requests, select_locked_environment};
 mod store;

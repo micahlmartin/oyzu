@@ -455,6 +455,67 @@ containment. This lower-level entrypoint checks the supplied digest only; use
 `select_for_tool_requests` to also bind the projected canonical request map.
 Worker integration remains pending.
 
+## Explicit lock-edit transaction
+
+The experimental Rust API `tools::ToolLockEdit` supports the publication part of
+an explicit format-2 update. It does not resolve versions, authorize sources,
+install tools or enable an `oyzu lock` CLI command. The caller supplies a complete
+resolved candidate after applying its update scope and policy; records absent
+from that candidate are deliberate removals. Existing frozen selectors never
+call this API. No platform account or network is used.
+
+```rust,ignore
+let edit = oyzu::tools::ToolLockEdit::capture(lock_path)?;
+let proposal = edit.propose(&resolved_format_2_bytes)?;
+// Review proposal.changes() and proposal.preview(). For combined install,
+// complete verification and installation before committing this proposal.
+proposal.commit()?;
+```
+
+Capture accepts an existing parent directory and an absent or valid format-2
+regular file. Existing source and candidate are independently bounded to 8 MiB
+and validated by the same whole-graph parser used by inspection. Format 1 is
+rejected; this API does not implement migration. File symlinks/reparse points and
+nonregular inputs are rejected. Parent paths are canonicalized at capture; this
+is a workspace edit boundary, not the store's hostile-filesystem containment API.
+
+`changes()` returns ordered environment `(scope, profile)` or tool-key records
+tagged `added`, `changed` or `removed`. Formatting/order-only differences are
+excluded. `preview()` returns the exact proposed output bytes. Unchanged records
+retain their TOML spelling and comments, including inline-array records. Changed
+records use candidate formatting; editing may normalize line endings. A semantic
+no-op retains the complete original bytes. The editor validates the final output
+and compares its normalized graph with the candidate before returning a proposal.
+
+Commit uses a permanent sibling `.oyzu-tool-lock-edit.lock` for cooperating
+writers and compares the current file with the captured bytes both before staging
+and immediately before publication. Missing-file creation uses no-replace
+publication. Updates use a flushed same-directory temporary file and atomic
+replacement, preserving existing permissions; Unix also syncs the parent
+directory. Windows sharing/lock violations, including replacement access denial,
+are retried for at most two seconds, with a fresh source comparison on each retry.
+Read-only Windows sources fail before staging. Temporary files are cleaned up on
+ordinary failure; the permanent coordination file remains and must not be deleted
+while writers may be active.
+
+An observed source change, active writer or failed replacement reports
+`TOOL_LOCK_EDIT_CONFLICT`. Capture a fresh source and regenerate/review the
+proposal to retry; never force a stale proposal over external changes. Invalid
+graphs fail before publication. A directory-sync error after replacement explicitly
+reports that the lock was published; inspect the current file before retrying.
+Dropping an uncommitted proposal does not write the lock. This is optimistic
+concurrency: a noncooperating process can still race the last comparison, and
+replacement of the parent directory is outside this boundary. It is not a
+filesystem compare-and-swap primitive or an authorization grant.
+
+`tests/tool_lock_edit.rs` covers actual temporary-workspace publication, retained
+comments, no-op byte identity, empty-lock transitions, semantic diffs, stale edits,
+active-writer exclusion, invalid graphs and format rejection. Unix tests cover
+symlink/FIFO denial; Windows exercises bounded sharing-denial recovery and
+read-only-source cleanup. Complete
+resolver/update orchestration, migration, install-before-lock lifecycle and native
+CI qualification remain separate OEP requirements.
+
 ## Backend descriptor contract fixtures
 
 The draft [backend descriptor schema](../contracts/tools-v1/backend-descriptor.schema.json)

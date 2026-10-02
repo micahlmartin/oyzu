@@ -838,3 +838,34 @@ Formatting passed. Compliance regression checks passed (20 tests, one Windows
 symlink skip), and inventory consistency passed with all 1,109 lock records still
 unreviewed. Native macOS and Windows confirmation for this revision is pending.
 No separate mise executable was built or invoked.
+
+## Checkpoint 79: explicit format-2 lock publication
+
+`tools::ToolLockEdit` captures a bounded existing source or a missing destination
+and prepares a complete candidate through the existing whole-graph validator.
+It preserves unchanged TOML records/comments, retains exact bytes for a semantic
+no-op, returns added/changed/removed record identities and checks that lossless
+editing did not change candidate semantics. Publication uses a permanent sibling
+writer lock, exact captured-byte comparisons, flushed same-directory staging,
+atomic replacement or no-replace creation, and Unix directory sync. Windows
+replacement denials have a two-second retry cap; read-only sources fail before
+staging. No resolver, migration, command, networking or implicit installation is
+enabled by this API.
+
+Tests exercise real files, concurrent external edits and writer locks, invalid
+graphs, empty-graph transitions, inline arrays and comments. Windows tests cover
+sharing denial and recovery plus read-only cleanup; Unix covers redirected files
+and nonblocking FIFO rejection. This is cooperative optimistic publication, not
+an atomic filesystem compare-and-swap against a malicious noncooperating writer.
+The [reference](reference/tool-lock-inspection.md#explicit-lock-edit-transaction)
+documents caller obligations, failure recovery and remaining TM-03 orchestration.
+
+Windows GNU passed all seven edit tests, the full locked Rust suite, strict
+all-target Clippy, formatting and nine compiled CLI task scenarios. Linux passed
+all six applicable edit tests and strict all-target Clippy. Documentation
+structure passed. Native macOS/MSVC CI for this new editor is pending.
+
+Separately, run `36982735259` at the earlier merged revision `2e5ecb4` now confirms
+the explicit real Node ZIP store parity/changed-lock test on Windows, macOS and
+Linux, together with each native CLI build/test job. This qualifies that fixture
+at that revision, not this later lock editor or the full production backend.
