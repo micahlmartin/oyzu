@@ -47,6 +47,8 @@ The repository's [implementation priority](../../../AGENTS.md#implementation-pri
 
 Implementation issues and progress reports distinguish the first demonstrated flow, remaining required scenarios and deferred hardening. Passing component tests does not substitute for the demonstration. New edge cases become named follow-ups instead of silently extending the milestone; existing safety boundaries and explicit requirements still apply. Stable graduation remains a separate decision under the criteria below.
 
+Implementation completion is a functional milestone and excludes hardening unless the user explicitly includes it. Once the agreed functional flows pass their end-to-end checks, finish the implementation goal. Manual testing and maintainer evaluation determine whether and when a separate hardening phase starts. Do not equate this milestone with stable or production graduation.
+
 ## Template and graduation
 
 Required subjects are problem, goals/non-goals, user experience, first end-to-end proof and delivery order, contracts, state/flow, security, failure handling, platform behavior, performance, verification, rollout, alternatives, and open decisions. A proposal may combine related sections or mark a genuinely irrelevant topic with justification. Describing later hardening does not make it a prerequisite to the first proof.

@@ -30,6 +30,8 @@ Name the representative project/input, actual user command, subsystems traversed
 
 Separate the first demonstration, remaining required end-to-end scenarios and later hardening. Give each milestone finite acceptance criteria. Record additional edge cases, compatibility expansion, performance and resilience refinements as follow-ups; do not make exhaustive hardening a prerequisite to proving the solution. Preserve existing safety boundaries and explicit requirements. Link measured evidence when available and state limitations; the first demonstration does not imply stable support.
 
+State the functional implementation completion criteria separately from production graduation. Completion of those functional checks ends the implementation goal; manual testing and maintainer evaluation precede selection of any later hardening scope.
+
 ## Contracts and design
 
 Define inputs, outputs, identities, state transitions, dependencies, compatibility, and ownership. Mark provisional syntax. Explain how overrides and hooks interact with engine-owned guarantees.

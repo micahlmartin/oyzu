@@ -30,6 +30,8 @@ Follow the [implementation priority](AGENTS.md#implementation-priority-prove-the
 
 When directing an agent or reviewing a follow-up, identify the missing user flow or observed blocker it closes. If it only refines an already working path, record it for the hardening phase instead of letting it displace unproved required flows. Hardening work has finite acceptance criteria; newly discovered concerns do not automatically expand the milestone.
 
+The implementation goal ends when its agreed functional flows and end-to-end checks are complete. Hardening is not part of that completion decision unless explicitly requested. Maintainers then manually test and evaluate the implementation before choosing any hardening work; agents must not silently extend the implementation goal into that later phase.
+
 ## Find a bounded starting point
 
 Use this table to narrow your first change, then consult the [code map](docs/code-organization.md) for the authoritative ownership details. You do not need to understand every subsystem before contributing.
