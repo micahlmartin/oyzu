@@ -1,4 +1,4 @@
-//! Quality scopes are package ownership, shared by build and development plans.
+//! Package scopes are package ownership, shared by build and development plans.
 use super::Metadata;
 
 pub(super) fn exclusions(metadata: &Metadata, path: &str) -> Vec<String> {

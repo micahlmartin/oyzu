@@ -21,6 +21,8 @@ oyzu build
 
 Local `lint` and `format-check` also compose native member scripts with inferred defaults; a scripted member does not suppress an unscripted sibling's checks. Defaults inspect root-owned source and exclude member/nested-member directories owned by other checks. Explicit root scripts take precedence. `oyzu run format` permits formatting writes, while captured builds request read-only formatting validation. Native quality tools must already be provisioned.
 
+Without a root test script, `oyzu run test` composes member scripts and detected Node/Jest/Vitest runners. Implicit suites exclude nested members; an explicit script retains its native scope. Native assertion failures fail the aggregate while later suites still run. Development tests currently provide native console output; `oyzu build` owns collected JUnit/coverage and versioned artifacts. See the [implemented reference](../../../docs/reference/npm-workspaces.md) for prerequisites and limits.
+
 No build YAML is required for this scenario. Configuration, where present, demonstrates only the feature under discussion.
 
 ## Native checks available now

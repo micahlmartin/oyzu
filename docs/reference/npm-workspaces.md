@@ -11,6 +11,7 @@ From a conventional npm workspace root containing `package.json` and its native 
 ```text
 oyzu run list
 oyzu run build
+oyzu run test
 oyzu run lint
 oyzu run format-check
 oyzu run format
@@ -25,11 +26,16 @@ Default quality tasks additionally require ESLint/Prettier and their supporting 
 | Operation | Explicit root script | Without an explicit root script |
 | --- | --- | --- |
 | `build` | Run it once with native npm lifecycle hooks | Run member build scripts in dependency order; report members without scripts as not requesting compilation |
+| `test` | Run it once with native npm pretest/posttest hooks | Run each member's test script or detected Node/Jest/Vitest runner; a publishable root also runs its own implicit suite |
 | `lint` | Run it once | Check root-owned source; use each member's lint script or inferred ESLint |
 | `format-check` | Run `format-check` or `format:check` once | Check root-owned source; use each member's corresponding script or inferred Prettier check |
 | `format` | Run it once on explicit request | Format root-owned source; use each member's format script or inferred Prettier formatting |
 
 Native script names remain visible in task listing, including a root `format:check` alias. When that alias owns the operation, use `oyzu run format:check`; Oyzu does not add a duplicate `format-check` task. Existing TOML task replacements take precedence over inferred tasks. See [configuration](configuration.md) for settings, profiles and task override behavior.
+
+Workspace tests resolve each member's installed framework, including hoisted dependencies. Native Jest/Vitest entrypoints come from their package `bin` declarations. Implicit Node suites use native test filename patterns; implicit parent suites exclude nested members and engine state. Explicit scripts keep their own selection semantics, so a script can deliberately aggregate other packages. A private root without a test script is an aggregation container and has no additional implicit root suite. Native assertion failures fail the aggregate while allowing later suites to run; discovery, missing-runner or selection errors can stop the operation before later suites start. Missing Node tests currently fail explicitly instead of producing an empty successful suite. The bounded Node selection allows at most 4,096 files and 24,000 path characters.
+
+Development test commands preserve native console output and script argument forwarding. They do not yet automatically export a standalone dist bundle or enforce captured-build report obligations. Use `oyzu build` for collected JUnit/coverage evidence. Native scripts and framework configuration execute on the host during `run test`; only static listing is nonexecuting.
 
 Default root checks exclude workspace members. Default member checks exclude nested members, so a parent default cannot bypass a child's explicit script ownership. The current quality file scope is JavaScript/TypeScript and their supported JSX, CommonJS and ESM extensions. Dependency directories, engine state, build output and coverage are excluded; source symlinks are not followed. Native ESLint configuration and Prettier configuration/ignores are respected. This is not yet a general formatter for all repository file types.
 
@@ -50,7 +56,7 @@ Each member declares its own npm archive with a version containing the captured 
 
 An explicit root test script owns one aggregate invocation. Otherwise member suites run individually and a publishable root also requires its own tests. Supported native Node/Jest/Vitest integrations produce JUnit and coverage; arbitrary custom commands must satisfy their report obligations. A publishable root with no discoverable Node tests currently fails. Root framework filtering excludes members and engine state while retaining native project exclusions; Jest filtering handles canonical and aliased root paths.
 
-The resulting `dist/manifest.json` records retained artifacts, reports and status alongside the plan, envelope and logs. Test and quality failures block final artifact collection. Native package receipts detect archive changes between packaging and collection. Missing or invalid required reports remain failures, including under task overrides. `inspect` checks bundle integrity, not production trust or release eligibility. Earlier bundles are preserved under `.oyzu/history`.
+Implicit member tests in captured builds use the same package-owned scope selection as development tests. Planned exclusions prevent a parent implicit suite from rediscovering its nested members; explicit scripts retain native selection. The resulting `dist/manifest.json` records retained artifacts, reports and status alongside the plan, envelope and logs. Test and quality failures block final artifact collection. Native package receipts detect archive changes between packaging and collection. Missing or invalid required reports remain failures, including under task overrides. `inspect` checks bundle integrity, not production trust or release eligibility. Earlier bundles are preserved under `.oyzu/history`.
 
 ## Verification and current limits
 
@@ -59,8 +65,9 @@ The native probes exercise real npm packaging, snapshot dependency references, r
 ```text
 python tooling/test-npm-workspace-build.py
 python tooling/test-npm-workspace-tasks.py --cli target/debug/oyzu
+python tooling/test-npm-workspace-tests.py --cli target/debug/oyzu
 ```
 
-Use `target/debug/oyzu.exe` on Windows and provision native quality tools first. [The Jest probe](../../tooling/test-jest-reporting.py) additionally needs `--jest-cli` pointing to an installed native Jest entrypoint. CI builds the CLI before these host checks and runs separate compiled-CLI captured-build scenarios on Linux. Native probes do not by themselves prove sandbox behavior. Revision-specific results and outstanding cross-host verification are recorded in [implementation status](../implementation-status.md#checkpoint-37-composed-workspace-quality-for-local-tasks).
+Use `target/debug/oyzu.exe` on Windows and provision native quality tools first. The workspace test probe also needs the native dependencies from `tooling/fixtures/jest` and `tooling/fixtures/vitest`; override their locations with `--jest-modules` and `--vitest-modules`. It verifies native Node, Jest 29 and Vitest 5, not arbitrary framework versions. [The Jest reporter probe](../../tooling/test-jest-reporting.py) additionally needs `--jest-cli` pointing to an installed native Jest entrypoint. CI builds the CLI before these host checks and runs separate compiled-CLI captured-build scenarios on Linux. Native probes do not by themselves prove sandbox behavior. Revision-specific results and outstanding cross-host verification are recorded in [implementation status](../implementation-status.md#checkpoint-38-native-workspace-test-composition).
 
-Complete local workspace test composition, framework configuration inheritance, cyclic graphs, pnpm/Yarn workspaces, affected selection, caching and publication remain separate work. Development tasks do not produce the captured build's versioned artifacts or dist evidence. This reference describes the npm integration, not a claim of complete builder or scenario support.
+Additional test frameworks, complete framework configuration inheritance, standalone task report collection, cyclic graphs, pnpm/Yarn workspaces, affected selection, caching and publication remain separate work. Development tasks do not produce the captured build's versioned artifacts or dist evidence. This reference describes the npm integration, not a claim of complete builder or scenario support.

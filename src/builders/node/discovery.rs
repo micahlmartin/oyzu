@@ -58,7 +58,7 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     }
     super::quality::discover(target);
     if manager == "npm" && value.get("workspaces").is_some() {
-        for operation in ["build", "lint", "format-check", "format"] {
+        for operation in ["build", "test", "lint", "format-check", "format"] {
             let scripts = &value["scripts"];
             if scripts.get(operation).is_some()
                 || (operation == "format-check" && scripts.get("format:check").is_some())

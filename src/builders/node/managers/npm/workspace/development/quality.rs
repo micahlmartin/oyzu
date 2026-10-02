@@ -1,5 +1,5 @@
 //! Compose native scripts and inferred checkers using the normal Node detectors.
-use super::super::{quality::exclusions, Metadata};
+use super::super::{scope::exclusions, Metadata};
 use super::{Operation, Step};
 use crate::{builders::node::detection, model::Task};
 use anyhow::{bail, Result};

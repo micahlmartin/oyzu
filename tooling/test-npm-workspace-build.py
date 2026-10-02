@@ -35,6 +35,7 @@ def main():
                     if name == 'app':
                         del pkg['scripts']['lint']
                         del pkg['scripts']['format-check']
+                        del pkg['scripts']['test']
                     else:
                         pkg['scripts']['format:check'] = pkg['scripts'].pop('format-check')
                 path.write_text(json.dumps(pkg))
@@ -75,7 +76,7 @@ def main():
             version = '0.1.0-dev.gabcdef123456'
             members = sorted(inventory['workspaces']['members'], key=lambda m: len(m['dependencies']))
             quality = {'linter':'eslint', 'formatter':'prettier', 'excludes':[]}
-            modules = [{**m, 'id':m['path'].split('/')[-1], 'version':version, 'filename':f"{m['name'].removeprefix('@').replace('/', '-')}-{version}.tgz", 'framework':'node-test', 'quality':quality} for m in members]
+            modules = [{**m, 'id':m['path'].split('/')[-1], 'version':version, 'filename':f"{m['name'].removeprefix('@').replace('/', '-')}-{version}.tgz", 'framework':'node-test', 'testExcludes':[], 'quality':quality} for m in members]
             spec = {'rootVersion':version, 'rootDependencies':inventory['workspaces']['rootDependencies'], 'rootScripts':json.loads((project/'package.json').read_text()).get('scripts',{}), 'rootFramework':'node-test', 'rootQuality':quality, 'modules':modules, 'nodeTestArguments':['--experimental-test-coverage','--test-coverage-exclude=**/*.test.*','--test-reporter=junit','--test-reporter-destination=__OYZU_TEST_REPORT__','--test-reporter=lcov','--test-reporter-destination=__OYZU_COVERAGE_REPORT__']}
             spec['rootQuality'] = {**quality, 'excludes':[m['path'] for m in members]}
             if public_root:
@@ -136,7 +137,7 @@ def main():
                 operation('test', False)
                 assert ET.parse(project/'.oyzu-build/reports/root/junit.xml').findall('.//failure')
                 primary.unlink()
-                assert 'No root Node tests found' in operation('test', False).stderr
+                assert 'No package Node tests found' in operation('test', False).stderr
                 primary.write_text(original)
             member = modules[0]
             artifact = project/'.oyzu-build/artifacts'/member['filename']

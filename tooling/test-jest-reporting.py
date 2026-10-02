@@ -67,16 +67,16 @@ def main():
             (project/directory).mkdir(parents=True)
             (project/directory/'failure.test.js').write_text("throw Error('excluded suite executed');\n")
         (project/'jest.config.cjs').write_text("module.exports={testPathIgnorePatterns:['/ignored/']};\n")
-        module = (ROOT/'src/builders/node/runtime/npm-workspace-root.mjs').as_uri()
+        module = (ROOT/'src/builders/node/runtime/npm-workspace-test-scope.mjs').as_uri()
         version = json.loads((jest.parent.parent/'package.json').read_text())['version']
-        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{rootFrameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(rootFrameworkArguments('jest',process.cwd(),[{{path:'packages/member'}}],{json.dumps(version)})));"], cwd=project, text=True))
+        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{frameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(frameworkArguments('jest',process.cwd(),[{{path:'packages/member'}}],{json.dumps(version)})));"], cwd=project, text=True))
         document = run(True)
         assert len(document.findall('.//testcase')) == 4 and len(document.findall('.//skipped')) == 3
         # Match native canonical test paths even when the caller uses an alias.
         alias = base/'aliased project'
         subprocess.run(['node','-e',"require('node:fs').symlinkSync(process.argv[1],process.argv[2],process.platform==='win32'?'junction':'dir')",str(project),str(alias)],check=True)
         project = alias
-        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{rootFrameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(rootFrameworkArguments('jest',process.argv[1],[{{path:'packages/member'}}],{json.dumps(version)})));",str(alias)],cwd=project,text=True))
+        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{frameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(frameworkArguments('jest',process.argv[1],[{{path:'packages/member'}}],{json.dumps(version)})));",str(alias)],cwd=project,text=True))
         assert len(run(True).findall('.//testcase')) == 4
     print('Native Jest reports passed: inferred tests, measured coverage, escaped names, skip/todo, assertion and suite failures, existing reporters')
 

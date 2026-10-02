@@ -1,7 +1,7 @@
 //! Typed native workspace facts; no scheduling or package execution here.
 mod development;
 mod planning;
-mod quality;
+mod scope;
 
 pub(super) use development::command as development_command;
 

@@ -7,7 +7,8 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {npm, npmCommand} from './npm-native.mjs';
 import {digest, project, read, regular, root, specification, state} from './npm-workspace-plan.mjs';
-import {packRoot, rootNodeTests, rootFrameworkArguments} from './npm-workspace-root.mjs';
+import {packRoot} from './npm-workspace-root.mjs';
+import {nodeTests, frameworkArguments, frameworkCommand} from './npm-workspace-test-scope.mjs';
 
 const [mode, encoded, location] = process.argv.slice(2);
 if (mode === 'project') {
@@ -54,21 +55,22 @@ if (mode === 'project') {
       mkdirSync(reports, {recursive:true});
       const env = {...process.env, OYZU_TEST_REPORT:join(reports, 'junit.xml'), OYZU_COVERAGE_REPORT:join(reports, 'coverage.lcov')};
       const cwd = resolve(root, member.path);
+      const excludes = member.id === 'root' ? spec.modules : member.testExcludes?.map(path => ({path}));
+      if (!member.scripts.test && !excludes) throw new Error('Missing planned workspace test scope');
       let command;
       if (member.scripts.test) command = script('test', member.name ? member : undefined);
       else if (member.framework === 'node-test') command = [process.execPath, '--test'];
       else if (['jest', 'vitest'].includes(member.framework)) {
-        const native = createRequire(join(cwd, 'package.json'));
-        command = [process.execPath, native.resolve(member.framework === 'jest' ? 'jest/bin/jest' : 'vitest/vitest.mjs')];
+        command = frameworkCommand(member.framework, cwd);
       } else throw new Error(`No native test command for ${member.name}`);
       if (member.framework === 'node-test') {
         command.push(...spec.nodeTestArguments.map(v => v.replace('__OYZU_TEST_REPORT__', env.OYZU_TEST_REPORT).replace('__OYZU_COVERAGE_REPORT__', env.OYZU_COVERAGE_REPORT)));
-        if (member.id === 'root' && !member.scripts.test) command.push(...rootNodeTests(root, spec.modules));
+        if (!member.scripts.test) command.push(...nodeTests(cwd, excludes));
       } else if (['jest', 'vitest'].includes(member.framework)) {
-        if (member.id === 'root' && !member.scripts.test) {
+        if (!member.scripts.test) {
           const native = createRequire(join(cwd, 'package.json'));
           const version = member.framework === 'jest' ? native('jest/package.json').version : undefined;
-          command.push(...rootFrameworkArguments(member.framework, root, spec.modules, version));
+          command.push(...frameworkArguments(member.framework, cwd, excludes, version));
         }
         command = [process.execPath, join(runtime, `${member.framework}.mjs`), ...command];
       }

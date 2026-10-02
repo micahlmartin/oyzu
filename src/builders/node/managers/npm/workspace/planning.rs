@@ -91,7 +91,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             &context.source.digest[7..19]
         );
         let artifact = package_artifact(&member.name, version);
-        modules.push(json!({"id":artifact.name,"name":member.name,"path":member.path,"version":artifact.version,"filename":artifact.filename,"scripts":member.scripts,"dependencies":member.dependencies,"framework":framework(&profile)?,"quality":{"linter":profile.linter.selected(),"formatter":profile.formatter.selected(),"excludes":super::quality::exclusions(&metadata, &member.path)}}));
+        modules.push(json!({"id":artifact.name,"name":member.name,"path":member.path,"version":artifact.version,"filename":artifact.filename,"scripts":member.scripts,"dependencies":member.dependencies,"framework":framework(&profile)?,"testExcludes":super::scope::exclusions(&metadata, &member.path),"quality":{"linter":profile.linter.selected(),"formatter":profile.formatter.selected(),"excludes":super::scope::exclusions(&metadata, &member.path)}}));
         if !root_test {
             reports(&mut test, &artifact.name);
         }
@@ -120,7 +120,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         reports(&mut test, "root");
     }
     let root_profile = detection::detect(&context.target.path)?;
-    let specification = json!({"rootVersion":root_version,"rootArtifact":root_artifact,"rootScripts":root_scripts,"rootDependencies":metadata.root_dependencies,"rootFramework":framework(&root_profile)?,"rootQuality":{"linter":root_profile.linter.selected(),"formatter":root_profile.formatter.selected(),"excludes":super::quality::exclusions(&metadata, ".")},"modules":modules,
+    let specification = json!({"rootVersion":root_version,"rootArtifact":root_artifact,"rootScripts":root_scripts,"rootDependencies":metadata.root_dependencies,"rootFramework":framework(&root_profile)?,"rootQuality":{"linter":root_profile.linter.selected(),"formatter":root_profile.formatter.selected(),"excludes":super::scope::exclusions(&metadata, ".")},"modules":modules,
         "nodeTestArguments":crate::builders::node::reporting::arguments("__OYZU_TEST_REPORT__", "__OYZU_COVERAGE_REPORT__")});
     let encoded = serde_json::to_string(&specification)?;
     if encoded.len() > 120_000 {

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{fs, process::Command};
 mod quality;
+mod testing;
 
 #[derive(Serialize)]
 struct Step {
@@ -21,6 +22,10 @@ enum Operation {
         script: String,
     },
     NoCompilation,
+    Test {
+        framework: String,
+        excludes: Vec<String>,
+    },
     Quality {
         framework: String,
         excludes: Vec<String>,
@@ -41,7 +46,9 @@ pub(in crate::builders::node::managers::npm) fn command(
     let ["npm", "run", stage, "--workspaces"] = argv.as_slice() else {
         return Ok(None);
     };
-    if task.provider != "npm" || !["build", "lint", "format-check", "format"].contains(stage) {
+    if task.provider != "npm"
+        || !["build", "test", "lint", "format-check", "format"].contains(stage)
+    {
         return Ok(None);
     }
     let temporary = tempfile::Builder::new()
@@ -101,6 +108,8 @@ pub(in crate::builders::node::managers::npm) fn command(
                 },
             })
             .collect()
+    } else if *stage == "test" {
+        testing::steps(task, &metadata)?
     } else {
         quality::steps(task, &metadata, stage)?
     };
@@ -112,8 +121,11 @@ pub(in crate::builders::node::managers::npm) fn command(
     } else {
         None
     };
+    let test_scope = (*stage == "test").then_some(include_str!(
+        "../../../runtime/npm-workspace-test-scope.mjs"
+    ));
     let spec = serde_json::to_string(
-        &json!({"command":native.command,"steps":steps,"stage":stage,"quality":quality}),
+        &json!({"command":native.command,"steps":steps,"stage":stage,"quality":quality,"testScope":test_scope}),
     )?;
     if spec.len() > 20_000 {
         bail!("npm workspace development plan exceeds host argument limit");
