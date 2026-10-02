@@ -1357,3 +1357,20 @@ bytes. Fourteen maintenance tests passed, including missing/modified files, sour
 identity drift, path escapes, duplicate JSON/records, Git hash mismatch and an
 attempt to present approved evidence. This checks consistency of trusted evidence,
 not completeness or legal applicability. The reference and code map are updated.
+
+## Checkpoint 108: second real Go release store/compiler qualification
+
+Go 1.25.0 now has a separate pinned Windows ZIP fixture and independent inventory
+of 16,087 payload entries. Its digest/size match the existing official catalog
+evidence. The provisioner accepts an explicit version choice while preserving
+1.24.13 as its default, rejects wrong/unsupported versions without writing output,
+and gives the new case independent GO125 fixture variables. Native CI provisions
+and selects both releases separately.
+
+Windows passed complete inventory, receipt publication, changed-lock denial and
+recovery, GOROOT lookup and native compilation/execution while leased. Linux
+passed foreign-target materialization with networking disabled and strict all-target
+Clippy. Full Windows locked tests, strict Clippy, formatting and all nine CLI task
+scenarios passed. Workflow YAML and documentation checks passed. Native CI for
+this increment remains pending; two real store/compiler cases do not substitute
+for production resolver, broker, policy, native Linux/macOS or backend admission.

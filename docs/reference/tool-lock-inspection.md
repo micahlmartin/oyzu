@@ -758,3 +758,36 @@ Rust case itself. Windows execution and Linux foreign-target materialization
 (with Docker networking disabled) passed locally; updated native CI remains
 pending. This is not Aqua registry/resolver qualification, legal approval or a
 production installation command, and does not qualify other native jq targets.
+
+### Second Go release fixture
+
+The same harness also supports the pinned Go 1.25.0 Windows amd64 ZIP, whose
+67,418,204-byte identity and SHA-256
+`89efb4f9b30812eee083cc1770fdd2913c14d301064f6454851428f9707d190b`
+come from the retained official catalog/sidecar evidence. Its independent manifest
+contains 16,087 entries. This is a historical qualification fixture, not a
+recommendation or production backend admission.
+
+```sh
+python tooling/prepare-go-store-fixture.py --version 1.25.0 --archive /fixtures/go1.25.0.windows-amd64.zip --manifest /fixtures/go125-store-manifest.json
+export OYZU_GO125_STORE_ARCHIVE=/fixtures/go1.25.0.windows-amd64.zip
+export OYZU_GO125_STORE_MANIFEST=/fixtures/go125-store-manifest.json
+cargo test --locked --test tool_native_archive real_go125_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+```
+
+The provisioner accepts only `1.24.13` (the unchanged default) and `1.25.0`;
+each selection validates its own exact size/hash before inventorying bytes.
+Existing Go fixture commands retain their meaning. Separate environment names
+allow both fixtures in one test run without sharing archives or manifests.
+The second release uses the same explicit 800:1 synthetic layout bound and checks
+all inventory entries, receipt publication, changed-lock rejection/recovery and,
+on Windows, native version, GOROOT, compilation and execution while leased.
+Other hosts only materialize the Windows payload. CI provisions and selects the
+case independently; results do not establish native Linux/macOS Go behavior or
+production resolution, acquisition, policy or builder integration.
+
+Windows Go 1.25.0 qualification passed all 16,087 entries, publication and
+changed-lock checks, GOROOT lookup and real compilation/execution. Linux
+foreign-target verification also passed with networking disabled. Updated native
+CI confirmation is tracked separately in the
+[tool-management status](../tool-management-status.md).

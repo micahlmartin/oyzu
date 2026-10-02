@@ -12,6 +12,7 @@ const PLATFORM: &str = "windows/amd64/msvc";
 
 struct ArtifactCase {
     tool: &'static str,
+    fixture: &'static str,
     canonical: &'static str,
     kind: &'static str,
     version: &'static str,
@@ -29,6 +30,7 @@ struct ArtifactCase {
 fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
     qualify(ArtifactCase {
         tool: "node",
+        fixture: "NODE",
         canonical: "core:node",
         kind: "zip",
         version: "22.14.0",
@@ -47,6 +49,7 @@ fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<
 fn real_go_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
     qualify(ArtifactCase {
         tool: "go",
+        fixture: "GO",
         canonical: "core:go",
         kind: "zip",
         version: "1.24.13",
@@ -61,10 +64,30 @@ fn real_go_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()
 }
 
 #[test]
+#[ignore = "requires externally provisioned Go 1.25 archive and independent manifest; see reference"]
+fn real_go125_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
+    qualify(ArtifactCase {
+        tool: "go",
+        fixture: "GO125",
+        canonical: "core:go",
+        kind: "zip",
+        version: "1.25.0",
+        digest: "sha256:89efb4f9b30812eee083cc1770fdd2913c14d301064f6454851428f9707d190b",
+        size: 67418204,
+        prefix: "go",
+        artifact: "go1.25.0.windows-amd64.zip",
+        executable: "bin/go.exe",
+        path: "bin",
+        ratio: 800,
+    })
+}
+
+#[test]
 #[ignore = "requires externally provisioned jq artifact and independent manifest; see reference"]
 fn real_jq_raw_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
     qualify(ArtifactCase {
         tool: "jq",
+        fixture: "JQ",
         canonical: "aqua:jqlang/jq",
         kind: "raw",
         version: "1.8.1",
@@ -79,7 +102,7 @@ fn real_jq_raw_publication_parity_and_changed_lock_denial() -> anyhow::Result<()
 }
 
 fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
-    let prefix = format!("OYZU_{}_STORE", case.tool.to_ascii_uppercase());
+    let prefix = format!("OYZU_{}_STORE", case.fixture);
     let archive = PathBuf::from(
         std::env::var_os(format!("{prefix}_ARCHIVE")).expect("archive path required"),
     );
