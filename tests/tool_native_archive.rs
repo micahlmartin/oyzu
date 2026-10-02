@@ -101,6 +101,25 @@ fn real_jq_raw_publication_parity_and_changed_lock_denial() -> anyhow::Result<()
     })
 }
 
+#[test]
+#[ignore = "requires externally provisioned Temurin archive and independent manifest; see reference"]
+fn real_java_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
+    qualify(ArtifactCase {
+        tool: "java",
+        fixture: "JAVA",
+        canonical: "core:java",
+        kind: "zip",
+        version: "temurin-21.0.6+7",
+        digest: "sha256:897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259",
+        size: 204643847,
+        prefix: "jdk-21.0.6+7",
+        artifact: "OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip",
+        executable: "bin/java.exe",
+        path: "bin",
+        ratio: 200,
+    })
+}
+
 fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
     let prefix = format!("OYZU_{}_STORE", case.fixture);
     let archive = PathBuf::from(
@@ -152,6 +171,22 @@ fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
     plan["environment"]["PATH"]["paths"][0]["relative_path"] = json!(case.path);
     if case.tool == "go" {
         plan["environment"]["GOROOT"] = json!({
+            "kind":"paths", "paths":[{"owner":"self", "relative_path":"."}]
+        });
+    }
+    if case.tool == "java" {
+        plan["required_paths"] = json!([
+            {"path":"bin/java.exe", "kind":"file"},
+            {"path":"bin/javac.exe", "kind":"file"},
+            {"path":"legal/java.base/ADDITIONAL_LICENSE_INFO", "kind":"file"},
+            {"path":"legal/java.base/ASSEMBLY_EXCEPTION", "kind":"file"},
+            {"path":"legal/java.base/LICENSE", "kind":"file"}
+        ]);
+        plan["entrypoints"]["javac"] = json!({
+            "kind":"native", "payload_relative_path":"bin/javac.exe",
+            "interpreter_tool_key":null, "interpreter_relative_path":null, "prefix_args":[]
+        });
+        plan["environment"]["JAVA_HOME"] = json!({
             "kind":"paths", "paths":[{"owner":"self", "relative_path":"."}]
         });
     }
@@ -273,12 +308,37 @@ fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
             format!("go version go{} windows/amd64", case.version)
         } else if case.tool == "jq" {
             format!("jq-{}", case.version)
+        } else if case.tool == "java" {
+            "openjdk 21.0.6 2025-01-21 LTS\nOpenJDK Runtime Environment Temurin-21.0.6+7 (build 21.0.6+7-LTS)\nOpenJDK 64-Bit Server VM Temurin-21.0.6+7 (build 21.0.6+7-LTS, mixed mode, sharing)".to_owned()
         } else {
             format!("v{}", case.version)
         };
-        assert_eq!(String::from_utf8(output.stdout)?.trim(), expected_version);
+        assert_eq!(
+            String::from_utf8(output.stdout)?
+                .replace("\r\n", "\n")
+                .trim(),
+            expected_version
+        );
         if case.tool == "go" {
             qualify_go_build(&executable, temp.path())?;
+        }
+        if case.tool == "java" {
+            let compiler = lease.command("javac")?;
+            assert_eq!(compiler.installation_key, selected.installation_key);
+            let tools::ToolLaunch::Native {
+                payload_relative_path,
+                prefix_args,
+            } = compiler.launch
+            else {
+                anyhow::bail!("Java compiler requires native launch descriptor")
+            };
+            assert!(prefix_args.is_empty());
+            let payload = executable.parent().unwrap().parent().unwrap();
+            qualify_java_build(
+                &executable,
+                &payload.join(payload_relative_path),
+                temp.path(),
+            )?;
         }
     }
     // Preserve the version and bytes; change only the locked archive identity.
@@ -302,6 +362,60 @@ fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
         lease.selection_digest
     );
     eprintln!("real {} artifact: {} entries match; publication and changed-lock denial passed; native execution={}", case.tool, tree.entries.len(), cfg!(windows));
+    Ok(())
+}
+
+/// Compile and run through the held selection, without ambient Java options,
+/// classpath, compiler discovery or package-manager access.
+#[cfg(windows)]
+fn qualify_java_build(
+    java: &std::path::Path,
+    javac: &std::path::Path,
+    scratch: &std::path::Path,
+) -> anyhow::Result<()> {
+    let command = |executable: &std::path::Path| {
+        let mut command = std::process::Command::new(executable);
+        command
+            .env_clear()
+            .current_dir(scratch)
+            .env("JAVA_HOME", java.parent().unwrap().parent().unwrap())
+            .env("TEMP", scratch)
+            .env("TMP", scratch);
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            command.env("SystemRoot", root);
+        }
+        command
+    };
+    fs::write(scratch.join("StoreCheck.java"), "public class StoreCheck { public static void main(String[] args) { System.out.println(\"oyzu-java-store-ok\"); } }\n")?;
+    let output = command(javac)
+        .args([
+            "-proc:none",
+            "-classpath",
+            ".",
+            "-d",
+            ".",
+            "StoreCheck.java",
+        ])
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(scratch.join("StoreCheck.class").is_file());
+    let output = command(java)
+        .args(["-classpath", ".", "StoreCheck"])
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout)?.trim(),
+        "oyzu-java-store-ok"
+    );
+    eprintln!("real Java: leased compiler and runtime compiled and executed a class");
     Ok(())
 }
 

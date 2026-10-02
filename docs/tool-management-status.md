@@ -1568,3 +1568,28 @@ pending-I/O interruption, dispatch and executor containment remain unimplemented
 The test watchdog bounds only the harness. The reference, code map and OEP
 runtime/implementation pages distinguish this native allocation foundation from
 complete TM-05 acceptance.
+
+## Checkpoint 117: real Temurin archive and leased Java compilation
+
+The independent archive oracle now pins the official Temurin 21.0.6+7 Windows
+amd64 JDK ZIP at 204,643,847 bytes and SHA-256
+`897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259`.
+The original archive and checksum sidecar are retained outside the checkout;
+all legal files remain in the materialized payload and byte inventory. The
+fixture has 576 payload entries and uses the unchanged 200:1 extraction bound.
+No dependency or upstream code was imported into the production crate.
+
+Windows passed independent inventory parity, publication, held-lease Java and
+javac lookup, exact runtime-build output, real class compilation/execution and
+changed-lock denial/recovery. Linux passed the same Windows-payload store case
+without executing it, with container networking disabled. Both hosts passed
+strict all-target Clippy; Windows additionally passed the full locked Rust
+suite, formatting and all nine CLI task scenarios. Documentation, workflow YAML
+parsing and diff checks passed. CI now provisions the fixture on all three hosts;
+new-revision CI and native macOS store results remain pending.
+
+The owning reference, code map and OEP implementation companion describe the
+fixture. Admission remains synthetic. This does not establish publisher-signature
+verification, license/distribution approval, Java backend admission, native
+Linux/macOS JDK execution, OS process containment or product builder integration.
+Production mise import and the remaining OEP-0003 requirements are still open.

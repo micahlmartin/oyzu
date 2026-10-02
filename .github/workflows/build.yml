@@ -69,6 +69,16 @@ jobs:
           curl --fail --silent --show-error --location --max-time 180 --max-filesize 67418204 --output "$OYZU_GO125_STORE_ARCHIVE" https://dl.google.com/go/go1.25.0.windows-amd64.zip
           python tooling/prepare-go-store-fixture.py --version 1.25.0 --archive "$OYZU_GO125_STORE_ARCHIVE" --manifest "$OYZU_GO125_STORE_MANIFEST"
           cargo test --locked --test tool_native_archive real_go125_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+      - name: Real Temurin ZIP store parity and changed-lock denial
+        timeout-minutes: 10
+        shell: bash
+        env:
+          OYZU_JAVA_STORE_ARCHIVE: ${{ runner.temp }}/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip
+          OYZU_JAVA_STORE_MANIFEST: ${{ runner.temp }}/java-store-manifest.json
+        run: |
+          curl --fail --silent --show-error --location --max-time 240 --max-filesize 204643847 --output "$OYZU_JAVA_STORE_ARCHIVE" https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip
+          python tooling/prepare-java-store-fixture.py --archive "$OYZU_JAVA_STORE_ARCHIVE" --manifest "$OYZU_JAVA_STORE_MANIFEST"
+          cargo test --locked --test tool_native_archive real_java_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
       - name: Real jq raw store parity and changed-lock denial
         timeout-minutes: 5
         shell: bash

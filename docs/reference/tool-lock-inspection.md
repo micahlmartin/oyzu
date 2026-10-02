@@ -817,6 +817,47 @@ foreign-target verification also passed with networking disabled. Updated native
 CI confirmation is tracked separately in the
 [tool-management status](../tool-management-status.md).
 
+### Real Temurin Java archive qualification
+
+The opt-in Java case uses the historical Temurin `jdk-21.0.6+7` Windows amd64
+HotSpot JDK ZIP from the [official release](https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.6%2B7).
+Its exact size is 204,643,847 bytes and its SHA-256, checked against the release's
+original checksum sidecar, is
+`897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259`.
+This is a reproducible test fixture, not a current-version recommendation,
+publisher-signature check, license clearance or production backend admission.
+
+Provision the archive outside the checkout, retaining its original legal files.
+Python 3.11+ inventories all 576 payload entries without extracting or executing
+them. The helper rejects a mismatched size/hash or existing output manifest.
+For a new inventory, choose a fresh manifest path; do not overwrite the archive.
+
+```sh
+python tooling/prepare-java-store-fixture.py --archive /fixtures/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip --manifest /fixtures/java-store-manifest.json
+export OYZU_JAVA_STORE_ARCHIVE=/fixtures/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip
+export OYZU_JAVA_STORE_MANIFEST=/fixtures/java-store-manifest.json
+cargo test --locked --test tool_native_archive real_java_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+```
+
+On PowerShell set the same variables with `$env:NAME='path'`. The synthetic
+`core:java` layout uses version `temurin-21.0.6+7`, strips `jdk-21.0.6+7`,
+preserves the complete payload including every legal file, declares `bin/java.exe`
+and `bin/javac.exe`, and supplies self-relative PATH and JAVA_HOME metadata.
+It retains the default 200:1 extraction bound. Independent inventory parity,
+receipt publication, lease lookup and changed-lock denial/recovery run on all
+hosts; only Windows executes this Windows payload. While holding the selection
+lease, Windows checks the exact runtime build, selects the compiler through the
+same lease, compiles a class with annotation processing disabled and runs it.
+The commands clear inherited environment/options, use private working/temp paths
+and an explicit classpath. They make no package-manager requests; this is not
+OS network containment or a product Java build integration.
+
+CI provisions the pinned archive separately on Windows, Linux and macOS.
+Provisioning needs public network access; the test runs from local fixtures.
+Native Linux/macOS JDK execution, production resolution, admission, acquisition,
+publisher verification and builder handoff remain separate acceptance work.
+Measured results are tracked in [tool-management status](../tool-management-status.md).
+
 ### Draft tool-selection grants
 
 `docs/contracts/tools-v1/selection-grant.schema.json` defines a proposed closed

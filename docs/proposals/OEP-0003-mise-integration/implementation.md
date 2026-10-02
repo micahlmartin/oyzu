@@ -52,6 +52,14 @@ Absolute path resolution, current launch authorization, environment composition,
 process supervision, CLI exec/which and shims remain absent. Snapshot lookup is
 not a live payload monitor and does not authorize execution.
 
+Real Temurin 21.0.6+7 Windows archive qualification now compares every payload
+entry with an independent inventory, publishes and leases the installation,
+checks changed-lock denial, and compiles/runs a Java class on Windows through
+leased command metadata. Linux verifies the foreign-target store behavior only.
+The [fixture reference](../../reference/tool-lock-inspection.md#real-temurin-java-archive-qualification)
+describes the synthetic admission and preserved notices; these checks do not
+complete Java backend admission, native platform coverage or product integration.
+
 TM-03 now has a first frozen selection boundary: given an already resolved
 workspace, working directory, profile, request digest and platform, it chooses
 the nearest physical locked scope and rejects stale requests or an unavailable
