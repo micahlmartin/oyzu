@@ -122,6 +122,10 @@ pub fn inspect(root: &Path) -> Result<Value> {
         if records::digest("oyzu.plan.v1alpha1", &plan)? != manifest["planDigest"] {
             bail!("plan digest mismatch");
         }
+        if manifest["extensions"]["oyzu.dev/selection"] != plan["extensions"]["oyzu.dev/selection"]
+        {
+            bail!("build selection differs from plan");
+        }
     } else if manifest["status"] == "succeeded" {
         bail!("successful bundle has no plan");
     }

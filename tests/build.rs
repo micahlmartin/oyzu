@@ -651,3 +651,49 @@ argv=['custom-post']
         "/out/project/reports/junit.xml"
     );
 }
+
+#[test]
+fn cli_rejects_unknown_build_target_before_toolchain_resolution() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("-C")
+        .arg(root.path())
+        .args(["build", "missing", "--image", "npm=not-provisioned:test"])
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let manifest: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(manifest["status"], "failed");
+    assert_eq!(manifest["actions"], json!([]));
+    assert!(manifest["diagnostics"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("unknown build target missing"));
+    build::inspect(&root.path().join("dist")).unwrap();
+}
+
+#[test]
+fn inspector_binds_selection_to_the_frozen_plan() {
+    let root = tempfile::tempdir().unwrap();
+    let selection = json!({"mode":"explicit","requested":["api"],"selected":["api"],"excluded":[{"target":"other","reason":"outside-selection"}]});
+    let plan = json!({"extensions":{"oyzu.dev/selection":selection}});
+    records::write(&root.path().join("plan.json"), &plan).unwrap();
+    records::write(&root.path().join("envelope.json"), &json!({})).unwrap();
+    let mut manifest = json!({"kind":"build-manifest","status":"failed","planPath":"plan.json",
+        "planDigest":records::digest("oyzu.plan.v1alpha1", &plan).unwrap(),
+        "envelopePath":"envelope.json","envelopeDigest":snapshot::file_digest(&root.path().join("envelope.json")).unwrap(),
+        "artifacts":[],"reports":[],"extensions":{"oyzu.dev/selection":selection}});
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    build::inspect(root.path()).unwrap();
+    manifest["extensions"]["oyzu.dev/selection"]["selected"] = json!(["api", "other"]);
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert!(build::inspect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("selection differs"));
+}

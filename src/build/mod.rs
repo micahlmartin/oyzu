@@ -7,13 +7,14 @@ mod materialization;
 mod planning;
 mod reporting;
 mod scheduling;
+mod selection;
 mod task_graph;
 
 use crate::{builders, discovery, records, snapshot};
 use anyhow::{bail, Context, Result};
 use execution::{execute_plan, ExecutionRecords};
 pub use planning::plan;
-use planning::{plan_with_dependencies, resolve_images};
+use planning::resolve_images;
 use serde_json::{json, Value};
 use std::{
     collections::BTreeMap,
@@ -56,6 +57,18 @@ pub fn run_with_options(
     images: &[String],
     plan_only: bool,
     options: &crate::config::session::Options,
+) -> Result<Value> {
+    run_selected_with_options(root, images, plan_only, options, &[])
+}
+
+/// Build requested targets and their transitive artifact/task prerequisites.
+/// An empty request selects all discovered targets.
+pub fn run_selected_with_options(
+    root: &Path,
+    images: &[String],
+    plan_only: bool,
+    options: &crate::config::session::Options,
+    requested: &[String],
 ) -> Result<Value> {
     let root = crate::config::session::workspace_root(root, options.root.as_deref())?;
     // Capture and validate all administrative policy before any build side effects.
@@ -108,18 +121,7 @@ pub fn run_with_options(
     let mut manifest = json!({"schemaVersion":"v1alpha1","kind":"build-manifest","runId":run_id,"planDigest":null,"planPath":null,"source":null,"status":"failed","targets":[],"actions":[],"artifacts":[],"reports":[],"evidence":[],"diagnostics":[],"envelopePath":"envelope.json","envelopeDigest":null});
     let result = (|| -> Result<Value> {
         let mut workspace = workspace?;
-        for (id, target) in &workspace.targets {
-            if let Some(config) = workspace.configuration.get(id) {
-                let builder = builders::get(&target.builder)?;
-                crate::config::enforcement::execution_preflight(
-                    config,
-                    builder.descriptor().tools,
-                )?;
-                if config.management.is_some() && builder.acquisition_requires_network() {
-                    bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
-                }
-            }
-        }
+        let mut selection = selection::Selection::new(&workspace, requested)?;
         let source = snapshot::capture(&root, &source_path)?;
         for target in workspace.targets.values_mut() {
             target.path = source_path.join(target.path.strip_prefix(&root)?);
@@ -131,25 +133,58 @@ pub fn run_with_options(
             task.cwd = source_path.join(task.cwd.strip_prefix(&root)?);
         }
         workspace.root = source_path.clone();
-        planning::target_order(&workspace)?;
-        let resolved = resolve_images(&workspace, images)?;
+        let mut resolved = BTreeMap::new();
         let mut dependencies = BTreeMap::new();
-        for (id, target) in &workspace.targets {
-            let destination = temp.path().join(format!("dependencies-{id}"));
-            let execution_name = format!("oyzu-acquire-{run_id}-{id}");
-            let builder = builders::get(&target.builder)?;
-            if let Some(prepared) = builder.prepare(builders::PreparationContext {
-                configuration: workspace.configuration.get(id),
-                target,
-                destination: &destination,
-                image: &resolved[id],
-                source_digest: &source.digest,
-                execution_name: &execution_name,
-            })? {
-                dependencies.insert(id.clone(), prepared);
+        let mut intents = BTreeMap::new();
+        loop {
+            planning::target_order(&workspace, &selection.targets)?;
+            let pending = selection
+                .targets
+                .iter()
+                .filter(|id| !intents.contains_key(*id))
+                .cloned()
+                .collect();
+            // Admit every new owner before resolving images or acquiring inputs.
+            for id in &pending {
+                let target = &workspace.targets[id];
+                let builder = builders::get(&target.builder)?;
+                if let Some(config) = workspace.configuration.get(id) {
+                    crate::config::enforcement::execution_preflight(
+                        config,
+                        builder.descriptor().tools,
+                    )?;
+                    if config.management.is_some() && builder.acquisition_requires_network() {
+                        bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
+                    }
+                }
+            }
+            resolved.extend(resolve_images(&workspace, images, &pending)?);
+            for id in pending {
+                let target = &workspace.targets[&id];
+                let destination = temp.path().join(format!("dependencies-{id}"));
+                let execution_name = format!("oyzu-acquire-{run_id}-{id}");
+                let builder = builders::get(&target.builder)?;
+                if let Some(prepared) = builder.prepare(builders::PreparationContext {
+                    configuration: workspace.configuration.get(&id),
+                    target,
+                    destination: &destination,
+                    image: &resolved[&id],
+                    source_digest: &source.digest,
+                    execution_name: &execution_name,
+                })? {
+                    dependencies.insert(id.clone(), prepared);
+                }
+                let intent = planning::intent(&workspace, &id, &source, dependencies.get(&id))?;
+                intents.insert(id, intent);
+            }
+            selection.expand(&workspace, &intents)?;
+            if selection.targets.len() == intents.len() {
+                break;
             }
         }
-        let plan = plan_with_dependencies(&workspace, &source, &resolved, &dependencies)?;
+        let mut plan = planning::compile(&workspace, &source, &resolved, &dependencies, &intents)?;
+        plan["extensions"]["oyzu.dev/selection"] = selection.record();
+        manifest["extensions"]["oyzu.dev/selection"] = selection.record();
         if plan_only {
             return Ok(plan);
         }

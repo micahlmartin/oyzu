@@ -40,11 +40,13 @@ test('consume the tested binary without sharing producer writes', () => {
 ''')
     format_sources(root, project/'consumer/materialization.test.mjs')
     before = source_files(project)
-    invoke(project, 'build')
+    invoke(project, 'build', 'consumer')
     manifest = validate(project / 'dist')
     assert manifest['status'] == 'succeeded' and len(manifest['artifacts']) == 2
     assert source_files(project) == before
     plan = json.loads((project/'dist/plan.json').read_text())
+    assert plan['extensions']['oyzu.dev/selection']['requested']==['consumer']
+    assert plan['extensions']['oyzu.dev/selection']['selected']==['consumer','producer']
     verification = next(a for a in plan['actions'] if a['id']=='producer:verify')
     assert verification['target']=='producer' and verification['tools']==['producer']
     assert verification['cwd']=='producer' and verification['argv']==['go','version']

@@ -19,6 +19,28 @@ pub(super) fn operation(workspace: &Workspace, target: &str, name: &str) -> Stri
     }
 }
 
+/// Stage admission shared by target selection and action graph compilation.
+pub(super) fn roots(workspace: &Workspace, target: &str, plan: &BuilderPlan) -> Vec<String> {
+    plan.stages
+        .iter()
+        .filter_map(|stage| {
+            let id = operation(workspace, target, stage);
+            let task = workspace.tasks.get(&id)?;
+            let native = plan.tasks.contains_key(*stage)
+                && task.provider == workspace.targets[target].manager;
+            let root_override =
+                workspace.targets.len() == 1 && workspace.tasks.contains_key(*stage);
+            if (task.availability.is_some() && !native)
+                || (!task.build_stage && !root_override && !plan.tasks.contains_key(*stage))
+            {
+                None
+            } else {
+                Some(id)
+            }
+        })
+        .collect()
+}
+
 fn entry(workspace: &Workspace, id: &str) -> String {
     let task = &workspace.tasks[id];
     let pre = tasks::pre_hook(task);
@@ -89,18 +111,7 @@ impl TaskGraph {
         for (target, plan) in plans {
             let mut seen = BTreeSet::new();
             let mut previous = None;
-            for stage in &plan.stages {
-                let id = operation(workspace, target, stage);
-                let Some(task) = workspace.tasks.get(&id) else {
-                    continue;
-                };
-                let root_override =
-                    workspace.targets.len() == 1 && workspace.tasks.contains_key(*stage);
-                if (task.availability.is_some() && !native.contains(&id))
-                    || (!task.build_stage && !root_override && !plan.tasks.contains_key(*stage))
-                {
-                    continue;
-                }
+            for id in roots(workspace, target, plan) {
                 if seen.contains(&id) {
                     continue;
                 }

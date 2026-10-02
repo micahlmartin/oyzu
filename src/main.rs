@@ -41,6 +41,8 @@ enum Commands {
     Discover,
     /// Build captured source with a provisioned container toolchain.
     Build {
+        /// Target IDs; omitted means all targets. Required dependencies are included.
+        targets: Vec<String>,
         /// Emit the resolved deterministic plan without executing it.
         #[arg(long)]
         plan: bool,
@@ -89,8 +91,13 @@ fn run() -> Result<i32> {
             );
             return Ok(0);
         }
-        Commands::Build { plan, image } => {
-            let result = build::run_with_options(&directory, image, *plan, &options)?;
+        Commands::Build {
+            plan,
+            image,
+            targets,
+        } => {
+            let result =
+                build::run_selected_with_options(&directory, image, *plan, &options, targets)?;
             println!("{}", serde_json::to_string_pretty(&result)?);
             return Ok(if *plan || result["status"] == "succeeded" {
                 0

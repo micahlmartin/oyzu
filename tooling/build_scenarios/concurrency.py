@@ -92,3 +92,36 @@ setTimeout(() => console.log('OYZU_CONCURRENCY ' + JSON.stringify({start, end: D
     assert ordered['status']=='succeeded' and len(ordered['artifacts'])==2
     assert source_files(project)==before
     verified.append('Local sibling prerequisites retain build-stage and mutation order while compilation waits on another target')
+
+    # Select alpha, then expand to beta through an actual task prerequisite.
+    # The third target has no provisioned image and must never be prepared.
+    (project/'unused').mkdir()
+    (project/'unused/go.mod').write_text('module example.test/unused\n\ngo 1.24\n')
+    (project/'unused/main.go').write_text('package main\nfunc main() {}\n')
+    with (project/'build.yaml').open('a') as file:
+        file.write('unused: {uses: go/app, path: unused}\n')
+    before = source_files(project)
+    invoke(project, 'build', 'alpha', '--image', 'go=oyzu-unprovisioned-selection:test')
+    selected = validate(project/'dist')
+    assert selected['status']=='succeeded' and source_files(project)==before
+    plan = json.loads((project/'dist/plan.json').read_text())
+    selection = plan['extensions']['oyzu.dev/selection']
+    assert selection == {'mode':'explicit', 'requested':['alpha'], 'selected':['alpha','beta'],
+        'excluded':[{'target':'unused','reason':'outside-selection'}]}
+    assert selected['extensions']['oyzu.dev/selection']==selection
+    assert {a['target'] for a in selected['artifacts']}=={'alpha','beta'}
+    assert {t['id'] for t in plan['tools']}=={'alpha','beta'}
+    invoke(project,'inspect','dist')
+    # A single selected target still belongs to a multi-target workspace;
+    # an unrelated root task must not become an override.
+    (project/'oyzu.toml').write_text('[tasks.test]\nargv=["must-not-run-root-test"]\n')
+    invoke(project, 'build', 'alpha', 'alpha', '--image', 'go=oyzu-unprovisioned-selection:test')
+    one = validate(project/'dist')
+    assert one['status']=='succeeded' and len(one['artifacts'])==1
+    assert one['extensions']['oyzu.dev/selection']['selected']==['alpha']
+    assert len([r for r in one['reports'] if r['kind']=='test'])==1
+    invoke(project,'build','unknown-target',success=False)
+    invalid = validate(project/'dist')
+    assert not invalid['actions'] and not invalid['artifacts']
+    assert any('unknown build target' in d['message'] for d in invalid['diagnostics'])
+    verified.append('Explicit build selection expands task owners, skips unprovisioned unrelated targets, preserves root-task semantics, deduplicates requests and records exclusions')

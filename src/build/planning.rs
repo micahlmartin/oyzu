@@ -21,14 +21,17 @@ fn platform(image: &executor::Image) -> Value {
     json!({"os":image.os,"arch":image.arch})
 }
 
-pub(super) fn target_order(workspace: &Workspace) -> Result<Vec<String>> {
+pub(super) fn target_order(
+    workspace: &Workspace,
+    selected: &BTreeSet<String>,
+) -> Result<Vec<String>> {
     let configs = config::targets(&workspace.root)?.unwrap_or_default();
-    for (id, c) in &configs {
+    for (id, c) in configs.iter().filter(|(id, _)| selected.contains(*id)) {
         if !c.matrix.is_empty() || c.container.is_some() || c.bindings.is_some() {
             bail!("{id}: platform expansion and packaging options are not implemented yet");
         }
     }
-    let mut pending: BTreeSet<_> = workspace.targets.keys().cloned().collect();
+    let mut pending = selected.clone();
     let mut done = Vec::new();
     while !pending.is_empty() {
         let ready = pending
@@ -86,6 +89,43 @@ pub(super) fn plan_with_dependencies(
     images: &BTreeMap<String, executor::Image>,
     dependencies: &BTreeMap<String, dependencies::Prepared>,
 ) -> Result<Value> {
+    let mut intents = BTreeMap::new();
+    for id in workspace.targets.keys() {
+        intents.insert(
+            id.clone(),
+            intent(workspace, id, source, dependencies.get(id))?,
+        );
+    }
+    compile(workspace, source, images, dependencies, &intents)
+}
+
+pub(super) fn intent(
+    workspace: &Workspace,
+    id: &str,
+    source: &snapshot::Snapshot,
+    dependency: Option<&dependencies::Prepared>,
+) -> Result<builders::BuilderPlan> {
+    let target = &workspace.targets[id];
+    let intent = builders::get(&target.builder)?.plan(builders::PlanningContext {
+        target,
+        source,
+        dependencies: dependency,
+    })?;
+    intent
+        .validate()
+        .with_context(|| format!("{id}: invalid builder output contract"))?;
+    Ok(intent)
+}
+
+pub(super) fn compile(
+    workspace: &Workspace,
+    source: &snapshot::Snapshot,
+    images: &BTreeMap<String, executor::Image>,
+    dependencies: &BTreeMap<String, dependencies::Prepared>,
+    intents: &BTreeMap<String, builders::BuilderPlan>,
+) -> Result<Value> {
+    let selected = intents.keys().cloned().collect();
+    let order = target_order(workspace, &selected)?;
     let mut planned = Vec::new();
     let mut target_records = Vec::new();
     let mut artifacts = Vec::new();
@@ -93,20 +133,7 @@ pub(super) fn plan_with_dependencies(
     let builder_digest = snapshot::file_digest(&std::env::current_exe()?)?;
     let configs = config::targets(&workspace.root)?.unwrap_or_default();
     let mut materialized = BTreeMap::new();
-    let order = target_order(workspace)?;
-    let mut intents = BTreeMap::new();
-    for (id, target) in &workspace.targets {
-        let intent = builders::get(&target.builder)?.plan(builders::PlanningContext {
-            target,
-            source,
-            dependencies: dependencies.get(id),
-        })?;
-        intent
-            .validate()
-            .with_context(|| format!("{id}: invalid builder output contract"))?;
-        intents.insert(id.clone(), intent);
-    }
-    let task_graph = super::task_graph::TaskGraph::new(workspace, &intents)?;
+    let task_graph = super::task_graph::TaskGraph::new(workspace, intents)?;
     for id in order {
         let target = &workspace.targets[&id];
         let image = images
@@ -380,14 +407,18 @@ pub(super) fn plan_with_dependencies(
     // Validate combined stage, hook, task and target edges before returning a
     // runnable plan. Task-only cycle checks cannot see all these relationships.
     super::scheduling::Schedule::new(&planned, 1)?;
-    validate_required_checks(workspace, &planned)?;
+    validate_required_checks(workspace, &selected, &planned)?;
     let managed = workspace
         .configuration
-        .values()
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+        .map(|(_, config)| config)
         .find_map(|config| config.management.as_ref());
     let required: BTreeSet<_> = workspace
         .configuration
-        .values()
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+        .map(|(_, config)| config)
         .filter_map(|config| config.get("checks.required").and_then(Value::as_array))
         .flatten()
         .filter_map(Value::as_str)
@@ -395,6 +426,7 @@ pub(super) fn plan_with_dependencies(
     let digests: BTreeMap<_, _> = workspace
         .configuration
         .iter()
+        .filter(|(id, _)| selected.contains(*id))
         .map(|(id, config)| (id, &config.digest))
         .collect();
     let mut policy = json!({"mode":if managed.is_some(){"managed"}else{"standalone"},"enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"configuration":digests,"productionEligible":false,"executor":"docker-v1"}))?,"requiredChecks":required});
@@ -405,7 +437,13 @@ pub(super) fn plan_with_dependencies(
     let jobs = workspace
         .root_configuration
         .iter()
-        .chain(workspace.configuration.values())
+        .chain(
+            workspace
+                .configuration
+                .iter()
+                .filter(|(id, _)| selected.contains(*id))
+                .map(|(_, config)| config),
+        )
         .filter_map(|config| config.get("build.jobs").and_then(Value::as_u64))
         .min()
         .unwrap_or(1);
@@ -417,6 +455,7 @@ pub(super) fn plan_with_dependencies(
 pub(super) fn resolve_images(
     workspace: &Workspace,
     overrides: &[String],
+    selected: &BTreeSet<String>,
 ) -> Result<BTreeMap<String, executor::Image>> {
     let mut refs = BTreeMap::new();
     for value in overrides {
@@ -431,7 +470,11 @@ pub(super) fn resolve_images(
         }
     }
     let mut images = BTreeMap::new();
-    for (id, target) in &workspace.targets {
+    for (id, target) in workspace
+        .targets
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+    {
         let builder = builders::get(&target.builder)?;
         let default = builder.toolchain(target)?;
         let reference = refs
@@ -446,8 +489,16 @@ pub(super) fn resolve_images(
     Ok(images)
 }
 
-fn validate_required_checks(workspace: &Workspace, actions: &[Value]) -> Result<()> {
-    for (id, config) in &workspace.configuration {
+fn validate_required_checks(
+    workspace: &Workspace,
+    selected: &BTreeSet<String>,
+    actions: &[Value],
+) -> Result<()> {
+    for (id, config) in workspace
+        .configuration
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+    {
         let checks = config
             .get("checks.required")
             .and_then(Value::as_array)
