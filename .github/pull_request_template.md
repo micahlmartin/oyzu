@@ -22,6 +22,8 @@ Use the [engineering guide](../docs/code-organization.md#review-boundaries-in-pr
 
 Describe checks performed and relevant results.
 
+For feature implementation, show the real end-to-end command and result, or identify the blocker preventing that proof. Distinguish remaining required scenarios from deferred hardening. A hardening follow-up should name its bounded acceptance criteria and explain its priority relative to unproved required flows; component tests alone do not establish end-to-end success.
+
 ## Compatibility and risks
 
 Describe affected contracts, platform differences, and unresolved limitations.

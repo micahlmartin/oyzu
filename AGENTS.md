@@ -7,6 +7,18 @@ This is the public Oyzu repository. It must be buildable and usable without priv
 
 Oyzu is a 100% AI-built project. All first-party implementation code, tests and scripts, including fixes and refactors, are AI-generated. People define requirements, guide agents, review results and approve changes; handcrafted code patches are not our contribution workflow. Dependencies and upstream code retain their actual authorship and licenses. Follow [CONTRIBUTING.md](CONTRIBUTING.md); AI generation never replaces verification or maintainer accountability.
 
+## Implementation priority: prove the whole flow first
+
+Getting the proposed solution working end to end is the first priority for every implementation. Hardening comes afterward and has an explicitly bounded scope; it is not an open-ended prerequisite to demonstrating the feature.
+
+1. **Define the proof before implementing.** Identify the real user entry point, representative input, expected final result and command that demonstrates it. For significant work, put this in the OEP with linked examples. State what is needed for this first proof and what is later hardening; routine fixes need no new proposal.
+2. **Connect the whole path first.** Implement the smallest real flow through the required subsystems to the usable result. For a builder, invoke the compiled CLI on a real project and produce its expected artifact and required reports. Isolated helpers, mocked success, discovery output and unit-test counts do not prove the solution.
+3. **Close functional gaps before polishing edges.** After the first demonstration, prioritize the remaining required end-to-end scenarios. Do not repeatedly harden one working component while required flows remain unproved. Before taking a follow-up, state which missing flow or observed blocker it closes; otherwise record it for later hardening.
+4. **Bound hardening separately.** Track additional edge cases, broader compatibility, performance tuning, resilience and defensive refinements as named follow-ups with concrete acceptance criteria. Do not silently expand the current milestone when new concerns are discovered. Fix issues that prevent the demonstration from working correctly, and preserve existing safety boundaries and explicit task requirements; this priority is not permission to expose credentials, fabricate evidence or bypass policy.
+5. **Report progress against outcomes.** Distinguish end-to-end demonstrated, required scenario coverage remaining and hardening deferred. Show the actual command/result and known limits. Once a milestone's agreed checks pass, move on; do not redefine its finish line through successive refinements. A demonstrated path is not a claim that all scenarios pass or the feature is production-ready.
+
+Apply the architecture, documentation and verification rules below in this order of delivery. They support a working solution; they must not turn the first demonstration into exhaustive subsystem hardening.
+
 ## Architecture rules
 
 Before implementation, answer three questions: **Who owns this behavior? Which existing contract should it use? What observable result will verify it?** A local fix needs no separate design document. The [code map and engineering guide](docs/code-organization.md) supplies ownership, extension decisions and detailed review examples behind these eight rules.

@@ -24,6 +24,12 @@ Pull requests should explain the intended behavior, reference related issues or 
 
 For code changes, briefly identify the AI tool used, how you directed/reviewed the change, and the subsystem/interface affected. A short summary is enough; full chat logs, private prompts and credentials are not required. Keep changes reviewable and scoped to one coherent outcome. Do not weaken an acceptance criterion merely to make generated code pass.
 
+## Prove the solution before hardening it
+
+Follow the [implementation priority](AGENTS.md#implementation-priority-prove-the-whole-flow-first): first demonstrate the smallest real end-to-end user flow, then complete the required scenarios, then perform separately scoped hardening. An OEP should name the demonstration command, input and observable final result, with later refinements recorded separately. Keep the implementation connected through the actual product; standalone helpers and passing unit tests are supporting evidence, not the first milestone. Preserve existing safety boundaries and report limitations without calling a demonstration production-ready.
+
+When directing an agent or reviewing a follow-up, identify the missing user flow or observed blocker it closes. If it only refines an already working path, record it for the hardening phase instead of letting it displace unproved required flows. Hardening work has finite acceptance criteria; newly discovered concerns do not automatically expand the milestone.
+
 ## Find a bounded starting point
 
 Use this table to narrow your first change, then consult the [code map](docs/code-organization.md) for the authoritative ownership details. You do not need to understand every subsystem before contributing.
@@ -41,7 +47,7 @@ Adding a builder or detector normally means extending an owned module and regist
 
 When directing an AI agent, a useful starting prompt is:
 
-> Read AGENTS.md and the code map. Implement [one observable outcome], using [issue/example] as the expected behavior. Find the owning subsystem and existing contracts before editing. Keep ecosystem details with their adapter and reuse shared configuration, scheduling, execution and reporting rules. Update the relevant documentation, run the applicable checks, and report the changed boundaries, verification results and remaining limitations. Preserve unrelated work.
+> Read AGENTS.md and the code map. Implement [one observable outcome], using [issue/example] as the expected behavior. Define and prove the smallest real end-to-end flow first, then close required scenario gaps; record additional hardening separately. Find the owning subsystem and existing contracts before editing. Keep ecosystem details with their adapter and reuse shared configuration, scheduling, execution and reporting rules. Update the relevant documentation, run the applicable checks, and report the demonstrated flow, remaining required scenarios and deferred hardening. Preserve unrelated work.
 
 Replace the brackets with your task; this is an optional starting point, not a required tool or submission format. Review the resulting implementation and evidence against the requested behavior. An agent's statement that it followed the architecture is not a substitute for inspecting the diff.
 

@@ -3,7 +3,7 @@ id: OEP-0001
 title: Enhancement proposal process
 status: draft
 implementation: not-started
-updated: 2026-10-01
+updated: 2026-10-02
 authors: [micahlmartin]
 reviewers: []
 requires: []
@@ -43,9 +43,13 @@ Open a problem issue; determine whether an OEP is warranted; submit a design PR;
 
 LLM tasks receive the accepted contract, scope, acceptance criteria, and relevant repository guidance. They may prepare experiments for open questions but MUST NOT mark a design accepted or a feature stable themselves.
 
+The repository's [implementation priority](../../../AGENTS.md#implementation-priority-prove-the-whole-flow-first) applies to every implementation: prove the proposed solution end to end first, complete required scenario coverage next, and harden afterward within an explicitly bounded scope. Each significant implementation plan identifies a representative input, actual user command and observable final result before expanding individual components. Record what is necessary for that proof and what can wait. A runnable experiment may inform a draft proposal without implying design acceptance.
+
+Implementation issues and progress reports distinguish the first demonstrated flow, remaining required scenarios and deferred hardening. Passing component tests does not substitute for the demonstration. New edge cases become named follow-ups instead of silently extending the milestone; existing safety boundaries and explicit requirements still apply. Stable graduation remains a separate decision under the criteria below.
+
 ## Template and graduation
 
-Required subjects are problem, goals/non-goals, user experience, contracts, state/flow, security, failure handling, platform behavior, performance, verification, rollout, alternatives, and open decisions. A proposal may combine related sections or mark a genuinely irrelevant topic with justification.
+Required subjects are problem, goals/non-goals, user experience, first end-to-end proof and delivery order, contracts, state/flow, security, failure handling, platform behavior, performance, verification, rollout, alternatives, and open decisions. A proposal may combine related sections or mark a genuinely irrelevant topic with justification. Describing later hardening does not make it a prerequisite to the first proof.
 
 Stable graduation requires demonstrated acceptance criteria, compatibility documentation, user reference updates, and relevant OS coverage. A private GitHub Project may summarize delivery across repositories; public issues remain sufficient for community work.
 

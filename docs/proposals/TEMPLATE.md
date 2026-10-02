@@ -24,6 +24,12 @@ Who needs this and what observable behavior changes? State goals and exclusions.
 
 Show the zero-config path first, then the smallest necessary exception. Explain discovery and errors. Do not introduce a pipeline DSL or repeat native project metadata.
 
+## First end-to-end proof and delivery order
+
+Name the representative project/input, actual user command, subsystems traversed and usable final result that will demonstrate the proposal. Identify the smallest connected implementation needed to run it and the observable pass/fail check. Use real product behavior and native tools; a mocked result or isolated component test is not this proof.
+
+Separate the first demonstration, remaining required end-to-end scenarios and later hardening. Give each milestone finite acceptance criteria. Record additional edge cases, compatibility expansion, performance and resilience refinements as follow-ups; do not make exhaustive hardening a prerequisite to proving the solution. Preserve existing safety boundaries and explicit requirements. Link measured evidence when available and state limitations; the first demonstration does not imply stable support.
+
 ## Contracts and design
 
 Define inputs, outputs, identities, state transitions, dependencies, compatibility, and ownership. Mark provisional syntax. Explain how overrides and hooks interact with engine-owned guarantees.
