@@ -3,6 +3,7 @@ import {existsSync, lstatSync, readFileSync, readdirSync, writeFileSync} from 'n
 import {createRequire} from 'node:module';
 import {spawnSync} from 'node:child_process';
 import {dirname, isAbsolute, join, relative, resolve, sep} from 'node:path';
+import {pathToFileURL} from 'node:url';
 
 const root = process.cwd();
 const args = process.argv.slice(process.execArgv.includes('-e') ? 1 : 2);
@@ -30,6 +31,31 @@ function locate(name, request = name) {
 const library = name => project(locate(name));
 const excluded = new Set(['node_modules','.git','.oyzu','.oyzu-build','dist','build','coverage']);
 const scopes = JSON.parse(process.env.OYZU_NODE_QUALITY_EXCLUDE ?? '[]');
+if (process.env.OYZU_NODE_VITE_CONFIG === '1') {
+  function nativeRecord(path) {
+    const info = lstatSync(path);
+    if (!info.isFile() || info.isSymbolicLink() || info.size > 16384) throw new Error('Invalid Vite output metadata');
+    return JSON.parse(readFileSync(path, 'utf8'));
+  }
+  const recordPath = process.env.OYZU_NODE_VITE_RECORD;
+  const info = recordPath && lstatSync(recordPath, {throwIfNoEntry:false});
+  if (info) {
+    const record = nativeRecord(recordPath);
+    if (record.schemaVersion !== 'v1alpha1' || record.kind !== 'vite-output' || record.version !== process.env.OYZU_VERSION) throw new Error('Mismatched Vite output metadata');
+    scopes.push(record.output);
+  } else {
+    // This is an explicit quality task, never static discovery. Native config
+    // resolution is needed before a build has recorded its actual output.
+    const words = pkg.scripts?.build?.trim().split(/\s+/) ?? [];
+    let outDir = words.length === 4 && words[2] === '--outDir' ? words[3] : null;
+    if (process.env.OYZU_NODE_VITE_STATE) {
+      outDir = nativeRecord(process.env.OYZU_NODE_VITE_STATE).outDir;
+    }
+    const {resolveConfig} = await import(pathToFileURL(project.resolve('vite')).href);
+    const config = await resolveConfig(outDir ? {build:{outDir}} : {}, 'build', 'production', 'production');
+    scopes.push(relative(root, resolve(config.root, config.build.outDir)).split(sep).join('/'));
+  }
+}
 if (!Array.isArray(scopes) || scopes.length > 1024 || scopes.some(p => typeof p !== 'string' || !p || isAbsolute(p) || /[\\:]/.test(p) || p.split('/').some(c => !c || c === '.' || c === '..'))) {
   throw new Error('Invalid workspace quality scope');
 }

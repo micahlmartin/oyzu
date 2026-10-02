@@ -26,11 +26,9 @@ pub(super) fn configure(target: &Target, package: &Value, plan: &mut BuilderPlan
             target.name
         );
     }
-    for file in super::detection::output_configuration_files() {
-        if target.path.join(file).exists() {
-            bail!("{}: executable Vite configuration requires native output metadata integration; refusing to guess its output directory", target.name);
-        }
-    }
+    let configured = super::detection::output_configuration_files()
+        .iter()
+        .any(|file| target.path.join(file).exists());
     let output = output_directory(package)?;
     // The ordinary package operation is replaced by a directory output, while
     // native build/test/quality tasks and their required reports stay intact.
@@ -56,6 +54,55 @@ pub(super) fn configure(target: &Target, package: &Value, plan: &mut BuilderPlan
         .insert("OYZU_NODE_QUALITY_EXCLUDE".into(), exclusions.clone());
     plan.fixed_env
         .insert("OYZU_NODE_QUALITY_EXCLUDE".into(), exclusions);
+    if configured {
+        let state = format!("/out/{}/vite-state.json", target.name);
+        let metadata = format!("vite-output-{}.json", plan.version);
+        let record = format!("/out/{}/artifacts/{metadata}", target.name);
+        let script = package["scripts"]["build"].as_str().unwrap();
+        let override_output = if script.split_whitespace().count() == 4 {
+            output
+        } else {
+            ""
+        };
+        plan.prepare.push(CommandSpec::new(
+            "configure-vite",
+            &[
+                "node",
+                "/oyzu/node-vite.mjs",
+                "prepare",
+                &record,
+                script,
+                override_output,
+            ],
+        ));
+        plan.package = CommandSpec::new(
+            "package",
+            &[
+                "node",
+                "/oyzu/node-vite.mjs",
+                "package",
+                &record,
+                &format!(
+                    "/out/{}/artifacts/{}",
+                    target.name, plan.artifacts[0].filename
+                ),
+            ],
+        );
+        plan.artifacts.push(ArtifactSpec {
+            kind: ArtifactKind::File,
+            name: "build-metadata".into(),
+            filename: metadata,
+            version: None,
+            media_type: "application/vnd.oyzu.vite-output.v1+json",
+        });
+        for (name, value) in [
+            ("OYZU_NODE_VITE_STATE", state),
+            ("OYZU_NODE_VITE_RECORD", record),
+        ] {
+            plan.env.insert(name.into(), value.clone());
+            plan.fixed_env.insert(name.into(), value);
+        }
+    }
     Ok(())
 }
 
@@ -125,10 +172,11 @@ mod tests {
             "throw Error('never execute in planning');",
         )
         .unwrap();
-        assert!(configure(target, &package, &mut plan)
-            .unwrap_err()
-            .to_string()
-            .contains("native output metadata"));
+        configure(target, &package, &mut plan).unwrap();
+        assert_eq!(plan.artifacts.len(), 2);
+        assert_eq!(plan.artifacts[1].name, "build-metadata");
+        assert_eq!(plan.prepare.last().unwrap().operation, "configure-vite");
+        assert_eq!(plan.package.argv[1], "/oyzu/node-vite.mjs");
         fs::remove_file(root.path().join("vite.config.ts")).unwrap();
         let mut missing = package.clone();
         missing["devDependencies"] = json!({});

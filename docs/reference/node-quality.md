@@ -49,6 +49,8 @@ ESLint preserves native configuration and uses Node globals for fallback rules, 
 
 Native configurations and plugins can execute their own code where the native tool supports that. Development tasks execute on the host with the task environment. Captured actions use the prepared offline execution environment, and these quality adapters do not introduce network acquisition or credential delivery. Global inherited configuration, every plugin form and complete cross-manager configuration inheritance still require further qualification.
 
+For configured Vite applications, implicit checks exclude the output location recorded by the captured native build. When that record does not yet exist, the explicit quality task resolves Vite configuration in production build mode to obtain the exclusion, preserving a recognized native `--outDir` override. That resolution may execute native configuration code, just as native checker configurations can; it never happens during discovery or task listing. Invalid output metadata or an uncontained configured output fails the check instead of silently expanding the source scope.
+
 ## Verification and troubleshooting
 
 ```text

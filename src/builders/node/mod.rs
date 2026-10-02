@@ -18,6 +18,10 @@ pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
     RuntimeFile {
+        name: "node-vite.mjs",
+        contents: include_str!("runtime/vite.mjs"),
+    },
+    RuntimeFile {
         name: "node-application.mjs",
         contents: include_str!("runtime/application.mjs"),
     },

@@ -54,6 +54,30 @@ def verify(root, base, invoke, validate, source_files, verified):
     custom_dir = next(a for a in custom['artifacts'] if a['target']=='frontend')
     assert custom_dir['digest']==directory['digest']
     assert source_files(project)==custom_source
+
+    package['scripts']['build'] = 'vite build'
+    package_file.write_text(json.dumps(package))
+    shutil.copyfile(root/'examples/builds/materialize-directory/variants/vite-config/vite.config.mjs',
+                    project/'frontend/vite.config.mjs')
+    # A configured native output and extra metadata artifact must still select
+    # the primary directory automatically for Docker materialization.
+    shutil.rmtree(project/'frontend/public-site')
+    configured_source = source_files(project)
+    invoke(project, 'build')
+    configured = validate(project/'dist')
+    assert source_files(project)==configured_source
+    configured_dir = next(a for a in configured['artifacts'] if a['target']=='frontend' and a['name']=='primary')
+    metadata = next(a for a in configured['artifacts'] if a['target']=='frontend' and a['name']=='build-metadata')
+    native = json.loads((project/'dist'/metadata['path']).read_text())
+    assert native['output']=='web/production' and native['version']==configured_dir['version']
+    assert native['toolVersion'].startswith('8.') and native['mode']=='production'
+    configured_image = next(a for a in configured['artifacts'] if a['target']=='image')
+    _, _, configured_contents = image_contents(project/'dist'/configured_image['path'])
+    assert configured_contents['site/native-mode.txt']==b'production'
+    for entry in configured_dir['entries']:
+        if entry['kind']=='file':
+            assert configured_contents[f"site/{entry['path']}"]==(project/'dist'/configured_dir['path']/entry['path']).read_bytes()
+    invoke(project, 'inspect', 'dist')
     # Check a producer gate after a successful image: stale output cannot pass.
     test_file = project/'frontend/test/greeting.test.js'
     test_file.write_text(test_file.read_text().replace('Hello, Oyzu!', 'incorrect'))
@@ -64,4 +88,4 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(a for a in failed['actions'] if a['id']=='frontend:test')['status']=='failed'
     assert any(r['target']=='frontend' and r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
     assert not any(a['id']=='image:build' and a['status']=='succeeded' for a in failed['actions'])
-    verified.append('Vite: captured native dependencies, directory snapshot, JUnit/coverage, lint/read-only format, flattened Docker input, repeatability, native outDir, tamper and failed-producer rejection; EX-050 matrix remains pending')
+    verified.append('Vite: captured dependencies, native config/plugin outputs and metadata, directory snapshot, JUnit/coverage, quality gates, flattened Docker input, repeatability, native outDir, tamper and failed-producer rejection; EX-050 matrix remains pending')

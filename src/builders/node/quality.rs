@@ -41,11 +41,19 @@ pub(super) fn discover(target: &mut Target) {
         .discovery
         .get("output-profile")
         .is_some_and(|profile| profile.selected() == "vite-application");
+    let configured_vite = browser
+        && target.builder == "node/app"
+        && super::detection::output_configuration_files()
+            .iter()
+            .any(|file| target.path.join(file).exists());
     for task in target.tasks.values_mut().filter(|t| mode(t).is_some()) {
         task.env
             .insert("OYZU_NODE_TEST_FRAMEWORK".into(), framework.clone());
         if browser {
             task.env.insert("OYZU_NODE_BROWSER".into(), "1".into());
+        }
+        if configured_vite {
+            task.env.insert("OYZU_NODE_VITE_CONFIG".into(), "1".into());
         }
     }
 }

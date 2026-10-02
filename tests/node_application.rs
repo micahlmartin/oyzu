@@ -23,6 +23,7 @@ fn native_frontend_evidence_selects_output_without_executing_configuration() {
     );
     assert_eq!(target.tasks["build"].argv, ["npm", "run", "build"]);
     assert_eq!(target.tasks["lint"].env["OYZU_NODE_BROWSER"], "1");
+    assert_eq!(target.tasks["lint"].env["OYZU_NODE_VITE_CONFIG"], "1");
     assert_eq!(
         target.tasks["format-check"].env["OYZU_NODE_QUALITY_EXCLUDE"],
         "[\"public-site\"]"
