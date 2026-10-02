@@ -13,6 +13,8 @@ pub(super) use archive::{materialize, materialize_blob};
 pub(super) use blob::cache;
 pub use blob::VerifiedBlob;
 pub(super) use layout::stage;
+pub(super) use lease::recover;
+pub use lease::LeaseRecovery;
 pub(super) use receipt::verify;
 pub(super) use transaction::transact;
 pub use transaction::InstallationLease;

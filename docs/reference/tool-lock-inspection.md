@@ -244,14 +244,39 @@ Cleanup errors conservatively leave a stale record; destruction cannot report
 them to the caller. Forced termination can also leave a final record, and a crash
 during writing can leave a `.pending` file. Neither PID/timestamp nor a record's
 presence establishes liveness: recovery must use OS locks and the relevant
-reference/owner checks, never PID alone. Records are not yet automatically reaped.
+reference/owner checks, never PID alone. Each new lease holds an exclusive
+`locks/lease-<lease-id>` journal guard until destruction, including empty records.
+These guard files remain permanently, like the installation lock files.
 A journal creation/publication failure rejects selection and releases locks;
 already committed installations remain valid but unreferenced. Unknown or
 redirected lease directories fail without following links or replacing content.
 The parent and file flush behavior has the same platform limits as publication.
 
+`tools::recover_tool_leases(store, dry_run)` explicitly reaps final process-lease
+records only. It is a library operation; no automatic startup sweep or CLI prune
+command is enabled. The root must be a trusted physical store. It opens existing
+directories and lock files without creating missing lock evidence. It requires a
+canonical record ID, matching closed format-1 data, valid digests, sorted unique
+keys and a regular single-link record. It then tries the journal guard, sorted
+mutation locks and exclusive installation leases without waiting. Busy locks
+retain the record. Older records lacking a guard, unknown names, `.pending` files,
+malformed data, redirected files and unverified entries remain for manual review.
+No PID polling, installation deletion, lock-file deletion or recursive deletion
+occurs. This is a cooperative store contract, not protection against same-user
+malicious writers.
+
+The returned counts are `stale`, `removed`, `active_or_busy` and
+`unverified_or_failed`, plus `dry_run`. Dry-run performs the same transient lock
+checks but removes nothing. More than 4,096 directory entries fails before
+processing; record reads are capped at 512 KiB each and 32 MiB aggregate, with an
+extra byte probe for overflow. Unverified or failed records increment the last
+counter without exposing record text. The sweep is not one transaction: an I/O
+failure may follow earlier removals, and a failed directory sync leaves durability
+uncertain even if unlink succeeded. Reinspect and retry after correcting storage
+errors; never infer an active process solely from that counter or a leftover file.
+
 This is a cooperative-store foundation. Persistent shell-session references,
-operation owner/start-time journals, workspace reference tracking, crash recovery,
+operation owner/start-time journals, workspace reference tracking, staging/crash recovery,
 quarantine, prune, shell-session retention and supervised child-tree lifetime
 integration remain outstanding. A lease alone neither prevents same-user file
 tampering nor kills descendants when a supervisor dies. The complete MISE-05

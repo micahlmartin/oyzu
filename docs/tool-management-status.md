@@ -401,3 +401,34 @@ requalify this correction against the next pushed head.
 The full Windows GNU Rust 1.94 suite, strict all-target Clippy, formatting and
 all nine compiled CLI task scenarios passed. Documentation checks passed;
 these results do not establish backend installation or release approval.
+
+## Checkpoint 57: conservative stale process-lease recovery
+
+TM-04 adds explicit `tools::recover_tool_leases(store, dry_run)`. New leases hold
+a separate permanent journal guard lock for their whole lifetime, including
+records with no installation keys. Recovery requires existing journal/mutation/
+installation lock evidence, uses nonblocking exclusive acquisitions, validates
+closed bounded records and removes only verified stale final journal files.
+Unknown, malformed, pending, linked and legacy unguarded records remain; no
+installation, lock file or directory is deleted. There is no automatic sweep or
+CLI prune command. PID observations never decide liveness. The reference records
+limits, aggregate outcomes and partial I/O/durability failure semantics.
+
+Tests exercise a genuinely killed owner, dry-run, removal after all locks release,
+busy overlapping leases, malformed and legacy records, hardlinks and an empty
+record's independent guard. Full store recovery still needs staging operation
+ownership/start-time evidence, quarantine and workspace/session reference handling.
+This does not complete TM-04 or MISE-05.
+
+Native macOS job `110731250217` in run `36973162287` passed all six archive tests
+after the physical-parent fixture correction. Its concurrent blob publisher test
+then failed with an unqualified ENOENT. The cache now adds operation context to
+errors, and the test reaps both publishers before reporting a failure so fixture
+cleanup cannot obscure the other child's result. The macOS cause remains
+unresolved until the instrumented native run provides evidence; no pass is inferred.
+
+Windows GNU Rust 1.94 passed the full suite, strict all-target Clippy, formatting
+and nine real CLI task scenarios. Linux passed the final 16 receipt/recovery and
+nine blob integration tests, the empty-record guard unit test and strict
+all-target Clippy. Documentation structure passed. Native macOS recovery and
+the outstanding concurrency failure still require qualification.

@@ -27,6 +27,14 @@ impl Directory {
     }
 
     pub fn lock_file(&self, name: &str) -> Result<File> {
+        self.open_lock(name, true)
+    }
+
+    pub fn existing_lock_file(&self, name: &str) -> Result<File> {
+        self.open_lock(name, false)
+    }
+
+    fn open_lock(&self, name: &str, create: bool) -> Result<File> {
         component(name)?;
         let name = native_name(name)?;
         let fd = unsafe {
@@ -34,7 +42,7 @@ impl Directory {
                 self.handle.as_raw_fd(),
                 name.as_ptr(),
                 libc::O_RDWR
-                    | libc::O_CREAT
+                    | if create { libc::O_CREAT } else { 0 }
                     | libc::O_NOFOLLOW
                     | libc::O_NONBLOCK
                     | libc::O_CLOEXEC,

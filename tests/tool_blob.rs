@@ -309,12 +309,18 @@ fn separate_processes_converge_on_one_verified_blob() {
                 .unwrap(),
         );
     }
-    for child in children {
-        let output = child.wait_with_output().unwrap();
+    // Reap both before reporting a failure, so fixture cleanup cannot erase the
+    // store while the other publisher is still producing its diagnostic.
+    let outputs: Vec<_> = children
+        .into_iter()
+        .map(|child| child.wait_with_output().unwrap())
+        .collect();
+    for output in outputs {
         assert!(
             output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stdout)
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
         );
     }
     let bytes = b"parallel-cache-bytes";

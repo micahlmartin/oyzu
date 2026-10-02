@@ -4,12 +4,22 @@
 mod lock;
 mod store;
 pub use store::InstallationLease;
+pub use store::LeaseRecovery;
 pub use store::VerifiedBlob;
 pub use store::{TreeEntry, TreeInspection};
 
 use anyhow::{ensure, Context, Result};
 use serde::Serialize;
 use std::{fs::File, io::Read, path::Path};
+
+/// Reap only final process-lease records whose journal, mutation and installation
+/// lease locks are all available. Never deletes installations or lock files.
+/// Unknown, old unguarded, pending, redirected and malformed records are retained.
+/// Dry-run obtains transient locks but writes no files. This is a cooperative
+/// store operation, not PID-based liveness detection or full store recovery.
+pub fn recover_tool_leases(store: &Path, dry_run: bool) -> Result<LeaseRecovery> {
+    store::recover(&std::path::absolute(store)?, dry_run)
+}
 
 /// Caller-owned candidate staging and reviewed release identities. The admission
 /// digest must come from trusted compiled backend data, never project input.

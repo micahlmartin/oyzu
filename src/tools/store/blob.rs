@@ -52,7 +52,7 @@ impl Seek for VerifiedBlob {
 
 pub(super) fn snapshot(source: &mut dyn Read, digest: &str, size: u64) -> Result<VerifiedBlob> {
     validate(digest, size)?;
-    let mut file = tempfile::tempfile()?;
+    let mut file = tempfile::tempfile().context("create private blob snapshot")?;
     let mut hash = Sha256::new();
     let mut copied = 0u64;
     let mut buffer = [0u8; 64 * 1024];
@@ -98,11 +98,19 @@ pub(in crate::tools) fn cache(
     size: u64,
 ) -> Result<VerifiedBlob> {
     validate(digest, size)?;
-    let root = Directory::open(store)?;
-    let blobs = root.create_directory("blobs")?.create_directory("sha256")?;
-    let locks = root.create_directory("locks")?;
+    let root = Directory::open(store).context("open blob store root")?;
+    let blobs = root
+        .create_directory("blobs")
+        .context("open blob namespace")?
+        .create_directory("sha256")
+        .context("open SHA-256 blob namespace")?;
+    let locks = root
+        .create_directory("locks")
+        .context("open blob lock namespace")?;
     let name = &digest[7..];
-    let lock = locks.lock_file(&format!("blob-{name}"))?;
+    let lock = locks
+        .lock_file(&format!("blob-{name}"))
+        .context("open blob mutation lock")?;
     transaction::acquire(&lock, Instant::now() + Duration::from_secs(30), false)?;
     match blobs.file(name) {
         Ok(mut file) => {
@@ -119,8 +127,10 @@ pub(in crate::tools) fn cache(
                 .is_some_and(|e| e.kind() == io::ErrorKind::NotFound) => {}
         Err(error) => return Err(error),
     }
-    let mut verified = snapshot(source, digest, size)?;
-    let staging = root.create_directory("staging")?;
+    let mut verified = snapshot(source, digest, size).context("verify acquired blob snapshot")?;
+    let staging = root
+        .create_directory("staging")
+        .context("open blob staging namespace")?;
     // This is a collision-resistant temporary name, not an authentication nonce.
     // create_new is authoritative: a collision never adopts or removes a file.
     let temporary = format!(
@@ -129,7 +139,9 @@ pub(in crate::tools) fn cache(
         SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos(),
         NEXT.fetch_add(1, Ordering::Relaxed)
     );
-    let mut output = staging.create_file(&temporary)?;
+    let mut output = staging
+        .create_file(&temporary)
+        .context("create blob staging file")?;
     let written = (|| -> Result<()> {
         ensure!(
             io::copy(&mut verified, &mut output)? == size,

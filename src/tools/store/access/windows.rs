@@ -31,11 +31,19 @@ impl Directory {
     }
 
     pub fn lock_file(&self, name: &str) -> Result<File> {
+        self.open_lock(name, true)
+    }
+
+    pub fn existing_lock_file(&self, name: &str) -> Result<File> {
+        self.open_lock(name, false)
+    }
+
+    fn open_lock(&self, name: &str, create: bool) -> Result<File> {
         component(name)?;
         let file = OpenOptions::new()
             .read(true)
             .write(true)
-            .create(true)
+            .create(create)
             .truncate(false)
             .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
             .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)

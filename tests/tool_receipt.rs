@@ -382,6 +382,9 @@ fn publishes_whole_directory_then_retains_os_lease_without_changing_lock() {
         fs::read_dir(fixture.store.join("leases")).unwrap().count(),
         2
     );
+    let recovery = oyzu::tools::recover_tool_leases(&fixture.store, false).unwrap();
+    assert_eq!(recovery.active_or_busy, 2);
+    assert_eq!(recovery.removed, 0);
     drop(lease);
     assert!(!journal.exists());
     assert!(matches!(
@@ -448,6 +451,57 @@ fn unavailable_journal_fails_selection_and_releases_kernel_locks() {
         file.try_lock().unwrap();
     }
     assert!(fixture.verify().is_ok());
+}
+
+#[test]
+fn journal_recovery_preserves_unknown_malformed_legacy_and_linked_records() {
+    let fixture = Fixture::new();
+    let lease = fixture.lease(None).unwrap();
+    let id = lease.lease_id().to_owned();
+    let path = fixture.store.join("leases").join(format!("{id}.json"));
+    let original = fs::read(&path).unwrap();
+    drop(lease);
+    for (field, value) in [
+        ("format", json!(2)),
+        ("owner_pid", json!(0)),
+        ("lease_id", json!("different")),
+        ("selection_digest", json!("invalid")),
+        (
+            "installation_keys",
+            json!([
+                fixture.receipt["installation_key"],
+                fixture.receipt["installation_key"]
+            ]),
+        ),
+        ("unknown", json!(true)),
+    ] {
+        let mut record: Value = serde_json::from_slice(&original).unwrap();
+        record[field] = value;
+        let bytes = serde_json::to_vec(&record).unwrap();
+        fs::write(&path, &bytes).unwrap();
+        let report = oyzu::tools::recover_tool_leases(&fixture.store, false).unwrap();
+        assert_eq!(report.unverified_or_failed, 1, "{field}");
+        assert_eq!(fs::read(&path).unwrap(), bytes);
+    }
+    fs::write(&path, &original).unwrap();
+    let external = fixture._temp.path().join("linked-journal");
+    fs::hard_link(&path, &external).unwrap();
+    assert_eq!(
+        oyzu::tools::recover_tool_leases(&fixture.store, false)
+            .unwrap()
+            .unverified_or_failed,
+        1
+    );
+    assert_eq!(fs::read(&external).unwrap(), original);
+    fs::remove_file(external).unwrap();
+    fs::remove_file(fixture.store.join("locks").join(format!("lease-{id}"))).unwrap();
+    let pending = fixture.store.join("leases/unfinished.pending");
+    fs::write(&pending, b"incomplete").unwrap();
+    let report = oyzu::tools::recover_tool_leases(&fixture.store, false).unwrap();
+    assert_eq!(report.unverified_or_failed, 2);
+    assert_eq!(report.removed, 0);
+    assert_eq!(fs::read(path).unwrap(), original);
+    assert_eq!(fs::read(pending).unwrap(), b"incomplete");
 }
 
 #[cfg(unix)]
@@ -596,6 +650,18 @@ fn terminated_owner_releases_kernel_lease_and_retains_valid_commit() {
         stale["installation_keys"],
         json!([fixture.receipt["installation_key"]])
     );
+    let busy = oyzu::tools::recover_tool_leases(&fixture.store, false).unwrap();
+    assert_eq!(busy.active_or_busy, 1);
+    assert_eq!(busy.removed, 0);
+    drop(guard);
+    let dry = oyzu::tools::recover_tool_leases(&fixture.store, true).unwrap();
+    assert_eq!(dry.stale, 1);
+    assert_eq!(dry.removed, 0);
+    assert!(journals[0].exists());
+    let reaped = oyzu::tools::recover_tool_leases(&fixture.store, false).unwrap();
+    assert_eq!(reaped.stale, 1);
+    assert_eq!(reaped.removed, 1);
+    assert!(!journals[0].exists());
     assert!(fixture.verify().is_ok());
 }
 
