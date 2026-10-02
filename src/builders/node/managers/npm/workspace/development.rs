@@ -82,9 +82,8 @@ pub(in crate::builders::node::managers::npm) fn command(
     } else {
         None
     };
-    let test_scope = (*stage == "test").then_some(include_str!(
-        "../../../runtime/npm-workspace-test-scope.mjs"
-    ));
+    let test_scope =
+        (*stage == "test").then_some(include_str!("../../../runtime/workspace-test-scope.mjs"));
     let spec = serde_json::to_string(
         &json!({"command":native,"steps":steps,"stage":stage,"quality":quality,"testScope":test_scope}),
     )?;

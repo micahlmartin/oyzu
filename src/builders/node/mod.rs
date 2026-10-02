@@ -9,6 +9,7 @@ mod quality;
 mod reporting;
 mod toolchain;
 mod vitest;
+mod workspace;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
 use crate::dependencies::Prepared;
@@ -19,6 +20,22 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "native-workspace.mjs",
+        contents: include_str!("runtime/native-workspace.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-workspace-describe.mjs",
+        contents: include_str!("runtime/pnpm-workspace-describe.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspace-describe.mjs",
+        contents: include_str!("runtime/yarn-workspace-describe.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-test-host.mjs",
+        contents: include_str!("runtime/workspace-test-host.mjs"),
+    },
     RuntimeFile {
         name: "pnpm-store.mjs",
         contents: include_str!("runtime/pnpm-store.mjs"),
@@ -64,8 +81,8 @@ static RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/pnpm-registry.mjs"),
     },
     RuntimeFile {
-        name: "npm-workspace-test-scope.mjs",
-        contents: include_str!("runtime/npm-workspace-test-scope.mjs"),
+        name: "workspace-test-scope.mjs",
+        contents: include_str!("runtime/workspace-test-scope.mjs"),
     },
     RuntimeFile {
         name: "npm-workspace-root.mjs",
@@ -80,8 +97,8 @@ static RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/npm-workspace-build.mjs"),
     },
     RuntimeFile {
-        name: "npm-workspace-testing.mjs",
-        contents: include_str!("runtime/npm-workspace-testing.mjs"),
+        name: "workspace-testing.mjs",
+        contents: include_str!("runtime/workspace-testing.mjs"),
     },
     RuntimeFile {
         name: "npm-workspace-test-host.mjs",
@@ -164,8 +181,9 @@ impl Builder for Node {
     }
     fn development_test(&self, target: &Target, task: &Task) -> Result<Option<super::TaskPlan>> {
         let package = crate::records::read(&target.path.join("package.json"))?;
-        if task.name == "test" && package.get("workspaces").is_some() {
-            return managers::get(&target.manager)?.development_test(target, task);
+        let manager = managers::get(&target.manager)?;
+        if task.name == "test" && manager.is_workspace(&target.path, &package) {
+            return manager.development_test(target, task);
         }
         if task.name != "test"
             || package.get("workspaces").is_some()

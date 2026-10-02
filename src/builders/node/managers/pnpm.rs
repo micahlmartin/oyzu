@@ -97,6 +97,32 @@ impl crate::dependencies::context::Provider for Pnpm {
 }
 
 impl Manager for Pnpm {
+    fn is_workspace(&self, root: &std::path::Path, package: &serde_json::Value) -> bool {
+        root.join("pnpm-workspace.yaml").is_file() || package.get("workspaces").is_some()
+    }
+    fn workspace_test_command(&self) -> Vec<String> {
+        ["pnpm", "--recursive", "run", "test"]
+            .map(str::to_owned)
+            .to_vec()
+    }
+    fn development_test(
+        &self,
+        target: &crate::model::Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        let package = crate::records::read(&target.path.join("package.json"))?;
+        let expected = if package["scripts"]["test"].is_string() {
+            self.script("test", false)
+        } else {
+            self.workspace_test_command()
+        };
+        crate::builders::node::workspace::native_plan(
+            target,
+            task,
+            "pnpm-workspace-describe.mjs",
+            &expected,
+        )
+    }
     fn id(&self) -> &'static str {
         "pnpm"
     }

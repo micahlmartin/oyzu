@@ -82,6 +82,29 @@ impl crate::dependencies::context::Provider for Yarn {
 }
 
 impl Manager for Yarn {
+    fn workspace_test_command(&self) -> Vec<String> {
+        ["yarn", "workspaces", "run", "test"]
+            .map(str::to_owned)
+            .to_vec()
+    }
+    fn development_test(
+        &self,
+        target: &crate::model::Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        let package = crate::records::read(&target.path.join("package.json"))?;
+        let expected = if package["scripts"]["test"].is_string() {
+            self.script("test", false)
+        } else {
+            self.workspace_test_command()
+        };
+        crate::builders::node::workspace::native_plan(
+            target,
+            task,
+            "yarn-workspace-describe.mjs",
+            &expected,
+        )
+    }
     fn id(&self) -> &'static str {
         "yarn"
     }

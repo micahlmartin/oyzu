@@ -14,6 +14,18 @@ use anyhow::{bail, Context, Result};
 
 pub(super) trait Manager: Sync {
     fn id(&self) -> &'static str;
+    /// Static workspace marker only; native tools resolve actual membership.
+    fn is_workspace(&self, _root: &std::path::Path, package: &serde_json::Value) -> bool {
+        package.get("workspaces").is_some()
+    }
+    fn workspace_test_command(&self) -> Vec<String> {
+        vec![
+            self.id().into(),
+            "run".into(),
+            "test".into(),
+            "--workspaces".into(),
+        ]
+    }
     fn image(&self) -> &'static str;
     /// Opt into runtime matrices only when preparation and replay verify Node.
     fn runtime_image(&self, _node: &str) -> Result<String> {

@@ -2,7 +2,7 @@
 use crate::builders::{node::detection, ReportFormat, ReportSpec, TaskPlan};
 use anyhow::{bail, Result};
 
-pub(super) fn framework(profile: &detection::Profile) -> Result<String> {
+pub(in crate::builders::node) fn framework(profile: &detection::Profile) -> Result<String> {
     let name = profile.framework.selected();
     if let Some(script) = profile.package["scripts"]["test"].as_str() {
         if (name == "jest" && !crate::builders::node::jest::recognized(script))
@@ -13,12 +13,12 @@ pub(super) fn framework(profile: &detection::Profile) -> Result<String> {
         }
     }
     if !["node-test", "jest", "vitest", "mocha", "custom"].contains(&name) {
-        bail!("npm workspace {name} reporting integration is not implemented yet");
+        bail!("Node workspace {name} reporting integration is not implemented yet");
     }
     Ok(name.into())
 }
 
-pub(super) fn reports(task: &mut TaskPlan, module: &str, workspace_input: bool) {
+pub(in crate::builders::node) fn reports(task: &mut TaskPlan, module: &str, workspace_input: bool) {
     for (format, filename) in [
         (ReportFormat::Junit, "junit.xml"),
         (ReportFormat::Lcov, "coverage.lcov"),

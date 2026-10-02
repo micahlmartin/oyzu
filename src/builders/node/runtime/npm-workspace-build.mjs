@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {npm, npmCommand} from './npm-native.mjs';
 import {digest, project, read, regular, root, specification, state} from './npm-workspace-plan.mjs';
 import {packRoot} from './npm-workspace-root.mjs';
-import {testWorkspace} from './npm-workspace-testing.mjs';
+import {testWorkspace} from './workspace-testing.mjs';
 
 const [mode, encoded, location] = process.argv.slice(2);
 if (mode === 'project') {

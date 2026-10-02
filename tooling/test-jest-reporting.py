@@ -67,7 +67,7 @@ def main():
             (project/directory).mkdir(parents=True)
             (project/directory/'failure.test.js').write_text("throw Error('excluded suite executed');\n")
         (project/'jest.config.cjs').write_text("module.exports={testPathIgnorePatterns:['/ignored/']};\n")
-        module = (ROOT/'src/builders/node/runtime/npm-workspace-test-scope.mjs').as_uri()
+        module = (ROOT/'src/builders/node/runtime/workspace-test-scope.mjs').as_uri()
         version = json.loads((jest.parent.parent/'package.json').read_text())['version']
         scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{frameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(frameworkArguments('jest',process.cwd(),[{{path:'packages/member'}}],{json.dumps(version)})));"], cwd=project, text=True))
         document = run(True)

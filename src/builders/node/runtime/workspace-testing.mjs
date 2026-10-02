@@ -4,7 +4,7 @@ import {mkdirSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {nodeTests, frameworkArguments, frameworkCommand} from './npm-workspace-test-scope.mjs';
+import {nodeTests, frameworkArguments, frameworkCommand} from './workspace-test-scope.mjs';
 
 export function testWorkspace(spec, {root, reportRoot, script, extra = []}) {
   const runtime = dirname(fileURLToPath(import.meta.url));

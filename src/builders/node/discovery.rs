@@ -82,6 +82,16 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             }
         }
     }
+    let native = super::managers::get(&manager)?;
+    if native.is_workspace(&target.path, &value) && value["scripts"].get("test").is_none() {
+        let argv = native.workspace_test_command();
+        insert(
+            target,
+            "test",
+            &argv.iter().map(String::as_str).collect::<Vec<_>>(),
+            true,
+        );
+    }
     if manager == "npm" && value.get("workspaces").is_some() {
         for operation in ["build", "test", "lint", "format-check", "format"] {
             let scripts = &value["scripts"];

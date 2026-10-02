@@ -40,6 +40,7 @@ pub(super) fn detect_with_intent(root: &Path, application_intent: bool) -> Resul
         "package-lock.json",
         "npm-shrinkwrap.json",
         "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
         "yarn.lock",
     ];
     inputs.extend(frameworks::inputs());

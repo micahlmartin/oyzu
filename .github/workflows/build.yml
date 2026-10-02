@@ -237,6 +237,8 @@ jobs:
           python -m pip install -r tooling/design-requirements.txt
           python tooling/test-node-framework-direct.py --cli "$FRAMEWORK_CLI"
           python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI"
+          python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI" --manager pnpm
+          python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI" --manager yarn
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-go-metadata.py --cli cli/oyzu.exe
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
