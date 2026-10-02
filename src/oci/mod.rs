@@ -51,6 +51,42 @@ struct Configuration {
     #[serde(flatten)]
     platform: Platform,
     rootfs: RootFs,
+    config: Option<serde_json::Value>,
+}
+
+fn validate_runtime(config: &serde_json::Value) -> Result<()> {
+    if !config.is_object() {
+        bail!("OCI runtime configuration must be an object");
+    }
+    // Optional OCI fields may be null. Validate native field types without
+    // inventing runtime behavior or rejecting vendor extension fields.
+    for field in ["Entrypoint", "Cmd", "Env"] {
+        if let Some(value) = config.get(field).filter(|v| !v.is_null()) {
+            if !value
+                .as_array()
+                .is_some_and(|a| a.iter().all(|v| v.is_string()))
+            {
+                bail!("OCI {field} must be an array of strings");
+            }
+        }
+    }
+    for field in ["User", "WorkingDir", "StopSignal"] {
+        if config
+            .get(field)
+            .is_some_and(|v| !v.is_null() && !v.is_string())
+        {
+            bail!("OCI {field} must be a string");
+        }
+    }
+    if let Some(labels) = config.get("Labels").filter(|v| !v.is_null()) {
+        if !labels
+            .as_object()
+            .is_some_and(|m| m.values().all(|v| v.is_string()))
+        {
+            bail!("OCI Labels must be a string map");
+        }
+    }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -140,6 +176,9 @@ fn verify_node(
             }
             let config_name = archive.descriptor(&manifest.config)?;
             let config: Configuration = archive.json(&config_name)?;
+            if let Some(runtime) = &config.config {
+                validate_runtime(runtime)?;
+            }
             if config.platform.os.is_empty()
                 || config.platform.architecture.is_empty()
                 || config.rootfs.kind != "layers"

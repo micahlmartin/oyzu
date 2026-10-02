@@ -71,6 +71,15 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
     assert!(argv.iter().any(|a| a == "force-network-mode=none"));
     assert!(argv.iter().any(|a| a == "--no-cache"));
     assert!(!action.enforced().contains(&"docker-read-only-root"));
+    assert!(matches!(
+        plan.tasks["test"].execution,
+        crate::executor::Mode::OciValidation { .. }
+    ));
+    assert_eq!(plan.tasks["test"].reports.len(), 1);
+    assert_eq!(
+        serde_json::to_value(&plan.coverage).unwrap()["status"],
+        "inapplicable"
+    );
     assert!(serde_json::from_value::<crate::executor::Mode>(
         json!({"kind":"buildkit","hostSocket":"/var/run/docker.sock"})
     )

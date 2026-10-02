@@ -60,6 +60,7 @@ fn visit(
     workspace: &Workspace,
     id: &str,
     include_hooks: bool,
+    native: &BTreeSet<String>,
     active: &mut BTreeSet<String>,
     emitted: &mut BTreeSet<String>,
     order: &mut Vec<String>,
@@ -71,7 +72,7 @@ fn visit(
         return Ok(());
     }
     let task = &workspace.tasks[id];
-    if let Some(reason) = &task.availability {
+    if let Some(reason) = task.availability.as_ref().filter(|_| !native.contains(id)) {
         bail!("task {id} unavailable: {reason}");
     }
     active.insert(id.into());
@@ -80,6 +81,7 @@ fn visit(
             workspace,
             &resolve(workspace, dep)?,
             true,
+            native,
             active,
             emitted,
             order,
@@ -89,7 +91,7 @@ fn visit(
     if include_hooks && !is_hook {
         let pre = hook(task, "pre");
         if workspace.tasks.contains_key(&pre) {
-            visit(workspace, &pre, false, active, emitted, order)?;
+            visit(workspace, &pre, false, native, active, emitted, order)?;
         }
     }
     order.push(id.into());
@@ -97,7 +99,7 @@ fn visit(
     if include_hooks && !is_hook {
         let post = hook(task, "post");
         if workspace.tasks.contains_key(&post) {
-            visit(workspace, &post, false, active, emitted, order)?;
+            visit(workspace, &post, false, native, active, emitted, order)?;
         }
     }
     active.remove(id);
@@ -105,12 +107,23 @@ fn visit(
 }
 
 pub fn sequence(workspace: &Workspace, id: &str) -> Result<Vec<String>> {
+    sequence_for_build(workspace, id, &BTreeSet::new())
+}
+
+/// Captured plans can supply native operations unavailable in host development.
+/// This only changes availability admission; hooks and cycle checks are shared.
+pub(crate) fn sequence_for_build(
+    workspace: &Workspace,
+    id: &str,
+    native: &BTreeSet<String>,
+) -> Result<Vec<String>> {
     let id = resolve(workspace, id)?;
     let mut order = vec![];
     visit(
         workspace,
         &id,
         true,
+        native,
         &mut BTreeSet::new(),
         &mut BTreeSet::new(),
         &mut order,
@@ -220,4 +233,35 @@ pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Ve
         }
     }
     Ok(outcomes)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn native_build_availability_keeps_hooks_cycles_and_host_limits() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+        std::fs::write(root.path().join("oyzu.toml"), "[tasks.\"project:pre_test\"]\nargv=['echo','before']\n[tasks.\"project:post_test\"]\nargv=['echo','after']\n").unwrap();
+        let workspace = crate::discovery::discover(root.path()).unwrap();
+        assert!(sequence(&workspace, "project:test").is_err());
+        let native = BTreeSet::from(["project:test".into()]);
+        assert_eq!(
+            sequence_for_build(&workspace, "project:test", &native).unwrap(),
+            ["project:pre_test", "project:test", "project:post_test"]
+        );
+        assert!(sequence_for_build(&workspace, "project:lint", &native).is_err());
+        let mut workspace = workspace;
+        workspace
+            .tasks
+            .get_mut("project:pre_test")
+            .unwrap()
+            .depends_on
+            .push("project:test".into());
+        assert!(sequence_for_build(&workspace, "project:test", &native)
+            .unwrap_err()
+            .to_string()
+            .contains("cycle"));
+    }
 }
