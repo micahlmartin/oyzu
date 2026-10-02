@@ -142,9 +142,9 @@ source review and do not establish missing legal rights. Reports on PRs bind the
 tested merge revision, which may differ from the branch head.
 
 The [candidate evidence index](../proposals/OEP-0003-mise-integration/candidate-license-evidence.json)
-records all three downloaded native reports from run `36975506849`, including
+records all three downloaded native reports from run `36976065769`, including
 report hashes and package identities without observed notice files. Each binds
-clean merge revision `b7914105eb84460a64bee20ca13784fed603e10d`: Darwin
+clean merge revision `9e7556ae1b057830296402549c76bfbd38981acc`: Darwin
 ARM64 has 952 packages, Windows MSVC 975 and Linux GNU 955. This is a review
 index, not a notice bundle, validated license selection or shipping SBOM. The
 original reports must still accompany any review; index hashes alone cannot

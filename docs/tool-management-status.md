@@ -587,3 +587,18 @@ Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and all
 nine real CLI task scenarios passed. Linux descriptor unit tests, all three tool
 inspection CLI regressions and strict all-target Clippy passed. Shared schema
 fixtures and documentation checks passed; native macOS confirmation is pending.
+
+## Checkpoint 67: corrected native evidence pipeline passes
+
+Fork head `76192a7eb07cb87491db4f816b5da05df210f110` passes the entire
+three-host embedding workflow `36976065769`, including exact metadata provisioning,
+offline collection and uploads. Downloaded reports bind clean tested merge
+revision `9e7556ae1b057830296402549c76bfbd38981acc`. The candidate evidence
+index now references those artifacts and hashes, superseding the older index
+that predated unreadable-directory and provisioning fixes. Package/notice-gap
+counts are unchanged. This establishes candidate evidence collection, not human
+license approval or a complete shipping graph.
+
+Root run `36975364359` passes all three native CLI task scenario jobs in addition
+to its builds and isolated BuildKit check. Captured-source Linux builds remain
+in progress and are not counted as passed.
