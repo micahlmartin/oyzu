@@ -11,7 +11,7 @@ pub(super) fn environment() -> BTreeMap<String, String> {
         ("HELM_CACHE_HOME".into(), "/tmp/helm/cache".into()),
         ("HELM_CONFIG_HOME".into(), "/tmp/helm/config".into()),
         ("HELM_DATA_HOME".into(), "/tmp/helm/data".into()),
-        ("HELM_PLUGINS".into(), "/tmp/helm/no-plugins".into()),
+        ("HELM_PLUGINS".into(), "/opt/oyzu-helm-plugins".into()),
         ("KUBECONFIG".into(), "/dev/null".into()),
     ])
 }
@@ -53,6 +53,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         reason: "Chart packaging has no application-source coverage denominator; native chart assertions do not measure application code.".into(),
     });
     plan.env.extend(environment());
+    plan.fixed_env
+        .insert("HELM_PLUGINS".into(), plan.env["HELM_PLUGINS"].clone());
     plan.prepare.push(CommandSpec::new(
         "prepare",
         &[
@@ -81,6 +83,19 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         name: None,
         input: None,
     });
+    if context.target.discovery["test-framework"].selected() == "helm-unittest" {
+        test.argv.extend([
+            "--unittest-report".into(),
+            format!("/out/{id}/reports/unittest/unittest.xml"),
+        ]);
+        test.reports.push(ReportSpec {
+            format: ReportFormat::Junit,
+            filename: "unittest.xml",
+            source: crate::reports::ReportSource::File,
+            name: Some("unittest".into()),
+            input: None,
+        });
+    }
     plan.tasks.insert("test".into(), test);
     plan.tasks.insert(
         "lint".into(),

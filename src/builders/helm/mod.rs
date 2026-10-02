@@ -1,4 +1,5 @@
 use crate::builders::task::insert;
+mod detection;
 mod metadata;
 mod planning;
 mod preparation;
@@ -60,6 +61,9 @@ impl Builder for Helm {
         target.manager = "helm".into();
         let metadata = metadata::read(&path)?;
         target.version = metadata.version;
+        let framework = detection::detect(&path)?;
+        let unittest = framework.selected() == "helm-unittest";
+        target.discovery.insert("test-framework".into(), framework);
         insert(
             target,
             "install",
@@ -68,7 +72,14 @@ impl Builder for Helm {
         );
         insert(target, "build", &["helm", "package", chart], true);
         insert(target, "lint", &["helm", "lint", chart], true);
-        if metadata.kind != "library" {
+        if unittest {
+            insert(
+                target,
+                "test",
+                &["helm", "unittest", "--strict", chart],
+                true,
+            );
+        } else if metadata.kind != "library" {
             insert(
                 target,
                 "test",

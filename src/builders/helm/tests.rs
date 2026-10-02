@@ -139,3 +139,49 @@ fn library_charts_package_and_lint_without_attempting_installable_rendering() {
     assert!(plan.tasks.contains_key("lint"));
     assert_eq!(plan.package.argv[0], "cp");
 }
+
+#[test]
+fn native_unittest_suites_select_the_plugin_and_preserve_both_report_obligations() {
+    let root = tempfile::tempdir().unwrap();
+    chart(root.path(), "chart", "");
+    fs::create_dir(root.path().join("chart/tests")).unwrap();
+    // Native parsing belongs to execution, not static evidence capture.
+    fs::write(
+        root.path().join("chart/tests/deployment_test.yaml"),
+        "suite: [",
+    )
+    .unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let snapshot = snapshot::capture(root.path(), &source.path().join("captured")).unwrap();
+    let workspace = discovery::discover(&source.path().join("captured")).unwrap();
+    let target = &workspace.targets["project"];
+    assert_eq!(
+        target.discovery["test-framework"].selected(),
+        "helm-unittest"
+    );
+    assert_eq!(
+        target.tasks["test"].argv,
+        ["helm", "unittest", "--strict", "chart"]
+    );
+    let prepared = Prepared {
+        root: root.path().into(),
+        digest: snapshot.digest.clone(),
+        record: json!({}),
+    };
+    let plan = planning::plan(PlanningContext {
+        target,
+        source: &snapshot,
+        dependencies: Some(&prepared),
+    })
+    .unwrap();
+    plan.validate().unwrap();
+    assert_eq!(plan.tasks["test"].reports.len(), 2);
+    assert!(plan.tasks["test"]
+        .argv
+        .contains(&"--unittest-report".into()));
+    assert_eq!(plan.fixed_env["HELM_PLUGINS"], "/opt/oyzu-helm-plugins");
+    assert!(plan
+        .package
+        .argv
+        .contains(&"/out/project/artifacts/rendered.yaml".into()));
+}

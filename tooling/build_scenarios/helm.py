@@ -54,10 +54,55 @@ def verify(root, base, invoke, validate, source_files, verified):
     failed = validate(project/'dist')
     assert not failed['artifacts']
     assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+
     assert any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
     assert source_files(project) == before
     verified.append('Helm: native stale lock rejection and invalid values fail without publishing artifacts or editing source')
 
+    unit = base/'helm-unittest'
+    shutil.copytree(root/'examples/builds/helm-chart/project', unit)
+    (unit/'chart/tests').mkdir()
+    suite = unit/'chart/tests/deployment_test.yaml'
+    shutil.copyfile(root/'examples/builds/helm-chart/variants/deployment_test.yaml',suite)
+    (unit/'chart/.helmignore').write_text('tests/\n')
+    listing = invoke(unit,'run','list','--json')
+    assert listing['project:test']['argv'] == ['helm','unittest','--strict','chart']
+    before = source_files(unit)
+    invoke(unit,'build')
+    manifest = validate(unit/'dist')
+    assert source_files(unit)==before and manifest['status']=='succeeded'
+    reports = [r for r in manifest['reports'] if r['kind']=='test']
+    assert len(reports)==2 and all(r['summary']['passed']==1 for r in reports)
+    assert not any(r['kind']=='coverage' for r in manifest['reports'])
+    assert manifest['targets'][0]['extensions']['oyzu.dev/coverage-applicability']['status']=='inapplicable'
+    assert manifest['targets'][0]['extensions']['oyzu.dev/discovery']['test-framework']['selected']=='helm-unittest'
+    artifact = next(a for a in manifest['artifacts'] if a['name']=='chart')
+    with tarfile.open(unit/'dist'/artifact['path']) as archive:
+        assert '-dev.g' in yaml.safe_load(archive.extractfile('greeting/Chart.yaml'))['version']
+        assert not any('/tests/' in name for name in archive.getnames())
+    assert any(a['name']=='rendered' for a in manifest['artifacts'])
+    suite.write_text(suite.read_text().replace('value: 1','value: 99'))
+    before = source_files(unit)
+    invoke(unit,'build',success=False)
+    failed = validate(unit/'dist')
+    assert source_files(unit)==before and not failed['artifacts']
+    assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+    tests = [r for r in failed['reports'] if r['kind']=='test']
+    assert len(tests)==2 and sum(r['summary']['failed'] for r in tests)==1
+    assert sum(r['summary']['passed'] for r in tests)==1
+    verified.append('Helm unittest: implicit native plugin selection, independent validation/suite JUnit, snapshot chart/rendered outputs, failed assertion blocks collection and unchanged checkout')
+    suite.write_text((root/'examples/builds/helm-chart/variants/deployment_snapshot_test.yaml').read_text())
+    before = source_files(unit)
+    invoke(unit,'build',success=False)
+    failed = validate(unit/'dist')
+    assert source_files(unit)==before and not failed['artifacts']
+    assert not (unit/'chart/tests/__snapshot__').exists()
+    assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+    # Native unittest may report a pass after generating a missing expectation.
+    # The adapter still rejects the task; retained native evidence is not rewritten.
+    tests = [r for r in failed['reports'] if r['kind']=='test']
+    assert len(tests)==2 and all(r['summary']['passed']==1 for r in tests)
+    verified.append('Helm snapshot assertions: native baseline creation fails the captured task and blocks artifacts despite passing native JUnit, without modifying the checkout')
     library = base/'helm-library'
     shutil.copytree(root/'examples/builds/helm-chart/project/labels', library)
     before = source_files(library)

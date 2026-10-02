@@ -75,10 +75,12 @@ src/
       planning.rs             # Snapshot OCI output and typed BuildKit action intent
       runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
+      detection.rs            # Native unittest suite evidence and validation fallback
       metadata.rs             # Chart discovery and contained local dependency order
       preparation.rs          # Native lock handling and captured chart closure
       planning.rs             # Packaging, linting and rendering commands
       runtime/archive.py      # Normalize native archive transport timestamps
+      runtime/testing.py      # Native validation/unittest reports and baseline integrity
   build/
     mod.rs                    # Capture, preparation, execution and finalization lifecycle
     planning.rs               # Common hook expansion and execution-plan serialization
@@ -119,7 +121,7 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 
 `BuilderPlan`, `CommandSpec`, `TaskPlan`, `ArtifactSpec` and `ReportSpec` are Rust structures. A builder does not assemble arbitrary build-plan JSON. The common planner expands hooks, preserves TOML replacements, assigns action identities, binds source/dependency/toolchain identities and serializes the versioned plan. Report formats and input conversions are explicit types.
 
-`BuilderPlan.coverage` can declare typed application-source coverage applicability independently of report files. The shared planner serializes this fact into the target's `oyzu.dev/coverage-applicability` extension, which is retained in the manifest. Missing declarations do not mean inapplicable. Helm declares chart packaging inapplicable and produces native validation JUnit through its owned `runtime/testing.py` adapter; chart assertions are never converted to an application coverage percentage.
+`BuilderPlan.coverage` can declare typed application-source coverage applicability independently of report files. The shared planner serializes this fact into the target's `oyzu.dev/coverage-applicability` extension, which is retained in the manifest. Missing declarations do not mean inapplicable. Helm declares chart packaging inapplicable and produces native validation JUnit through its owned `runtime/testing.py` adapter; chart assertions are never converted to an application coverage percentage. Helm's private `detection.rs` implements conventional native-suite evidence and validation fallback through the common detector resolver. Planning adds a separate required unittest JUnit report when selected. The owned runtime invokes the native plugin and checks snapshot baseline integrity; the shared engine still owns hooks, scheduling and report collection. See the [Helm reference](reference/helm.md).
 
 Command replacement and evidence requirements have separate ownership. A TOML override cannot remove the builder's required reports. The optional override adapter may instrument an exact known native command; the shared planner does not parse ecosystem commands or shell programs. Unknown replacements retain their arguments and receive `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` destinations when those kinds have one concrete destination. Native stdout conversion applies only to native or recognized commands; arbitrary replacement output is not assumed to use the native event protocol. The shared reporting binder resolves custom declarations against captured task cwd and retains requirements for undeclared kinds. Hooks inherit the operation's report destinations. The Node adapter receives resolved destinations and owns conversion to reporter arguments.
 
