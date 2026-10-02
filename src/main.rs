@@ -35,6 +35,9 @@ enum Commands {
         /// Use only existing locks, installations and cached archives.
         #[arg(long)]
         offline: bool,
+        /// Resolve configured requirements again (currently node/core:node).
+        #[arg(long, num_args = 0.., conflicts_with_all = ["frozen", "offline"])]
+        update: Option<Vec<String>>,
         #[arg(long, default_value = ".oyzu/tools")]
         store: PathBuf,
     },
@@ -138,6 +141,7 @@ fn run() -> Result<i32> {
             store,
             frozen,
             offline,
+            update,
         } => {
             return oyzu::tools::development::install(
                 &directory,
@@ -145,6 +149,7 @@ fn run() -> Result<i32> {
                 &directory.join(store),
                 *frozen,
                 *offline,
+                update.as_deref(),
             );
         }
         #[cfg(feature = "mise-integration")]

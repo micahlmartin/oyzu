@@ -12,7 +12,9 @@ This separate journal lets builder and tool implementation evolve independently.
 The opt-in standalone Node path now connects Oyzu TOML, the pinned mise library,
 lock creation, installation, frozen/repeat reuse and `exec`/`which`. Two real Node
 versions sharing a mounted store pass Linux user acceptance, including restoration
-from cached archives with networking disabled. The original install/exec scenario
+from cached archives with networking disabled. Explicit Node updates now pass
+Linux version-switch/switch-back acceptance and preserve the other project's
+selection and lock; multi-tool/scoped updates remain open. The original install/exec scenario
 also passed Windows and macOS at `73bb33d`; expanded offline/which acceptance on
 those hosts remains pending. See the
 [development reference](reference/tool-management-development.md) for its exact

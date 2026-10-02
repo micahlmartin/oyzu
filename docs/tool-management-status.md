@@ -2512,3 +2512,30 @@ The earlier original install/exec flow at 73bb33d passed its real user scenario 
 Linux, Windows and macOS in run 37045134221; this does not prove the later offline
 features there. Detailed usage, restoration limits and measured platform evidence
 are maintained in the development reference. Hardening remains deferred.
+
+## Checkpoint 162: explicit Node version updates through the real CLI
+
+`install --update`, `install --update node` and `install --update core:node`
+resolve the configured Node requirement again, display previous/proposed exact
+versions, install and then commit through the existing CAS lock transaction.
+Ordinary install reports TOOL_LOCK_STALE with an update remedy for changed
+requirements. Update conflicts with frozen/offline operation. This first path is
+limited to one root/profile/host selection; unsupported existing environments and
+platforms are refused so they are not silently dropped. Broader scoped and
+multi-tool updates remain part of the active objective.
+
+Linux real acceptance changed a project's TOML from Node 22.15.0 to 22.14.0,
+verified ordinary install/exec rejection with the old lock preserved, updated and
+executed 22.14.0, then restored 22.15.0 through a canonical-name update. The second
+project's lock and actual execution remained unchanged. Bare update with unchanged
+resolution preserved lock bytes. Unsupported update names and conflicting flags
+failed without changing the lock. No fake executable or mocked resolver was used.
+The native acceptance workflow now includes this update scenario before offline
+restoration; Windows/macOS update evidence remains pending.
+
+Default Windows GNU locked tests, strict all-target Clippy, formatting and nine
+real task scenarios passed. Linux feature-enabled strict all-target Clippy and
+formatting passed, including the final unsupported-target guard. Documentation
+structure and diff checks passed. The preceding cached-restoration revision
+01e81be passed its complete Linux CI job in run 37047681781; macOS restoration and
+Windows build were still running when inspected. Hardening remains deferred.

@@ -45,7 +45,28 @@ The shell quoting in the last example is suitable for Bash and PowerShell.
 `-C DIRECTORY`, explicit root and profile selection use the existing configuration
 resolver. Initial installation supports the workspace root and exactly `tools.node`.
 The Node selector is interpreted by mise against the actual Node catalog. Existing
-locks retain the exact version; this first implementation has no update command.
+locks retain the exact version unless an update is explicitly requested.
+
+After editing the Node requirement in TOML, run:
+
+```sh
+oyzu install --update node
+oyzu exec -- node --version
+```
+
+Bare `--update` and `--update core:node` select the same configured Node root.
+The command resolves through mise, prints the previous and proposed exact version,
+installs the result and then commits the lock using the existing compare-and-swap
+transaction. It never edits TOML. Ordinary install rejects changed requirements
+with `TOOL_LOCK_STALE` and an update remedy. `--update` conflicts with `--frozen`
+and `--offline`; unsupported tool names fail. A failed update leaves the previous
+lock intact. An unchanged resolution preserves lock bytes.
+
+This first update path supports a single Node selection at the workspace root for
+the selected profile and host. Locks containing additional environments or target
+platforms are refused rather
+than dropping their selections. Other projects sharing the store keep their own
+locks and versions. Multi-tool and scoped updates remain to be implemented.
 
 The default store is `.oyzu/tools` relative to the invocation directory. For two
 projects sharing installations, pass the same absolute `--store PATH` to both
@@ -122,6 +143,20 @@ Add `--restore-cached` to move the retained installed trees to
 `WORKSPACE/installs-before-restore` and restore them through
 `install --frozen --offline`, then verify actual execution and empty-cache errors.
 Use this restoration check once per retained workspace; the backup is preserved.
+
+With online access and a retained workspace, exercise explicit updates with:
+
+```sh
+python tooling/test-tool-updates.py --cli PATH_TO_FEATURE_ENABLED_OYZU --workspace PATH
+```
+
+The runner changes the first project's requirement from 22.15.0 to 22.14.0,
+checks stale-selection rejection, updates and executes the new version, then
+restores 22.15.0 through an explicit update. It checks that the second project is
+unchanged and a repeated update preserves lock bytes. On failure it retains the
+workspace at the failing step for diagnosis.
+This complete update scenario passed on Linux amd64 with Rust 1.95 on 2026-10-02;
+native Windows/macOS update acceptance remains pending.
 
 Remaining functional work includes other tools, aliases/native constraints,
 multi-tool and scoped updates, configured corporate

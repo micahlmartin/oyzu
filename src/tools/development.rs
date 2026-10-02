@@ -199,7 +199,20 @@ pub fn install(
     store: &Path,
     frozen: bool,
     offline: bool,
+    update: Option<&[String]>,
 ) -> Result<i32> {
+    ensure!(
+        update.is_none() || !(frozen || offline),
+        "update conflicts with frozen/offline installation"
+    );
+    if let Some(tools) = update {
+        ensure!(
+            tools
+                .iter()
+                .all(|tool| matches!(tool.as_str(), "node" | "core:node")),
+            "initial update supports node or core:node"
+        );
+    }
     let directory = directory.canonicalize()?;
     let (session, effective, request) = configuration(&directory, options)?;
     ensure!(
@@ -212,7 +225,7 @@ pub fn install(
         "frozen/offline install requires an existing oyzu.lock; run oyzu install online first"
     );
     let edit = super::ToolLockEdit::capture(&lock_path)?;
-    let previous = if lock_path.exists() {
+    let captured = if lock_path.exists() {
         Some(lock::parse(&super::read_record(
             &lock_path,
             lock::MAX_BYTES,
@@ -220,12 +233,17 @@ pub fn install(
     } else {
         None
     };
-    if let Some(lock) = &previous {
+    if let Some(lock) = &captured {
         ensure!(
             lock.tool.len() == 1 && lock.tool[0].id == "core:node",
             "existing lock is outside the initial Node integration scope"
         );
+        if update.is_some() {
+            ensure!(lock.environment.len() == 1 && lock.environment[0].scope == "." && lock.environment[0].profile == effective.profile.as_deref().unwrap_or("default"), "initial update requires a single matching root/profile; other selections are preserved by refusing this unsupported update");
+            ensure!(lock.tool[0].distribution.len() == 1 && lock.tool[0].distribution[0].platform == platform()?, "initial update supports only the current host; use a future multi-platform update to preserve other target selections");
+        }
     }
+    let previous = captured.as_ref().filter(|_| update.is_none());
     let metadata = metadata(&Request {
         request,
         exact: previous.as_ref().map(|lock| lock.tool[0].version.clone()),
@@ -242,7 +260,8 @@ pub fn install(
             profile,
             &requests,
             platform()?,
-        )?;
+        )
+        .context("TOOL_LOCK_STALE: run oyzu install --update to resolve changed requirements")?;
         ensure!(
             lock.tool[0].backend_digest == backend,
             "locked backend differs; explicit relocking required"
@@ -357,6 +376,18 @@ pub fn install(
         };
         toml::to_string(&document)?.into_bytes()
     };
+    let proposal = if frozen {
+        None
+    } else {
+        Some(edit.propose(&bytes)?)
+    };
+    if update.is_some() {
+        let before = captured
+            .as_ref()
+            .map(|lock| lock.tool[0].version.as_str())
+            .unwrap_or("(unlocked)");
+        println!("node: {before} -> {}", metadata.archive.version);
+    }
     let parsed = lock::parse(&bytes)?;
     let distribution = &parsed.tool[0].distribution[0];
     ensure!(
@@ -405,8 +436,8 @@ pub fn install(
         platform()?,
         &backend,
     )?;
-    if !frozen {
-        edit.propose(&bytes)?.commit()?;
+    if let Some(proposal) = proposal {
+        proposal.commit()?;
     }
     println!("Installed node {}", metadata.archive.version);
     Ok(0)
