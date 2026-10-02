@@ -24,6 +24,10 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
   fi
   if selected node; then
+    for version in 22.14.0 24.14.1; do
+      docker build --build-arg NODE_IMAGE="node:${version}-bookworm-slim" --tag "oyzu-toolchain/node:quality-${version}" tooling/images/node-quality
+      docker build --build-arg QUALITY_IMAGE="oyzu-toolchain/node:quality-${version}" --tag "oyzu-toolchain/node:npm11.11.0-node${version}" tooling/images/node-npm
+    done
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
     docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm

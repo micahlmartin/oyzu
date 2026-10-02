@@ -180,13 +180,54 @@ impl Builder for Node {
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
         Ok(managers::get(&target.manager)?.image())
     }
+    fn variant_toolchain(&self, target: &Target) -> Result<String> {
+        let base = self.toolchain(target)?;
+        let Some(version) = target.variant.get("node") else {
+            if !target.variant.is_empty() {
+                anyhow::bail!("{}: Node builder requires a node runtime axis", target.name);
+            }
+            return Ok(base.into());
+        };
+        if target.variant.len() != 1 || target.manager != "npm" {
+            anyhow::bail!(
+                "{}: runtime matrix currently requires the npm adapter",
+                target.name
+            );
+        }
+        let components: Vec<_> = version.split('.').collect();
+        if components.len() != 3
+            || components.iter().any(|part| {
+                part.is_empty()
+                    || !part.bytes().all(|b| b.is_ascii_digit())
+                    || (part.len() > 1 && part.starts_with('0'))
+                    || part.parse::<u32>().is_err()
+            })
+        {
+            anyhow::bail!(
+                "{}: matrix.node requires an exact major.minor.patch runtime",
+                target.name
+            );
+        }
+        Ok(format!("oyzu-toolchain/node:npm11.11.0-node{version}"))
+    }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
-        self.toolchain(context.target)?;
+        self.variant_toolchain(context.target)?;
+        if let Some(version) = context.target.variant.get("node") {
+            let actual = context
+                .dependencies
+                .and_then(|d| d.record["extensions"]["oyzu.dev/npm"]["nodeVersion"].as_str());
+            if actual != Some(version.as_str()) {
+                anyhow::bail!(
+                    "{}: runtime variant requires matching captured Node preflight evidence",
+                    context.target.name
+                );
+            }
+        }
         planning::plan(context)
     }
 
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        self.toolchain(context.target)?;
+        self.variant_toolchain(context.target)?;
         managers::get(&context.target.manager)?.prepare(context)
     }
 

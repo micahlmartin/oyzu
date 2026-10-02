@@ -62,6 +62,20 @@ pub(crate) trait Builder: Sync {
         Ok(None)
     }
 
+    /// Select an already provisioned image for concrete runtime axes. Adapters
+    /// admitting variants must verify the actual runtime during preparation;
+    /// an image reference alone is not runtime-version evidence.
+    fn variant_toolchain(&self, target: &Target) -> Result<String> {
+        if !target.variant.is_empty() {
+            bail!(
+                "{}: runtime matrix integration is not implemented for {}",
+                target.name,
+                target.manager
+            );
+        }
+        Ok(self.toolchain(target)?.into())
+    }
+
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         bail!(
             "{}: {} build integration is not implemented yet",

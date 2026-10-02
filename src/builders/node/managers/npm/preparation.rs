@@ -54,14 +54,23 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Option<Prepared
     } else {
         vec![]
     };
+    let mut env = BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]);
+    if let Some(version) = context.target.variant.get("node") {
+        env.insert("OYZU_EXPECT_NODE".into(), version.clone());
+    }
     let tree = crate::dependencies::preparation::capture(
         &context,
         RUNTIME,
         &["node".into(), "/oyzu/npm.mjs".into(), "acquire".into()],
-        &BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]),
+        &env,
         sources,
     )?;
     let inventory = records::read(&context.destination.join("inventory.json"))?;
+    if let Some(version) = context.target.variant.get("node") {
+        if inventory["nodeVersion"].as_str() != Some(version.as_str()) {
+            bail!("captured npm inventory does not match requested Node runtime {version}");
+        }
+    }
     let workspaces = super::workspace::Metadata::read(inventory["workspaces"].clone())?;
     let packages: Vec<Value> = inventory["packages"].as_array().context("missing npm inventory")?
         .iter().enumerate().map(|(index, p)| json!({

@@ -66,6 +66,23 @@ pub fn inspect(root: &Path) -> Result<Value> {
         {
             bail!("build selection differs from plan");
         }
+        if manifest["targets"] != plan["targets"] {
+            bail!("build target identities differ from plan");
+        }
+        for artifact in manifest["artifacts"]
+            .as_array()
+            .context("missing bundle artifacts")?
+        {
+            let declared = plan["artifacts"]
+                .as_array()
+                .and_then(|artifacts| artifacts.iter().find(|a| a["id"] == artifact["id"]))
+                .context("bundle artifact is not declared by its plan")?;
+            if artifact["target"] != declared["target"]
+                || artifact["variant"] != declared["variant"]
+            {
+                bail!("artifact target/variant differs from plan");
+            }
+        }
     } else if manifest["status"] == "succeeded" {
         bail!("successful bundle has no plan");
     }

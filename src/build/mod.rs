@@ -7,6 +7,7 @@ mod planning;
 mod scheduling;
 mod selection;
 mod task_graph;
+mod variants;
 
 use crate::{builders, discovery, records, snapshot};
 use anyhow::{bail, Result};
@@ -94,6 +95,8 @@ pub fn run_selected_with_options(
         let mut selection = selection::Selection::new(&workspace, requested)?;
         let source = snapshot::capture(&root, &source_path)?;
         planning::verify_inventory_source(&workspace, &source)?;
+        let variants = variants::expand(&mut workspace)?;
+        selection.expand_variants(&workspace, &variants)?;
         for target in workspace.targets.values_mut() {
             target.path = source_path.join(target.path.strip_prefix(&root)?);
             for task in target.tasks.values_mut() {

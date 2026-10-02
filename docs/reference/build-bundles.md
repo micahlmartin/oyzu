@@ -2,6 +2,8 @@
 
 `oyzu build` finalizes its results under the workspace's `dist/`. The bundle contains the manifest, frozen plan when planning succeeded, execution envelope, native logs, retained reports and collected snapshot artifacts. A failed build can still produce a useful bundle; consult `manifest.json` for actual outcomes. `oyzu inspect dist` checks recorded content integrity and does not establish trusted CI identity or release eligibility.
 
+When a frozen plan exists, inspection also requires matching manifest target records and declared artifact target/variant identities. Relabeling a runtime variant in the manifest without changing the corresponding plan is rejected. Runtime-specific reports remain attributable through their concrete target records; see [runtime matrices](runtime-matrices.md). This consistency check does not authenticate either record.
+
 ## Workspace ownership
 
 An invocation holds an operating-system file lock on `.oyzu/build.lock` through staging and finalization. Another cooperating build in that workspace fails before execution with a workspace-lock diagnostic. The existence of the lock file alone does not indicate a live build: the operating-system lock is authoritative and is released when its owning process exits. Different workspace roots have independent locks.

@@ -189,7 +189,7 @@ pub(super) fn compile(
                 )?,
             );
         }
-        let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)});
+        let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":target.variant,"platform":platform(image)});
         if !target.discovery.is_empty() {
             record["extensions"]["oyzu.dev/discovery"] = json!(target.discovery);
         }
@@ -259,9 +259,13 @@ pub(super) fn compile(
                     bail!("{step}: {name} must remain {value} for the captured builder capability");
                 }
             }
-            let instrumented = contract
-                .filter(|_| native.is_none())
-                .and_then(|_| builder.instrument_override(target, task, &env));
+            let instrumented = contract.filter(|_| native.is_none()).and_then(|_| {
+                // Build-only aliases retain distinct graph identities;
+                // native adapters still receive the original operation name.
+                let mut operation = task.clone();
+                operation.name = super::task_graph::operation_name(workspace, step).into();
+                builder.instrument_override(target, &operation, &env)
+            });
             let native_reporting = native.is_some() || instrumented.is_some();
             let argv = native.map_or_else(
                 || instrumented.unwrap_or_else(|| task.argv.clone()),
@@ -276,7 +280,7 @@ pub(super) fn compile(
             let mut a = action(
                 step,
                 &id,
-                &task.name,
+                super::task_graph::operation_name(workspace, step),
                 argv,
                 &relative(&workspace.root, &task.cwd)?,
                 &env,
@@ -308,10 +312,13 @@ pub(super) fn compile(
         for artifact in &intent.artifacts {
             let artifact_id = format!("{id}/{}", artifact.name);
             outputs.push(artifact_id.clone());
-            artifacts.push(json!({"id":artifact_id,"target":id,"variant":{},"name":artifact.name,"producer":producer,"kind":artifact.kind,"version":artifact.version.as_ref().unwrap_or(&intent.version),"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
+            artifacts.push(json!({"id":artifact_id,"target":id,"variant":target.variant,"name":artifact.name,"producer":producer,"kind":artifact.kind,"version":artifact.version.as_ref().unwrap_or(&intent.version),"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
         }
         package["outputs"] = json!(outputs);
         planned.push(package);
+        if planned.len() > 16_384 {
+            bail!("build plan exceeds 16384 actions");
+        }
     }
     // Targets have private workspaces. Preserve their internal mutation/hook
     // sequence without inventing dependencies between unrelated targets.
@@ -496,11 +503,11 @@ pub(super) fn resolve_images(
         .filter(|(id, _)| selected.contains(*id))
     {
         let builder = builders::get(&target.builder)?;
-        let default = builder.toolchain(target)?;
+        let default = builder.variant_toolchain(target)?;
         let reference = refs
             .get(target.manager.as_str())
             .copied()
-            .unwrap_or(default);
+            .unwrap_or(&default);
         images.insert(
             id.clone(),
             executor::resolve_for(reference, builder.executor_profile())?,

@@ -14,7 +14,7 @@ import tempfile
 import time
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, mocha, node, node_application, node_managers, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, python_testing, rust, vitest
+from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, mocha, node, node_application, node_managers, node_matrix, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, python_testing, rust, vitest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -68,6 +68,7 @@ CASES = (
     ('node', 'node-overrides', node.verify_overrides),
     ('core', 'concurrency', concurrency.verify),
     ('node', 'node-preflight', node_preflight.verify),
+    ('node', 'node-matrix', node_matrix.verify),
     ('node', 'node-managers', node_managers.verify),
     ('node', 'node-workspaces', node_workspaces.verify),
     ('node', 'node-quality', node_quality.verify),

@@ -20,6 +20,8 @@ oyzu build
 
 The target's `matrix.node` list in build.yaml is candidate syntax for review. It is deliberately finite data; it introduces no expression language or repeated task definitions.
 
+The experimental implementation now expands this Node/npm matrix with separately provisioned runtimes. See [runtime matrix builds](../../../docs/reference/runtime-matrices.md) for provisioning, evidence and limitations. The captured CI group exercises both exact runtimes and failure cases; its observed result is tracked in [implementation status](../../../docs/implementation-status.md). This example remains a design contract until its acceptance is demonstrated, and does not imply that other runtime/platform axes are supported.
+
 ## Native checks available now
 
 With the named toolchains already installed, run:

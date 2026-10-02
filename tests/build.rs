@@ -744,3 +744,34 @@ fn inspector_binds_selection_to_the_frozen_plan() {
         .to_string()
         .contains("selection differs"));
 }
+
+#[test]
+fn inspector_binds_runtime_and_artifact_variant_identity_to_the_plan() {
+    let root = tempfile::tempdir().unwrap();
+    let target = json!({"id":"app-node22","variant":{"node":"22.14.0"}});
+    let artifact =
+        json!({"id":"app-node22/primary","target":"app-node22","variant":{"node":"22.14.0"}});
+    let plan = json!({"targets":[target],"artifacts":[artifact]});
+    records::write(&root.path().join("plan.json"), &plan).unwrap();
+    records::write(&root.path().join("envelope.json"), &json!({})).unwrap();
+    let manifest = json!({"kind":"build-manifest","status":"failed","planPath":"plan.json",
+        "planDigest":records::digest("oyzu.plan.v1alpha1", &plan).unwrap(),
+        "envelopePath":"envelope.json","envelopeDigest":snapshot::file_digest(&root.path().join("envelope.json")).unwrap(),
+        "targets":[target],"artifacts":[artifact],"reports":[]});
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    build::inspect(root.path()).unwrap();
+    let mut changed = manifest.clone();
+    changed["targets"][0]["variant"]["node"] = json!("24.14.1");
+    records::write(&root.path().join("manifest.json"), &changed).unwrap();
+    assert!(build::inspect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("target identities differ"));
+    let mut changed = manifest;
+    changed["artifacts"][0]["variant"]["node"] = json!("24.14.1");
+    records::write(&root.path().join("manifest.json"), &changed).unwrap();
+    assert!(build::inspect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("target/variant differs"));
+}

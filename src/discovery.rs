@@ -37,6 +37,7 @@ pub fn discover_target(name: &str, path: &Path, explicit: Option<&str>) -> Resul
         manager: builder.clone(),
         path: path.into(),
         version: "0.0.0".into(),
+        variant: BTreeMap::new(),
         tasks: BTreeMap::new(),
         discovery: BTreeMap::new(),
     };
@@ -285,5 +286,6 @@ pub(crate) fn discover_with_session(
         configuration: effective_configs,
         root_configuration: Some(root_effective),
         declarations: selected.declarations,
+        build_root_overrides: BTreeMap::new(),
     })
 }

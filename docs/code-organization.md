@@ -56,6 +56,8 @@ Configuration owns `BuildInventory`: a single bounded parse of build.yaml with t
 
 ## Interfaces that earn their place
 
+`build/variants` derives concrete target/task instances and dependency matching from the frozen inventory. It owns portable IDs, bounds and build-only root-stage aliases; it does not parse native runtime versions or resolve images. Selection recomputes producer closure after expansion. `Builder::variant_toolchain` admits supported runtime profiles and selects provisioned image references; the Node/npm adapter validates actual runtime and native engine compatibility during preparation. Shared planning preserves variant identity in target/artifact records and passes original operation names to reporting adapters even when graph identities use root aliases. See [runtime matrices](reference/runtime-matrices.md) for limits and verification scope.
+
 Node's `mocha` module owns exact invocation adaptation; its runtime composes native Mocha reporters and invokes native c8. Framework detection remains in `node/detection/frameworks`, manager lifecycle behavior stays native, and shared report collection remains engine-owned. The common Node toolchain image provisions c8 alongside quality tools, but coverage integration stays with reporting rather than the lint/format adapter.
 
 npm workspace composition reuses that Mocha adapter for each package and the same reporting-tool binding as single-package plans. Native workspace scope selection owns Mocha's member exclusions and hoisted entrypoint resolution; it does not duplicate reporter or coverage implementations. Explicit npm scripts retain lifecycle ownership, and each Mocha invocation resolves reporting configuration from the tested package directory.

@@ -39,6 +39,9 @@ pub struct Target {
     pub manager: String,
     pub path: PathBuf,
     pub version: String,
+    /// Concrete build axes after expansion; discovery leaves these empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub variant: BTreeMap<String, String>,
     pub tasks: BTreeMap<String, Task>,
     #[serde(default)]
     pub discovery: BTreeMap<String, crate::discovery::Resolution>,
@@ -61,6 +64,10 @@ pub struct Workspace {
     pub tasks: BTreeMap<String, Task>,
     #[serde(skip)]
     pub(crate) declarations: crate::config::BuildInventory,
+    /// Build-only stage aliases preserve single-project root task overrides
+    /// without replacing explicitly qualified task identities during expansion.
+    #[serde(skip)]
+    pub(crate) build_root_overrides: BTreeMap<String, String>,
     #[serde(skip)]
     pub configuration: BTreeMap<String, crate::config::resolve::EffectiveConfig>,
     #[serde(skip)]

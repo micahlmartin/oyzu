@@ -12,11 +12,26 @@ pub(super) struct TaskGraph {
 }
 
 pub(super) fn operation(workspace: &Workspace, target: &str, name: &str) -> String {
+    if let Some(id) = workspace
+        .build_root_overrides
+        .get(&format!("{target}:{name}"))
+    {
+        return id.clone();
+    }
     if workspace.targets.len() == 1 && workspace.tasks.contains_key(name) {
         name.into()
     } else {
         format!("{target}:{name}")
     }
+}
+
+pub(super) fn operation_name<'a>(workspace: &'a Workspace, id: &str) -> &'a str {
+    workspace
+        .build_root_overrides
+        .iter()
+        .find(|(_, actual)| actual.as_str() == id)
+        .and_then(|(logical, _)| logical.split_once(':').map(|(_, name)| name))
+        .unwrap_or(&workspace.tasks[id].name)
 }
 
 /// Stage admission shared by target selection and action graph compilation.
@@ -28,8 +43,11 @@ pub(super) fn roots(workspace: &Workspace, target: &str, plan: &BuilderPlan) -> 
             let task = workspace.tasks.get(&id)?;
             let native = plan.tasks.contains_key(*stage)
                 && task.provider == workspace.targets[target].manager;
-            let root_override =
-                workspace.targets.len() == 1 && workspace.tasks.contains_key(*stage);
+            let root_override = (workspace.targets.len() == 1
+                && workspace.tasks.contains_key(*stage))
+                || workspace
+                    .build_root_overrides
+                    .contains_key(&format!("{target}:{stage}"));
             if (task.availability.is_some() && !native)
                 || (!task.build_stage && !root_override && !plan.tasks.contains_key(*stage))
             {

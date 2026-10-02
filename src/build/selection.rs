@@ -11,6 +11,7 @@ pub(super) struct Selection {
     requested: BTreeSet<String>,
     all: BTreeSet<String>,
     explicit: bool,
+    variants: super::variants::Mapping,
 }
 
 impl Selection {
@@ -35,6 +36,7 @@ impl Selection {
             requested,
             all,
             explicit,
+            variants: BTreeMap::new(),
         };
         selection.expand_declared(workspace)?;
         Ok(selection)
@@ -62,6 +64,25 @@ impl Selection {
                 return Ok(());
             }
         }
+    }
+
+    pub fn expand_variants(
+        &mut self,
+        workspace: &Workspace,
+        mapping: &super::variants::Mapping,
+    ) -> Result<()> {
+        self.targets = self
+            .requested
+            .iter()
+            .flat_map(|id| mapping[id].iter().cloned())
+            .collect();
+        self.all = mapping.values().flatten().cloned().collect();
+        self.variants = mapping
+            .iter()
+            .filter(|(id, variants)| variants.as_slice() != [id.as_str()])
+            .map(|(id, variants)| (id.clone(), variants.clone()))
+            .collect();
+        self.expand_declared(workspace)
     }
 
     pub fn expand(
@@ -97,8 +118,12 @@ impl Selection {
     }
 
     pub fn record(&self) -> Value {
-        json!({"mode":if self.explicit {"explicit"} else {"all"},"requested":self.requested,
-            "selected":self.targets,"excluded":self.all.difference(&self.targets).map(|id| json!({"target":id,"reason":"outside-selection"})).collect::<Vec<_>>()})
+        let mut record = json!({"mode":if self.explicit {"explicit"} else {"all"},"requested":self.requested,
+            "selected":self.targets,"excluded":self.all.difference(&self.targets).map(|id| json!({"target":id,"reason":"outside-selection"})).collect::<Vec<_>>()});
+        if !self.variants.is_empty() {
+            record["variants"] = json!(self.variants);
+        }
+        record
     }
 }
 
