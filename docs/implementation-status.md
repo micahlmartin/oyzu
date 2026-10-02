@@ -461,3 +461,5 @@ Native suite XML reads and combined output are size bounded, reject symlinks and
 This is forked native Ant JUnit integration, not all Java frameworks. In-process JUnit instrumentation, JUnit Platform/TestNG adapters, no-test/default-runner outcomes, custom source layouts, Ivy dependencies and direct test-only bundles remain incomplete. Existing checkpoint 24 limitations apply where not explicitly extended here. The full builder/scenario objective remains active.
 
 Integration references: [Ant JUnit task](https://ant.apache.org/manual/Tasks/junit.html) and [native JUnitTask extension API](https://ant.apache.org/manual/api/org/apache/tools/ant/taskdefs/optional/junit/JUnitTask.html).
+
+Concurrent policy acquisition is exercised with eight simultaneous callers sharing the real cache directory and file lock. Exactly one transport refresh commits the snapshot; the other callers independently verify and reuse that committed snapshot. This verifies thread contention on separate file handles, not cross-process credential-store or crash behavior (CFG-11).

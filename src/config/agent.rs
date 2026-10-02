@@ -294,6 +294,7 @@ mod tests {
         reply: Mutex<Option<String>>,
         denied: Mutex<bool>,
         fail_store: Mutex<bool>,
+        refresh_calls: std::sync::atomic::AtomicUsize,
     }
     impl Runtime for Fake {
         fn now(&self) -> Result<i64> {
@@ -310,6 +311,8 @@ mod tests {
             Ok(())
         }
         fn refresh(&self, _: &str, _: &serde_json::Value) -> Result<Refresh> {
+            self.refresh_calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             if *self.denied.lock().unwrap() {
                 Ok(Refresh::Denied)
             } else {
@@ -344,6 +347,7 @@ mod tests {
             reply: Mutex::new(None),
             denied: Mutex::new(false),
             fail_store: Mutex::new(false),
+            refresh_calls: std::sync::atomic::AtomicUsize::new(0),
         });
         let mut agent = Agent::new(bootstrap, &locations, root, false).unwrap();
         agent.runtime = runtime.clone();
@@ -362,6 +366,46 @@ mod tests {
             URL_SAFE_NO_PAD.encode(key.sign(input.as_bytes()).to_bytes())
         )
     }
+    #[test]
+    fn concurrent_callers_refresh_once_and_reuse_the_committed_snapshot() {
+        let temp = tempfile::tempdir().unwrap();
+        let (agent, runtime, _) = setup(temp.path());
+        let start = std::sync::Barrier::new(8);
+        let outcomes = std::thread::scope(|scope| {
+            let workers: Vec<_> = (0..8)
+                .map(|_| {
+                    let agent = &agent;
+                    let start = &start;
+                    scope.spawn(move || {
+                        start.wait();
+                        let acquired = agent.acquire(false).unwrap();
+                        assert_eq!(acquired.snapshot.revision(), "r1");
+                        acquired.online
+                    })
+                })
+                .collect();
+            workers
+                .into_iter()
+                .map(|worker| worker.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        assert_eq!(outcomes.iter().filter(|online| **online).count(), 1);
+        assert_eq!(
+            runtime
+                .refresh_calls
+                .load(std::sync::atomic::Ordering::SeqCst),
+            1
+        );
+        let state = agent.state().unwrap().unwrap();
+        assert_eq!(
+            agent
+                .cached(&state, runtime.now().unwrap())
+                .unwrap()
+                .revision(),
+            "r1"
+        );
+    }
+
     #[test]
     fn refresh_persists_then_offline_obeys_deadline_and_missing_state() {
         let temp = tempfile::tempdir().unwrap();
