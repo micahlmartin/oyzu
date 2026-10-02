@@ -36,16 +36,18 @@ pub(super) fn steps(task: &Task, metadata: &Metadata, stage: &str) -> Result<Vec
             } else {
                 profile.formatter.selected()
             };
-            if selected
-                != if stage == "lint" {
-                    "eslint"
-                } else {
-                    "prettier"
-                }
+            if selected != "biome"
+                && selected
+                    != if stage == "lint" {
+                        "eslint"
+                    } else {
+                        "prettier"
+                    }
             {
                 bail!("{path}: implicit {selected} workspace quality integration is not implemented yet");
             }
             Operation::Quality {
+                checker: selected.into(),
                 framework: profile.framework.selected().into(),
                 excludes: exclusions(metadata, path),
             }

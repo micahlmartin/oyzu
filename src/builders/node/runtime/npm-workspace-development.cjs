@@ -19,7 +19,7 @@ async function run() {
     if (operation.kind === 'script') {
       args = [cli, 'run', operation.script, '--workspace', step.name, '--', ...extra];
     } else if (operation.kind === 'quality') {
-      args = ['--input-type=module', '-e', plan.quality, plan.stage];
+      args = ['--input-type=module', '-e', plan.quality, operation.checker === 'biome' ? `biome-${plan.stage}` : plan.stage];
       cwd = resolve(cwd, step.path);
       env = {...env, OYZU_NODE_TEST_FRAMEWORK:operation.framework, OYZU_NODE_QUALITY_EXCLUDE:JSON.stringify(operation.excludes)};
     } else if (operation.kind === 'test') {

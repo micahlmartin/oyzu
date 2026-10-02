@@ -111,6 +111,7 @@ jobs:
             python tooling/test-npm-workspace-tasks.py --cli cli/oyzu.exe
             python tooling/test-npm-workspace-tests.py --cli cli/oyzu.exe
             python tooling/test-node-quality.py --cli cli/oyzu.exe
+            python tooling/test-biome-quality.py --cli cli/oyzu.exe
           else
             chmod +x cli/oyzu
             python3 tooling/test-go-metadata.py --cli cli/oyzu
@@ -118,6 +119,7 @@ jobs:
             python3 tooling/test-npm-workspace-tasks.py --cli cli/oyzu
             python3 tooling/test-npm-workspace-tests.py --cli cli/oyzu
             python3 tooling/test-node-quality.py --cli cli/oyzu
+            python3 tooling/test-biome-quality.py --cli cli/oyzu
           fi
 
   container-worker-contract:

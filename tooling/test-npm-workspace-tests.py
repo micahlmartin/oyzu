@@ -36,6 +36,11 @@ def main():
             (member/'package.json').write_text(json.dumps(pkg))
         native = (ROOT/'src/builders/node/runtime/npm-native.mjs').as_uri()
         subprocess.run(['node','--input-type=module','-e',f"import {{npm}} from {json.dumps(native)}; npm(['install','--ignore-scripts'],process.cwd(),process.argv[1]);",str(base/'cache')],cwd=project,check=True,capture_output=True,text=True)
+        # Installed links may retain an alias while callers use the canonical root.
+        alias = base/'aliased project'
+        subprocess.run(['node','-e',"require('node:fs').symlinkSync(process.argv[1],process.argv[2],process.platform==='win32'?'junction':'dir')",str(project),str(alias)],check=True)
+        for name in ['node','jest','vitest','node/nested']:
+            subprocess.run(['node','-e',"const fs=require('node:fs'); fs.unlinkSync(process.argv[2]); fs.symlinkSync(process.argv[1],process.argv[2],process.platform==='win32'?'junction':'dir')",str(alias/'packages'/name),str(project/'node_modules'/name.replace('/','-'))],check=True)
 
         def write_test(path, name, framework):
             imports = {'node':"const {test}=require('node:test');",'jest':'','vitest':"import {test} from 'vitest'; import {createRequire} from 'node:module'; const require=createRequire(import.meta.url);"}[framework]
@@ -90,7 +95,13 @@ def main():
         manifest.write_text(json.dumps(package))
         (project/'packages/node/member.test.cjs').unlink()
         assert 'No package Node tests found' in run('run','test',success=False).stderr
-    print('Workspace test composition passed: native Node/Jest/Vitest, nested ownership, lifecycle, root precedence, overrides, exact arguments, real failures and missing tests')
+        # Canonical aliases are valid; different destinations and copies are not.
+        link = project/'node_modules/node'
+        subprocess.run(['node','-e',"const fs=require('node:fs'); fs.unlinkSync(process.argv[2]); fs.symlinkSync(process.argv[1],process.argv[2],process.platform==='win32'?'junction':'dir')",str(project/'packages/jest'),str(link)],check=True)
+        assert 'Native npm installation did not link workspace node' in run('run','test',success=False).stderr
+        subprocess.run(['node','-e',"const fs=require('node:fs'); fs.unlinkSync(process.argv[1]); fs.mkdirSync(process.argv[1]); fs.copyFileSync(process.argv[2],require('node:path').join(process.argv[1],'package.json'))",str(link),str(project/'packages/node/package.json')],check=True)
+        assert 'Native npm installation did not link workspace node' in run('run','test',success=False).stderr
+    print('Workspace test composition passed: native Node/Jest/Vitest, nested ownership, lifecycle, root precedence, overrides, exact arguments, real failures, missing tests and aliased/wrong/copied workspace links')
 
 
 if __name__ == '__main__':

@@ -22,7 +22,7 @@ def main():
         shutil.copyfile(ROOT/'src/broker/runtime/transport.mjs', runtime/'broker_transport.mjs')
         (runtime/'lock-probe.mjs').write_text("import {npm} from './npm-native.mjs'; import {mkdtempSync,rmSync} from 'node:fs'; import {tmpdir} from 'node:os'; import {join} from 'node:path'; const cache=mkdtempSync(join(tmpdir(),'oyzu-lock-')); try { npm(['install','--package-lock-only','--ignore-scripts'],process.cwd(),cache); } finally { rmSync(cache,{recursive:true,force:true}); }\n")
         snapshots = []
-        for index in range(7):
+        for index in range(8):
             project = base/f'project {index}'
             shutil.copytree(ROOT/'examples/builds/node-workspace/project', project)
             (project/'operation.cjs').write_text("require('node:fs').appendFileSync(require('node:path').join(__dirname,'operations.log'),process.argv.slice(2).join(':')+'\\n');\n")
@@ -31,7 +31,7 @@ def main():
                 pkg = json.loads(path.read_text())
                 for stage in ['build', 'lint', 'format-check']:
                     pkg['scripts'][stage] = f'node ../../operation.cjs {stage} {name}'
-                if index == 3:
+                if index in [3,7]:
                     if name == 'app':
                         del pkg['scripts']['lint']
                         del pkg['scripts']['format-check']
@@ -39,6 +39,8 @@ def main():
                     else:
                         pkg['scripts']['format:check'] = pkg['scripts'].pop('format-check')
                 path.write_text(json.dumps(pkg))
+            if index == 7:
+                (project/'packages/app/biome.jsonc').write_text(json.dumps({'linter':{'rules':{'recommended':False,'suspicious':{'noDebugger':'error'}}}}))
             public_root = index == 2 or index >= 4
             if public_root:
                 path = project/'package.json'
@@ -63,9 +65,11 @@ def main():
             env = {**os.environ, 'OYZU_NODE_QUALITY_HOME':str(ROOT/'tooling/images/node-quality')}
             # Author positive fixture sources with native Prettier before capture.
             subprocess.run(['node', str(ROOT/'tooling/images/node-quality/node_modules/prettier/bin/prettier.cjs'), '--write', *[str(p) for p in project.rglob('*') if p.suffix in ['.mjs','.cjs']]], check=True, capture_output=True)
+            if index == 7:
+                subprocess.run(['node',str(ROOT/'src/builders/node/runtime/quality.mjs'),'biome-format'],cwd=project/'packages/app',env=env,check=True,capture_output=True)
 
             def run(script, args, success=True):
-                result = subprocess.run(['node', str(runtime/script), *args], cwd=project, env=env, capture_output=True, text=True, timeout=120)
+                result = subprocess.run(['node', str(runtime/script), *args], cwd=project, env=env, capture_output=True, text=True, encoding='utf-8', timeout=120)
                 assert (result.returncode == 0) == success, (args, result.stdout, result.stderr)
                 return result
 
@@ -77,6 +81,8 @@ def main():
             members = sorted(inventory['workspaces']['members'], key=lambda m: len(m['dependencies']))
             quality = {'linter':'eslint', 'formatter':'prettier', 'excludes':[]}
             modules = [{**m, 'id':m['path'].split('/')[-1], 'version':version, 'filename':f"{m['name'].removeprefix('@').replace('/', '-')}-{version}.tgz", 'framework':'node-test', 'testExcludes':[], 'quality':quality} for m in members]
+            if index == 7:
+                next(m for m in modules if m['id']=='app')['quality'] = {'linter':'biome','formatter':'biome','excludes':[]}
             spec = {'rootVersion':version, 'rootDependencies':inventory['workspaces']['rootDependencies'], 'rootScripts':json.loads((project/'package.json').read_text()).get('scripts',{}), 'rootFramework':'node-test', 'rootQuality':quality, 'modules':modules, 'nodeTestArguments':['--experimental-test-coverage','--test-coverage-exclude=**/*.test.*','--test-reporter=junit','--test-reporter-destination=__OYZU_TEST_REPORT__','--test-reporter=lcov','--test-reporter-destination=__OYZU_COVERAGE_REPORT__']}
             spec['rootQuality'] = {**quality, 'excludes':[m['path'] for m in members]}
             if public_root:
@@ -96,15 +102,17 @@ def main():
             operation('test')
             operation('lint')
             operation('format-check')
-            expected = ([f'{stage}:root' for stage in ['build','lint','format-check']] if index == 2 else [f'{stage}:{member}' for stage in ['build','lint','format-check'] for member in ['shared','app'] if index != 3 or member == 'shared' or stage == 'build'])
+            expected = ([f'{stage}:root' for stage in ['build','lint','format-check']] if index == 2 else [f'{stage}:{member}' for stage in ['build','lint','format-check'] for member in ['shared','app'] if index not in [3,7] or member == 'shared' or stage == 'build'])
             assert (project/'operations.log').read_text().splitlines() == expected
-            if index == 3:
+            if index in [3,7]:
                 # A scripted sibling must not suppress the other member's checks.
                 bad = project/'packages/app/invalid.mjs'
-                bad.write_text('export const invalid = absent;\n', newline='\n')
-                assert 'no-undef' in operation('lint', False).stdout
+                bad.write_text('debugger;\n' if index == 7 else 'export const invalid = absent;\n', newline='\n')
+                result = operation('lint', False)
+                assert ('noDebugger' if index == 7 else 'no-undef') in result.stdout + result.stderr
                 bad.write_text('export const valid=1;\n', newline='\n')
-                assert 'Formatting differs' in operation('format-check', False).stderr
+                result = operation('format-check', False)
+                assert ('format' if index == 7 else 'Formatting differs') in result.stdout + result.stderr
                 bad.unlink()
             for module in (['root'] if index == 2 else ['app','shared'] + (['root'] if public_root else [])):
                 report = project/f'.oyzu-build/reports/{module}'

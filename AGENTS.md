@@ -23,6 +23,7 @@ Before implementation, identify the owning subsystem, the existing contract to r
 - Separate observation, resolution/planning and side effects. Detectors return evidence; resolvers make deterministic choices; adapters declare intent; execution/acquisition owners perform effects. Keep process, network and filesystem capabilities explicit.
 - Split growing modules by responsibility, with related tests and runtime assets beside their owner. Split crates only for demonstrated reuse, dependency isolation or independent distribution; no empty scaffolding or arbitrary file-size limits.
 - For a changed boundary, document its responsibility and invariants and update the code map. Verify meaningful behavior, failure paths and applicable platforms; shared contracts need conformance coverage across implementations. Refactor touched code incrementally without unrelated rewrites.
+- Apply the [boundary review examples](docs/code-organization.md#review-boundaries-in-practice) before finishing. Passing tests alone does not justify duplicate ownership or a dependency in the wrong direction. Correct violations introduced by the change; record unrelated architectural debt separately.
 
 ## Working rules
 - Preserve existing user changes and inspect the worktree before editing.

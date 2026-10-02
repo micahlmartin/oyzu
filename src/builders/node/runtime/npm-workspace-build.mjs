@@ -91,13 +91,15 @@ if (mode === 'project') {
           continue;
         }
         const lint = mode === 'lint';
-        if (member.quality?.[lint ? 'linter' : 'formatter'] !== (lint ? 'eslint' : 'prettier')) {
+        const checker = member.quality?.[lint ? 'linter' : 'formatter'];
+        if (![lint ? 'eslint' : 'prettier', 'biome'].includes(checker)) {
           throw new Error(`Unsupported implicit workspace quality tool in ${member.path}`);
         }
         const excludes = member.quality.excludes;
         if (!Array.isArray(excludes)) throw new Error('Missing planned workspace quality scope');
         const env = {...process.env, OYZU_NODE_TEST_FRAMEWORK:member.framework, OYZU_NODE_QUALITY_EXCLUDE:JSON.stringify(excludes)};
-        if (invoke([process.execPath, join(runtime, 'node-quality.mjs'), lint ? 'lint' : 'format-check'], resolve(root,member.path), env)) process.exitCode = 1;
+        const operation = lint ? 'lint' : 'format-check';
+        if (invoke([process.execPath, join(runtime, 'node-quality.mjs'), checker === 'biome' ? `biome-${operation}` : operation], resolve(root,member.path), env)) process.exitCode = 1;
       }
     }
   } else if (mode === 'package') {

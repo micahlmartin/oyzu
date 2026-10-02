@@ -26,3 +26,27 @@ fn native_quality_configuration_is_observed_without_executing_it() {
     fs::write(root.path().join("biome.json"), "{}").unwrap();
     assert!(discovery::discover(root.path()).is_err());
 }
+
+#[test]
+fn biome_configuration_selects_native_read_only_checks_and_explicit_formatting() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("package.json"), r#"{"name":"demo"}"#).unwrap();
+    fs::write(
+        root.path().join("biome.jsonc"),
+        "// native configuration\n{}",
+    )
+    .unwrap();
+    let workspace = discovery::discover(root.path()).unwrap();
+    let target = &workspace.targets["project"];
+    assert_eq!(target.discovery["linter"].selected(), "biome");
+    assert_eq!(target.discovery["formatter"].selected(), "biome");
+    assert_eq!(target.tasks["lint"].argv, ["biome", "lint", "."]);
+    assert_eq!(target.tasks["format-check"].argv, ["biome", "format", "."]);
+    assert!(!target.tasks["format-check"].mutates_source);
+    assert_eq!(
+        target.tasks["format"].argv,
+        ["biome", "format", "--write", "."]
+    );
+    assert!(target.tasks["format"].mutates_source);
+    assert!(!target.tasks["format"].build_stage);
+}

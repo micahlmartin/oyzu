@@ -17,7 +17,8 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_workspaces, python_application, python_legacy, python_quality, rust, vitest
+from build_scenarios import ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, rust, vitest
+from build_scenarios.node_fixtures import format_sources
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -102,6 +103,7 @@ def main():
         node_preflight.verify(ROOT,base,invoke,validate,source_files,verified)
         node_managers.verify(ROOT,base,invoke,validate,source_files,verified)
         node_workspaces.verify(ROOT,base,invoke,validate,source_files,verified)
+        node_quality.verify(ROOT,base,invoke,validate,source_files,verified)
         jest.verify(ROOT,base,invoke,validate,source_files,verified)
         vitest.verify(ROOT,base,invoke,validate,source_files,verified)
         go.verify(ROOT,base,invoke,validate,source_files,verified)
@@ -183,6 +185,7 @@ else {assert.equal(fs.readFileSync('.hook-order','utf8'),'pre,build'); fs.writeF
         with (hooked / "build.mjs").open("a") as build_script:
             build_script.write("\nconst hookFs=await import('node:fs');if(hookFs.readFileSync('.hook-order','utf8')!=='pre')throw new Error('missing pre hook');hookFs.appendFileSync('.hook-order',',build');\n")
         (hooked / "oyzu.toml").write_text('[tasks."project:pre_build"]\nargv=["node","hook.mjs","pre"]\n[tasks."project:post_build"]\nargv=["node","hook.mjs","post"]\n')
+        format_sources(ROOT, hooked/'hook.mjs', hooked/'build.mjs')
         invoke(hooked,"build")
         manifest = validate(hooked / "dist")
         ids = [a["id"] for a in manifest["actions"]]
@@ -204,6 +207,7 @@ await new Promise((resolve,reject)=>{const s=net.connect({host:'1.1.1.1',port:44
         metadata = json.loads((isolated / "package.json").read_text())
         metadata["scripts"]["lint"] = "node probe.mjs"
         (isolated / "package.json").write_text(json.dumps(metadata))
+        format_sources(ROOT, isolated/'probe.mjs')
         import os
         os.environ["OYZU_HOST_SECRET"] = "must-not-enter-build"
         invoke(isolated,"build")
