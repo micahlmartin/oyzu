@@ -144,6 +144,13 @@ jobs:
           python tooling/provision-java-quality.py --destination .ci-java-quality
           if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
           python tooling/test-java-quality.py --cli "$CLI" --tools .ci-java-quality
+      - name: Native Ant direct test bundles
+        shell: bash
+        run: |
+          python tooling/provision-ant-reporting.py --destination .ci-ant-reporting
+          python -m pip install -r tooling/design-requirements.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-ant-direct.py --cli "$CLI" --tools .ci-ant-reporting
       - name: Native Dockerfile quality tasks
         shell: bash
         run: |

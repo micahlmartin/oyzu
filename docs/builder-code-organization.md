@@ -84,6 +84,7 @@ src/
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
       ant/reporting.rs        # Exact native test-target adaptation and required report contracts
       ant/runtime/            # Native Ant metadata and JDK archive integration
+        testing.py            # Shared captured/host reporting launcher and native tool paths
         AntTesting.java       # Native target execution and Java assertion outcomes
         AntJUnit.java         # Native JUnit task formatter/coverage integration
         AntReports.java       # Bounded native suite aggregation

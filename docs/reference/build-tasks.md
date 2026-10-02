@@ -51,7 +51,7 @@ Task prerequisites are ordering relationships. They do not transfer generated fi
 
 Each action records its owner, tool identity, dependencies, environment and report obligations in `dist/plan.json`. The manifest records actual action results, retained reports and versioned artifacts. [Bundle storage](build-bundles.md) governs locking, replacement, history and recovery after finalization errors. Packaging waits for every selected task owned by that target, including custom tasks required by another target. A failed prerequisite, post-hook or required report blocks dependent actions and packaging; available evidence remains in the failure bundle. Independent targets may still finish successfully. `oyzu inspect dist` verifies recorded content integrity, not release eligibility.
 
-`build.jobs` bounds ready actions, and the executor never runs two actions concurrently in one target's mutable workspace. Independent targets can overlap. Execution uses captured offline inputs; task dependencies do not grant network, credential or host access. Development `oyzu run` uses the host environment and does not yet produce a standalone captured report bundle.
+`build.jobs` bounds ready actions, and the executor never runs two actions concurrently in one target's mutable workspace. Independent targets can overlap. Execution uses captured offline inputs; task dependencies do not grant network, credential or host access. Development `oyzu run` uses the host environment. Integrated `oyzu run test` profiles produce [test-only bundles](direct-tests.md) that disclose host execution; they do not claim captured-build isolation.
 
 ## Verification and limits
 
