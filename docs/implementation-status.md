@@ -1024,3 +1024,18 @@ fresh-process conformance scenarios passed. Windows compliance tests pass with t
 symlink skips and unchanged inventory; documentation checks pass. Native execution,
 real archive qualification, source approval and production integration remain
 outstanding, so TM-03/TM-06 and the overall OEP remain incomplete.
+
+## Mise integration checkpoint 89: native official-catalog correction checks
+
+Inspection of run 36990464407 at fork head
+`32db610a7cc3e460bf678dbd9e2761c5fedb3dad` confirms successful library/example
+Clippy, shared utility-library Clippy and fresh-process conformance steps on
+Windows, macOS and Linux. These steps cover the twenty scenarios at that revision,
+including official Go catalog selection and its byte-identity/error cases.
+Windows/macOS jobs were still finishing post-check work when inspected; this
+records specific successful steps rather than claiming the whole workflow passed.
+
+This supersedes checkpoint 87's pending native runtime checks. It does not apply
+to checkpoint 88's later target-file binding at `0d58ad7c1`; its run 36991065278
+was independently confirmed live and still preparing native jobs. Production
+installation, source approval and the remaining OEP gates stay outstanding.

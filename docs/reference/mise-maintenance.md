@@ -169,7 +169,12 @@ This version-selection API alone does not discover `go.mod`/`go.work` directives
 prove target availability or verify publishers. Target metadata performs the file
 matching described below. Production worker wiring and real archive qualification remain
 outstanding. All twenty Linux Rust 1.95 conformance scenarios passed, including
-seven Go catalog cases. Native Windows/macOS verification of this correction is pending.
+seven Go catalog cases. At fork revision `32db610a7`, all three native hosts passed
+the library/example Clippy, utility-library Clippy and conformance steps in
+[run 36990464407](https://github.com/oyzuai/mise/actions/runs/36990464407).
+Windows/macOS jobs were still finishing evidence/cache steps when inspected.
+This qualifies those checks for the catalog-source correction, not the later
+catalog-file binding or the full installation/backend matrix.
 
 ### Target metadata
 
