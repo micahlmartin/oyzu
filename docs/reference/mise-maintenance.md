@@ -610,3 +610,14 @@ Windows/macOS replay remains pending native CI. This is declared-metadata/backen
 agreement, not publisher signature verification, Java version-range resolution,
 archive installation, backend admission or production worker integration. The
 capture helper's negative cases are included in the maintenance Python tests.
+
+The candidate fork's shared bounded HTTP collector now enforces 16 MiB while
+accumulating decoded Go and embedded Java catalog bytes and 128 bytes for Go
+checksum sidecars. It checks declared lengths and actual chunk totals and never
+returns partial metadata after stream failure. Java also rejects more than
+100,000 decoded records. That record check follows bounded-byte JSON decoding;
+provider-side buffering, parser allocation, operation deadlines and process memory
+are separate limits. Ordinary nonembedded Java behavior is unchanged. No direct
+HTTP client bypass or alternate route is introduced. Two utility boundary tests,
+strict utility/library/example Clippy and combined real Go/Java replay pass on
+Linux with replay networking disabled. Updated native CI remains pending.

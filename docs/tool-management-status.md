@@ -1693,3 +1693,30 @@ the checkout. Reference/code-map updates describe provisioning and limitations.
 Windows/macOS fork replay is pending native CI; declared checksums remain
 unauthenticated publisher evidence. No production mise import, dependency/notice
 change, legal approval or completed backend-admission claim is introduced.
+
+## Checkpoint 122: bounded embedded Go/Java response collection
+
+Fork commit aad17fd6cb748fdc67540388430f41f67169d698 introduces a shared bounded
+HTTP collector on the existing authorization/embedding callback path. Go catalog
+collection is capped at 16 MiB and sidecars at 128 bytes; embedded Java catalogs
+are capped at 16 MiB with a subsequent 100,000-record check. Declared/body lengths
+and cumulative decoded chunks are checked before append. A stream error returns
+no partial result. This is not a cap on provider buffering, JSON parser allocation
+or total process memory, and does not implement worker operation deadlines.
+
+Linux passed two focused HTTP boundary tests, strict utility and library/example
+Clippy, pinned formatting, all 22 ordinary conformance cases and combined captured
+Go (six cases) and Java (three targets) replay with networking disabled. Tests
+cover exact-size acceptance, declared oversize, unknown-length chunk overflow and
+interrupted streams. Fork inventory remains consistent with 1,109 unreviewed
+records; 24 compliance tests pass with two Windows symlink skips. No dependency,
+license/notice or approval changed. The owning reference and fork change record
+explain limits and evidence; workflow YAML and documentation/diff checks pass.
+
+Earlier run 37004801980 at da430ba passed Java replay steps on Windows/macOS.
+Ubuntu failed during public Go metadata capture with HTTP 404, skipping Java;
+a fresh local capture of all seven responses succeeded. This does not identify
+the CI failure's root cause. Java CI is now independent of Go capture once shared
+boundary checks pass, while any failed step still fails the job. New native CI
+for the bounded reader remains pending. Production import, worker/broker wiring,
+backend admission and remaining OEP requirements remain open.
