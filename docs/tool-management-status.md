@@ -1951,3 +1951,14 @@ does not cover subsequent request-schema commit 084fcfd. Archive qualification
 uses the existing synthetic admission harness and does not establish production
 backend admission, distribution approval, full tool CLI behavior or completion
 of OEP-0003. No product behavior changed in this evidence update.
+
+## Checkpoint 134: exact backend descriptor schema identity matching
+
+Corrected backend descriptor schema end anchoring so source pins and all four
+SHA-256 identity fields reject a trailing newline, matching the existing Rust
+parser. Five shared invalid fixtures reproduce the discrepancy before the fix
+and pass after it. All tool schema fixture checks and both Windows backend
+parser tests pass, including unchanged golden identity hashing. Documentation
+and diff checks pass. No Rust implementation or wire field changed; the reference
+now describes this exact-string requirement. This closes a TM-01 schema/runtime
+disagreement, not compiled backend admission or the remaining OEP-0003 work.

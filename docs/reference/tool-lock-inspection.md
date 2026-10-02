@@ -593,6 +593,10 @@ encodes the OEP's closed identity record: exact source commit, patch-register
 digest, embedding ABI and adapter revision, nullable registry/plugin digests,
 verifier digest and unique string features. Nullable fields are required even
 when null. Positive revision integers stay within the canonical JSON safe range.
+Source pins and digests require exact whole-string matches; trailing newlines
+are rejected by both the schema and runtime parser. Shared malformed fixtures
+exercise all five identity fields.
+
 The synthetic fixtures are not compiled backend descriptors or approved pins.
 
 Run `python tooling/check-tool-contracts.py` with
