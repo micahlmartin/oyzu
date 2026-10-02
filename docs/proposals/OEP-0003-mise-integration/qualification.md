@@ -449,11 +449,12 @@ The candidate evidence now records 23 original top-level notice files from all
 bundle digest. No package lacked a top-level notice candidate. This filename-based
 collection does not audit additional source notices, license exceptions, optional
 feature graphs or release obligations. No license alternative was selected and
-macOS qualification remains outstanding.
+macOS qualification was pending at that collection; the subsequent native result is recorded below.
 
 The `Python constraint candidate` workflow reconstructs this retained experiment
 under the runner's temporary directory on Windows, macOS and Linux, verifies the
 probe source hash, and runs the pinned Rust 1.95.0 semantic probe, locked offline
 Clippy and formatting checks. It does not edit either product's Cargo graph. Native
-workflow results are pending; this CI addition does not convert the candidate to
+workflow [37027499477](https://github.com/micahlmartin/oyzu/actions/runs/37027499477)
+passed on all three hosts at `87973b366e67cd72f116cc2af84404a14d9e623b`. This does not convert the candidate to
 an approved dependency or extend the probe's 21-case coverage into a full audit.

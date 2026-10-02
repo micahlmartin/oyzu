@@ -2132,3 +2132,15 @@ run 37023404189 at 5da9db228 completed successfully on all three native hosts.
 The reference includes reproduction and evidence boundaries. Metadata equality
 is not artifact integrity, publisher authentication, installation or production
 integration. Documentation and diff checks pass; OEP-0003 remains active.
+
+## Checkpoint 147: Python constraint candidate native probe passes
+
+Run 37027499477 at root 87973b366e67cd72f116cc2af84404a14d9e623b passed
+the isolated retained parser probe, strict Clippy and formatting on Windows,
+macOS and Linux with Rust 1.95.0. Candidate evidence and the qualification companion
+record the exact revision and scope: 15 matching cases, six invalid specifiers,
+and the retained locked experiment graph. This resolves the macOS probe gap.
+
+No product dependency was added, license alternative selected or distribution
+approved. Full constraint conformance, dependency obligations and resolver wiring
+remain unfinished. Documentation and diff checks pass; OEP-0003 stays active.
