@@ -1,9 +1,9 @@
 package main
 
 import (
- "fmt"
- "runtime"
+	"fmt"
+	"runtime"
 )
 
 func identity() string { return runtime.GOOS + "/" + runtime.GOARCH }
-func main() { fmt.Println(identity()) }
+func main()            { fmt.Println(identity()) }

@@ -123,3 +123,20 @@ fn generated_artifact_identifiers_are_bounded_and_invalid_contracts_fail_early()
     });
     assert!(plan.validate().is_err());
 }
+
+#[test]
+fn builder_requirements_distinguish_target_execution_from_image_assembly() {
+    for builder in ["go/app", "node/app", "python/app", "rust/app", "helm/chart"] {
+        let adapter = get(builder).unwrap();
+        assert_eq!(
+            adapter.execution_platform(Some("linux/arm64")).unwrap(),
+            Some("linux/arm64".parse().unwrap())
+        );
+        assert!(adapter.execution_platform(None).unwrap().is_none());
+    }
+    assert!(get("docker/image")
+        .unwrap()
+        .execution_platform(Some("linux/arm64"))
+        .unwrap()
+        .is_none());
+}

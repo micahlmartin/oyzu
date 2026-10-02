@@ -542,9 +542,21 @@ pub(super) fn resolve_images(
             .get(target.manager.as_str())
             .copied()
             .unwrap_or(&default);
+        let required = builder.execution_platform(
+            workspace
+                .declarations
+                .targets
+                .get(id)
+                .and_then(|c| c.platform.as_deref()),
+        )?;
         images.insert(
             id.clone(),
-            executor::resolve_for(reference, builder.executor_profile())?,
+            executor::resolve_toolchain(
+                reference,
+                builder.executor_profile(),
+                required.as_ref(),
+                refs.contains_key(target.manager.as_str()),
+            )?,
         );
     }
     Ok(images)

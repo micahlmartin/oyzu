@@ -1,10 +1,12 @@
 package main
 
 import (
- "runtime"
- "testing"
+	"runtime"
+	"testing"
 )
 
 func TestIdentity(t *testing.T) {
- if identity() != runtime.GOOS+"/"+runtime.GOARCH { t.Fatal("incorrect platform identity") }
+	if identity() != runtime.GOOS+"/"+runtime.GOARCH {
+		t.Fatal("incorrect platform identity")
+	}
 }

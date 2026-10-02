@@ -140,7 +140,7 @@ def verify_platform_matrix(root, base, invoke, validate, source_files, verified)
     # Target execution must not silently use the amd64 worker for ARM tests.
     native = base/'go-platform-matrix-admission'
     shutil.copytree(root/'examples/builds/container-variants/project', native)
-    invoke(native, 'build', 'image', success=False)
+    invoke(native, 'build', 'image', '--image', 'go=oyzu-toolchain/go:1.24-mod0.25.0', success=False)
     failed = validate(native/'dist')
     assert not failed['actions'] and not failed['artifacts']
     assert any('native target execution' in d['message'] for d in failed['diagnostics'])
@@ -155,6 +155,8 @@ def verify_platform_matrix(root, base, invoke, validate, source_files, verified)
 def verify(root, base, invoke, validate, source_files, verified):
     verify_target_platform(root, base, invoke, validate, source_files, verified)
     verify_platform_matrix(root, base, invoke, validate, source_files, verified)
+    from .platform_execution import verify_platform_execution
+    verify_platform_execution(root, base, invoke, validate, source_files, verified)
     project = base / 'docker-offline'
     shutil.copytree(root / 'examples/builds/docker-offline/project', project)
     before = source_files(project)

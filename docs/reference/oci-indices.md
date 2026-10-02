@@ -1,6 +1,6 @@
 # Complete OCI image indices
 
-Experimental captured builds automatically assemble one OCI index artifact for a complete selected family of platform images. No additional packaging setting is needed. Individual images and their test/quality evidence remain in the bundle. This implements image aggregation; it does not provide ARM execution, publishing, signing or release authorization.
+Experimental captured builds automatically assemble one OCI index artifact for a complete selected family of platform images. No additional packaging setting is needed. Individual images and their test/quality evidence remain in the bundle. This implements image aggregation; it does not itself provide execution, publishing, signing or release authorization. [Toolchain platform selection](toolchain-platforms.md) separately admits matching language execution images.
 
 ## Usage and prerequisites
 
@@ -52,6 +52,6 @@ A failed platform blocks the aggregate; successful peer image artifacts may rema
 
 Local Rust tests cover deterministic bytes, shared-blob deduplication, input preservation, malformed/missing content, platform/digest mismatch, duplicate platforms, no-overwrite behavior, complete-family planning, failed prerequisites and bundle membership checks. These use independently authored OCI fixtures, not native container execution. Schema checks reject missing member requirements and null platforms on ordinary targets/actions.
 
-The Linux captured Docker suite additionally requires actual amd64/arm64 scratch builds, their complete index, repeated archive identity, CLI inspection and a platform-specific hook failure that blocks the index. That new end-to-end result remains pending CI. Full EX-027/050 acceptance still requires native/emulated target execution or supported platform-independence evidence. General platform ABI/features negotiation and registry publishing remain unfinished.
+The Linux captured Docker suite additionally requires actual amd64/arm64 scratch builds, their complete index, repeated archive identity, CLI inspection and a platform-specific hook failure that blocks the index. That new end-to-end result remains pending CI. Full EX-027/050 acceptance still requires the complete policy/ABI/cache cases and platform verification; the new producer execution checks are tracked in [toolchain platforms](toolchain-platforms.md). General platform ABI/features negotiation and registry publishing remain unfinished.
 
 The archive follows the [OCI image index specification](https://github.com/opencontainers/image-spec/blob/v1.1.1/image-index.md): its index references platform-specific image manifests by digest.

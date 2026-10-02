@@ -2,6 +2,7 @@
 mod files;
 mod images;
 mod mode;
+mod toolchains;
 mod validation;
 mod worker;
 use anyhow::{bail, Context, Result};
@@ -17,6 +18,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+pub(crate) use toolchains::resolve_toolchain;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Image {

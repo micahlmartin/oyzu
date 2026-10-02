@@ -39,6 +39,15 @@ if [[ "$mode" == provision ]]; then
     docker pull golang:1.24-bookworm
     docker build --tag oyzu-toolchain/go:1.24-mod0.25.0 --file tooling/images/go.Dockerfile .
   fi
+  if selected docker; then
+    # The CI runner provisions binfmt/QEMU separately. These distinct tags keep
+    # the native default images intact in both classic and containerd stores.
+    docker build --platform linux/arm64 --tag oyzu-toolchain/go:1.24-mod0.25.0-linux-arm64 --file tooling/images/go.Dockerfile .
+    docker build --platform linux/arm64 --tag oyzu-toolchain/node:quality-linux-arm64 tooling/images/node-quality
+    docker build --platform linux/arm64 --build-arg QUALITY_IMAGE=oyzu-toolchain/node:quality-linux-arm64 --tag oyzu-toolchain/node:npm11.11.0-node22-linux-arm64 tooling/images/node-npm
+    test "$(docker run --rm --pull=never --network=none oyzu-toolchain/go:1.24-mod0.25.0-linux-arm64 go env GOOS GOARCH)" = $'linux\narm64'
+    test "$(docker run --rm --pull=never --network=none oyzu-toolchain/node:npm11.11.0-node22-linux-arm64 node -p 'process.platform+"/"+process.arch')" = linux/arm64
+  fi
   if selected python core; then
     docker pull python:3.12-slim-bookworm
     docker pull python:3.12-bookworm

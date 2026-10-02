@@ -6,6 +6,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | --- | --- |
 | [Runtime and platform matrices](runtime-matrices.md) | Node runtime variants, platform propagation through artifacts, selection, executor admission and separate evidence |
 | [OCI image indices](oci-indices.md) | Complete platform-family aggregation, deterministic archives, failure gates, bundle membership and evidence limits |
+| [Toolchain platforms](toolchain-platforms.md) | Verified provisioned image selection, explicit overrides, ARM execution prerequisites and remaining evidence limits |
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
 | [Build bundles](build-bundles.md) | Workspace locking, staging, history, destination-change checks, failure evidence and recovery limits |
 | [Build tasks](build-tasks.md) | Builder stages, cross-target prerequisites, hooks, private workspace ownership, report gates and failure behavior |

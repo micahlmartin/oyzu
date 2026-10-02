@@ -28,6 +28,14 @@ impl Builder for Docker {
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/docker:buildkit0.25.0")
     }
+    fn execution_platform(
+        &self,
+        _requested: Option<&str>,
+    ) -> Result<Option<crate::platform::Platform>> {
+        // The assembly worker need not execute target code. Preparation checks
+        // native RUN requirements before admitting actions.
+        Ok(None)
+    }
     fn target_platform(
         &self,
         requested: Option<&str>,

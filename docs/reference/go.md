@@ -16,7 +16,7 @@ oyzu inspect dist
 
 Development tasks use provisioned `go` and `gofmt`. The implicit tasks include dependency installation, compile, test, vet, formatting and formatting checks. `oyzu run format` modifies source; builds use `format-check`, whose native `gofmt -l` output must be empty. Native go.work members supply the package patterns for development build/test/vet commands. Direct tests produce the test-only evidence described below; other development tasks do not produce a collected build bundle.
 
-Captured builds require Docker and this explicitly provisioned Linux amd64 toolchain:
+Captured builds require Docker and an explicitly provisioned Linux toolchain. The default CI profile is amd64:
 
 ```text
 docker build -f tooling/images/go.Dockerfile -t oyzu-toolchain/go:1.24-mod0.25.0 .
@@ -77,4 +77,6 @@ python tooling/test-go-metadata.py --go <provisioned-go> --cli <compiled-oyzu>
 
 The module probe checks single-module and workspace consumption, major-version identity, matching go.mod bytes, native checksums, repeatable bytes, unchanged inputs, projected implicit dependencies and invalid local replacement rejection. Rust checks cover inferred/explicit library planning and artifact path admission. CI additionally requires measured test/coverage evidence and snapshot artifacts from an actual captured library build, repeats it for byte identity, then verifies a real failed test blocks collection.
 
-Registry replacements that require different publication semantics, local replacement modules outside the selected workspace, private/VCS routing, cross compilation/platform matrices, module publication and standalone task report bundles remain unfinished. Unsupported replacement projection fails preparation rather than producing a module known to depend on an unreproducible local path. Native source archives do not claim a compiled ABI or production provenance. Full cgo/sysroot portability and all authored scenario acceptance remain part of the active goal; see [implementation status](../implementation-status.md).
+Registry replacements that require different publication semantics, local replacement modules outside the selected workspace, private/VCS routing, cross compilation, module publication and standalone task report bundles remain unfinished. Unsupported replacement projection fails preparation rather than producing a module known to depend on an unreproducible local path. Native source archives do not claim a compiled ABI or production provenance. Full cgo/sysroot portability and all authored scenario acceptance remain part of the active goal; see [implementation status](../implementation-status.md).
+
+Platform matrices can select matching provisioned Go toolchains through [platform selection](toolchain-platforms.md). Preparation verifies actual Go OS/architecture, and tests execute in each selected runtime. The authored Go-to-container matrix is now required by Linux CI; its new ARM execution result is pending. General cross-compilation, ABI admission and all EX-027 cases are not established by this selection capability.

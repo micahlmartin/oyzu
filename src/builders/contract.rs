@@ -75,11 +75,18 @@ pub(crate) trait Builder: Sync {
         Ok(target)
     }
 
+    /// Required toolchain execution platform for an explicit artifact target.
+    /// Packaging adapters may use another worker and return None; target
+    /// admission and any target-code execution checks remain mandatory.
+    fn execution_platform(&self, requested: Option<&str>) -> Result<Option<Platform>> {
+        requested.map(str::parse).transpose()
+    }
+
     /// Select an already provisioned image for concrete runtime axes. Adapters
     /// admitting variants must verify the actual runtime during preparation;
     /// an image reference alone is not runtime-version evidence.
-    /// Platform-only variants keep the default image; target_platform must
-    /// separately admit the artifact target against that resolved execution.
+    /// Execution platform selection may resolve a provisioned platform sibling;
+    /// target_platform separately admits the artifact against that execution.
     fn variant_toolchain(&self, target: &Target) -> Result<String> {
         if target.variant.keys().any(|axis| axis != "platform") {
             bail!(

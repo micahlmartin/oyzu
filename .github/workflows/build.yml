@@ -284,6 +284,11 @@ jobs:
         with:
           name: oyzu-ubuntu-latest
           path: cli
+      - name: Provision ARM emulation for platform acceptance
+        if: matrix.suite == 'docker'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
       - name: Provision suite toolchains and contract validator
         run: bash tooling/build-scenario-tools.sh provision "${{ matrix.suite }}"
       - name: Check acceptance suite inventory
