@@ -24,6 +24,7 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
   fi
   if selected node; then
+    npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
     docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
     docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
   fi
@@ -61,6 +62,9 @@ if [[ "$mode" == provision ]]; then
     sudo apparmor_parser -r tooling/images/buildkit.apparmor
   fi
 else
+  if selected node; then
+    .ci-python/bin/python tooling/test-pnpm-acquisition.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs
+  fi
   if selected python; then
     .ci-python/bin/python tooling/test-python-adapter.py
     .ci-python/bin/python tooling/test-python-reporting.py

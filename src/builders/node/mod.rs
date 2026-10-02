@@ -17,6 +17,14 @@ pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
     RuntimeFile {
+        name: "integrity.mjs",
+        contents: include_str!("runtime/integrity.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-registry.mjs",
+        contents: include_str!("runtime/pnpm-registry.mjs"),
+    },
+    RuntimeFile {
         name: "npm-workspace-test-scope.mjs",
         contents: include_str!("runtime/npm-workspace-test-scope.mjs"),
     },

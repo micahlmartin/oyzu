@@ -94,6 +94,8 @@ Reusable operations take their necessary inputs explicitly. Avoid hidden depende
 
 Java managers share `builders/java/quality` for native lint/format defaults and its owned Java runtime adapter; native Maven/Gradle/Ant lifecycles remain in their manager modules. Task scheduling and artifact gates stay in the shared engine.
 
+The pnpm manager owns registry admission and snapshot records. Its runtime adapter interprets locked archive identities and serves a local archive allowlist; shared broker transport owns upstream access. `manager-runtime.mjs` owns private native invocation and lifecycle cleanup for pnpm/Yarn, allowing asynchronous native operations while pnpm serves local archives. `integrity.mjs` owns the SHA-512 archive verification shared with npm; native lock semantics remain manager-specific.
+
 Python distribution applications extend the native package plan through `builders/python/distribution_app`. The owned runtime assembles native wheel payloads and console metadata; `runtime/application.py` owns shared archive writing, archive-source testing and packaging checks for both requirements and distribution applications. Collection and task scheduling remain engine responsibilities.
 
 Docker image preparation owns native reference requirements and OCI conversion under `builders/docker/images` and its Go runtime. `executor/images` alone exports explicitly provisioned daemon images by immutable identity. The executor's typed `ImageInput` binds relative prepared stores and digests; the worker verifies private copies before mounting them as native OCI contexts. Project code never receives daemon access. Registry acquisition can feed this content contract later without moving Dockerfile parsing or source policy into the worker.

@@ -7,9 +7,13 @@ from jsonschema import Draft202012Validator
 
 def verify(root, base, invoke, validate, source_files, verified):
     schema = json.loads((root / 'docs/contracts/v1alpha1/dependencies.schema.json').read_text())
-    for manager, version in [('pnpm','10.11.0'),('yarn','1.22.22')]:
-        project = base / ('node-manager-'+manager)
-        shutil.copytree(root / 'examples/builds/node-managers' / manager, project)
+    for manager, version, fixture, dependency_count in [
+        ('pnpm', '10.11.0', 'examples/builds/node-managers/pnpm', 0),
+        ('yarn', '1.22.22', 'examples/builds/node-managers/yarn', 0),
+        ('pnpm', '10.11.0', 'tooling/fixtures/pnpm-registry', 2),
+    ]:
+        project = base / f'node-manager-{manager}-{dependency_count}'
+        shutil.copytree(root / fixture, project)
         before = source_files(project)
         tasks = invoke(project,'run','list','--json')
         assert tasks['project:test']['argv'] == [manager,'run','test']
@@ -17,7 +21,7 @@ def verify(root, base, invoke, validate, source_files, verified):
         invoke(project,'build')
         manifest = validate(project / 'dist')
         assert manifest['status'] == 'succeeded' and source_files(project) == before
-        assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == 2
+        assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == (3 if dependency_count else 2)
         assert next(r for r in manifest['reports'] if r['kind'] == 'coverage')['summary']['covered'] > 0
         artifact = manifest['artifacts'][0]
         assert '-dev.g' in artifact['version']
@@ -27,7 +31,11 @@ def verify(root, base, invoke, validate, source_files, verified):
         record = json.loads((project / 'dist/dependencies/project.json').read_text())
         Draft202012Validator(schema).validate(record)
         assert record['manager']['id'] == manager and record['manager']['version'] == version
-        assert record['packages'] == []
+        assert len(record['packages']) == dependency_count
+        if dependency_count:
+            assert {(p['name'], p['version']) for p in record['packages']} == {('is-odd', '3.0.1'), ('is-number', '6.0.0')}
+            assert all(p['sourceId'] == 'npm-public' for p in record['packages'])
+            assert record['extensions']['oyzu.dev/pnpm']['integrity'] == 'lockfile-sha512'
         invoke(project,'inspect','dist')
         invoke(project,'build')
         repeated = validate(project / 'dist')
@@ -45,4 +53,4 @@ def verify(root, base, invoke, validate, source_files, verified):
         conflict = validate(project / 'dist')
         assert not conflict['actions'] and not conflict['artifacts']
         assert 'conflicting' in conflict['diagnostics'][0]['message']
-        verified.append(f'EX-019 {manager}: native frozen preparation, version evidence, scripts/reports, repeatable snapshot package, failed tests and conflicting locks')
+        verified.append(f'EX-019 {manager} ({dependency_count} registry packages): native frozen preparation, version evidence, scripts/reports, repeatable snapshot package, failed tests and conflicting locks')

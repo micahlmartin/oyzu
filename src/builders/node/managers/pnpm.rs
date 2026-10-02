@@ -1,35 +1,52 @@
-use super::{empty, Manager};
+use super::Manager;
 use crate::{
+    broker,
     builders::{BuilderPlan, CommandSpec, PlanningContext, PreparationContext},
     dependencies::Prepared,
+    records, snapshot,
 };
 use anyhow::{bail, Context, Result};
+use serde_json::{json, Value};
+use std::collections::BTreeMap;
 
 pub(super) struct Pnpm;
 impl Pnpm {
-    fn validate(&self, root: &std::path::Path) -> Result<()> {
-        empty::validate(root)?;
+    fn validate(&self, root: &std::path::Path) -> Result<bool> {
+        let package = records::read(&root.join("package.json"))?;
+        if package.get("workspaces").is_some()
+            || package.get("pnpm").is_some()
+            || [".npmrc", ".pnpmfile.cjs", "pnpm-workspace.yaml"]
+                .iter()
+                .any(|name| root.join(name).exists())
+        {
+            bail!("pnpm workspace/custom configuration capture is not implemented yet");
+        }
         let lock: serde_yaml::Value =
             serde_yaml::from_str(&std::fs::read_to_string(root.join("pnpm-lock.yaml"))?)?;
-        for field in ["packages", "snapshots"] {
-            if lock
-                .get(field)
-                .is_some_and(|v| v.as_mapping().is_none_or(|m| !m.is_empty()))
-            {
-                bail!("pnpm dependency capture is not implemented yet");
-            }
-        }
         let importers = lock["importers"]
             .as_mapping()
             .context("pnpm lock missing importers")?;
         if importers.len() != 1
-            || !importers
+            || importers
                 .get(serde_yaml::Value::String(".".into()))
-                .is_some_and(|v| v.as_mapping().is_some_and(|m| m.is_empty()))
+                .is_none_or(|v| v.as_mapping().is_none())
         {
             bail!("pnpm workspace/dependency capture is not implemented yet");
         }
-        Ok(())
+        for field in ["dependencies", "devDependencies", "optionalDependencies"] {
+            if let Some(dependencies) = package[field].as_object() {
+                for (name, specifier) in dependencies {
+                    if lock["importers"]["."][field][name]["specifier"].as_str()
+                        != specifier.as_str()
+                    {
+                        bail!("pnpm capture requires a current frozen lockfile for {name}");
+                    }
+                }
+            }
+        }
+        Ok(lock
+            .get("packages")
+            .is_some_and(|packages| packages.as_mapping().is_some_and(|p| !p.is_empty())))
     }
 }
 impl Manager for Pnpm {
@@ -40,8 +57,42 @@ impl Manager for Pnpm {
         "oyzu-toolchain/node:pnpm10.11.0-node22"
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        self.validate(&context.target.path)?;
-        empty::prepare(context, "pnpm.mjs", "pnpm-lock.yaml")
+        let required = self.validate(&context.target.path)?;
+        let sources = if required {
+            vec![broker::Source::new(
+                "npm-public",
+                "https://registry.npmjs.org/",
+                None,
+            )?]
+        } else {
+            vec![]
+        };
+        let tree = crate::dependencies::preparation::capture(
+            &context,
+            super::super::RUNTIME,
+            &["node".into(), "/oyzu/pnpm.mjs".into(), "acquire".into()],
+            &BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]),
+            sources,
+        )?;
+        let inventory = records::read(&context.destination.join("inventory.json"))?;
+        let packages: Vec<Value> = inventory["packages"].as_array().context("missing pnpm inventory")?
+            .iter().enumerate().map(|(index, p)| json!({
+                "id":format!("pnpm/package-{index}"), "name":p["name"], "version":p["version"],
+                "sourceId":p["sourceId"], "digest":format!("sha256:{}",p["sha256"].as_str().unwrap_or("")),
+                "size":p["size"], "purpose":"build", "dependencies":[], "verification":"digest-only"
+            })).collect();
+        let platform = json!({"os":context.image.os,"arch":context.image.arch});
+        let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
+            "adapter":{"id":"node/pnpm-registry-tarballs","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"2"},
+            "manager":{"id":"pnpm","version":inventory["version"],"digest":context.image.digest,"platform":platform},
+            "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&context.target.path.join("pnpm-lock.yaml"))?],
+            "targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,
+            "extensions":{"oyzu.dev/pnpm":{"nodeVersion":inventory["nodeVersion"],"inventory":"all-locked-registry-tarballs","integrity":"lockfile-sha512","dependencyEdges":"not-modeled","purposeClassification":"build-inputs"}}});
+        Ok(Some(Prepared {
+            root: context.destination.into(),
+            digest: records::digest("oyzu.dependencies.v1alpha1", &record)?,
+            record,
+        }))
     }
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()> {
         self.validate(&context.target.path)?;
