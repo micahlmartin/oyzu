@@ -191,7 +191,9 @@ pub(super) fn plan_with_dependencies(
             };
             let provided = native_operations.contains(&task_id);
             if (task.availability.is_some() && !provided)
-                || (!task.build_stage && !root_override && !provided)
+                || (!task.build_stage
+                    && !root_override
+                    && !operation_contracts.contains_key(&task_id))
             {
                 continue;
             }
@@ -358,6 +360,67 @@ pub(super) fn resolve_images(
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn qualified_docker_test_override_keeps_build_stage_and_required_evidence() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("Dockerfile"), "FROM scratch\n").unwrap();
+        fs::write(
+            root.path().join("oyzu.toml"),
+            "[tasks.\"project:pre_test\"]\nargv=['prepare-test']\n[tasks.\"project:test\"]\nargv=['custom-test']\n[tasks.\"project:post_test\"]\nargv=['finish-test']\n",
+        )
+        .unwrap();
+        let capture = tempfile::tempdir().unwrap();
+        let source = snapshot::capture(root.path(), &capture.path().join("source")).unwrap();
+        let workspace =
+            crate::discovery::discover_with_shell(&capture.path().join("source"), Some("sh"))
+                .unwrap();
+        // The development task is not a stage until the captured builder supplies
+        // its contract. An explicit body must keep that contract and its hooks.
+        assert!(!workspace.tasks["project:test"].build_stage);
+        let image = executor::Image {
+            reference: "buildkit:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        };
+        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","oyzu.toml"]}});
+        let dependency = dependencies::Prepared {
+            root: capture.path().into(),
+            digest: format!("sha256:{}", "2".repeat(64)),
+            record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&workspace.root.join("Dockerfile")).unwrap()}}}),
+        };
+        let plan = plan_with_dependencies(
+            &workspace,
+            &source,
+            &BTreeMap::from([("project".into(), image)]),
+            &BTreeMap::from([("project".into(), dependency)]),
+        )
+        .unwrap();
+        let actions = plan["actions"].as_array().unwrap();
+        assert_eq!(
+            actions
+                .iter()
+                .map(|a| a["id"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "project:build",
+                "project:pre_test",
+                "project:test",
+                "project:post_test",
+                "project:package"
+            ]
+        );
+        let test = &actions[2];
+        assert_eq!(test["argv"], json!(["custom-test"]));
+        assert_eq!(test["reports"].as_array().unwrap().len(), 1);
+        assert_eq!(test["reports"][0]["required"], true);
+        assert_eq!(
+            test["extensions"]["oyzu.dev/report-sources"]["project:test"],
+            "file"
+        );
+    }
+
     #[test]
     fn unknown_go_override_requires_files_instead_of_interpreting_arbitrary_stdout() {
         let root = tempfile::tempdir().unwrap();
