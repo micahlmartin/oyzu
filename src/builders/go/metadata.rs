@@ -15,6 +15,20 @@ pub(super) struct Metadata {
     pub compiler: Option<String>,
     #[serde(rename = "compilerTarget")]
     pub compiler_target: Option<String>,
+    #[serde(default)]
+    pub dependencies: Vec<Dependency>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub(super) struct Dependency {
+    pub name: String,
+    pub version: String,
+    pub file: String,
+    pub digest: String,
+    pub size: u64,
+    pub sum: String,
+    #[serde(rename = "goModSum")]
+    pub go_mod_sum: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -59,6 +73,15 @@ impl Metadata {
                 || self.compiler_target.as_deref().is_none_or(str::is_empty))
         {
             bail!("cgo metadata requires a compiler and target ABI");
+        }
+        for dependency in &self.dependencies {
+            if !crate::snapshot::portable(&dependency.file)
+                || !dependency.file.ends_with(".zip")
+                || !dependency.sum.starts_with("h1:")
+                || !dependency.go_mod_sum.starts_with("h1:")
+            {
+                bail!("invalid captured Go dependency {}", dependency.name);
+            }
         }
         Ok(())
     }

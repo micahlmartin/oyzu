@@ -15,6 +15,7 @@ import (
 )
 
 type moduleFile struct {
+	Module  struct{ Path string }
 	Use     []struct{ DiskPath string }
 	Replace []struct {
 		New struct{ Path, Version string }
@@ -24,6 +25,7 @@ type nativePackage struct {
 	Dir, ImportPath, Name, Target, ForTest string
 	Standard                               bool
 	CgoFiles                               []string
+	Module                                 *module
 }
 type binary struct {
 	Name      string `json:"name"`
@@ -31,15 +33,16 @@ type binary struct {
 	Directory string `json:"directory"`
 }
 type inventory struct {
-	Version        string   `json:"version"`
-	OS             string   `json:"os"`
-	Arch           string   `json:"arch"`
-	Patterns       []string `json:"patterns"`
-	Modules        []string `json:"modules"`
-	Binaries       []binary `json:"binaries"`
-	Cgo            bool     `json:"cgo"`
-	Compiler       string   `json:"compiler,omitempty"`
-	CompilerTarget string   `json:"compilerTarget,omitempty"`
+	Version        string       `json:"version"`
+	OS             string       `json:"os"`
+	Arch           string       `json:"arch"`
+	Patterns       []string     `json:"patterns"`
+	Modules        []string     `json:"modules"`
+	Binaries       []binary     `json:"binaries"`
+	Cgo            bool         `json:"cgo"`
+	Compiler       string       `json:"compiler,omitempty"`
+	CompilerTarget string       `json:"compilerTarget,omitempty"`
+	Dependencies   []dependency `json:"dependencies"`
 }
 
 func run(dir, program string, args ...string) ([]byte, error) {
@@ -90,8 +93,8 @@ func manifest(root, dir, kind string) (moduleFile, error) {
 	return value, nil
 }
 
-func capture(root string) (inventory, error) {
-	v := inventory{Patterns: []string{}, Modules: []string{}, Binaries: []binary{}}
+func capture(root string, acquire *acquisitionOptions) (inventory, error) {
+	v := inventory{Patterns: []string{}, Modules: []string{}, Binaries: []binary{}, Dependencies: []dependency{}}
 	var err error
 	root, err = filepath.EvalSymlinks(root)
 	if err != nil {
@@ -130,20 +133,31 @@ func capture(root string) (inventory, error) {
 		return v, fmt.Errorf("Go workspace has no modules")
 	}
 	seen := map[string]bool{}
+	localModules := []string{}
 	for _, module := range modules {
 		if seen[module] {
 			return v, fmt.Errorf("duplicate Go workspace member %s", module)
 		}
 		seen[module] = true
-		if _, err = manifest(root, filepath.Join(root, module), "mod"); err != nil {
+		model, err := manifest(root, filepath.Join(root, module), "mod")
+		if err != nil {
 			return v, err
 		}
+		localModules = append(localModules, model.Module.Path)
 		v.Modules = append(v.Modules, module)
 		pattern := "./..."
 		if module != "." {
 			pattern = "./" + module + "/..."
 		}
 		v.Patterns = append(v.Patterns, pattern)
+	}
+	var session *acquisition
+	if acquire != nil {
+		session, err = beginAcquisition(root, v.Modules, localModules, *acquire)
+		if err != nil {
+			return v, err
+		}
+		defer session.server.Close()
 	}
 	var env map[string]string
 	out, err := run(root, "go", "env", "-json", "GOVERSION", "GOOS", "GOARCH", "CGO_ENABLED", "CC")
@@ -184,9 +198,10 @@ func capture(root string) (inventory, error) {
 	// Include test-only dependencies in admission and compiler requirement checks.
 	out, err = run(root, "go", append([]string{"list", "-deps", "-test", "-json"}, v.Patterns...)...)
 	if err != nil {
-		return v, fmt.Errorf("Go dependency metadata (external capture is not implemented): %w", err)
+		return v, fmt.Errorf("Go dependency metadata: %w", err)
 	}
 	decoder = json.NewDecoder(bytes.NewReader(out))
+	external := map[string]module{}
 	for {
 		var p nativePackage
 		if err = decoder.Decode(&p); err == io.EOF {
@@ -196,11 +211,30 @@ func capture(root string) (inventory, error) {
 		}
 		if !p.Standard {
 			if _, err = contained(root, root, p.Dir); err != nil {
-				return v, err
+				if session == nil || p.Module == nil {
+					return v, err
+				}
+				if _, err = contained(session.options.cache, session.options.cache, p.Dir); err != nil {
+					return v, err
+				}
+				m := *p.Module
+				if m.Replace != nil {
+					m = *m.Replace
+				}
+				if m.Version == "" || m.Main {
+					return v, fmt.Errorf("uncaptured local Go dependency %s", m.Path)
+				}
+				external[m.Path+"@"+m.Version] = m
 			}
 		}
 		if len(p.CgoFiles) > 0 {
 			v.Cgo = true
+		}
+	}
+	if session != nil {
+		v.Dependencies, err = session.finish(root, external)
+		if err != nil {
+			return v, err
 		}
 	}
 	if v.Cgo {
@@ -227,14 +261,18 @@ func capture(root string) (inventory, error) {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: go-metadata OUTPUT")
+	if len(os.Args) != 2 && len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "usage: go-metadata OUTPUT [MODULE_CACHE BROKER]")
 		os.Exit(2)
 	}
 	root, err := os.Getwd()
 	var v inventory
+	var acquire *acquisitionOptions
+	if len(os.Args) == 4 {
+		acquire = &acquisitionOptions{os.Args[2], os.Args[3]}
+	}
 	if err == nil {
-		v, err = capture(root)
+		v, err = capture(root, acquire)
 	}
 	var data []byte
 	if err == nil {

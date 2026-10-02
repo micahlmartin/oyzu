@@ -141,6 +141,9 @@ pub(super) fn plan_with_dependencies(
         if !target.discovery.is_empty() {
             record["extensions"]["oyzu.dev/discovery"] = json!(target.discovery);
         }
+        if let Some(coverage) = &intent.coverage {
+            record["extensions"]["oyzu.dev/coverage-applicability"] = json!(coverage);
+        }
         if let Some(projection) = projection {
             record["extensions"]["oyzu.dev/source-projection"] = json!(projection);
         }

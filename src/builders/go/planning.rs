@@ -28,6 +28,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let version = semver_snapshot(target, context.source);
     let mut plan = BuilderPlan::new(version.clone(), CommandSpec::new("package", &[]));
     plan.env.extend(preparation::environment());
+    plan.fixed_env
+        .insert("GOMODCACHE".into(), "/dependencies/modules".into());
     plan.fixed_env.insert("GOOS".into(), metadata.os);
     plan.fixed_env.insert("GOARCH".into(), metadata.arch);
     if metadata.cgo {

@@ -30,9 +30,9 @@ pub(crate) trait Builder: Sync {
         true
     }
 
-    /// Resolve native arguments only after an explicit development task run.
+    /// Resolve native arguments/environment only after an explicit development task run.
     /// Static discovery and captured build planning must never call this hook.
-    fn development_argv(&self, _task: &Task) -> Result<Option<Vec<String>>> {
+    fn development_command(&self, _task: &Task) -> Result<Option<DevelopmentCommand>> {
         Ok(None)
     }
 
@@ -77,6 +77,12 @@ pub(crate) trait Builder: Sync {
     }
 }
 
+/// Native invocation context resolved only for explicit development execution.
+pub(crate) struct DevelopmentCommand {
+    pub argv: Vec<String>,
+    pub env: BTreeMap<String, String>,
+}
+
 pub(crate) struct PreparationContext<'a> {
     pub configuration: Option<&'a crate::config::resolve::EffectiveConfig>,
     pub target: &'a Target,
@@ -109,6 +115,8 @@ pub(crate) struct BuilderPlan {
     pub tasks: BTreeMap<String, TaskPlan>,
     pub package: CommandSpec,
     pub artifacts: Vec<ArtifactSpec>,
+    /// Explicit application-source coverage facts, independent of report files.
+    pub coverage: Option<CoverageApplicability>,
     /// Optional files relative to the target, including required control files.
     /// The engine scopes and applies this selection before materialization.
     pub source_files: Option<Vec<String>>,
@@ -116,6 +124,11 @@ pub(crate) struct BuilderPlan {
 
 impl BuilderPlan {
     pub fn validate(&self) -> Result<()> {
+        if let Some(CoverageApplicability::Inapplicable { reason }) = &self.coverage {
+            if reason.trim().is_empty() {
+                bail!("coverage inapplicability requires a reason");
+            }
+        }
         for (name, value) in &self.fixed_env {
             if self.env.get(name) != Some(value) {
                 bail!("builder environment does not supply captured fact {name}");
@@ -170,9 +183,16 @@ impl BuilderPlan {
             tasks: BTreeMap::new(),
             package,
             artifacts: vec![],
+            coverage: None,
             source_files: None,
         }
     }
+}
+
+#[derive(serde::Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
+pub(crate) enum CoverageApplicability {
+    Inapplicable { reason: String },
 }
 
 pub(crate) struct CommandSpec {

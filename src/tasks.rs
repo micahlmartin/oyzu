@@ -132,9 +132,11 @@ fn execute_with_unsets(
     }
     // Development task execution is explicit; it is never represented as a hermetic build.
     let mut argv = task.argv.clone();
+    let mut env = task.env.clone();
     for builder in crate::builders::all() {
-        if let Some(native) = builder.development_argv(task)? {
-            argv = native;
+        if let Some(native) = builder.development_command(task)? {
+            argv = native.argv;
+            env.extend(native.env);
             break;
         }
     }
@@ -147,8 +149,7 @@ fn execute_with_unsets(
         }
         argv.extend_from_slice(args);
     }
-    let path = task
-        .env
+    let path = env
         .iter()
         .find(|(key, _)| key.eq_ignore_ascii_case("PATH"))
         .map(|(_, value)| std::ffi::OsStr::new(value));
@@ -165,7 +166,7 @@ fn execute_with_unsets(
     }
     let output = command
         .current_dir(&task.cwd)
-        .envs(&task.env)
+        .envs(&env)
         .output()
         .with_context(|| {
             format!(
