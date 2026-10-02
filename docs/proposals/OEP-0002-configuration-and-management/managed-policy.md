@@ -82,4 +82,19 @@ Signing, publishing, promotion and obtaining new protected credential grants req
 
 ## Operational verification
 
+### Authentication integration follow-up
+
+The initial configuration delivery defers authentication design to OEP-0016. Its policy context currently has no authenticated subject; this is not evidence that a managed server permits anonymous access. A server requiring authentication remains unavailable until the session integration exists. No login flow is selected by this delivery.
+
+When the public authentication contract is designed, revisit these boundaries:
+
+- Supply a server-verified subject or workload identity to context resolution. Never derive authority from unverified token claims, profile names or CI environment variables. Confirm platform/audience and enrolled organization before activating the session.
+- Bind cached policy and integrity state to the verified subject and existing organization/enrollment/context. Test that logout and account switching cannot reactivate a previous user's cache, including a refresh response arriving after a switch.
+- Distinguish passive token expiry from explicit logout. Preserve signed offline deadlines for an applicable retained subject only as the final authentication contract permits; explicit logout clears the active subject and grants. A machine-only snapshot requires independent verification and authorization.
+- Specify credential storage, concurrent renewal, revocation, recovery and process/agent lifecycle. Preserve protected enrollment and rollback high-water state across logout; clearing authentication must never enable public acquisition.
+- Connect fresh credential, publishing and signing authorization to the verified identity, operation, destination and evidence. Cached configuration is never a substitute for these grants.
+- Run public authenticated HTTPS conformance fixtures for wrong audience/tenant/subject, expired or revoked sessions, account switches, outages and CI workload exchange. Qualify native-store failure and interrupted commits separately from substituted-store tests.
+
+Verified tool-store/native-lock consumption, approved connector routing, development secret consumers, long-running agent operation and action caches also remain separate subsystem integrations. They are not implemented merely by adding login. The [delivery status](../../implementation-status.md#oep-0002-delivery-scope-and-follow-up-gates) tracks these limits without weakening the acceptance scenarios below.
+
 Test first enrollment, anonymous versus subject-bound cache, logout, renewal, offline deadline equality (expired at deadline), shorter administrator limits, missing offline fields, negative server responses, signature/key mismatch, unknown capabilities/operators, wrong audience/context, revision rollback, equal-sequence changed payload, truncated writes, concurrent readers, disk-full, clock rollback, reboot and OS permission failures. Publication/signing tests must prove denial even when CI variables and profile names are spoofed.

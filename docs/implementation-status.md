@@ -467,11 +467,11 @@ Concurrent policy acquisition is exercised with eight simultaneous callers shari
 
 A separate-process fixture now starts four test-binary processes together against the real agent cache/refresh lock. Its test integrity store deliberately pauses halfway through writes; callers must never read that partial state, and exactly one transport refresh occurs. This tests process locking and verified cache reuse with a substituted store, not native credential-store crash durability.
 
-## OEP-0002 completion gates
+## OEP-0002 delivery scope and follow-up gates
 
-The configuration branch remains an incomplete implementation of [OEP-0002](proposals/OEP-0002-configuration-and-management/README.md). Its local checks and selected CI results establish the specific behavior described above; they do not establish full CFG-01�18 conformance.
+Maintainer direction separates delivery of the configuration engine from the future authentication design. This delivery includes typed source capture, cascades, profiles, constraints, inspection/editing, frozen execution settings and the signed-policy verification/cache foundation described above. Authentication is deferred to OEP-0016; it is not a prerequisite for standalone configuration. Delivery does not establish full CFG-01 through CFG-18 conformance or mark the draft OEP accepted. The following table retains broader integration and qualification work rather than treating every remaining item as an authentication dependency.
 
-| Gate | Current evidence | Required before completion |
+| Gate | Current evidence | Follow-up for full OEP conformance |
 | --- | --- | --- |
 | CFG-01/04/08/10: capture, scope, profiles and merge | Resolver/CLI tests, shared-scope change detection and immutable source sharing | Final merged revision must pass the supported-host matrix; retain target isolation and deterministic provenance |
 | CFG-02: authentication transitions cannot disable management | Protected enrollment is independent of login; current context uses no authenticated subject | Implement login, passive expiry, explicit logout and account switching against a public authentication contract, then verify separate subject/machine caches |

@@ -40,6 +40,8 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 
 ## Proposed choices needing review or experiments
 
+Maintainer direction for the OEP-0002 configuration delivery defers login/authentication design to OEP-0016. Complete the shared configuration engine and document deferred integrations without claiming full OEP conformance. Standalone configuration requires no login; protected enrollment and fail-closed managed enforcement remain unchanged. Browser, device-code, token and workload login flows are discussion proposals, not selected contracts. The [delivery follow-up gates](implementation-status.md#oep-0002-delivery-scope-and-follow-up-gates) preserve both authentication-dependent and independent remaining work.
+
 | ID | Decision | Current proposal and next evidence |
 | --- | --- | --- |
 | OPEN-001 | Public license and contribution terms | Unselected; decide before upstream code import or substantive external contributions |
