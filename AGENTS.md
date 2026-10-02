@@ -9,6 +9,8 @@ Oyzu is a 100% AI-built project. All first-party implementation code, tests and 
 
 ## Architecture rules
 
+Before implementation, identify the owning subsystem, the existing contract to reuse or extend, and the behavior that will verify the change. Keep this explanation proportional to the task; a local fix needs no separate design document. Use the [structure decision guide](docs/code-organization.md#choose-the-smallest-structure) when deciding whether to add a module, trait or crate.
+
 - Organize by subsystem responsibility: configuration, discovery, builders, tasks, planning, execution, acquisition and evidence. Read the [code map](docs/code-organization.md) before choosing a home for new behavior.
 - Give each behavior and invariant one owner. Keep CLI/UI transport and presentation thin; reusable operations must not depend on argument parsers or UI state. Avoid dependency cycles and reaching into another subsystem's private implementation.
 - Shared orchestration consumes subsystem contracts, not concrete adapters. Register implementations at composition points. Pass only the context an operation needs; do not introduce a universal application context or service locator to bypass boundaries.

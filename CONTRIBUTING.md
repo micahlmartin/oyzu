@@ -16,6 +16,8 @@ Open an issue to discuss a bug, feature, or bounded implementation task. For sig
 
 A useful issue identifies the problem, owning subsystem if known, expected outcome and a reproducer or relevant example. Reports, documentation and design feedback are welcome without an implementation. Small documentation corrections and localized fixes do not need a new proposal. Follow the license status below before submitting external code.
 
+For a first contribution, choose one observable outcome: clarify an example, reproduce a bug, or identify a missing detector case. You can submit the evidence without knowing the whole architecture. Maintainers should make implementation tasks approachable by linking the owning module, the relevant contract/example and the verification command, and by stating any design decisions still unresolved. For code contributions, the AI-generated workflow and license status below still apply.
+
 Design acceptance and delivery status are separate. The initial accountable maintainer is micahlmartin; generated work must not mark its own proposals accepted. Link implementation issues to acceptance criteria and example fixtures. Public work must remain independently implementable without private repository access.
 
 Pull requests should explain the intended behavior, reference related issues or proposals, and provide relevant verification evidence. Include operating-system and shell differences where applicable.

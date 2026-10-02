@@ -33,6 +33,19 @@ Existing broad public modules, dynamic records and partially combined responsibi
 
 ## Interfaces that earn their place
 
+### Choose the smallest structure
+
+| When adding or changing... | Start with... | Extract or expand when... |
+| --- | --- | --- |
+| A pure calculation or validation | A function and typed values in the owning module | Multiple callers share the same rule and should change together |
+| A subsystem with several responsibilities | Private child modules and a narrow entry point | A responsibility needs its own invariants, tests or dependencies |
+| A builder, detector or backend implementation | The existing capability contract and an owned implementation | A consumer needs a capability the contract cannot express; evolve it at its owner |
+| A finite set of engine-owned states | An enum with explicit variants | A real need for independent implementations justifies a trait |
+| Process, filesystem or network access | The existing effect-owning boundary with explicit inputs | A new adapter needs substitution or a different platform implementation |
+| Reusable code across products | The existing library/module boundary | A second consumer or dependency/distribution constraint warrants a separate crate |
+
+Do not put code in a shared module merely because two functions look alike. For example, configuration precedence should have one authoritative implementation, while npm and Poetry retain their own lockfile semantics. Conversely, adding a new test framework should not create another hook scheduler or report collector. Reuse the existing owners of those behaviors.
+
 ### Dependency direction
 
 Entry points call application operations. Operations coordinate subsystem contracts; concrete adapters implement those contracts and are selected at composition/registration points. Contract definitions must not depend on their implementations. Shared scheduling, task hooks and report collection must not import ecosystem-specific behavior. An ecosystem may reuse another subsystem's public internal API, but never its private implementation.
