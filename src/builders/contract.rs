@@ -259,9 +259,13 @@ pub(crate) fn strings(values: &[&str]) -> Vec<String> {
 }
 
 pub(crate) fn semver_snapshot(target: &Target, source: &Snapshot) -> String {
+    semver_snapshot_digest(target, &source.digest)
+}
+
+pub(crate) fn semver_snapshot_digest(target: &Target, digest: &str) -> String {
     format!(
         "{}-dev.g{}",
         target.version.split(['-', '+']).next().unwrap_or("0.0.0"),
-        &source.digest[7..19]
+        &digest[7..19]
     )
 }

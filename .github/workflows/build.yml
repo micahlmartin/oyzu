@@ -91,6 +91,18 @@ jobs:
         with:
           name: oyzu-${{ matrix.os }}
           path: cli
+      - name: Native Go module archive consumption
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then ADAPTER="$GITHUB_WORKSPACE/.ci-go-modulezip.exe"; else ADAPTER="$GITHUB_WORKSPACE/.ci-go-modulezip"; fi
+          cd src/builders/go/runtime/modulezip
+          go mod download
+          go mod verify
+          test -z "$(gofmt -l . ../metadata.go)"
+          go vet ./...
+          go build -mod=readonly -trimpath -o "$ADAPTER" .
+          cd "$GITHUB_WORKSPACE"
+          python tooling/test-go-modulezip.py --adapter "$ADAPTER"
       - name: Native Python test discovery and reporting
         shell: bash
         run: |
@@ -196,6 +208,7 @@ jobs:
           docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
           docker pull golang:1.24-bookworm
           docker pull python:3.12-slim-bookworm
+          docker build --tag oyzu-toolchain/go:1.24-mod0.25.0 --file tooling/images/go.Dockerfile .
           docker pull python:3.12-bookworm
           docker run --rm --mount type=bind,source="$PWD",target=/repository --workdir /repository python:3.12-bookworm python -m pip download --only-binary=:all: --dest .ci-python-legacy-wheels setuptools==80.9.0 wheel==0.45.1 build==1.2.2.post1 packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 ruff==0.11.13
           docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim

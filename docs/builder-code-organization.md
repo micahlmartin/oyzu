@@ -40,8 +40,10 @@ src/
       metadata.rs             # Typed portable native facts and validation
       preparation.rs          # Shared isolated capture, toolchain and compiler evidence
       planning.rs             # Workspace checks and named snapshot binary artifacts
+      packaging.rs            # Native module artifact record admission
       runtime/metadata.go     # Native Go manifest/package inspection without running project code
       runtime/acquisition.go  # Native Go proxy protocol, checksum admission and module cache capture
+      runtime/modulezip/      # Pinned x/mod integration for source archive projection and checksums
     rust/
       mod.rs                  # Cargo descriptor, discovery and interface implementation
       metadata.rs             # Typed native workspace metadata and version projection

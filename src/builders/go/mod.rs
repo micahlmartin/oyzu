@@ -1,5 +1,6 @@
 mod development;
 mod metadata;
+mod packaging;
 mod planning;
 mod preparation;
 use crate::builders::task::insert;
@@ -43,7 +44,7 @@ impl Builder for Go {
         RUNTIME
     }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
-        Ok("golang:1.24-bookworm")
+        Ok("oyzu-toolchain/go:1.24-mod0.25.0")
     }
     fn plan(&self, context: super::PlanningContext<'_>) -> Result<super::BuilderPlan> {
         planning::plan(context)

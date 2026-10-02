@@ -34,6 +34,7 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 ## Failure and variation cases
 
 - **multiple-main-packages:** Add a second command directory. Expected: Discover distinct commands or explain artifact ambiguity.
+- **library-module:** Build [variants/library](variants/library/) as its own project. With no main package, the build compiles/tests/vets/checks formatting and produces native snapshot module zip/mod/info files, JUnit and Go coverage. No build YAML is required. The module's `/v2` path must agree with its snapshot version, and a failed native test must prevent artifact collection. See the [Go reference](../../../docs/reference/go.md) for provisioning and current limitations.
 
 ## Contract and limitations
 

@@ -3,7 +3,7 @@ use crate::builders::{
     semver_snapshot, ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext,
     ReportFormat, ReportSpec, TaskPlan,
 };
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 
 // Paths remain individual shell words; native names never become shell syntax.
 fn quote(value: &str) -> String {
@@ -13,18 +13,13 @@ fn quote(value: &str) -> String {
 pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let target = context.target;
     let id = &target.name;
-    if target.builder != "go/app" {
-        bail!("{id}: Go library artifact packaging is not implemented yet");
-    }
     let prepared = context
         .dependencies
         .context("Go planning requires captured native metadata")?;
     let metadata: Metadata =
         serde_json::from_value(prepared.record["extensions"]["oyzu.dev/go-metadata"].clone())?;
     metadata.validate()?;
-    if metadata.binaries.is_empty() {
-        bail!("{id}: no native Go main package found; library packaging is not implemented yet");
-    }
+    let library = target.builder == "go/library" || metadata.binaries.is_empty();
     let version = semver_snapshot(target, context.source);
     let mut plan = BuilderPlan::new(version.clone(), CommandSpec::new("package", &[]));
     plan.env.extend(preparation::environment());
@@ -47,7 +42,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     plan.env.insert("GOWORK".into(), workspace.into());
     let mut builds = vec!["mkdir -p .oyzu-build/bin".to_string()];
     let mut copies = Vec::new();
-    for (index, binary) in metadata.binaries.iter().enumerate() {
+    for (index, binary) in metadata.binaries.iter().filter(|_| !library).enumerate() {
         let primary = metadata.binaries.len() == 1;
         let name = if primary {
             "primary".into()
@@ -80,6 +75,38 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             version: None,
             media_type: "application/octet-stream",
         });
+    }
+    if library {
+        builds = vec![format!(
+            "go build -trimpath -buildvcs=false {}",
+            metadata
+                .patterns
+                .iter()
+                .map(|pattern| quote(pattern))
+                .collect::<Vec<_>>()
+                .join(" ")
+        )];
+        let modules = super::packaging::read(&prepared.root, &metadata.modules)?;
+        for (index, module) in modules.iter().enumerate() {
+            for (kind, filename, media_type) in [
+                ("zip", &module.zip, "application/zip"),
+                ("mod", &module.module, "text/plain"),
+                ("info", &module.info, "application/json"),
+            ] {
+                copies.push(format!(
+                    "cp -- {} {}",
+                    quote(&format!("/dependencies/module-artifacts/{filename}")),
+                    quote(&format!("/out/{id}/artifacts/{filename}"))
+                ));
+                plan.artifacts.push(ArtifactSpec {
+                    kind: ArtifactKind::File,
+                    name: format!("module-{index}-{kind}"),
+                    filename: filename.clone(),
+                    version: Some(module.version.clone()),
+                    media_type,
+                });
+            }
+        }
     }
     plan.package = CommandSpec::new("package", &["sh", "-ec", &copies.join("\n")]);
     plan.tasks.insert(

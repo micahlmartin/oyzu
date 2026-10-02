@@ -3,11 +3,39 @@ import hashlib
 import json
 import shutil
 import subprocess
+import zipfile
 from jsonschema import Draft202012Validator
 from .docker import image_contents
 
 
 def verify(root, base, invoke, validate, source_files, verified):
+    library = base/'go-library'
+    shutil.copytree(root/'examples/builds/go-app/variants/library', library)
+    before = source_files(library)
+    tasks = invoke(library,'run','list','--json')
+    assert all(tasks[f'project:{name}']['build_stage'] for name in ['build','test','lint','format-check'])
+    invoke(library,'build')
+    manifest = validate(library/'dist')
+    assert manifest['status']=='succeeded' and source_files(library)==before
+    assert len(manifest['artifacts'])==3
+    dependency = json.loads((library/'dist/dependencies/project.json').read_text())
+    module, = dependency['extensions']['oyzu.dev/go-module-artifacts']
+    assert module['path']=='example.com/oyzu/math/v2' and module['version'].startswith('v2.0.0-dev.g')
+    artifact = next(a for a in manifest['artifacts'] if a['name']=='module-0-zip')
+    with zipfile.ZipFile(library/'dist'/artifact['path']) as archive:
+        assert f"{module['path']}@{module['version']}/math.go" in archive.namelist()
+        assert all('.oyzu-build/' not in name for name in archive.namelist())
+    assert all(a['version']==module['version'] for a in manifest['artifacts'])
+    assert any(r['kind']=='test' and r['summary']['passed']==2 for r in manifest['reports'])
+    assert any(r['kind']=='coverage' and r['summary']['covered']>0 for r in manifest['reports'])
+    repeated = invoke(library,'build')
+    assert {a['name']:a['digest'] for a in repeated['artifacts']} == {a['name']:a['digest'] for a in manifest['artifacts']}
+    test = library/'math_test.go'
+    test.write_text(test.read_text().replace('got != 6','got != 7'))
+    invoke(library,'build',success=False)
+    failed = validate(library/'dist')
+    assert not failed['artifacts'] and any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
+    verified.append('Go library: zero-config /v2 snapshot zip/mod/info, native JUnit and coverage, compile/vet/format gates, repeatability, unchanged source and failed-test artifact rejection')
     project = base / 'go-workspace-cgo'
     shutil.copytree(root / 'examples/builds/go-workspace-cgo/project', project)
     before = source_files(project)
