@@ -5,8 +5,9 @@ use super::{
     tree::TreeInspection,
 };
 use anyhow::{ensure, Context, Result};
+mod paths;
+
 use std::{
-    collections::{BTreeMap, BTreeSet},
     io::{self, Read},
     path::Path,
 };
@@ -161,12 +162,10 @@ fn extract(
         reader,
         remaining: limit,
     });
-    let mut paths = BTreeMap::<String, (String, bool)>::new();
-    let mut explicit = BTreeSet::new();
+    let mut paths = paths::Paths::new(bounds, strip_prefix);
     let mut links = Vec::new();
     let mut long_name = None;
     let mut long_link = None;
-    let mut names = 0usize;
     let mut bytes = 0u64;
     let mut entries = 0usize;
     // Raw iteration avoids unbounded allocation of GNU/PAX extension bodies by
@@ -200,61 +199,15 @@ fn extract(
             .take()
             .map(Ok)
             .unwrap_or_else(|| String::from_utf8(entry.path_bytes().into_owned()))?;
-        let path = if kind.is_dir() {
-            path.trim_end_matches('/')
-        } else {
-            &path
+        let Some((path, parent, name)) = paths.destination(
+            &root,
+            &path,
+            kind.is_dir(),
+            entry.size() == 0 && long_link.is_none(),
+        )?
+        else {
+            continue;
         };
-        access::relative(path)?;
-        ensure!(explicit.insert(path.to_owned()), "duplicate archive path");
-        let path = if let Some(strip) = strip_prefix {
-            if path == strip || strip.starts_with(&format!("{path}/")) {
-                ensure!(
-                    kind.is_dir() && entry.size() == 0 && long_link.is_none(),
-                    "strip-prefix ancestor is not an ordinary directory"
-                );
-                continue;
-            }
-            path.strip_prefix(&format!("{strip}/"))
-                .context("archive entry is outside strip-prefix")?
-        } else {
-            path
-        };
-        let components: Vec<_> = path.split('/').collect();
-        ensure!(
-            components.len() <= bounds.max_depth as usize,
-            "archive depth limit exceeded"
-        );
-        let mut parent = root.duplicate()?;
-        let mut prefix = String::new();
-        for (index, name) in components.iter().enumerate() {
-            if !prefix.is_empty() {
-                prefix.push('/');
-            }
-            prefix.push_str(name);
-            let directory = index + 1 < components.len() || kind.is_dir();
-            let folded = prefix.to_uppercase();
-            if let Some((spelling, was_directory)) = paths.get(&folded) {
-                ensure!(
-                    spelling == &prefix && *was_directory && directory,
-                    "archive path collision"
-                );
-            } else {
-                names = names
-                    .checked_add(prefix.len())
-                    .context("archive path size overflow")?;
-                ensure!(names <= 32 * 1024 * 1024, "archive path bytes exceed limit");
-                paths.insert(folded, (prefix.clone(), directory));
-                ensure!(
-                    paths.len() <= bounds.max_entries as usize,
-                    "expanded archive entry limit exceeded"
-                );
-            }
-            if directory {
-                parent = parent.create_directory(name)?;
-            }
-        }
-        let name = components.last().unwrap();
         if kind.is_file() {
             ensure!(long_link.is_none(), "link extension on regular file");
             ensure!(
@@ -265,7 +218,7 @@ fn extract(
                 .checked_add(entry.size())
                 .context("archive payload size overflow")?;
             ensure!(bytes <= bounds.max_bytes, "archive payload exceeds limit");
-            let mut file = parent.create_file(name)?;
+            let mut file = parent.create_file(&name)?;
             let written = io::copy(&mut entry, &mut file)?;
             ensure!(written == entry.size(), "truncated archive file");
             #[cfg(unix)]
@@ -293,10 +246,7 @@ fn extract(
                     && !target.contains(['\\', ':', '\0']),
                 "invalid archive link target"
             );
-            names = names
-                .checked_add(target.len())
-                .context("archive path size overflow")?;
-            ensure!(names <= 32 * 1024 * 1024, "archive path bytes exceed limit");
+            paths.charge(target.len())?;
             links.push((path.to_owned(), target));
         } else {
             ensure!(

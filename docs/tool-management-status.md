@@ -646,3 +646,21 @@ This changes the planned ZIP integration: add bounded metadata validation before
 using the decoder, with duplicate/local-central consistency fixtures and real
 Windows archive parity. ZIP remains unsupported; no library or licensing approval
 is inferred from this inspection.
+
+## Checkpoint 71: one archive path admission implementation
+
+TAR extraction now delegates portable names, duplicate sets, strip-prefix
+validation, case/type collisions, depth/expanded-entry bounds and anchored
+parent creation to `store/archive/paths`. Decoder-specific parsing, content
+limits and delayed links stay in the extractor. This is the path layer for the
+planned ZIP decoder, not ZIP support. Raw names stored for duplicate detection
+now consume the existing 32 MiB name budget, including skipped strip ancestors;
+previous accounting covered only expanded paths and link targets. A regression
+requires budget exhaustion to reject an otherwise-skipped ancestor before writes.
+
+Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and nine
+real CLI task scenarios passed. Linux passed the name-budget regression, six
+archive tests, nine layout tests and strict all-target Clippy. Native macOS
+confirmation of the path refactor remains pending. Separately, fork `136d65573`
+passes all eight scenarios and library/example Clippy on all three native hosts
+in run `36977793983`, qualifying the Java metadata boundary only.

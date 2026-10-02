@@ -158,6 +158,7 @@ Linux, Darwin ARM64 and Windows. It preserves target URL/checksum facts, rejects
 unavailable versions and unsupported installer formats, and verifies exactly one
 transport callback per target while reusing the backend's metadata cache. The
 session admits Java only and reads no ambient configuration. Linux library/example
-Clippy and all eight scenarios pass; native Windows/macOS confirmation is pending.
+Clippy and all eight scenarios pass on Linux, Windows and macOS in run
+`36977793983` at fork `136d65573`.
 This adds no Java layout API and performs no JDK acquisition, publisher verification
 or execution. It is parser-reuse evidence, not production Java qualification.

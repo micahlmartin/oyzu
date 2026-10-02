@@ -442,3 +442,12 @@ records and local/central consistency before publication, while retaining verifi
 blob identity, anchored extraction, portable paths, expansion limits and CRC/error
 propagation. Do not substitute the library's convenience extraction method for
 these store guarantees. No ZIP dependency or support is introduced by this finding.
+
+Archive path admission is centralized under `store/archive/paths`: raw duplicate
+detection, strip-prefix validation, case/type collision checks, expanded entry and
+depth limits, and anchored destination traversal use one rule set. The 32 MiB
+name budget now includes original names retained for duplicate detection, even
+when stripping skips a prefix ancestor, as well as expanded destination names
+and link targets. Archives that previously escaped this accounting can fail
+earlier; no receipt is written on failure. This prepares shared validation for
+additional decoders but does not enable ZIP.
