@@ -226,3 +226,31 @@ fn validation_rejects_unknown_builders_and_incompatible_language_axes() {
         assert!(String::from_utf8_lossy(&result.stderr).contains("CONFIG_INVALID_VALUE"));
     }
 }
+
+#[test]
+fn configured_task_color_is_presentation_only_and_json_stays_plain() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    fs::write(
+        root.join("package.json"),
+        r#"{"name":"color-fixture","version":"1.0.0","scripts":{"test":"node --version"}}"#,
+    )
+    .unwrap();
+    let mut digest = None;
+    for (color, colored) in [("always", true), ("never", false), ("auto", false)] {
+        fs::write(root.join("oyzu.toml"), format!("[ui]\ncolor='{color}'\n")).unwrap();
+        let output = run(root, &["run", "list"]);
+        assert!(output.status.success());
+        assert_eq!(output.stdout.contains(&0x1b), colored);
+        let json_output = run(root, &["run", "list", "--json"]);
+        assert!(json_output.status.success());
+        assert!(!json_output.stdout.contains(&0x1b));
+        assert!(serde_json::from_slice::<Value>(&json_output.stdout).is_ok());
+        let current = value(root, &["config", "explain"])["digest"].clone();
+        assert!(current.is_string());
+        if let Some(prior) = &digest {
+            assert_eq!(prior, &current);
+        }
+        digest = Some(current);
+    }
+}

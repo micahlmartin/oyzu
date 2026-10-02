@@ -8,7 +8,7 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 
 | Responsibility | Current entry points | Boundary to preserve as the code grows |
 | --- | --- | --- |
-| CLI input and output | `src/main.rs`, `src/config_args.rs` | Parse arguments, call operations, render results; keep business rules in the library |
+| CLI input and output | `src/main.rs`, `src/config_args.rs`, `src/presentation.rs` | Parse arguments, call operations, render results; keep business rules in the library |
 | Invocation composition | `src/invocation.rs` | Capture configuration before shared non-executing target selection; compose subsystem operations without moving their rules into CLI parsing |
 | Configuration | `src/config.rs`, `src/config/` | Own bounded source capture, typed settings, profiles, constraints, immutable resolution and edits; keep protected policy verification and effectful refresh separate from pure resolution |
 | Discovery and resolution | `src/discovery.rs`, `src/discovery/` | Gather bounded evidence and resolve ownership/capabilities deterministically; never execute project code during static detection |

@@ -1,8 +1,9 @@
 mod config_args;
+mod presentation;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use oyzu::{build, config, discovery, tasks};
-use std::path::PathBuf;
+use std::{io::IsTerminal, path::PathBuf};
 
 #[derive(Parser)]
 #[command(version, about = "Opinionated native project tasks and builds")]
@@ -117,7 +118,15 @@ fn run() -> Result<i32> {
                 } else {
                     for task in workspace.tasks.values() {
                         let detail = task.availability.as_deref().unwrap_or("available");
-                        println!("{:<32} {:<12} {}", task.id(), task.provider, detail);
+                        let label = format!("{:<32}", task.id());
+                        let label = presentation::label(
+                            &workspace,
+                            task,
+                            &label,
+                            task.availability.is_none(),
+                            std::io::stdout().is_terminal(),
+                        );
+                        println!("{label} {:<12} {}", task.provider, detail);
                     }
                 }
             } else {
@@ -129,10 +138,19 @@ fn run() -> Result<i32> {
                     for outcome in outcomes {
                         print!("{}", outcome.stdout);
                         eprint!("{}", outcome.stderr);
-                        eprintln!(
-                            "{}: {} (development execution)",
-                            outcome.task, outcome.status
+                        let status = workspace.tasks.get(&outcome.task).map_or_else(
+                            || outcome.status.clone(),
+                            |task| {
+                                presentation::label(
+                                    &workspace,
+                                    task,
+                                    &outcome.status,
+                                    outcome.exit_code == 0,
+                                    std::io::stderr().is_terminal(),
+                                )
+                            },
                         );
+                        eprintln!("{}: {status} (development execution)", outcome.task);
                     }
                 }
                 return Ok(code);
