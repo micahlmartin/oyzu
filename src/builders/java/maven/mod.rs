@@ -16,6 +16,10 @@ pub(in crate::builders) struct Maven;
 
 const RUNTIME: &[RuntimeFile] = &[
     RuntimeFile {
+        name: "maven_reporting.py",
+        contents: include_str!("runtime/reporting.py"),
+    },
+    RuntimeFile {
         name: "maven.py",
         contents: include_str!("runtime/adapter.py"),
     },

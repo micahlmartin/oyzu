@@ -1,5 +1,9 @@
 use anyhow::{bail, Context, Result};
-use std::{collections::BTreeSet, fs, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+};
 
 pub(super) struct Project {
     pub group: String,
@@ -11,6 +15,7 @@ pub(super) struct Project {
     pub directory: String,
     pub final_name: String,
     pub test_roots: Vec<String>,
+    pub test_reports: Vec<String>,
 }
 
 fn value(node: roxmltree::Node<'_, '_>, name: &str) -> Result<String> {
@@ -48,6 +53,7 @@ pub(super) fn read(file: &Path) -> Result<Vec<Project>> {
     let mut projects = Vec::new();
     let mut names = BTreeSet::new();
     let mut poms = BTreeSet::new();
+    let mut report_owners = BTreeMap::new();
     for node in doc
         .root_element()
         .children()
@@ -98,10 +104,38 @@ pub(super) fn read(file: &Path) -> Result<Vec<Project>> {
             directory: path(value(node, "buildDirectory")?, false)?,
             final_name,
             test_roots,
+            test_reports: node
+                .children()
+                .find(|n| n.has_tag_name("testReports"))
+                .context("missing native Maven test report plan; regenerate prepared dependencies")?
+                .children()
+                .filter(|n| n.has_tag_name("directory"))
+                .map(|n| {
+                    path(
+                        n.text()
+                            .context("empty Maven test report directory")?
+                            .into(),
+                        false,
+                    )
+                })
+                .collect::<Result<Vec<_>>>()?,
         });
     }
     if projects.is_empty() {
         bail!("empty Maven reactor");
+    }
+    for project in &projects {
+        for directory in &project.test_reports {
+            if directory == ".oyzu-maven" || directory.starts_with(".oyzu-maven/") {
+                bail!("Maven report directory collides with reserved builder state");
+            }
+            if let Some(owner) = report_owners.insert(directory.to_ascii_lowercase(), &project.pom)
+            {
+                if owner != &project.pom {
+                    bail!("Maven report directory is shared by multiple modules; use distinct native report directories");
+                }
+            }
+        }
     }
     Ok(projects)
 }

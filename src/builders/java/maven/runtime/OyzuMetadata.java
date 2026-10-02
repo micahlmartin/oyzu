@@ -9,6 +9,9 @@ import org.apache.maven.MavenExecutionException;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.model.Plugin;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.lifecycle.internal.LifecycleExecutionPlanCalculator;
+import org.apache.maven.lifecycle.internal.LifecycleTask;
+import org.apache.maven.plugin.PluginParameterExpressionEvaluator;
 
 /** Native reactor metadata, evaluated inside Oyzu's constrained preparation. */
 public final class OyzuMetadata extends AbstractMavenLifecycleParticipant {
@@ -37,6 +40,9 @@ public final class OyzuMetadata extends AbstractMavenLifecycleParticipant {
                         value(xml, "path", relative(root, Path.of(source)));
                     }
                     xml.writeEndElement();
+                    if ("true".equals(System.getenv("OYZU_MAVEN_TEST_PLAN"))) {
+                        testReports(xml, root, session, project);
+                    }
                     xml.writeStartElement("dependencies");
                     for (var dependency : project.getDependencies()) {
                         xml.writeStartElement("dependency");
@@ -69,6 +75,41 @@ public final class OyzuMetadata extends AbstractMavenLifecycleParticipant {
         } catch (Exception error) {
             throw new MavenExecutionException("Oyzu cannot capture contained Maven reactor metadata", error);
         }
+    }
+
+    private static void testReports(XMLStreamWriter xml, Path root, MavenSession session,
+                                    MavenProject project) throws Exception {
+        MavenSession scoped = session.clone();
+        scoped.setCurrentProject(project);
+        var calculator = session.getContainer().lookup(LifecycleExecutionPlanCalculator.class);
+        var plan = calculator.calculateExecutionPlan(scoped, project,
+                java.util.List.of(new LifecycleTask("verify")), true);
+        xml.writeStartElement("testReports");
+        var directories = new java.util.TreeSet<String>();
+        for (var execution : plan.getMojoExecutions()) {
+            String plugin = execution.getArtifactId();
+            if (!"org.apache.maven.plugins".equals(execution.getGroupId())
+                    || !("maven-surefire-plugin".equals(plugin) && "test".equals(execution.getGoal())
+                    || "maven-failsafe-plugin".equals(plugin) && "integration-test".equals(execution.getGoal()))) {
+                continue;
+            }
+            var parameter = execution.getConfiguration().getChild("reportsDirectory");
+            if (parameter == null) throw new IllegalArgumentException("Missing native test report directory");
+            String expression = parameter.getValue();
+            if (expression == null) expression = parameter.getAttribute("default-value");
+            var evaluator = new PluginParameterExpressionEvaluator(scoped, execution);
+            Object value = evaluator.evaluate(expression);
+            if (value == null && parameter.getAttribute("default-value") != null) {
+                value = evaluator.evaluate(parameter.getAttribute("default-value"));
+            }
+            if (value == null || value.toString().contains("${")) {
+                throw new IllegalArgumentException("Unresolved native test report directory");
+            }
+            var directory = evaluator.alignToBaseDirectory(new java.io.File(value.toString()));
+            directories.add(relative(root, directory.toPath()));
+        }
+        for (String directory : directories) value(xml, "directory", directory);
+        xml.writeEndElement();
     }
 
     private static String relative(Path root, Path path) {

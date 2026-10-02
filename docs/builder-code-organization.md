@@ -62,6 +62,7 @@ src/
       maven/preparation.rs    # Scoped native repository capture and POM overlay
       maven/planning.rs       # One native lifecycle with module artifact/report identities
       maven/runtime/          # Maven core metadata extension and native acquisition/lifecycle adapter
+      maven/runtime/reporting.py # Frozen native report-directory capture; shared collection owns parsing
       gradle/metadata.rs      # Typed native composite models and path validation
       gradle/preparation.rs   # Scoped repository capture without mutable daemon caches
       gradle/planning.rs      # Native archive identities and module test evidence
