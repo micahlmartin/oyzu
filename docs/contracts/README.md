@@ -5,7 +5,7 @@ They use their own format fields and must not be treated as stable public APIs.
 
 | Tool schema | Current implementation and limits |
 | --- | --- |
-| [Archive layout](tools-v1/archive-layout.schema.json) | Data-only candidate finalization for tar, tar.gz and bounded ZIP32; optional prefix removal, dot payload subtree and explicit Unix executable paths. The broader schema vocabulary includes tar.xz/raw, which the runtime currently rejects. |
+| [Archive layout](tools-v1/archive-layout.schema.json) | Data-only candidate finalization for tar, tar.gz, raw single-file artifacts and bounded ZIP32; optional prefix removal, dot payload subtree and explicit Unix executable paths. The broader schema vocabulary includes tar.xz, which the runtime currently rejects. |
 | [Receipt](tools-v1/receipt.schema.json) | Candidate receipt parsing and whole-selection/content verification, including exact locked identities and dependency ownership. A matching receipt does not authorize execution. |
 | [Backend descriptor](tools-v1/backend-descriptor.schema.json) | Bounded descriptor parsing and canonical identity inspection. A structurally valid descriptor is not compiled backend admission or legal approval. |
 

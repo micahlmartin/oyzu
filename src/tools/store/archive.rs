@@ -30,6 +30,34 @@ pub(super) fn unpack_zip(
     super::tree::inspect_directory(&root)
 }
 
+/// Copy one verified raw artifact to the sole declared required file. Parent
+/// creation uses the same no-follow traversal and entry/depth budgets as archives.
+pub(super) fn unpack_raw(
+    verified: super::VerifiedBlob,
+    root: Directory,
+    destination: &str,
+    bounds: &Bounds,
+) -> Result<TreeInspection> {
+    bounds.validate()?;
+    let size = verified.size();
+    ensure!(
+        size <= bounds.max_bytes && size <= bounds.max_file_bytes,
+        "raw artifact exceeds extraction bounds"
+    );
+    let mut paths = paths::Paths::new(bounds, None);
+    let (_, parent, name) = paths
+        .destination(&root, destination, false, false)?
+        .context("raw artifact requires a destination")?;
+    let mut source = verified.into_file()?;
+    let mut output = parent.create_file(&name)?;
+    ensure!(
+        io::copy(&mut source, &mut output)? == size,
+        "raw artifact size changed"
+    );
+    output.sync_all()?;
+    super::tree::inspect_directory(&root)
+}
+
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Bounds {

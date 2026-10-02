@@ -136,6 +136,11 @@ commands or callbacks. This internal finite record is not a project programming
 language. Layout identity is locked and independently checked by the supervisor
 against the compiled descriptor; the worker cannot invent a new permitted plan.
 
+For `raw`, the plan has no strip-prefix and exactly one required path of type
+`file`; that path names the unchanged blob's destination within the payload.
+Parent directories are implicit and consume the usual entry/depth bounds. This
+avoids adding a separate destination field or inferring filenames from transport.
+
 Plan entrypoints are templates with `kind`, `payload_relative_path`,
 `interpreter_tool_key` (null for native), `interpreter_relative_path` (null for
 native) and ordered `prefix_args`. Environment references use `owner` (`self` or

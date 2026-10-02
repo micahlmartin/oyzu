@@ -10,7 +10,7 @@ Streamed verified blob caching, atomic per-install publication and cooperative O
 implementation. Durable process-lease observations now record selected identities
 and clean up on ordinary release. Explicit conservative reaping of guarded final
 lease records is implemented; staging recovery/prune, consumer lifecycle and admitted
-layout admission remain absent. Initial data-only tar/gzip and bounded ZIP32 layout finalization
+layout admission remain absent. Initial data-only tar/gzip, raw single-file and bounded ZIP32 layout finalization
 now binds a caller-admitted descriptor, strips an archive prefix, applies explicit bounded
 extraction limits, applies bounded declared Unix executable permissions and authors a candidate receipt; it does not provide compiled
 backend descriptors or prove publisher verification. These do not

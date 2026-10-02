@@ -1307,3 +1307,24 @@ This run predates checkpoint 96's GOROOT/compiler additions. Its remaining job
 steps were still running when checked, so the complete workflow is not claimed
 passing. The current reference now distinguishes this native archive evidence
 from later compiler tests and from still-missing production backend admission.
+
+## Mise integration checkpoint 99: raw single-file materialization
+
+TM-04 now supports `raw` layouts: exactly one required file supplies the portable
+payload destination, with null strip-prefix and dot payload subtree. The verified
+private blob is copied unchanged through the existing anchored filesystem layer;
+implicit parents consume shared entry/depth budgets and total/per-file limits are
+enforced. Existing receipt, layout identity, executable transform and publication
+checks remain in force. No backend or executable is admitted by this operation.
+
+Windows full locked tests, strict all-target Clippy, formatting and all nine CLI
+task scenarios passed. New tests verify byte parity and leased publication and
+reject ambiguous/missing/non-file destinations, escapes and exhausted bounds
+without a receipt. Raw schema fixtures cover one valid and four invalid shapes.
+Linux initially rejected the positive fixture because a raw Unix entrypoint needs
+an explicit executable transform; adding that fixture declaration preserved the
+runtime permission gate. All 12 Linux layout tests then passed with networking
+disabled, and strict all-target Linux Clippy passed. The corrected fixture also
+passed all 11 Windows layout tests and formatting; native macOS CI remains pending. The
+reference, contract index, schema, code map and draft acquisition rule now describe
+the exact mapping. Real jq/Aqua qualification remains outstanding.

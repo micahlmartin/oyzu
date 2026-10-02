@@ -478,3 +478,59 @@ fn stripped_layout_checks_links_in_final_payload_without_rewriting_targets() {
         );
     }
 }
+
+#[test]
+fn raw_artifact_uses_exact_declared_path_and_bounded_parent_creation() {
+    let mut fixture = Fixture::new();
+    fixture.bytes = b"raw synthetic artifact, never executed".to_vec();
+    if cfg!(unix) {
+        fixture.layout["executable_paths"] = json!(["bin/node"]);
+    }
+    fixture.layout["archive_kind"] = json!("raw");
+    fixture.layout["strip_prefix"] = Value::Null;
+    fixture.prepare();
+    assert_eq!(fixture.stage().unwrap(), fixture.key);
+    assert_eq!(
+        fs::read(fixture.candidate().join("payload/bin/node")).unwrap(),
+        fixture.bytes
+    );
+    let lease = tools::lease_installation_selection(
+        &fixture.lock,
+        &fixture.store,
+        Some(&fixture.staging),
+        ".",
+        "default",
+        fixture.platform,
+        &fixture.installer,
+    )
+    .unwrap();
+    assert!(!lease.selection_digest.is_empty());
+    for (pointer, value) in [
+        ("/strip_prefix", json!("prefix")),
+        ("/required_paths", json!([])),
+        (
+            "/required_paths",
+            json!([{"path":"bin/node", "kind":"directory"}]),
+        ),
+        (
+            "/required_paths",
+            json!([{"path":"bin/node", "kind":"file"}, {"path":"other", "kind":"file"}]),
+        ),
+        (
+            "/required_paths",
+            json!([{"path":"../escape", "kind":"file"}]),
+        ),
+        ("/extraction_bounds/max_entries", json!(1)),
+        ("/extraction_bounds/max_depth", json!(1)),
+        ("/extraction_bounds/max_file_bytes", json!(1)),
+    ] {
+        let mut bad = Fixture::new();
+        bad.bytes = b"raw synthetic artifact".to_vec();
+        bad.layout["archive_kind"] = json!("raw");
+        bad.layout["strip_prefix"] = Value::Null;
+        *bad.layout.pointer_mut(pointer).unwrap() = value;
+        bad.prepare();
+        assert!(bad.stage().is_err(), "{pointer}");
+        assert!(!bad.candidate().join("receipt.json").exists());
+    }
+}

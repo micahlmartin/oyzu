@@ -377,5 +377,34 @@
       ]
     }
   },
-  "$comment": "Shape validation only. Runtime additionally enforces portable path components, byte lengths, sorted sets, case collisions, closure references, identity hashes, admission, archive limits, filesystem types and executable permissions. The current finalizer supports tar, tar.gz and bounded ZIP32, with payload_subtree dot. Explicit executable paths are supported on Unix and rejected on Windows; no post-install programs run. Schema acceptance of tar.xz or raw does not imply runtime support."
+  "$comment": "Shape validation only. Runtime additionally enforces portable path components, byte lengths, sorted sets, case collisions, closure references, identity hashes, admission, archive limits, filesystem types and executable permissions. The current finalizer supports tar, tar.gz, raw single-file artifacts and bounded ZIP32, with payload_subtree dot. Explicit executable paths are supported on Unix and rejected on Windows; no post-install programs run. Schema acceptance of tar.xz does not imply runtime support.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "archive_kind": {
+            "const": "raw"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "strip_prefix": {
+            "type": "null"
+          },
+          "required_paths": {
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "properties": {
+                "kind": {
+                  "const": "file"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

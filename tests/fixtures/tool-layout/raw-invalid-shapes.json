@@ -1,0 +1,36 @@
+[
+  {
+    "name": "raw prefix forbidden",
+    "pointer": "/strip_prefix",
+    "value": "prefix"
+  },
+  {
+    "name": "raw requires one file",
+    "pointer": "/required_paths",
+    "value": []
+  },
+  {
+    "name": "raw rejects directory",
+    "pointer": "/required_paths",
+    "value": [
+      {
+        "path": "bin/node",
+        "kind": "directory"
+      }
+    ]
+  },
+  {
+    "name": "raw rejects multiple files",
+    "pointer": "/required_paths",
+    "value": [
+      {
+        "path": "bin/node",
+        "kind": "file"
+      },
+      {
+        "path": "other",
+        "kind": "file"
+      }
+    ]
+  }
+]

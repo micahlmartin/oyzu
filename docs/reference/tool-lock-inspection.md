@@ -347,8 +347,10 @@ The initial [JSON Schema](../contracts/tools-v1/archive-layout.schema.json) reco
 the closed field names. Rust adds portable path, byte, graph, identity and content
 checks that JSON Schema cannot establish.
 
-Currently supported plans use `tar`, `tar.gz` or the ZIP subset described below, optional `strip_prefix`,
-`payload_subtree: "."`. Other archive kinds and subtree projection fail explicitly.
+Currently supported plans use `tar`, `tar.gz`, the ZIP subset described below, or
+raw single-file artifacts. Archives allow an optional `strip_prefix`; raw plans
+require null. All require `payload_subtree: "."`. Other archive kinds and subtree
+projection fail explicitly.
 On Unix, `executable_paths` may contain at most 4096 sorted, unique portable
 payload-relative file paths. Each must resolve through ordinary directories to
 a regular file with one hardlink; symlinks are rejected at every component. The
@@ -702,3 +704,28 @@ changed-lock denial and Windows version execution; it predates the added Go buil
 and GOROOT checks, whose native CI remains pending. These results do not establish
 product Go build/environment integration, other native Go archives, publisher
 signatures or end-to-end product installation.
+
+### Raw single-file candidate materialization
+
+The finalizer accepts `archive_kind = "raw"` for a verified artifact distributed
+as one file. Its admitted layout must set `strip_prefix` to null, retain
+`payload_subtree = "."`, and contain exactly one `required_paths` entry of kind
+`file`. That entry's portable relative path is the destination, for example
+`bin/jq`; no filename is inferred from a URL or untrusted download header. Parent
+directories are implicit and count toward the entry and depth budgets. Other
+entrypoints and environment references remain subject to normal receipt checks.
+
+Bytes come only from the private verified blob snapshot and are copied unchanged
+through anchored no-follow filesystem operations. Both total and per-file byte
+limits apply; there is no decompressor or expansion amplification. Executable
+permissions remain an explicit Unix layout transform and are unavailable on
+Windows. A raw file used as a Unix native entrypoint must appear in
+`executable_paths`; omitting that declaration fails the receipt entrypoint check. No downloaded code is executed. Errors produce no receipt; a partial
+caller-owned candidate may remain and must not be published or reused as complete.
+
+This adds materialization on Windows/macOS/Linux using the existing portable store
+boundary without changing the layout format. Earlier binaries reject raw layouts;
+existing archive layouts are unchanged. Synthetic tests cover exact bytes,
+receipt publication, ambiguous/missing/non-file destinations, path escapes and
+entry/depth/file-size bounds. This does not admit jq/Aqua or prove any real raw
+backend's provenance, publisher verification, environment or execution behavior.

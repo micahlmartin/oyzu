@@ -131,7 +131,7 @@ pub(in crate::tools) fn stage(
     );
     // Unsupported transforms are errors, never silently ignored.
     ensure!(
-        matches!(plan.archive_kind.as_str(), "tar" | "tar.gz" | "zip")
+        matches!(plan.archive_kind.as_str(), "tar" | "tar.gz" | "zip" | "raw")
             && plan.payload_subtree == ".",
         "archive layout transform is not implemented"
     );
@@ -141,6 +141,14 @@ pub(in crate::tools) fn stage(
         access::relative(prefix)?;
     }
     validate_required(&plan.required_paths)?;
+    if plan.archive_kind == "raw" {
+        ensure!(
+            plan.strip_prefix.is_none()
+                && plan.required_paths.len() == 1
+                && plan.required_paths[0].kind == "file",
+            "raw layout requires no strip-prefix and exactly one required file"
+        );
+    }
     let (entrypoints, environment) = resolve_templates(
         &plan,
         installation,
@@ -153,7 +161,14 @@ pub(in crate::tools) fn stage(
         "candidate staging must be empty"
     );
     let payload = root.create_directory("payload")?;
-    let mut tree = if plan.archive_kind == "zip" {
+    let mut tree = if plan.archive_kind == "raw" {
+        archive::unpack_raw(
+            blob,
+            payload.duplicate()?,
+            &plan.required_paths[0].path,
+            &plan.extraction_bounds,
+        )?
+    } else if plan.archive_kind == "zip" {
         archive::unpack_zip(
             blob,
             payload.duplicate()?,

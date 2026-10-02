@@ -64,6 +64,8 @@ def main():
                    "tests/fixtures/tool-backend/valid-shapes.json")
     check_contract("layout", "docs/contracts/tools-v1/archive-layout.schema.json",
                    "tests/fixtures/tool-layout/plan.json", "tests/fixtures/tool-layout/invalid-shapes.json")
+    check_contract("raw layout", "docs/contracts/tools-v1/archive-layout.schema.json",
+                   "tests/fixtures/tool-layout/raw-plan.json", "tests/fixtures/tool-layout/raw-invalid-shapes.json")
     check_contract("receipt", "docs/contracts/tools-v1/receipt.schema.json",
                    "tests/fixtures/tool-receipt/receipt.json", "tests/fixtures/tool-receipt/invalid-shapes.json",
                    "tests/fixtures/tool-receipt/valid-shapes.json")
