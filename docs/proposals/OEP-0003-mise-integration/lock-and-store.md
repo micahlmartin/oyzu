@@ -71,6 +71,17 @@ strings beyond the pinned backend's documented canonicalization.
 | Distribution `dependencies` | Sorted exact tool-key array for this platform, including build/install/runtime tool dependencies needed by this distribution |
 | Distribution `package_closure_digest` | Optional captured native package-closure digest; required for native package-manager tools and forbidden for single-archive descriptors |
 
+The draft request-identity preimage is the closed object `requests`,
+`native_constraints`, `required_capabilities`. `requests` maps canonical tool IDs
+to unchanged literal version expressions. `native_constraints` maps canonical
+tool IDs to sorted unique arrays of native constraint strings; omit tools with
+no native constraint. `required_capabilities` is a sorted unique array of IDs.
+Empty maps/arrays are included. Hash this object in domain `oyzu.tool-requests.v2`.
+Aliases are canonicalized before hashing; two configured aliases for the same
+canonical tool are rejected. No environment value, credential, policy revision
+or configuration origin enters this preimage. Version interpretation and
+constraint intersection remain the pinned backend's responsibility.
+
 The `backend_digest` hashes domain `oyzu.backend.v1` and the canonical descriptor
 with fields `source_pin` (40 lowercase Git hex digits), `patch_set_digest`,
 `embedding_abi` (positive integer), `adapter_revision` (positive integer),

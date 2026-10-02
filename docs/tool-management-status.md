@@ -766,3 +766,31 @@ passed; nine real CLI task scenarios passed during this change. Linux passed all
 four selection tests and strict all-target Clippy, including locked-scope alias
 ambiguity. Documentation structure passed. Native macOS/MSVC confirmation and
 the remaining end-to-end tool-management flows are still pending.
+
+## Checkpoint 76: effective request projection and frozen binding
+
+`tools/requests` now projects captured effective configuration through an
+explicit caller-trusted alias catalog. It preserves version expressions for
+the backend, rejects unknown/duplicate/rebound aliases, normalizes bounded native
+constraint and capability sets, and computes `oyzu.tool-requests.v2` over the
+documented closed identity object. Environment values, credentials and policy
+revisions do not enter that digest. The existing canonical tool-ID validator is
+shared with lock parsing rather than copied.
+
+`select_for_tool_requests` checks both the projected digest and canonical request
+map against one captured lock, preserving nearest-scope and no-fallback rules.
+Tests cover effective profile overrides, alias/direct-ID equivalence, preserved
+range syntax, environment exclusion, reordered sets, changed constraints and
+capabilities, duplicate/oversized inputs, a separately computed golden digest,
+and stale configuration or tampered request-map rejection without lock edits.
+
+This advances TM-03 but does not load a production alias catalog, collect native
+builder constraints, resolve versions, edit locks, authorize execution or enable
+the worker. The [reference](reference/tool-lock-inspection.md#effective-tool-request-identity)
+documents the experimental Rust boundary and its caller obligations; the OEP
+remains a draft with incomplete acceptance gates.
+
+Windows GNU full locked tests, strict all-target Clippy, formatting and nine real
+CLI task scenarios passed. Linux passed request/selection integration tests and
+strict all-target Clippy. Documentation structure passed. Native macOS/MSVC
+confirmation and the complete production tool-management flows remain pending.

@@ -389,6 +389,42 @@ creation does not itself verify publisher signatures or attestations: callers
 must establish that evidence before invoking this boundary. Recovery, production
 worker wiring, compiled descriptors and native backend parity are still required.
 
+## Effective tool request identity
+
+The experimental Rust `project_tool_requests` boundary consumes an already
+captured `EffectiveConfig`, a caller-trusted unambiguous alias map, builder-owned
+native constraints and required capability IDs. The caller must obtain that map
+from an admitted catalog; project settings cannot add aliases or rebind canonical
+IDs. The implementation does not yet load the maintained fork's catalog.
+
+Effective `tools.*` strings become canonical requests; reserved `tools.allowed`
+and `tools.catalogs` are policy/catalog inputs, not version requests. Unknown
+aliases and multiple configured names for one canonical tool fail. Canonical
+IDs present in the catalog may be requested directly. Expressions are preserved
+verbatim for the backend; this function does not parse semver, pick versions,
+intersect constraints or admit an installation. Effective profile overrides have
+already been applied by the configuration resolver.
+
+The returned identity hashes the complete object `requests`, `native_constraints`
+and `required_capabilities` in domain `oyzu.tool-requests.v2`. Constraint arrays
+and capability arrays are sorted; duplicates fail. Environment values, secrets,
+origins and policy revisions are excluded. Policy must still be enforced for
+every use even when this identity stays unchanged. The golden fixture for only
+`core:node = "22"` with empty constraints/capabilities is independently computed
+and checked against Rust.
+
+Limits are 4096 alias entries, 256 root requests, 4096 constrained tool IDs,
+16384 total native constraints, 256 capabilities, 16 KiB per text value and an
+8 MiB aggregate text budget. Capabilities are at most 256 ASCII letters, digits
+or `-_.:/`. Invalid/oversized values fail before cloning the bounded collections.
+Nothing is read from disk, downloaded, executed or modified by projection.
+
+After projection, prefer `select_for_tool_requests(workspace, directory, profile,
+requests, platform)`: it checks both the computed digest and canonical request
+map against one captured lock. A lock with a matching digest but an altered
+request map fails `TOOL_LOCK_STALE`. Alias catalog loading, native builder
+constraint production, backend resolution and worker wiring remain unfinished.
+
 ## Frozen environment selection
 
 The experimental Rust `select_locked_environment(workspace, directory, profile,
@@ -415,7 +451,9 @@ Success returns the existing `LockedSelection` identity and installation keys.
 The caller must still check current policy, compiled backend admission and
 installed receipts and retain leases before use. This boundary is not a stable
 new CLI command, a resolver, an authorization grant or race-proof filesystem
-containment. Effective-request projection and worker integration remain pending.
+containment. This lower-level entrypoint checks the supplied digest only; use
+`select_for_tool_requests` to also bind the projected canonical request map.
+Worker integration remains pending.
 
 ## Backend descriptor contract fixtures
 

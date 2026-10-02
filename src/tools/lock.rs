@@ -199,7 +199,7 @@ fn text(value: &str, field: &str) -> Result<()> {
     Ok(())
 }
 
-fn canonical_id(value: &str) -> Result<()> {
+pub(super) fn canonical_id(value: &str) -> Result<()> {
     text(value, "canonical tool ID")?;
     let (backend, name) = value
         .split_once(':')

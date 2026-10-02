@@ -1,5 +1,5 @@
 //! Frozen scope selection; backend resolution and policy admission are separate.
-use super::{lock, read_record, LockedSelection};
+use super::{lock, read_record, LockedSelection, ToolRequestIdentity};
 use anyhow::{ensure, Context, Result};
 use std::path::Path;
 
@@ -14,6 +14,43 @@ pub fn select_locked_environment(
     profile: &str,
     request_digest: &str,
     platform: &str,
+) -> Result<LockedSelection> {
+    select(
+        workspace,
+        directory,
+        profile,
+        request_digest,
+        platform,
+        None,
+    )
+}
+
+/// Match both the computed request identity and canonical request map against
+/// one captured lock. Prefer this boundary after effective-config projection.
+pub fn select_for_tool_requests(
+    workspace: &Path,
+    directory: &Path,
+    profile: &str,
+    requests: &ToolRequestIdentity,
+    platform: &str,
+) -> Result<LockedSelection> {
+    select(
+        workspace,
+        directory,
+        profile,
+        &requests.digest,
+        platform,
+        Some(&requests.requests),
+    )
+}
+
+fn select(
+    workspace: &Path,
+    directory: &Path,
+    profile: &str,
+    request_digest: &str,
+    platform: &str,
+    requests: Option<&std::collections::BTreeMap<String, String>>,
 ) -> Result<LockedSelection> {
     lock::digest(request_digest)?;
     let workspace = workspace
@@ -75,6 +112,10 @@ pub fn select_locked_environment(
         .context("TOOL_LOCK_MISSING: no locked environment for profile and scope")?;
     ensure!(environment.request_digest == request_digest,
         "TOOL_LOCK_STALE: nearest locked environment differs from effective requests; explicitly update the lock");
+    ensure!(
+        requests.is_none_or(|requests| requests == &environment.requests),
+        "TOOL_LOCK_STALE: locked request map differs from effective canonical requests"
+    );
     lock.selections.into_iter().find(|selection| selection.scope == environment.scope
         && selection.profile == profile && selection.platform == platform)
         .context("TOOL_PLATFORM_UNAVAILABLE: nearest locked environment has no complete target selection")
