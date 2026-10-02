@@ -1327,3 +1327,18 @@ Git blob/SHA-256/size identities. The supplemental index now covers 22 files acr
 the same 14 source commits and 45 package entries; all 22 retained files were
 rechecked. This closes collection of that directory, not license applicability
 or shipping-graph review. Approval and missing-notice dispositions are unchanged.
+
+## Checkpoint 106: scope historical experiment reruns to their inputs
+
+The macOS historical experiment workflow previously rebuilt on every integration
+branch push, including notice-index and status-only edits. Its automatic path
+filter now covers the complete experiment directory, its own workflow and checkout
+line-ending attributes. Manual dispatch remains available. Inspection confirmed
+its preparation and runtime inputs are owned by the experiment directory and it
+uses an explicitly pinned compiler, not the root Cargo project.
+
+Workflow YAML and representative path matches were checked. Production CLI and
+contract/observation triggers are unchanged; no existing run was cancelled and
+no missing result was converted into a pass. Documentation describes when manual
+requalification is needed and requires adding future out-of-directory inputs to
+the filter.

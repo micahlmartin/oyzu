@@ -51,6 +51,17 @@ target-specific declarations, conflicting revisions, unsupported source override
 and absence of production integration. Current live observation evidence is recorded in
 [tool-management status](../tool-management-status.md).
 
+The separate historical `Mise qualification` workflow builds the pinned experiment
+frontend and runs its native macOS harness. Automatic branch pushes trigger it
+only for `tooling/mise-experiment/**`, its workflow file or `.gitattributes` changes;
+manual dispatch remains available for deliberate runner/environment requalification.
+Documentation-only changes do not rebuild that unchanged experiment. Its inputs
+currently live under the experiment directory, and its compiler is pinned in the
+workflow. If new inputs are added elsewhere, update the path list in the same
+change. This filter does not change the production CLI, tool-contract or upstream
+observation workflows, and historical experiment success cannot qualify the
+maintained fork or production integration.
+
 The candidate embedding boundary is tracked in
 [fork draft PR 2](https://github.com/oyzuai/mise/pull/2), stacked on the compliance
 foundation. Its library-only conformance example checks private initialization,

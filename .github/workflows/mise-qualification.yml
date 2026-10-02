@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [codex/mise-qualification]
+    paths:
+      - 'tooling/mise-experiment/**'
+      - '.github/workflows/mise-qualification.yml'
+      - '.gitattributes'
 
 permissions:
   contents: read
