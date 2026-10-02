@@ -220,3 +220,38 @@ quarantine, prune, shell-session retention and supervised child-tree lifetime
 integration remain outstanding. A lease alone neither prevents same-user file
 tampering nor kills descendants when a supervisor dies. The complete MISE-05
 fault-injection and power-loss matrix is not yet satisfied.
+
+## Verified blob cache and extraction handoff
+
+`tools::cache_tool_blob(store, source, digest, size)` takes a caller-authorized
+reader and exact SHA-256 identity. The existing store root must be private,
+physical and trusted. Blobs are stored under `blobs/sha256/<digest-hex>`;
+permanent `locks/blob-<digest-hex>` files serialize publishers with a 30-second
+contention deadline. A cache hit is fully rehashed into a private temporary
+snapshot and never reads the acquisition source. A corrupt or externally
+hardlinked cache entry fails without replacement or reacquisition.
+
+On a miss, the stream is copied and hashed using a 64 KiB buffer, with a maximum
+size of 8 GiB. At most the expected size plus one byte is consumed; truncation,
+excess, wrong digest and reader failure publish nothing. Interrupted reads retry.
+The caller must implement transport timeouts and cancellation: an arbitrary
+blocking `Read` cannot be interrupted by the store. The store neither chooses a
+source nor performs HTTP, credentials, signature verification or policy decisions.
+
+Only fully verified bytes are copied to an exclusively created temporary under
+`staging/`, flushed and atomically moved without replacement to the blob path.
+The same native publication primitives and durability limitations described above
+apply. A handled publication error removes only this operation's temporary file;
+a destination collision is never overwritten. Process death before rename may
+leave unselected staging. Recovery journals, quarantine and reclamation remain
+unfinished. Temporary names are collision-resistant identifiers, not credentials.
+
+The returned `VerifiedBlob` exposes read/seek access and digest/size, with no write
+or raw-handle API. Its bytes are an independent private snapshot: subsequent cache
+mutation does not change the returned content. `tools::materialize_tool_blob`
+consumes that snapshot into an empty staging payload without reopening the cache.
+It applies the same tar/gzip limits and graph checks as `materialize_archive`,
+which now uses the shared snapshot verifier. Extraction and final observation
+retain the same native directory handle. This proves byte identity and safe
+materialization only; backend/layout admission, publisher verification, receipts
+and execution authority remain separate requirements.

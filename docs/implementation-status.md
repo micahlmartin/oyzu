@@ -848,3 +848,38 @@ environment acquired `__CF_USER_TEXT_ENCODING`; the diagnostic prints variable
 names only. A macOS-specific exception is being validated. Windows remained
 pending when inspected. These results do not establish native qualification or
 licensing approval; @micahlmartin owns both technical and licensing decisions.
+
+## Checkpoint 43: verified blob cache and direct extraction handoff
+
+TM-04 now streams exact locked bytes into a private snapshot, atomically publishes
+content-addressed blobs without replacement, and fully rehashes cache hits. A
+hit never consumes the acquisition reader; corruption fails without fallback.
+Per-blob OS locks serialize publishers. The returned read-only snapshot does not
+alias the cache, and the extractor consumes it without reopening the cache path.
+The existing archive entrypoint shares the same bounded verifier. Extraction and
+final tree observation now retain the same held native directory root.
+See the [blob contract](reference/tool-lock-inspection.md#verified-blob-cache-and-extraction-handoff).
+
+Windows GNU Rust 1.94 passed the full Rust suite, strict all-target Clippy,
+formatting and all nine compiled CLI task scenarios. The final eight Windows
+blob tests passed after adding process-termination coverage. Linux Docker Rust
+1.94 passed nine blob tests (including redirected roots/symlinks), all six archive
+tests and strict all-target Clippy. One ignored child fixture is explicitly run
+by the process tests. Checks cover exact/truncated/oversized/wrong bytes, short
+and interrupted reads, stream errors, cache tampering, external hardlinks,
+cross-process contention, termination mid-copy, publication collision cleanup
+and extraction after mutation of the original cache file. Documentation structure
+checks passed. These are real store operations on synthetic content, not backend
+installation or complete MISE-05/13 qualification.
+
+The cache bounds bytes and memory, but transport timeouts/cancellation belong to
+the broker. Interrupted processes can leave unselected staging; journals,
+recovery/quarantine/prune and full power-loss testing are unfinished. Publisher
+verification, admitted layout finalization and production worker wiring remain
+separate gates. No dependency or third-party code was added.
+
+The prior fork run 36967923522 completed with Windows and Linux passing and the
+documented macOS failure. Candidate `e896fe0f9` contains the narrow macOS fix;
+[run 36969203910](https://github.com/oyzuai/mise/actions/runs/36969203910)
+has passed Linux while Windows/macOS remain running. The source-integration and
+release gates remain open; the full OEP is not implemented.

@@ -2,11 +2,14 @@
 //! Native handles, rather than unchecked reopened paths, anchor payload access.
 mod access;
 mod archive;
+mod blob;
 mod receipt;
 mod transaction;
 mod tree;
 
-pub(super) use archive::materialize;
+pub(super) use archive::{materialize, materialize_blob};
+pub(super) use blob::cache;
+pub use blob::VerifiedBlob;
 pub(super) use receipt::verify;
 pub(super) use transaction::transact;
 pub use transaction::InstallationLease;

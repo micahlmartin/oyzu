@@ -1,13 +1,39 @@
-//! Oyzu-owned tool identity. Inspection is read-only and confers no install or
-//! execution authority; backend admission and receipt validation are separate.
+//! Oyzu-owned tool identity and verified content storage. Inspection is read-only;
+//! cache/publication mutations require caller admission and confer no execution
+//! authority. Backend admission and current policy remain separate gates.
 mod lock;
 mod store;
 pub use store::InstallationLease;
+pub use store::VerifiedBlob;
 pub use store::{TreeEntry, TreeInspection};
 
 use anyhow::{ensure, Context, Result};
 use serde::Serialize;
 use std::{fs::File, io::Read, path::Path};
+
+/// Reverify a cache hit or stream exact locked bytes into the content-addressed
+/// store. Cache hits never read `source`; corruption never triggers fallback.
+/// The returned private snapshot remains independent of later cache mutations.
+/// Caller must authorize acquisition and provide a bounded/cancellable transport;
+/// this function bounds bytes but cannot interrupt an arbitrary blocking reader.
+pub fn cache_tool_blob(
+    store: &Path,
+    source: &mut dyn Read,
+    digest: &str,
+    size: u64,
+) -> Result<VerifiedBlob> {
+    store::cache(&std::path::absolute(store)?, source, digest, size)
+}
+
+/// Consume verified private bytes into empty caller-owned staging without
+/// reopening the cache path. No receipt, admission or execution grant is created.
+pub fn materialize_tool_blob(
+    blob: VerifiedBlob,
+    staging: &Path,
+    gzip: bool,
+) -> Result<TreeInspection> {
+    store::materialize_blob(blob, &std::path::absolute(staging)?, gzip)
+}
 
 #[derive(Debug, Serialize)]
 pub struct LockInspection {

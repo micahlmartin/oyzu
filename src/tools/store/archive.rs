@@ -5,10 +5,9 @@ use super::{
     tree::TreeInspection,
 };
 use anyhow::{ensure, Context, Result};
-use sha2::{Digest, Sha256};
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io::{self, Read, Seek, Write},
+    io::{self, Read},
     path::Path,
 };
 
@@ -41,27 +40,26 @@ pub(in crate::tools) fn materialize(
             .and_then(|name| name.to_str())
             .context("archive source name must be UTF-8")?,
     )?;
-    let mut verified = tempfile::tempfile()?;
-    let mut hash = Sha256::new();
-    let mut copied = 0u64;
-    let mut buffer = [0u8; 64 * 1024];
-    loop {
-        let count = source.read(&mut buffer)?;
-        if count == 0 {
-            break;
-        }
-        copied = copied
-            .checked_add(count as u64)
-            .context("archive size overflow")?;
-        ensure!(copied <= size, "archive exceeds locked size");
-        hash.update(&buffer[..count]);
-        verified.write_all(&buffer[..count])?;
-    }
+    let verified = super::blob::snapshot(&mut source, digest, size)?;
+    unpack(verified, root, gzip)
+}
+
+pub(in crate::tools) fn materialize_blob(
+    verified: super::VerifiedBlob,
+    staging: &Path,
+    gzip: bool,
+) -> Result<TreeInspection> {
+    let root = Directory::open(staging)?;
     ensure!(
-        copied == size && format!("sha256:{:x}", hash.finalize()) == digest,
-        "archive differs from locked size/digest"
+        root.entries()?.is_empty(),
+        "archive staging directory must be empty"
     );
-    verified.rewind()?;
+    unpack(verified, root, gzip)
+}
+
+fn unpack(verified: super::VerifiedBlob, root: Directory, gzip: bool) -> Result<TreeInspection> {
+    let size = verified.size();
+    let verified = verified.into_file()?;
     let reader: Box<dyn Read> = if gzip {
         Box::new(flate2::read::MultiGzDecoder::new(verified))
     } else {
@@ -72,8 +70,8 @@ pub(in crate::tools) fn materialize(
     } else {
         MAX_BYTES
     };
-    extract(reader, root, limit)?;
-    super::tree::inspect(staging)
+    extract(reader, root.duplicate()?, limit)?;
+    super::tree::inspect_directory(&root)
 }
 
 struct Bounded<R> {
@@ -252,6 +250,7 @@ fn extract(reader: Box<dyn Read>, root: Directory, limit: u64) -> Result<()> {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+    use std::io::Write;
     #[test]
     fn anchored_writer_does_not_follow_replaced_parent_or_existing_link() {
         use std::os::unix::fs::symlink;

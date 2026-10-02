@@ -22,6 +22,14 @@ pub(in crate::tools::store) struct Directory {
 }
 
 impl Directory {
+    pub fn remove_file(&self, name: &str) -> Result<()> {
+        component(name)?;
+        // All ancestors remain held without FILE_SHARE_DELETE. This removes a
+        // single owned temporary entry and never traverses a child directory.
+        fs::remove_file(self.path.join(name))?;
+        Ok(())
+    }
+
     pub fn lock_file(&self, name: &str) -> Result<File> {
         component(name)?;
         let file = OpenOptions::new()

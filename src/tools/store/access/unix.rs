@@ -16,6 +16,16 @@ pub(in crate::tools::store) struct Directory {
 }
 
 impl Directory {
+    pub fn remove_file(&self, name: &str) -> Result<()> {
+        component(name)?;
+        let name = native_name(name)?;
+        let result = unsafe { libc::unlinkat(self.handle.as_raw_fd(), name.as_ptr(), 0) };
+        if result != 0 {
+            return Err(io::Error::last_os_error().into());
+        }
+        self.sync()
+    }
+
     pub fn lock_file(&self, name: &str) -> Result<File> {
         component(name)?;
         let name = native_name(name)?;

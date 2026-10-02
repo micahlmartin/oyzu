@@ -111,7 +111,7 @@ pub(in crate::tools) fn transact(
     })
 }
 
-fn acquire(file: &File, deadline: Instant, shared: bool) -> Result<()> {
+pub(super) fn acquire(file: &File, deadline: Instant, shared: bool) -> Result<()> {
     loop {
         match if shared {
             file.try_lock_shared()
