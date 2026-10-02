@@ -129,6 +129,7 @@ jobs:
       - name: Native Java quality tasks
         shell: bash
         run: |
+          python tooling/test-provisioning.py
           python tooling/provision-java-quality.py --destination .ci-java-quality
           if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
           python tooling/test-java-quality.py --cli "$CLI" --tools .ci-java-quality

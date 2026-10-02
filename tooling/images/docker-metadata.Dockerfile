@@ -1,5 +1,6 @@
 FROM python:3.12-slim-bookworm AS lint
 COPY tooling/provision-hadolint.py /provision-hadolint.py
+COPY tooling/provisioning.py /provisioning.py
 RUN python /provision-hadolint.py --destination /tools
 
 FROM golang:1.24-bookworm AS compile
