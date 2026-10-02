@@ -426,3 +426,19 @@ package declares `Apache-2.0 OR BSD-2-Clause`; neither alternative has been chos
 Its required direct dependencies are once_cell, serde, unicode-width and unscanny;
 optional dependencies are not an audited shipping graph. Compiler compatibility,
 resolved dependency notices and semantic conformance remain unverified.
+
+The isolated candidate probe now passes 15 matching cases and six malformed
+specifier cases on Windows GNU with Rust 1.94.0, including compatible releases,
+wildcard exclusions, epochs, local/post/prerelease behavior and rejection of npm
+caret/OR syntax. A locked offline rerun and strict Clippy pass. The retained
+[first-party probe](../../../tooling/mise-upstream/pep440_probe.rs) and experiment
+manifest/lock text in the candidate evidence permit reproduction: create a new
+external directory, write those exact manifest/lock texts as Cargo.toml/Cargo.lock,
+copy the probe to src/main.rs, and run `cargo run --locked` there. The registry
+cache must be provisioned before adding `--offline`.
+
+This experiment resolves 11 dependency packages; it is not the fork's shipping
+graph. No dependency was added to either product. Transitive notice review,
+Linux/macOS verification, complete constraint conformance and resolver integration
+remain outstanding. Stable CPython admission must still be applied separately
+from specifier matching; passing prerelease matching cases does not admit them.
