@@ -22,6 +22,8 @@ Preparation captures native POMs and evaluates the reactor inside the constraine
 
 The standalone source profile routes Maven through a loopback mirror backed by Oyzu's scoped Maven Central broker. Upstream requests occur during acquisition; the captured repository is then copied into a private workspace for offline execution. Custom/private repositories, corporate connector credentials and complete dependency-edge evidence are not implemented by this profile. Maven has no general lockfile here: the prepared repository identity records the actual captured inputs and is not a claim that independent future acquisition resolves identically.
 
+The shared [acquisition transport](acquisition-transport.md) applies bounded retries to eligible transient failures without treating transport errors as permission denials. Maven runs with native error traces (`-e`) so nested plugin/dependency-resolution causes can appear in the retained failure diagnostic; debug logging is not enabled. An exhausted or terminal acquisition failure blocks planning and requires successful preparation before any build artifact can be collected.
+
 One offline lifecycle runs JaCoCo 0.8.13 agent preparation, native `verify` and JaCoCo reporting. A failed lifecycle attempts coverage reporting without rerunning tests and preserves failure. Required reports, logs, artifacts and their digests are recorded under `dist/` and in `dist/manifest.json`. Any failed gate or invalid/missing required report prevents final artifact collection. `oyzu inspect dist` verifies bundle integrity, not release eligibility. Publishing, signing and production promotion are outside this builder increment.
 
 ## Native test reports
