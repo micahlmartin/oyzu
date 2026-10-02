@@ -44,6 +44,7 @@ pub struct ConfigSource {
     pub directory: PathBuf,
     pub digest: String,
     pub syntax: String,
+    pub(super) entry_count: usize,
     pub base: Overlay,
     pub profiles: BTreeMap<String, Overlay>,
     pub diagnostics: Vec<Diagnostic>,
@@ -238,7 +239,8 @@ impl ConfigSource {
             )
         })?;
         let value = serde_json::to_value(parsed)?;
-        bounds(&value, 0, &mut 0)?;
+        let mut entry_count = 0;
+        bounds(&value, 0, &mut entry_count)?;
         let document = toml_edit::ImDocument::parse(text)
             .map_err(|_| anyhow::anyhow!("CONFIG_SYNTAX: invalid TOML"))?;
         let mut spans = BTreeMap::new();
@@ -305,6 +307,7 @@ impl ConfigSource {
             directory: directory.into(),
             digest: crate::records::digest("oyzu.config.source.v1", &serde_json::json!(text))?,
             syntax: text.into(),
+            entry_count,
             base,
             profiles,
             diagnostics,
@@ -368,6 +371,7 @@ pub fn project_sources(
     }
     let mut sources = Vec::new();
     let mut captured_bytes = 0usize;
+    let mut captured_entries = 0usize;
     for (filename, scope) in [
         ("oyzu.toml", Scope::Project),
         ("oyzu.local.toml", Scope::Local),
@@ -387,7 +391,11 @@ pub fn project_sources(
                 registry,
             )? {
                 captured_bytes += source.syntax.len();
-                if sources.len() >= 128 || captured_bytes > 8 * 1024 * 1024 {
+                captured_entries += source.entry_count;
+                if sources.len() >= 128
+                    || captured_bytes > 8 * 1024 * 1024
+                    || captured_entries > 10000
+                {
                     bail!("CONFIG_LIMIT: project source limit exceeded");
                 }
                 sources.push(source);

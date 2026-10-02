@@ -413,3 +413,5 @@ The Windows native Helm 3.22.0 probe passed application rendering, invalid value
 The configuration branch integrates upstream Go module acquisition and Helm report/applicability support. Go preparation now uses the network-capable default declaration, so managed preflight blocks its public-only source profile until approved connector routing is available.
 
 Project source capture now enforces the depth-32 and eight-MiB chain limits during capture, and rechecks the deduplicated invocation file/byte budget after each newly selected target. Oversized input stops before the remaining target inventory is read; shared ancestor files count once. Boundary tests cover depth 32/33 and eight/nine one-MiB files.
+
+The invocation budget also counts parsed entries across participating sources, including inactive profiles and unknown optional syntax. Per-file validity cannot bypass the 10,000-entry aggregate limit by splitting data between sources.

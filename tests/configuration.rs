@@ -469,3 +469,41 @@ fn project_capture_enforces_depth_and_aggregate_bytes_before_resolution() {
         oyzu::config::sources::project_sources(root.path(), &target, false, &registry).unwrap_err();
     assert!(error.to_string().contains("CONFIG_LIMIT"));
 }
+
+#[test]
+fn aggregate_entry_budget_includes_inactive_and_unknown_syntax() {
+    let text = format!(
+        "[profiles.inactive.future]\nvalues=[{}]\n",
+        vec!["0"; 5000].join(",")
+    );
+    let first = source("first", Scope::Project, &text);
+    let second = source("second", Scope::Local, &text);
+    let check = |sources: &[ConfigSource]| {
+        resolve(
+            sources,
+            &Registry::default(),
+            false,
+            &Selection::default(),
+            Constraints::default(),
+            false,
+        )
+    };
+    assert!(check(std::slice::from_ref(&first)).is_ok());
+    assert!(check(&[first, second])
+        .unwrap_err()
+        .to_string()
+        .contains("CONFIG_LIMIT"));
+}
+
+#[test]
+fn project_capture_rejects_aggregate_entries_before_resolution() {
+    let root = tempfile::tempdir().unwrap();
+    let text = format!("[future]\nvalues=[{}]\n", vec!["0"; 5000].join(","));
+    std::fs::write(root.path().join("oyzu.toml"), &text).unwrap();
+    std::fs::write(root.path().join("oyzu.local.toml"), &text).unwrap();
+    let capture = |local| oyzu::config::sources::project_sources(
+        root.path(), root.path(), local, &Registry::default(),
+    );
+    assert!(capture(false).is_ok());
+    assert!(capture(true).unwrap_err().to_string().contains("CONFIG_LIMIT"));
+}

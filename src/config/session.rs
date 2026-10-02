@@ -38,9 +38,12 @@ impl Session {
             .sources
             .iter()
             .chain(self.captured.values().flatten())
-            .map(|source| (&source.identity, source.syntax.len()))
+            .map(|source| (&source.identity, (source.syntax.len(), source.entry_count)))
             .collect();
-        if unique.len() > 128 || unique.values().sum::<usize>() > 8 * 1024 * 1024 {
+        if unique.len() > 128
+            || unique.values().map(|(bytes, _)| bytes).sum::<usize>() > 8 * 1024 * 1024
+            || unique.values().map(|(_, entries)| entries).sum::<usize>() > 10000
+        {
             bail!("CONFIG_LIMIT: invocation source limit exceeded");
         }
         Ok(())

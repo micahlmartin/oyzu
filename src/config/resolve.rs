@@ -70,6 +70,9 @@ pub fn resolve(
     constraints: Constraints,
     all_profiles: bool,
 ) -> Result<EffectiveConfig> {
+    if sources.iter().map(|s| s.entry_count).sum::<usize>() > 10000 {
+        bail!("CONFIG_LIMIT: aggregate setting entry limit");
+    }
     if sources.len() > 128
         || sources.iter().map(|s| s.syntax.len()).sum::<usize>() > 8 * 1024 * 1024
     {
