@@ -47,6 +47,9 @@ from its existing catalog, aliases and range/prefix matchers. It intersects
 supplied native constraints and requires catalog membership even for exact pins.
 This does not supply a production multi-platform resolver, source verification or
 the worker connection; other backend selection operations remain incomplete.
+Node target metadata additionally requires an exact archive entry in a checked
+SHA-256 manifest. That is declared metadata, not authenticated publisher evidence
+or proof of acquired artifact bytes/size.
 
 ## Dependency order and deliverables
 

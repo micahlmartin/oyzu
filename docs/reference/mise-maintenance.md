@@ -94,6 +94,41 @@ results and remaining native gates belong in implementation status. Oyzu still
 has no production dependency on this API and no automatic installation command;
 the source import, licensing and release gates remain separate.
 
+### Node target checksum metadata
+
+After Node admission, the experimental async method
+`session.node_archive_metadata("22.14.0", "windows/amd64/msvc")` retrieves the
+version's `SHASUMS256.txt` through supplied transport or the operation-private
+metadata cache. It returns existing target archive facts plus a canonical
+`declared_sha256` only when the exact generated archive filename has a valid
+manifest entry. It shares Node's existing archive naming and checksum-fetch path;
+it neither downloads the archive nor substitutes a source build or another target.
+
+Version/target restrictions are the same as `node_archive_facts`. The shared hash
+module's checked parser bounds manifest text to 8 MiB and 4,096 entries. It accepts
+ordinary/coreutils binary-marker lines, normalizes hexadecimal letter case and
+rejects malformed hashes, duplicate filenames (even equal hashes), extra fields
+and control characters in filenames. Blank lines are permitted. The general
+legacy checksum parser retains its previous behavior. Transport must still bound
+the response before text decoding; this parser limit is not a network byte cap.
+
+An absent exact entry, invalid manifest, denied session, unavailable transport or
+unsupported input fails the operation. Same-version target queries can reuse one
+cached manifest. Results are publisher-declared metadata only: they do not verify
+the publisher's signature, acquire/check artifact bytes, establish artifact size
+or authorize installation. The supervisor must bind verified evidence and exact
+bytes before writing a distributable lock/install record. An archive's presence
+in a supplied manifest is not proof that its URL is currently downloadable.
+
+The twelfth fresh-process conformance scenario checks Linux, Darwin ARM64 and
+Windows facts/checksums against supplied metadata, cache reuse, missing targets,
+invalid/duplicate entries and parser limits. Existing missing-transport and
+admission scenarios also cover this method. This is library conformance, not
+production publisher verification or installation qualification. Fork revision
+`1f516e78ec8c15234d955b0ad24eee70117f5e3b` passed all twelve scenarios on Linux,
+strict library/example and shared-utility Clippy, and formatting. Native Windows
+and macOS confirmation for this increment remains pending.
+
 ## Candidate Go archive facts
 
 The fork's experimental `Session::go_archive_facts(version, target)` uses Go's
@@ -235,11 +270,24 @@ per file, 256 MiB of notice bytes and 64 MiB each for report/index metadata. The
 collector works on trusted provisioned cache roots; it is not a concurrent
 hostile-filesystem sandbox. Select another output path to rerun collection.
 
-An offline Linux development run captured 1,512 notices totaling 7,822,597 bytes
-for 955 packages; independent ZIP verification matched every indexed file to the
-report. It still reports 98 packages without observed notices and a dirty
-worktree. This demonstrates collection, not a clean release audit. Native CI
-archives for the updated collector remain pending. This archive does not recover
+The [preserved native archive index](../proposals/OEP-0003-mise-integration/candidate-notice-evidence.json)
+binds downloaded reports and archives from run `36985298309`, at clean tested
+merge revision `0d0cfce94bfd775ef95ee70090b22f367ee37458`. Independent verification
+checked embedded/external report equality and every notice's raw/LF-normalized
+hash, size and package/path correspondence.
+
+| Target | Candidate packages | Observed notice candidates | Packages without observed notices |
+| --- | ---: | ---: | ---: |
+| Darwin ARM64 | 952 | 1,501 | 98 |
+| Windows MSVC | 975 | 1,545 | 96 |
+| Linux GNU | 955 | 1,510 | 98 |
+
+The earlier dirty Linux development archive had 1,512 entries. Comparison with
+clean CI found two generated Python bytecode files whose names matched the
+conventional notice pattern. Those are not legal notice text; use the clean CI
+archives for review. Filename matches elsewhere also need content review, rather
+than automatic license conclusions. Neither clean status nor successful archive
+verification establishes a release audit. This archive does not recover
 missing texts, inspect all source headers/native code, include installed tools'
 licenses, select legal terms or fulfill source-delivery requirements. The exact
 shipping graph, release SBOM and maintainer approval remain required.

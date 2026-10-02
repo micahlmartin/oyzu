@@ -924,3 +924,42 @@ Separately, root run `36984574863` passes native CLI build/test jobs on Windows,
 macOS and Linux at `1ac6667`, covering the preceding lock-editor increment. Its
 remaining task/captured-build jobs were still active or queued when checked and
 are not counted as complete here.
+
+## Checkpoint 82: target-bound Node checksum metadata
+
+Fork `1f516e78ec8c15234d955b0ad24eee70117f5e3b` exposes Node target facts with a
+required publisher-declared SHA-256 entry for the exact archive filename. It
+shares the backend's checksum acquisition path and uses a checked variant in the
+existing hash owner. Field splitting remains shared with the legacy parser;
+duplicate names, malformed hashes, extra fields and exceeded limits fail the new
+path. Legacy tolerance remains unchanged. Missing targets never trigger source
+compilation or another target fallback.
+
+All twelve fresh-process scenarios, strict library/example Clippy, shared
+`mise-util` library Clippy and formatting passed on Linux. The new scenario covers
+all three initial targets, canonical checksums, cache reuse and malformed/missing
+metadata; existing denial cases cover absent transport and tool admission.
+Windows compliance checks pass with two symlink skips and no inventory change.
+Native Windows/macOS confirmation remains pending. This is declared metadata,
+not publisher signature verification, acquired bytes/size or install authority;
+the [reference](reference/mise-maintenance.md#node-target-checksum-metadata)
+documents the distinction and bounds.
+
+## Checkpoint 83: clean native notice archives retained
+
+Run `36985298309` passes on all three hosts for the notice collector at fork
+`94f0f75aa`. All three downloaded archives were independently checked against
+their embedded/external reports and every indexed notice's hash, size and package
+path. The [evidence index](proposals/OEP-0003-mise-integration/candidate-notice-evidence.json)
+records exact artifact/report hashes at clean merge revision
+`0d0cfce94bfd775ef95ee70090b22f367ee37458`. Darwin has 952 packages/1,501 notice
+candidates, Windows 975/1,545 and Linux 955/1,510. Missing-notice package counts
+remain 98, 96 and 98 respectively; no legal disposition changed.
+
+Correction to checkpoint 80: the earlier dirty local archive's 1,512 entries
+included two generated Python bytecode files matched by the filename heuristic.
+They are not legal notice text. The clean native archive has no such entries and
+supersedes that exploratory archive for review. This illustrates why candidate
+filename observations cannot substitute for actual content/obligation review.
+The native run predates Node resolution/checksum metadata; it does not qualify
+those later library increments or the eventual shipping graph.
