@@ -63,6 +63,10 @@ src/
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
       ant/reporting.rs        # Exact native test-target adaptation and required report contracts
       ant/runtime/            # Native Ant metadata and JDK archive integration
+        AntTesting.java       # Native target execution and Java assertion outcomes
+        AntJUnit.java         # Native JUnit task formatter/coverage integration
+        AntReports.java       # Bounded native suite aggregation
+        AntCoverage.java      # Application class ownership and JaCoCo reporting
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
     docker/                   # Container builder
       metadata.rs             # Typed native facts and captured-input admission
