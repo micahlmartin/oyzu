@@ -403,3 +403,16 @@ of Python native constraints and retained input provenance. Any added dependency
 must pass the existing source/notice and shipping-graph gates. Until that resolver
 exists, unsupported selectors must remain errors rather than silently dropping
 native constraints or consulting ambient Python/PyPy state.
+
+A concrete reuse candidate is the published
+[pep440_rs 0.7.3 API](https://docs.rs/pep440_rs/0.7.3/pep440_rs/), which exposes
+`VersionSpecifiers::contains` for conjunctions such as `>=3.10,!=3.11.*,<3.14`.
+Evaluate this against [PEP 440](https://peps.python.org/pep-0440/) and native
+builder inputs instead of extending npm range parsing. The
+[published package source](https://docs.rs/crate/pep440_rs/0.7.3/source/) lists
+Apache and BSD license files. This is candidate discovery only: no dependency
+has been added, no license alternative selected, and no distribution approved.
+Before adoption, retain the exact package checksum, original notices and feature/
+dependency graph; qualify Python-specific operators, exclusions, malformed inputs
+and the admitted stable-CPython policy. Package-version API documentation should
+be used instead of assuming the repository's older README matches the release.
