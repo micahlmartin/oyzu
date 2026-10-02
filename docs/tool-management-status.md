@@ -1791,3 +1791,24 @@ This does not complete the resolver: native builder range languages, explicit
 prereleases, ambiguous-catalog rejection, returned metadata provenance and the
 full target matrix remain open. Production import, admission, worker/broker
 integration, legal approval and all other outstanding OEP work remain required.
+
+## Checkpoint 126: native transport closure under pending I/O
+
+Added two native transport regressions for the shared TM-05 worker boundary.
+One leaves a frame length prefix incomplete; the other writes a 2 MiB frame
+while the peer never drains its transport. Neither completes during the initial
+observation window. Closing the peer then makes the pending operation fail and
+marks the opposite framing half terminal. Windows and Linux pass both cases
+and the existing large-frame roundtrip/peer-close test.
+
+Windows passes the full locked Rust suite, strict all-target Clippy, formatting
+and nine CLI task scenarios. Linux passes the three focused native-channel tests
+and strict all-target Clippy with container networking disabled. Documentation
+and diff checks pass. The owning reference describes exactly what closing the
+peer establishes; no production API or behavior changed in this increment.
+
+These tests do not implement deadlines, child process creation, inherited-handle
+restrictions, descendant cleanup or same-binary dispatch. The existing executor
+supervisor controls Docker containers and cannot be reused directly as the native
+tool-worker supervisor. Publication still needs confirmed worker shutdown and
+independent result validation; this increment does not complete TM-05 or OEP-0003.

@@ -1018,6 +1018,12 @@ The factory must not be presented as a deadline-bounded production worker.
 Windows and Linux tests transfer a 2 MiB JSON payload in both directions using
 the native factory and framed split transport, then verify peer-close failure
 propagates to both framing halves. Creation itself checks non-inheritance.
+Additional Windows/Linux regressions leave a length prefix incomplete or write
+a 2 MiB frame while the peer never drains the transport. Closing the peer then
+causes each pending operation to fail and makes the other framing half terminal.
+These tests depend on all peer endpoint handles closing. They do not prove that
+killing a child closes handles inherited by descendants, or that a live peer can
+be interrupted; the supervisor must establish those lifecycle properties.
 The test watchdog bounds the test harness, not production I/O. macOS uses the
 Unix implementation but native verification of this increment remains pending.
 Cross-process inheritance and same-binary worker dispatch are still unimplemented.

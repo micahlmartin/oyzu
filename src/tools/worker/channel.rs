@@ -161,6 +161,60 @@ mod tests {
     use std::{sync::mpsc, thread, time::Duration};
 
     #[test]
+    fn peer_close_interrupts_incomplete_native_frame_read() {
+        let (parent, mut peer) = native_tool_worker_channel().unwrap();
+        // Leave a valid length prefix incomplete. No complete frame can be
+        // returned until the peer writes more bytes or closes its endpoint.
+        peer.write_all(&[0, 0]).unwrap();
+        let (reader, writer) = parent.split();
+        let (mut receiver, mut sender) = split_tool_worker_channel(reader, writer);
+        let (done, completion) = mpsc::channel();
+        let read = thread::spawn(move || {
+            let _ = done.send(receiver.receive());
+        });
+        assert!(matches!(
+            completion.recv_timeout(Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(peer);
+        assert!(completion
+            .recv_timeout(Duration::from_secs(15))
+            .unwrap()
+            .is_err());
+        read.join().unwrap();
+        // Read failure must also close the framing state in the other direction.
+        assert!(sender.send(b"{}").is_err());
+    }
+
+    #[test]
+    fn peer_close_interrupts_backpressured_native_frame_write() {
+        let (parent, peer) = native_tool_worker_channel().unwrap();
+        let (reader, writer) = parent.split();
+        let (mut receiver, mut sender) = split_tool_worker_channel(reader, writer);
+        let payload = serde_json::to_vec(&serde_json::json!({
+            "data": "x".repeat(2 * 1024 * 1024)
+        }))
+        .unwrap();
+        let (done, completion) = mpsc::channel();
+        let write = thread::spawn(move || {
+            let _ = done.send(sender.send(&payload));
+        });
+        // The peer never drains the native transport. This exceeds the default
+        // socket/anonymous-pipe capacity on the qualified hosts.
+        assert!(matches!(
+            completion.recv_timeout(Duration::from_millis(50)),
+            Err(mpsc::RecvTimeoutError::Timeout)
+        ));
+        drop(peer);
+        assert!(completion
+            .recv_timeout(Duration::from_secs(15))
+            .unwrap()
+            .is_err());
+        write.join().unwrap();
+        assert!(receiver.receive().is_err());
+    }
+
+    #[test]
     fn private_native_channel_transfers_large_frames_and_observes_peer_close() {
         // Bound the test even if a transport regression blocks an I/O thread.
         // This watchdog is not the missing production supervisor deadline.
