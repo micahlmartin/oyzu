@@ -1,7 +1,5 @@
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository
 import org.gradle.api.tasks.bundling.AbstractArchiveTask
-import org.gradle.api.tasks.testing.Test
-import org.gradle.testing.jacoco.tasks.JacocoReport
 
 // Native behavior injected only into a captured build. The executor, not this
 // script, enforces network/filesystem isolation and protects host credentials.
@@ -46,10 +44,6 @@ gradle.beforeProject { project ->
     project.configurations.configureEach {
         incoming.beforeResolve { route(project.repositories) }
     }
-    project.pluginManager.withPlugin('java') {
-        project.pluginManager.apply('jacoco')
-        project.jacoco.toolVersion = '0.8.13'
-    }
 }
 gradle.projectsEvaluated {
     def root = gradle.rootProject
@@ -61,18 +55,6 @@ gradle.projectsEvaluated {
                     url = repository
                     allowInsecureProtocol = repository.startsWith('http://127.0.0.1:')
                 }
-            }
-            project.tasks.withType(Test).each { test ->
-                test.reports.junitXml.required = true
-                def coverage = project.tasks.register("oyzuCoverage${test.name.capitalize()}", JacocoReport) {
-                    executionData(test)
-                    sourceSets(project.sourceSets.main)
-                    reports.xml.required = true
-                    reports.xml.outputLocation = project.layout.buildDirectory.file("reports/oyzu/${test.name}/jacoco.xml")
-                    reports.html.required = false
-                    reports.csv.required = false
-                }
-                test.finalizedBy(coverage)
             }
         }
         def original = project.version.toString()

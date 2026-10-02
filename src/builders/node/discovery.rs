@@ -4,7 +4,11 @@ use anyhow::{bail, Result};
 use serde_json::Value;
 
 pub(super) fn discover(target: &mut Target) -> Result<()> {
-    let profile = super::detection::detect(&target.path)?;
+    let profile = super::detection::detect_with_intent(
+        &target.path,
+        target.builder == "node/app"
+            && target.builder_selection == crate::model::BuilderSelection::Explicit,
+    )?;
     let framework = profile.framework.selected().to_string();
     target.discovery.insert("linter".into(), profile.linter);
     target
@@ -62,10 +66,13 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
         }
     }
     super::quality::discover(target);
-    if target.builder == "node/app"
-        && target.discovery["output-profile"].selected() == "vite-application"
-    {
-        if let Ok(output) = super::application::output_directory(&value) {
+    if target.builder == "node/app" {
+        let output = match target.discovery["output-profile"].selected() {
+            "vite-application" => super::application::output_directory(&value).ok(),
+            "dist-application" => Some("dist"),
+            _ => None,
+        };
+        if let Some(output) = output {
             let exclusions = serde_json::to_string(&[output])?;
             for name in ["lint", "format-check", "format"] {
                 if let Some(task) = target.tasks.get_mut(name) {
@@ -74,6 +81,26 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
                 }
             }
         }
+    }
+    let native = super::managers::get(&manager)?;
+    if native.is_workspace(&target.path, &value) && value["scripts"].get("build").is_none() {
+        if let Some(argv) = native.workspace_build_command() {
+            insert(
+                target,
+                "build",
+                &argv.iter().map(String::as_str).collect::<Vec<_>>(),
+                true,
+            );
+        }
+    }
+    if native.is_workspace(&target.path, &value) && value["scripts"].get("test").is_none() {
+        let argv = native.workspace_test_command();
+        insert(
+            target,
+            "test",
+            &argv.iter().map(String::as_str).collect::<Vec<_>>(),
+            true,
+        );
     }
     if manager == "npm" && value.get("workspaces").is_some() {
         for operation in ["build", "test", "lint", "format-check", "format"] {

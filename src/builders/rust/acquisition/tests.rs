@@ -115,6 +115,11 @@ fn local_registry_is_consumed_and_verified_by_native_cargo() {
     fs::create_dir_all(project.join("src")).unwrap();
     fs::write(project.join("Cargo.toml"), "[package]\nname='consumer'\nversion='0.1.0'\nedition='2021'\n[dependencies]\nfixture-dep='=1.0.0'\n").unwrap();
     fs::write(project.join("src/lib.rs"), "pub fn value() -> u32 { fixture_dep::answer() }\n#[test] fn works() { assert_eq!(value(),42); }\n").unwrap();
+    fs::write(
+        project.join("src/main.rs"),
+        "fn main() { println!(\"{}\", consumer::value()); }\n",
+    )
+    .unwrap();
     let (archive, checksum, index) = fixture();
     write_lock(&project.join("Cargo.lock"), &checksum);
     let original_lock = fs::read(project.join("Cargo.lock")).unwrap();
@@ -161,6 +166,44 @@ fn local_registry_is_consumed_and_verified_by_native_cargo() {
         );
     }
     assert_eq!(fs::read(project.join("Cargo.lock")).unwrap(), original_lock);
+    // A dependency context exports only registry bytes. Consume detached copies
+    // with separate native homes/targets; no prepared config or packaging state
+    // may be required to compile and execute the application offline.
+    let original_store =
+        snapshot::capture_prepared(&registry, &root.path().join("frozen-store")).unwrap();
+    for index in 0..2 {
+        let detached = root.path().join(format!("detached-{index}"));
+        let captured = snapshot::capture_prepared(&registry, &detached).unwrap();
+        assert_eq!(captured.digest, original_store.digest);
+        let home = root.path().join(format!("detached-home-{index}"));
+        fs::create_dir(&home).unwrap();
+        fs::write(home.join("config.toml"), format!("[source.crates-io]\nreplace-with='captured'\n[source.captured]\nlocal-registry={}\n", serde_json::to_string(&detached.to_string_lossy()).unwrap())).unwrap();
+        let output = root.path().join(format!("detached-target-{index}"));
+        let result = Command::new(env!("CARGO"))
+            .args(["build", "--release", "--locked", "--offline"])
+            .current_dir(&project)
+            .env("CARGO_HOME", &home)
+            .env("CARGO_TARGET_DIR", &output)
+            .env("CARGO_NET_OFFLINE", "true")
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let executable = output
+            .join("release")
+            .join(format!("consumer{}", std::env::consts::EXE_SUFFIX));
+        let result = Command::new(executable).output().unwrap();
+        assert!(result.status.success());
+        assert_eq!(String::from_utf8_lossy(&result.stdout).trim(), "42");
+        let after =
+            snapshot::capture_prepared(&detached, &root.path().join(format!("after-{index}")))
+                .unwrap();
+        assert_eq!(after.digest, original_store.digest);
+        assert_eq!(fs::read(project.join("Cargo.lock")).unwrap(), original_lock);
+    }
     // A fresh native cache must reject altered archives rather than trust a
     // previously unpacked copy. This probes Cargo's independent checksum gate.
     fs::write(registry.join("fixture-dep-1.0.0.crate"), b"altered archive").unwrap();

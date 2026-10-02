@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "build-plan",
+  "source": {
+    "treeDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "commit": null,
+    "dirty": true
+  },
+  "policy": {
+    "mode": "standalone",
+    "enforcementDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "requiredChecks": []
+  },
+  "tools": [],
+  "targets": [
+    {
+      "id": "api",
+      "builder": "go/app",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {},
+      "platform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "api.compile",
+      "target": "api",
+      "operation": "test",
+      "dependsOn": [],
+      "argv": [
+        "go",
+        "build",
+        "-o",
+        "/out/server",
+        "."
+      ],
+      "cwd": ".",
+      "env": {},
+      "tools": [],
+      "executionPlatform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      },
+      "targetPlatform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      },
+      "inputs": [],
+      "outputs": [],
+      "reports": [],
+      "required": true,
+      "cacheable": true,
+      "network": "host",
+      "limits": {
+        "timeoutSeconds": 1800,
+        "cpu": 1,
+        "memoryBytes": 1073741824,
+        "outputBytes": 10737418240
+      },
+      "extensions": {
+        "oyzu.dev/invocation": {
+          "kind": "test",
+          "execution": "host",
+          "isolation": "none",
+          "source": "observed-before-run",
+          "toolIdentity": "unverified",
+          "requested": "api:test"
+        },
+        "oyzu.dev/limits-enforced": false
+      }
+    }
+  ],
+  "artifacts": [],
+  "extensions": {
+    "oyzu.dev/invocation": {
+      "kind": "test",
+      "execution": "host",
+      "isolation": "none",
+      "source": "observed-before-run",
+      "toolIdentity": "unverified",
+      "requested": "api:test"
+    }
+  }
+}

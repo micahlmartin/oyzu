@@ -1,87 +1,12 @@
 //! Bundle path containment, output capture and recorded-content verification.
+use crate::bundle_store::{create_output, safe_file};
 use crate::{records, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::Value;
 use std::{
     fs,
-    io::{Read, Write},
     path::{Path, PathBuf},
 };
-
-/// Retain bounded raw evidence, including bytes that a report parser may reject.
-/// Read before creating the destination so oversized inputs leave no bundle file.
-pub(super) fn capture_bounded_output(
-    out: &Path,
-    source_relative: &str,
-    bundle: &Path,
-    relative: &str,
-    limit: u64,
-) -> Result<PathBuf> {
-    let source = safe_file(out, source_relative)?;
-    if relative.contains(['\\', ':'])
-        || relative
-            .split('/')
-            .any(|p| p.is_empty() || p == "." || p == "..")
-    {
-        bail!("invalid report destination");
-    }
-    let mut bytes = Vec::new();
-    fs::File::open(source)?
-        .take(limit + 1)
-        .read_to_end(&mut bytes)?;
-    if bytes.len() as u64 > limit {
-        bail!("report exceeds {limit} bytes");
-    }
-    let destination = bundle.join(relative);
-    let mut output = create_output(&destination)?;
-    output.write_all(&bytes)?;
-    output.sync_all()?;
-    Ok(destination)
-}
-
-fn create_output(destination: &Path) -> Result<fs::File> {
-    fs::create_dir_all(destination.parent().context("missing output parent")?)?;
-    Ok(fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(destination)?)
-}
-
-pub(super) fn safe_file(root: &Path, relative: &str) -> Result<PathBuf> {
-    let mut path = root.to_path_buf();
-    if relative.is_empty() || relative.contains('\\') || relative.contains(':') {
-        bail!("invalid bundle path");
-    }
-    for part in relative.split('/') {
-        if part.is_empty() || part == "." || part == ".." {
-            bail!("invalid bundle path");
-        }
-        path.push(part);
-        if fs::symlink_metadata(&path)?.file_type().is_symlink() {
-            bail!("bundle path is a symlink");
-        }
-    }
-    if !path.is_file() {
-        bail!("bundle output is not a regular file");
-    }
-    Ok(path)
-}
-
-pub(super) fn safe_report_parent(root: &Path, relative: &str) -> Result<()> {
-    let mut path = root.to_path_buf();
-    let parts: Vec<_> = relative.split('/').collect();
-    for part in &parts[..parts.len().saturating_sub(1)] {
-        if part.is_empty() || *part == "." || *part == ".." || part.contains(['\\', ':']) {
-            bail!("invalid report directory");
-        }
-        path.push(part);
-        let metadata = fs::symlink_metadata(&path)?;
-        if metadata.file_type().is_symlink() || !metadata.is_dir() {
-            bail!("unsafe report directory");
-        }
-    }
-    Ok(())
-}
 
 pub(super) fn capture_output(out: &Path, bundle: &Path, relative: &str) -> Result<PathBuf> {
     let source = safe_file(out, relative)?;
@@ -121,6 +46,66 @@ pub fn inspect(root: &Path) -> Result<Value> {
         let plan = records::read(&safe_file(root, path)?)?;
         if records::digest("oyzu.plan.v1alpha1", &plan)? != manifest["planDigest"] {
             bail!("plan digest mismatch");
+        }
+        let invocation = &plan["extensions"]["oyzu.dev/invocation"];
+        if manifest["extensions"]["oyzu.dev/invocation"] != *invocation {
+            bail!("invocation context differs from plan");
+        }
+        if !invocation.is_null() {
+            let envelope = records::read(&safe_file(
+                root,
+                manifest["envelopePath"]
+                    .as_str()
+                    .context("missing envelope path")?,
+            )?)?;
+            if envelope["extensions"]["oyzu.dev/invocation"] != *invocation {
+                bail!("invocation context differs from envelope");
+            }
+        }
+        if manifest["extensions"]["oyzu.dev/selection"] != plan["extensions"]["oyzu.dev/selection"]
+        {
+            bail!("build selection differs from plan");
+        }
+        if manifest["targets"] != plan["targets"] {
+            bail!("build target identities differ from plan");
+        }
+        if manifest["status"] == "succeeded" {
+            for intent in plan["artifacts"]
+                .as_array()
+                .context("missing planned artifacts")?
+                .iter()
+                .filter(|a| a["kind"] == "oci-index")
+            {
+                if !manifest["artifacts"]
+                    .as_array()
+                    .context("missing bundle artifacts")?
+                    .iter()
+                    .any(|a| a["id"] == intent["id"])
+                {
+                    bail!("successful bundle is missing a required OCI index");
+                }
+            }
+        }
+        for artifact in manifest["artifacts"]
+            .as_array()
+            .context("missing bundle artifacts")?
+        {
+            let declared = plan["artifacts"]
+                .as_array()
+                .and_then(|artifacts| artifacts.iter().find(|a| a["id"] == artifact["id"]))
+                .context("bundle artifact is not declared by its plan")?;
+            if artifact["target"] != declared["target"]
+                || artifact["variant"] != declared["variant"]
+            {
+                bail!("artifact target/variant differs from plan");
+            }
+            if declared["kind"] == "oci-index"
+                && ["name", "producer", "kind", "version", "mediaType", "path"]
+                    .iter()
+                    .any(|key| artifact[*key] != declared[*key])
+            {
+                bail!("OCI index artifact contract differs from plan");
+            }
         }
     } else if manifest["status"] == "succeeded" {
         bail!("successful bundle has no plan");
@@ -162,9 +147,23 @@ pub fn inspect(root: &Path) -> Result<Value> {
                     {
                         bail!("{path}: OCI publication identity mismatch");
                     }
+                    if verified.kind == "oci-image" {
+                        let target = manifest["targets"]
+                            .as_array()
+                            .and_then(|targets| targets.iter().find(|t| t["id"] == item["target"]))
+                            .context("OCI image target is missing")?;
+                        verified
+                            .require_target(&serde_json::from_value(target["platform"].clone())?)?;
+                    } else {
+                        super::indices::inspect(&manifest, item, &verified, root)?;
+                    }
                 }
             }
         }
+    }
+    if let Some(inventory) = manifest["extensions"].get("oyzu.dev/host-outputs") {
+        let entries: Vec<snapshot::Entry> = serde_json::from_value(inventory.clone())?;
+        crate::bundle_store::verify_host_outputs(root, &entries)?;
     }
     Ok(manifest)
 }

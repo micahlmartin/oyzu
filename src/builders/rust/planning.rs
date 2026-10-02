@@ -1,7 +1,5 @@
 use super::{metadata::Metadata, preparation::environment};
-use crate::builders::{
-    ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, ReportFormat, ReportSpec, TaskPlan,
-};
+use crate::builders::{ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, TaskPlan};
 use anyhow::{bail, Context, Result};
 use std::{collections::BTreeSet, fs};
 
@@ -121,47 +119,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             "--message-format=json-render-diagnostics",
         ]),
     );
-    let mut test = TaskPlan::command(&[
-        "sh",
-        "/oyzu/rust-test.sh",
-        &format!("/out/{id}/reports/coverage.xml"),
-    ]);
-    test.reports.push(ReportSpec {
-        format: ReportFormat::Junit,
-        filename: "junit.xml",
-        source: crate::reports::ReportSource::File,
-        name: None,
-        input: None,
-    });
-    test.reports.push(ReportSpec {
-        format: ReportFormat::Cobertura,
-        filename: "coverage.xml",
-        source: crate::reports::ReportSource::File,
-        name: None,
-        input: None,
-    });
-    let doctests: Vec<_> = metadata
-        .packages
-        .iter()
-        .filter(|package| {
-            metadata.workspace_members.contains(&package.id)
-                && package.targets.iter().any(|target| target.doctest)
-        })
-        .map(|package| package.name.clone())
-        .collect();
-    if !doctests.is_empty() {
-        test.argv
-            .push(format!("/out/{id}/reports/doctest/doctest.xml"));
-        test.argv.extend(doctests);
-        test.reports.push(ReportSpec {
-            format: ReportFormat::Junit,
-            filename: "doctest.xml",
-            source: crate::reports::ReportSource::File,
-            name: Some("doctest".into()),
-            input: None,
-        });
-    }
-    plan.tasks.insert("test".into(), test);
+    plan.tasks
+        .insert("test".into(), super::testing::plan(id, &metadata));
     plan.tasks.insert(
         "lint".into(),
         TaskPlan::command(&[

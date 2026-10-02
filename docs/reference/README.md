@@ -7,28 +7,41 @@ This is the entry point for current functionality documentation. Maintain featur
 | [Tool identity inspection](tool-lock-inspection.md) | Format-2 selection/installation identities and no-follow payload tree observation; no installation or execution authority |
 | [Tool-management development integration](tool-management-development.md) | Opt-in mise-backed Node/Go/Rust installation, Oyzu locks/store, execution, shell integration and verification limits |
 | [Mise maintenance](mise-maintenance.md) | Read-only upstream observation, exact Cargo pin checks, candidate embedding/Node archive facts and scheduled-workflow activation limits |
+
+| [Runtime and platform matrices](runtime-matrices.md) | Node runtime variants, platform propagation through artifacts, selection, executor admission and separate evidence |
+| [OCI image indices](oci-indices.md) | Complete platform-family aggregation, deterministic archives, failure gates, bundle membership and evidence limits |
+| [Toolchain platforms](toolchain-platforms.md) | Verified provisioned image selection, explicit overrides, ARM execution prerequisites and remaining evidence limits |
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
+| [Build bundles](build-bundles.md) | Workspace locking, staging, history, destination-change checks, failure evidence and recovery limits |
+| [Build tasks](build-tasks.md) | Builder stages, cross-target prerequisites, hooks, private workspace ownership, report gates and failure behavior |
+| [Build logging](build-logging.md) | Live scoped progress, commands, multiplexed output, human summaries, JSON mode and retained events |
+| [Affected builds](affected-builds.md) | Local Git baseline comparison, changed target/consumer selection, conservative fallbacks and evidence limits |
+| [Direct test reports](direct-tests.md) | Integrated host test bundles, native output preservation, hook/report failure gates and explicit provenance limits |
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |
 | [pnpm builds](pnpm.md) | Frozen registry archive capture, native installation, implicit tasks, snapshot packages, provenance and current compatibility limits |
 | [Yarn Classic builds](yarn.md) | Native lock parsing, captured registry archives, offline mirror installation, reports, snapshot packaging and compatibility limits |
 | [Node quality](node-quality.md) | ESLint/Prettier/Biome selection, provisioning, read-only checks, explicit formatting, scopes and failure behavior |
 | [Mocha tests](mocha.md) | Native discovery, reporter composition, c8 coverage, required reports, failure gates and compatibility limits |
-| [Node applications](node-applications.md) | Vite native output discovery, versioned directory artifacts, Docker materialization, tasks/reports and current limits |
+| [Node applications](node-applications.md) | Vite native outputs, explicit custom-app dist convention, versioned directory artifacts, Docker materialization, tasks/reports and current limits |
 | [Python testing](python-testing.md) | Native pytest collection, root/configured suites, manager commands, report preparation, no-tests outcomes and evidence limits |
 | [Python applications](python-applications.md) | Native-wheel console archives, runtime dependencies, snapshot artifacts, archive-source tests and format limits |
+| [Python containers](python-containers.md) | Experimental Dockerfile-free assembly from tested application archives, runtime capture, OCI outputs and current limits |
 | [Helm charts](helm.md) | Local chart dependencies, snapshot packaging, native unittest discovery, independent JUnit reports, baseline integrity and remaining limits |
 | [Go builds](go.md) | Native workspace tasks, applications, module snapshot zip/mod/info artifacts, projected local dependencies, reports and remaining limits |
 | [Rust builds](rust.md) | Captured crates.io inputs, Cargo workspaces, native feature-gated binary selection, compiler-message artifacts, snapshot crates and JUnit/coverage |
 | [Java quality](java-quality.md) | Shared native lint and read-only formatting defaults, explicit formatting, overrides and provisioning for Maven/Gradle/Ant |
 | [Maven builds](maven.md) | Native reactors, captured repositories, snapshot JAR/POM/WAR artifacts, effective Surefire/Failsafe report directories and coverage |
+| [Gradle builds](gradle.md) | Native multi-project/composite snapshots and direct per-task JUnit/JaCoCo bundles |
+| [Node workspace tests](node-workspace-tests.md) | Native npm/pnpm/Yarn membership, package-owned direct JUnit/LCOV, root scripts and prerequisites |
+| [Ant tests](ant.md) | Native assertion/JUnit targets, direct JUnit/JaCoCo bundles, custom targets, prerequisites and report scope |
 | [Dockerfile quality](docker-quality.md) | Native lint/format defaults, read-only build gates, explicit formatting, ignored configuration preservation and toolchain prerequisites |
-| [Docker image inputs](docker-images.md) | Provisioned base capture, immutable OCI contexts, offline workers, input evidence, provisioning and remaining acquisition limits |
+| [Docker image inputs](docker-images.md) | Provisioned base capture, immutable OCI contexts, separate worker/artifact platforms, offline assembly, evidence and current limits |
 | [Builder acceptance checks](build-verification.md) | Suite selection, native tool provisioning, compiled-CLI CI ordering, retained evidence and verification limits |
 | [Directory artifacts](directory-artifacts.md) | Engine collection/inspection, complete inventories, verified materialization and remaining native-output/platform integration |
 | [Acquisition transport](acquisition-transport.md) | Scoped routes, credential isolation, bounded retries, sanitized failures and remaining queue/cancellation limits |
 | CLI overview below | Discovery, development tasks and initial build/bundle usage; detailed subsystem coverage remains to be expanded as those features are touched |
 
-The experimental CLI supports `oyzu discover`, `oyzu run list`, `oyzu run <task>`, `oyzu build`, `oyzu build --plan` and `oyzu inspect <bundle>`. Global `-C <directory>` selects the project and `--json` emits structured discovery or task outcomes. The implementation is not a stable API release.
+The experimental CLI supports `oyzu discover`, `oyzu run list`, `oyzu run <task>`, `oyzu build [target ...]`, `oyzu build [target ...] --plan` and `oyzu inspect <bundle>`. Global `-C <directory>` selects the project and `--json` emits structured discovery or task outcomes. The implementation is not a stable API release.
 
 Static discovery covers the initial native builder families. Task execution uses already installed native tools in the development environment. TOML overrides and success-only pre_/post_ hooks are executed; native npm lifecycle hooks remain owned by npm. Missing configured tools fail with an error. Unavailable lint/format integrations are listed with a reason rather than silently advertised as successful checks.
 

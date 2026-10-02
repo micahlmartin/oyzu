@@ -14,9 +14,9 @@ oyzu build
 oyzu inspect dist
 ```
 
-Development tasks use provisioned `go` and `gofmt`. The implicit tasks include dependency installation, compile, test, vet, formatting and formatting checks. `oyzu run format` modifies source; builds use `format-check`, whose native `gofmt -l` output must be empty. Native go.work members supply the package patterns for development build/test/vet commands. Direct task execution currently does not produce a collected `dist/` report bundle.
+Development tasks use provisioned `go` and `gofmt`. The implicit tasks include dependency installation, compile, test, vet, formatting and formatting checks. `oyzu run format` modifies source; builds use `format-check`, whose native `gofmt -l` output must be empty. Native go.work members supply the package patterns for development build/test/vet commands. Direct tests produce the test-only evidence described below; other development tasks do not produce a collected build bundle.
 
-Captured builds require Docker and this explicitly provisioned Linux amd64 toolchain:
+Captured builds require Docker and an explicitly provisioned Linux toolchain. The default CI profile is amd64:
 
 ```text
 docker build -f tooling/images/go.Dockerfile -t oyzu-toolchain/go:1.24-mod0.25.0 .
@@ -25,6 +25,22 @@ docker build -f tooling/images/go.Dockerfile -t oyzu-toolchain/go:1.24-mod0.25.0
 The image extends `golang:1.24-bookworm` with the owned module packaging adapter linked against checksum-locked `golang.org/x/mod` 0.25.0. Dependency downloads occur in this provisioning step, not in project build execution. The image retains the upstream BSD license notice. Native local checks use Go 1.24.13 on Windows; new cross-host module packaging checks and isolated library builds are wired into CI but still require revision-specific confirmation.
 
 This changes the default Go image from the base Go distribution. Custom `--image go=<image>` profiles must now include `oyzu-go-modulezip` as well as the existing compiler/native tools. Oyzu never downloads a missing image or adapter. Image content identity enters the build evidence. A missing executable fails preparation; it does not disable library packaging silently.
+
+Docker consumers can separately request the experimental [Go module dependency context](docker-images.md#offline-go-module-context-experimental). It reuses native metadata/acquisition but only exports the captured module cache; the consumer's standard Go image does not need the module packaging helper. This exception applies to dependency preparation, not ordinary Go artifact builds or their report obligations.
+
+## Direct test evidence
+
+`oyzu run test` instruments the implicit `go test ./...` command with `-json`, a fresh `-coverprofile` destination and `-count=1`. Native Go owns test discovery and compilation. Oyzu converts its JSON events to JUnit and retains the native coverage profile under `dist/`, with digests and summaries in the manifest. Statement coverage does not claim branch or line coverage. Packages with no tests retain an honest zero-test summary; native Go may succeed in that case. Missing/malformed reports and configured coverage thresholds can still fail the invocation.
+
+For a `go.work` root, native workspace metadata selects contained member package patterns and the invocation combines their actual test events and coverage. Members outside the task root fail. Forward selectors through `oyzu run test -- -run TestGreeting`; forwarded arguments go only to the requested task. The default disables reuse of Go's cached test results, while Go may still reuse its native compilation cache.
+
+The shared collector normalizes JUnit before `post_test`, exposing `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` to hooks. Final validation and capture follow the hook, so report transformations are retained. Invalid native event streams or preexisting normalized outputs remain failures even if a hook subsequently writes valid XML. A failed test skips its success-only post hook and retains available evidence.
+
+Exact `argv = ["go", "test", "./..."]` and `run = "go test ./..."` overrides receive the same instrumentation. Other custom bodies remain unchanged and must write their required JUnit and Go coverage reports. An explicit coverage declaration can redirect the native profile; an explicit JUnit declaration selects file-based reporting and requires the custom task or hook to produce that XML. The default Go command itself emits JSON, not JUnit. Declared paths must be fresh; see [direct report binding](direct-tests.md).
+
+This workflow needs a provisioned Go compiler and available dependencies, without Docker or a platform account. Host execution retains native environment/network behavior; use existing dependencies and native `GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local` settings when verifying an offline fixture. It is not an isolated build, does not produce application artifacts and confers no publishing authority. [Direct test evidence](direct-tests.md) describes host provenance, output preservation, errors and recovery.
+
+`python tooling/test-go-direct.py --cli <compiled-oyzu-path> --go <native-go-path>` exercises real modules and workspaces, report inspection, test selection, failures, skips, empty suites, hooks, thresholds and custom-command obligations. CI runs it with provisioned Go 1.24.13 after compiling the CLI on each host. Current local and cross-host results are recorded separately in [implementation status](../implementation-status.md).
 
 ## Preparation and execution
 
@@ -63,4 +79,6 @@ python tooling/test-go-metadata.py --go <provisioned-go> --cli <compiled-oyzu>
 
 The module probe checks single-module and workspace consumption, major-version identity, matching go.mod bytes, native checksums, repeatable bytes, unchanged inputs, projected implicit dependencies and invalid local replacement rejection. Rust checks cover inferred/explicit library planning and artifact path admission. CI additionally requires measured test/coverage evidence and snapshot artifacts from an actual captured library build, repeats it for byte identity, then verifies a real failed test blocks collection.
 
-Registry replacements that require different publication semantics, local replacement modules outside the selected workspace, private/VCS routing, cross compilation/platform matrices, module publication and standalone task report bundles remain unfinished. Unsupported replacement projection fails preparation rather than producing a module known to depend on an unreproducible local path. Native source archives do not claim a compiled ABI or production provenance. Full cgo/sysroot portability and all authored scenario acceptance remain part of the active goal; see [implementation status](../implementation-status.md).
+Registry replacements that require different publication semantics, local replacement modules outside the selected workspace, private/VCS routing, cross compilation, module publication and standalone task report bundles remain unfinished. Unsupported replacement projection fails preparation rather than producing a module known to depend on an unreproducible local path. Native source archives do not claim a compiled ABI or production provenance. Full cgo/sysroot portability and all authored scenario acceptance remain part of the active goal; see [implementation status](../implementation-status.md).
+
+Platform matrices can select matching provisioned Go toolchains through [platform selection](toolchain-platforms.md). Preparation verifies actual Go OS/architecture, and tests execute in each selected runtime. The authored Go-to-container matrix is now required by Linux CI; its new ARM execution result is pending. General cross-compilation, ABI admission and all EX-027 cases are not established by this selection capability.

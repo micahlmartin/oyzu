@@ -6,10 +6,38 @@ use crate::{
     dependencies::Prepared,
     records,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 pub(super) struct Npm;
+// The same native locked acquisition serves application builds and Docker
+// consumers. Only verified registry tarballs cross the named-context boundary;
+// native cache/configuration and broker state are deliberately excluded.
+impl crate::dependencies::context::Provider for Npm {
+    fn id(&self) -> &'static str {
+        "node/npm"
+    }
+    fn tools(&self) -> &'static [&'static str] {
+        &["node", "npm"]
+    }
+    fn detect(&self, source: &std::path::Path) -> bool {
+        source.join("package.json").is_file() && preparation::lockfile(source).is_some()
+    }
+    fn store(&self) -> &'static str {
+        "tarballs"
+    }
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Prepared> {
+        preparation::prepare(context)?.context("npm preparation did not produce a captured store")
+    }
+}
+
 impl Manager for Npm {
+    fn development_test(
+        &self,
+        target: &crate::model::Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        workspace::report_plan(target, task)
+    }
     fn development_command(
         &self,
         task: &crate::model::Task,
@@ -24,6 +52,9 @@ impl Manager for Npm {
     }
     fn image(&self) -> &'static str {
         "oyzu-toolchain/node:npm11.11.0-node22"
+    }
+    fn runtime_image(&self, node: &str) -> Result<String> {
+        super::runtime_image(self.image(), node)
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
         preparation::prepare(context)

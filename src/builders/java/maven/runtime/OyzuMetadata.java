@@ -72,6 +72,9 @@ public final class OyzuMetadata extends AbstractMavenLifecycleParticipant {
                 xml.writeEndDocument();
                 xml.close();
             }
+            // The explicit host observation process must not execute validate
+            // bindings or a project's default goal after producing its model.
+            if ("true".equals(System.getenv("OYZU_MAVEN_METADATA_ONLY"))) System.exit(0);
         } catch (Exception error) {
             throw new MavenExecutionException("Oyzu cannot capture contained Maven reactor metadata", error);
         }
@@ -82,8 +85,12 @@ public final class OyzuMetadata extends AbstractMavenLifecycleParticipant {
         MavenSession scoped = session.clone();
         scoped.setCurrentProject(project);
         var calculator = session.getContainer().lookup(LifecycleExecutionPlanCalculator.class);
+        String phase = System.getenv("OYZU_MAVEN_TEST_PHASE");
+        if (phase == null) phase = "verify";
+        if (!java.util.Set.of("test", "verify").contains(phase))
+            throw new IllegalArgumentException("Unsupported Oyzu Maven report phase");
         var plan = calculator.calculateExecutionPlan(scoped, project,
-                java.util.List.of(new LifecycleTask("verify")), true);
+                java.util.List.of(new LifecycleTask(phase)), true);
         xml.writeStartElement("testReports");
         var directories = new java.util.TreeSet<String>();
         for (var execution : plan.getMojoExecutions()) {

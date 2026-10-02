@@ -5,6 +5,7 @@ mod packaging;
 mod planning;
 mod preparation;
 mod reporting;
+mod testing;
 #[cfg(test)]
 mod tests;
 
@@ -19,7 +20,38 @@ use std::path::Path;
 
 pub(super) struct Rust;
 
+impl crate::dependencies::context::Provider for Rust {
+    fn id(&self) -> &'static str {
+        "rust/cargo"
+    }
+    fn tools(&self) -> &'static [&'static str] {
+        &["rust"]
+    }
+    fn detect(&self, source: &Path) -> bool {
+        source.join("Cargo.toml").is_file()
+    }
+    fn store(&self) -> &'static str {
+        "registry"
+    }
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Prepared> {
+        preparation::prepare_context(context)
+    }
+}
+
 impl Builder for Rust {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        testing::development(target, task)
+    }
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        &[&Rust]
+    }
+
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1")
     }
@@ -27,8 +59,8 @@ impl Builder for Rust {
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         &[
             RuntimeFile {
-                name: "rust-test.sh",
-                contents: include_str!("runtime/test.sh"),
+                name: "rust-test.py",
+                contents: include_str!("runtime/test.py"),
             },
             RuntimeFile {
                 name: "rust-build.py",

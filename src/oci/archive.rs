@@ -9,7 +9,7 @@ use std::{
     path::Path,
 };
 
-const ARCHIVE_LIMIT: u64 = 10 * 1024 * 1024 * 1024;
+pub(super) const ARCHIVE_LIMIT: u64 = 10 * 1024 * 1024 * 1024;
 const JSON_LIMIT: u64 = 16 * 1024 * 1024;
 const EXPANDED_LIMIT: u64 = 20 * 1024 * 1024 * 1024;
 
@@ -104,7 +104,7 @@ impl Layout {
         })
     }
 
-    fn bytes(&mut self, name: &str) -> Result<std::io::Take<&mut File>> {
+    pub(super) fn bytes(&mut self, name: &str) -> Result<std::io::Take<&mut File>> {
         let member = self
             .members
             .get(name)

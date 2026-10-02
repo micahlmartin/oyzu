@@ -1,0 +1,7 @@
+api:
+  uses: python/app
+  container:
+    base: oyzu-fixture/python-runtime:3.12
+    user: "1000:1001"
+    workdir: /srv/api
+    entrypoint: [python, -I, /app/application.pyz]

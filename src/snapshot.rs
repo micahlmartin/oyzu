@@ -29,23 +29,27 @@ pub struct Snapshot {
 }
 
 fn included(entry: &DirEntry) -> bool {
-    entry.depth() == 0
-        || !matches!(
-            entry.file_name().to_str(),
-            Some(
-                ".git"
-                    | ".oyzu"
-                    | ".oyzu-config-edit.lock"
-                    | "node_modules"
-                    | "dist"
-                    | "target"
-                    | ".venv"
-                    | "__pycache__"
-                    | ".pytest_cache"
-                    | ".gradle"
-                    | ".events"
-            )
+    entry.depth() == 0 || entry.file_name().to_str().is_none_or(source_path_included)
+}
+
+/// Use the same source exclusions for captured files and baseline inventories.
+pub(crate) fn source_path_included(path: &str) -> bool {
+    path.split('/').all(|part| {
+        !matches!(
+            part,
+            ".git"
+                | ".oyzu"
+                | ".oyzu-config-edit.lock"
+                | "node_modules"
+                | "dist"
+                | "target"
+                | ".venv"
+                | "__pycache__"
+                | ".pytest_cache"
+                | ".gradle"
+                | ".events"
         )
+    })
 }
 
 pub(crate) fn portable(value: &str) -> bool {
@@ -167,8 +171,14 @@ fn capture_tree(
         }
         let out = destination.map(|destination| destination.join(&relative));
         let metadata = fs::symlink_metadata(item.path())?;
-        if metadata.file_type().is_symlink() {
-            bail!("source symlink capture is not yet supported: {relative}");
+        let redirected = metadata.file_type().is_symlink();
+        #[cfg(windows)]
+        let redirected = {
+            use std::os::windows::fs::MetadataExt;
+            redirected || metadata.file_attributes() & 0x400 != 0
+        };
+        if redirected {
+            bail!("source symlink or reparse point capture is not supported: {relative}");
         }
         if metadata.is_dir() {
             if let Some(out) = &out {

@@ -39,7 +39,7 @@ def workspace(cli, base, npm):
     state.mkdir()
     encoded = json.dumps(spec)
     (state/'plan.json').write_text(encoded)
-    env['OYZU_NPM_WORKSPACE_PLAN'] = hashlib.sha256(encoded.encode()).hexdigest()
+    env['OYZU_NODE_WORKSPACE_PLAN'] = hashlib.sha256(encoded.encode()).hexdigest()
     def run(success=True):
         shutil.rmtree(state/'reports', ignore_errors=True)
         result = subprocess.run(['node',str(runtime/'npm-workspace-build.mjs'),'test'],cwd=project,env=env,
@@ -71,7 +71,7 @@ def workspace(cli, base, npm):
     spec['rootScripts']=package['scripts']
     encoded = json.dumps(spec)
     (state/'plan.json').write_text(encoded)
-    env['OYZU_NPM_WORKSPACE_PLAN']=hashlib.sha256(encoded.encode()).hexdigest()
+    env['OYZU_NODE_WORKSPACE_PLAN']=hashlib.sha256(encoded.encode()).hexdigest()
     shutil.rmtree(state/'reports')
     result = subprocess.run(['node',str(runtime/'npm-workspace-build.mjs'),'test'],cwd=project,env=env,
                             capture_output=True,text=True,timeout=120)
@@ -145,7 +145,7 @@ def main():
         config.write_text("module.exports={reporter:'dot'};\n")
         tasks = json.loads(subprocess.check_output([cli,'run','list','--json'],cwd=project,text=True))
         assert tasks['project:test']['argv']==['node','node_modules/mocha/bin/mocha.js']
-        subprocess.run([cli,'run','test'],cwd=project,check=True,capture_output=True)
+        subprocess.run([cli,'run','test'],cwd=project,env=env,check=True,capture_output=True)
         workspace(cli, Path(temporary), npm)
     print('Native Mocha discovery, configuration, reporter composition, lifecycle, JUnit/LCOV, failures, thresholds, implicit/scripted workspace suites, package scope and root ownership passed.')
 

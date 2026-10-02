@@ -1,6 +1,7 @@
 # Explicit CI provisioning. The build CLI never downloads this tool.
 FROM python:3.12-slim-bookworm
 COPY tooling/provision-yamlfmt.py /tmp/provision-yamlfmt.py
+COPY tooling/provisioning.py /tmp/provisioning.py
 RUN python /tmp/provision-yamlfmt.py --destination /opt/oyzu-yamlfmt \
     && ln -s /opt/oyzu-yamlfmt/yamlfmt /usr/local/bin/yamlfmt
 ADD https://get.helm.sh/helm-v3.22.0-linux-amd64.tar.gz /tmp/helm.tar.gz

@@ -2,7 +2,7 @@ use super::super::super::RUNTIME;
 use crate::{broker, builders::PreparationContext, dependencies::Prepared, records, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
-use std::{collections::BTreeMap, path::Path};
+use std::path::Path;
 
 pub(super) fn lockfile(root: &Path) -> Option<&'static str> {
     ["npm-shrinkwrap.json", "package-lock.json"]
@@ -54,14 +54,16 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Option<Prepared
     } else {
         vec![]
     };
+    let env = super::super::super::toolchain::preparation_environment(context.target)?;
     let tree = crate::dependencies::preparation::capture(
         &context,
         RUNTIME,
         &["node".into(), "/oyzu/npm.mjs".into(), "acquire".into()],
-        &BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]),
+        &env,
         sources,
     )?;
     let inventory = records::read(&context.destination.join("inventory.json"))?;
+    super::super::super::toolchain::verify(context.target, inventory["nodeVersion"].as_str())?;
     let workspaces = super::workspace::Metadata::read(inventory["workspaces"].clone())?;
     let packages: Vec<Value> = inventory["packages"].as_array().context("missing npm inventory")?
         .iter().enumerate().map(|(index, p)| json!({

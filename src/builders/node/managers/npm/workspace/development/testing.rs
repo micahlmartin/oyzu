@@ -4,6 +4,46 @@ use super::{Operation, Step};
 use crate::{builders::node::detection, model::Task};
 use anyhow::{bail, Result};
 
+/// Observe installed membership only after shared task admission, then freeze
+/// package scopes and reporting obligations before any native test is run.
+pub(in crate::builders::node::managers::npm) fn report_plan(
+    target: &crate::model::Target,
+    task: &Task,
+) -> Result<Option<crate::builders::TaskPlan>> {
+    if task.name != "test" {
+        return Ok(None);
+    }
+    let mut observation = task.clone();
+    observation.cwd = target.path.clone();
+    let (_, metadata) = super::describe(&observation)?;
+    let members = metadata
+        .members
+        .iter()
+        .map(|m| crate::builders::node::workspace::Member {
+            name: m.name.clone(),
+            path: m.path.clone(),
+        })
+        .collect::<Vec<_>>();
+    let root = detection::detect(&target.path)?;
+    let expected: Vec<String> = if root.package["scripts"]["test"].is_string() {
+        vec!["npm", "run", "test"]
+    } else {
+        vec!["npm", "run", "test", "--workspaces"]
+    }
+    .into_iter()
+    .map(str::to_owned)
+    .collect();
+    crate::builders::node::workspace::report_plan(
+        target,
+        task,
+        &members,
+        &expected,
+        "npm-workspace-test-host.mjs",
+        serde_json::Value::Null,
+    )
+    .map(Some)
+}
+
 pub(super) fn steps(task: &Task, metadata: &Metadata) -> Result<Vec<Step>> {
     let root = detection::detect(&task.cwd)?;
     let mut packages: Vec<_> = metadata

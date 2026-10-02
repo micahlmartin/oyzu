@@ -1,4 +1,8 @@
 //! Private rootless BuildKit worker. Application RUN never receives a host socket.
+#[cfg(test)]
+mod native_dependencies;
+#[cfg(test)]
+mod native_recipe;
 use super::files::{file, input, output_file};
 use super::{docker_path, run, Execution, Mode, Request};
 use crate::snapshot;
@@ -127,26 +131,74 @@ fn bind(command: &mut Command, source: &Path, destination: &str, readonly: bool)
     Ok(())
 }
 
+/// A definition belongs to private executor staging. Generated instructions are
+/// bound to their plan identity; a project Dockerfile is never rewritten.
+fn write_definition(
+    root: &Path,
+    definition: &Path,
+    digest: &str,
+    recipe: Option<&super::recipe::Recipe>,
+    images: &[super::ImageInput],
+) -> Result<()> {
+    let destination = definition.join("Dockerfile");
+    if destination.symlink_metadata().is_ok() {
+        bail!("private Dockerfile destination already exists");
+    }
+    if let Some(recipe) = recipe {
+        fs::write(&destination, recipe.render(images)?)?;
+    } else {
+        fs::copy(file(root, "Dockerfile")?, &destination)?;
+    }
+    // Verify the bytes actually handed to BuildKit, including a source change
+    // during copying. Neither an earlier check nor a declared hash suffices.
+    if snapshot::file_digest(&destination)? != digest {
+        bail!("Dockerfile changed after preflight; replan the captured definition");
+    }
+    Ok(())
+}
+
 fn normalize_context(root: &Path) -> Result<()> {
-    // The source contract records executable intent, not the host user's umask,
-    // ownership or setuid bits. Normalize only our private transport copy.
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        for entry in walkdir::WalkDir::new(root) {
-            let entry = entry?;
-            let mode = if entry.file_type().is_dir()
-                || entry.metadata()?.permissions().mode() & 0o111 != 0
-            {
+    // Identity records bytes and executable intent, not host umask or copy time.
+    // Normalize private inputs before RUN can observe their metadata; export-time
+    // timestamp rewriting cannot repair timestamps embedded in generated files.
+    let epoch =
+        std::time::UNIX_EPOCH + Duration::from_secs(super::BUILDKIT_SOURCE_DATE_EPOCH.parse()?);
+    for entry in walkdir::WalkDir::new(root).contents_first(true) {
+        let entry = entry?;
+        let metadata = fs::symlink_metadata(entry.path())?;
+        let redirected = metadata.file_type().is_symlink();
+        #[cfg(windows)]
+        let redirected = {
+            use std::os::windows::fs::MetadataExt;
+            redirected || metadata.file_attributes() & 0x400 != 0
+        };
+        if redirected || !(metadata.is_file() || metadata.is_dir()) {
+            bail!("private context contains an unsupported file type");
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = if metadata.is_dir() || metadata.permissions().mode() & 0o111 != 0 {
                 0o755
             } else {
                 0o644
             };
             fs::set_permissions(entry.path(), fs::Permissions::from_mode(mode))?;
         }
+        let mut options = fs::OpenOptions::new();
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            // Attribute-only access also handles read-only files; backup
+            // semantics permits a directory handle without changing its ACL.
+            options.access_mode(0x100).custom_flags(0x02000000);
+        }
+        #[cfg(not(windows))]
+        options.read(true);
+        options
+            .open(entry.path())?
+            .set_times(fs::FileTimes::new().set_accessed(epoch).set_modified(epoch))?;
     }
-    #[cfg(not(unix))]
-    let _ = root;
     Ok(())
 }
 
@@ -166,9 +218,9 @@ fn capture_image_store(root: &Path, image: &super::ImageInput, destination: &Pat
     if captured.digest != image.tree_digest {
         bail!("captured image store changed after planning");
     }
-    normalize_context(destination)?;
     // buildctl initializes a local content store even for read-only use.
     fs::create_dir(destination.join("ingest"))?;
+    normalize_context(destination)?;
     Ok(())
 }
 
@@ -177,18 +229,27 @@ pub(super) fn execute(
     mounts: &[super::Mount<'_>],
     mode: &Mode,
     materialized: &[String],
+    target_platform: &crate::platform::Platform,
 ) -> Result<Execution> {
     let Mode::Buildkit {
         output,
         context_files,
         apparmor_profile,
         dockerfile_digest,
+        generated_recipe,
         images,
+        dependency_context,
         ..
     } = mode
     else {
         unreachable!()
     };
+    if dependency_context
+        .as_ref()
+        .is_some_and(|context| &context.platform != target_platform)
+    {
+        bail!("dependency context platform differs from image target");
+    }
     let cwd = request
         .cwd
         .strip_prefix("/workspace/")
@@ -219,11 +280,13 @@ pub(super) fn execute(
         fs::create_dir(path)?;
     }
     capture_context(&root, &context, cwd, context_files, materialized)?;
-    let dockerfile = file(&root, "Dockerfile")?;
-    if snapshot::file_digest(&dockerfile)? != *dockerfile_digest {
-        bail!("Dockerfile changed after preflight; replan the captured definition");
-    }
-    fs::copy(dockerfile, definition.join("Dockerfile"))?;
+    write_definition(
+        &root,
+        &definition,
+        dockerfile_digest,
+        generated_recipe.as_deref(),
+        images,
+    )?;
     // Native ignore evaluation already selected source inputs. A separate
     // Dockerfile-local override keeps explicit artifact inputs present without
     // modifying the source-owned ignore files copied into the context.
@@ -272,6 +335,16 @@ pub(super) fn execute(
             )?;
         }
     }
+    if let Some(context) = dependency_context {
+        let prepared = mounts
+            .iter()
+            .find(|m| m.destination == "/dependencies" && m.readonly)
+            .context("captured dependency context requires prepared dependencies")?;
+        let destination = private.path().join("packages");
+        context.capture(prepared.source, &destination, target_platform)?;
+        normalize_context(&destination)?;
+        bind(&mut start, &destination, "/inputs/dependencies", true)?;
+    }
     start.args([
         &request.image.digest,
         "--oci-worker-snapshotter=native",
@@ -282,7 +355,18 @@ pub(super) fn execute(
         active: true,
     };
     let started = Instant::now();
-    let launch = run(start, &request)?;
+    request.log.progress("Starting isolated BuildKit worker");
+    let start_argv: Vec<_> = std::iter::once(start.get_program())
+        .chain(start.get_args())
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+    let launch = run(
+        start,
+        &Request {
+            argv: &start_argv,
+            ..request.clone()
+        },
+    )?;
     if launch.code != 0 {
         return Ok(launch);
     }
@@ -330,9 +414,7 @@ pub(super) fn execute(
         fs::write(request.stderr, [logs.stdout, logs.stderr].concat())?;
         return Err(error);
     }
-    let expected = mode
-        .argv(&format!("{}/{}", request.image.os, request.image.arch))
-        .unwrap();
+    let expected = mode.argv(&target_platform.to_string()).unwrap();
     if request.argv != expected {
         bail!("BuildKit command differs from its typed plan");
     }
@@ -359,6 +441,66 @@ pub(super) fn execute(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_definitions_are_private_and_bound_to_their_actual_bytes() {
+        use crate::executor::recipe::{Base, Copy, Recipe};
+        let source = tempfile::tempdir().unwrap();
+        let definition = tempfile::tempdir().unwrap();
+        fs::write(source.path().join("Dockerfile"), "source-owned bytes").unwrap();
+        let recipe = Recipe {
+            base: Base::Scratch,
+            copies: vec![Copy {
+                source: "app".into(),
+                destination: "/app/app".into(),
+            }],
+            uid: 65532,
+            gid: 65532,
+            workdir: "/app".into(),
+            entrypoint: vec!["/app/app".into()],
+        };
+        let digest = recipe.digest(&[]).unwrap();
+        write_definition(
+            source.path(),
+            definition.path(),
+            &digest,
+            Some(&recipe),
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(source.path().join("Dockerfile")).unwrap(),
+            "source-owned bytes"
+        );
+        assert_eq!(
+            snapshot::file_digest(&definition.path().join("Dockerfile")).unwrap(),
+            digest
+        );
+        assert!(write_definition(
+            source.path(),
+            definition.path(),
+            &digest,
+            Some(&recipe),
+            &[]
+        )
+        .is_err());
+        let invalid = tempfile::tempdir().unwrap();
+        assert!(write_definition(
+            source.path(),
+            invalid.path(),
+            &format!("sha256:{}", "0".repeat(64)),
+            Some(&recipe),
+            &[]
+        )
+        .is_err());
+        let copied = tempfile::tempdir().unwrap();
+        let source_digest = snapshot::file_digest(&source.path().join("Dockerfile")).unwrap();
+        write_definition(source.path(), copied.path(), &source_digest, None, &[]).unwrap();
+        assert_eq!(
+            fs::read_to_string(copied.path().join("Dockerfile")).unwrap(),
+            "source-owned bytes"
+        );
+    }
 
     #[test]
     fn image_stores_are_contained_copied_and_bound_to_the_plan() {
@@ -481,6 +623,55 @@ mod tests {
         assert!(
             capture_context(source.path(), linked.path(), ".", &[], &["alias".into()]).is_err()
         );
+    }
+
+    #[test]
+    fn private_contexts_have_fixed_file_and_directory_times_without_source_mutation() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join("nested")).unwrap();
+        let file = source.path().join("nested/package.whl");
+        fs::write(&file, "native package bytes").unwrap();
+        let before = snapshot::inspect_tree(source.path()).unwrap().digest;
+        let epoch = std::time::UNIX_EPOCH
+            + Duration::from_secs(super::super::BUILDKIT_SOURCE_DATE_EPOCH.parse().unwrap());
+        let output = tempfile::tempdir().unwrap();
+        for index in 0..2 {
+            let input_time = epoch + Duration::from_secs(12345 + index);
+            fs::File::options()
+                .write(true)
+                .open(&file)
+                .unwrap()
+                .set_modified(input_time)
+                .unwrap();
+            let destination = output.path().join(format!("copy-{index}"));
+            snapshot::capture_prepared(source.path(), &destination).unwrap();
+            #[cfg(windows)]
+            {
+                let copied_file = destination.join("nested/package.whl");
+                let mut permissions = fs::metadata(&copied_file).unwrap().permissions();
+                permissions.set_readonly(true);
+                fs::set_permissions(&copied_file, permissions).unwrap();
+            }
+            normalize_context(&destination).unwrap();
+            for entry in walkdir::WalkDir::new(&destination) {
+                assert_eq!(
+                    entry.unwrap().metadata().unwrap().modified().unwrap(),
+                    epoch
+                );
+            }
+            assert_eq!(snapshot::inspect_tree(&destination).unwrap().digest, before);
+            assert_eq!(fs::metadata(&file).unwrap().modified().unwrap(), input_time);
+            assert_eq!(
+                snapshot::inspect_tree(source.path()).unwrap().digest,
+                before
+            );
+            #[cfg(windows)]
+            {
+                let copied_file = destination.join("nested/package.whl");
+                fs::set_permissions(&copied_file, fs::metadata(&file).unwrap().permissions())
+                    .unwrap();
+            }
+        }
     }
 
     #[test]

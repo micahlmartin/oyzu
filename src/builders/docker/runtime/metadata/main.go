@@ -32,12 +32,13 @@ type stage struct {
 }
 
 type metadata struct {
-	SchemaVersion string         `json:"schemaVersion"`
-	Frontend      string         `json:"frontend"`
-	Stages        []stage        `json:"stages"`
-	Requirements  []requirement  `json:"requirements"`
-	Context       contextFiles   `json:"context"`
-	Selection     selectionFacts `json:"selection"`
+	SchemaVersion   string         `json:"schemaVersion"`
+	Frontend        string         `json:"frontend"`
+	Stages          []stage        `json:"stages"`
+	Requirements    []requirement  `json:"requirements"`
+	Context         contextFiles   `json:"context"`
+	Selection       selectionFacts `json:"selection"`
+	TargetExecution bool           `json:"targetExecution"`
 }
 
 func readBounded(path string) ([]byte, error) {
@@ -147,6 +148,7 @@ func analyze(body []byte, facts selectionFacts) (metadata, error) {
 			case *instructions.OnbuildCommand:
 				add("onbuild", "", line)
 			case *instructions.RunCommand:
+				m.TargetExecution = true
 				if instructions.GetNetwork(c) == instructions.NetworkHost {
 					add("host-network", "", line)
 				}

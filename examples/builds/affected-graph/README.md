@@ -18,7 +18,11 @@ oyzu build
 ```
 
 
-No build YAML is required for this scenario. Configuration, where present, demonstrates only the feature under discussion.
+The original `project` needs no build YAML and specifies intra-project action reuse, which remains unfinished. `variants/targets` separately demonstrates implemented target-level Git selection with four declared Node packages: shared, api, web and unused. Both api and web depend on shared.
+
+From that variation, create a local Git commit, then run `oyzu build --affected HEAD`. No changes produce an empty inspected bundle. Editing `api/src/greeting.mjs` selects api plus its shared prerequisite; editing `shared/src/greeting.mjs` selects shared and both consumers. Each selected target receives its required checks and snapshot package. See [affected build behavior and limits](../../../docs/reference/affected-builds.md).
+
+The compiled Windows CLI passed the no-change flow. Actual selective artifact checks are registered in the Linux Node suite and await CI results. This does not establish cache reuse or mark the original scenario complete.
 
 ## Native checks available now
 

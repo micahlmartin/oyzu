@@ -79,8 +79,12 @@ def verify(root, base, invoke, validate, source_files, verified):
     invoke(project, 'build')
     manifest = validate(project / 'dist')
     assert manifest['status'] == 'succeeded' and source_files(project) == before
-    binaries = {a['name']: a for a in manifest['artifacts'] if a['target'] == 'tools'}
+    selection = manifest['extensions']['oyzu.dev/selection']
+    producer, = [t for t in selection['variants']['tools'] if t in selection['selected']]
+    assert producer != 'tools' and 'tools' not in selection['selected']
+    binaries = {a['name']: a for a in manifest['artifacts'] if a['target'] == producer}
     assert set(binaries) == {'server', 'migrate'}
+    assert all(a['variant'] == {'platform': 'linux/amd64'} for a in binaries.values())
     image, = [a for a in manifest['artifacts'] if a['target'] == 'image']
     _, _, files = image_contents(project / 'dist' / image['path'])
     for name, artifact in binaries.items():

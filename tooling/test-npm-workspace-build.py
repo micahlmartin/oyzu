@@ -88,7 +88,7 @@ def main():
             if public_root:
                 spec['rootArtifact'] = {'id':'root-package', 'path':'.', 'name':'oyzu-workspace', 'version':version, 'filename':f'oyzu-workspace-{version}.tgz'}
             encoded = json.dumps(spec)
-            env['OYZU_NPM_WORKSPACE_PLAN'] = hashlib.sha256(encoded.encode()).hexdigest()
+            env['OYZU_NODE_WORKSPACE_PLAN'] = hashlib.sha256(encoded.encode()).hexdigest()
             env['OYZU_TARGET'] = 'workspace'
 
             def operation(mode, success=True):

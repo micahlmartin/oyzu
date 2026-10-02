@@ -3,9 +3,10 @@
 import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
 import {existsSync, readFileSync} from 'node:fs';
-import {join} from 'node:path';
+import {join,relative,resolve} from 'node:path';
 import {archives} from './registry-archives.mjs';
 import {validatePatches} from './pnpm-patches.mjs';
+import {model as workspaceModel} from './pnpm-workspaces.mjs';
 
 const require = createRequire(import.meta.url);
 export function inputs(workspace) {
@@ -17,14 +18,19 @@ export function inputs(workspace) {
   }
   if (manifest.workspaces) throw new Error('pnpm workspace capture is not implemented yet');
   validatePatches(workspace, manifest, lock, yaml);
-  if (String(lock?.lockfileVersion) !== '9.0' || Object.keys(lock.importers ?? {}).join() !== '.') throw new Error('pnpm capture requires a single-project v9 lockfile');
+  if (String(lock?.lockfileVersion) !== '9.0' || !lock.importers?.['.']) throw new Error('pnpm capture requires a v9 lockfile with its root importer');
   for (const key of ['overrides', 'packageExtensionsChecksum']) {
     if (lock[key] != null) throw new Error(`pnpm capture does not yet support ${key}`);
   }
-  for (const owner of [lock.importers['.'], ...Object.values(lock.snapshots ?? {})]) {
+  for (const [path,owner] of [...Object.entries(lock.importers), ...Object.values(lock.snapshots ?? {}).map(v=>[null,v])]) {
     for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
       for (const value of Object.values(owner[field] ?? {})) {
         const version = typeof value === 'string' ? value : value?.version;
+        if (typeof version === 'string' && version.startsWith('link:') && path!==null) {
+          const target=relative(workspace,resolve(workspace,path,version.slice(5))).replaceAll('\\','/');
+          if (!target || target.split('/').includes('..') || !Object.hasOwn(lock.importers,target)) throw new Error('pnpm local links must reference captured workspace importers');
+          continue;
+        }
         if (typeof version !== 'string' || /^(?:file:|link:|workspace:|https?:|git(?:\+|:|@)|github:|\/|\.{1,2}\/)/.test(version)) {
           throw new Error('pnpm capture does not yet support non-registry dependency references');
         }
@@ -77,5 +83,9 @@ export async function perform({mode, output, workspace, broker, temporary, envir
     server.closeAllConnections();
     await new Promise(resolve => server.close(resolve));
   }
-  return {layoutVersion:2, packages};
+  const yaml = require(process.env.OYZU_PNPM_YAML ?? '/opt/oyzu-pnpm/node_modules/yaml');
+  const lock = yaml.parse(readFileSync(join(workspace,'pnpm-lock.yaml'),'utf8'));
+  const native = JSON.parse(await execute(['list','--recursive','--depth','-1','--json']));
+  const workspaces = workspaceModel(native, workspace, lock);
+  return {layoutVersion:2, packages, workspaces};
 }

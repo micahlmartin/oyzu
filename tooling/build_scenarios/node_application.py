@@ -3,6 +3,7 @@ import json
 import shutil
 
 from .docker import image_contents
+from .node_fixtures import format_sources
 
 
 def verify(root, base, invoke, validate, source_files, verified):
@@ -88,4 +89,55 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(a for a in failed['actions'] if a['id']=='frontend:test')['status']=='failed'
     assert any(r['target']=='frontend' and r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
     assert not any(a['id']=='image:build' and a['status']=='succeeded' for a in failed['actions'])
-    verified.append('Vite: captured dependencies, native config/plugin outputs and metadata, directory snapshot, JUnit/coverage, quality gates, flattened Docker input, repeatability, native outDir, tamper and failed-producer rejection; EX-050 matrix remains pending')
+    verified.append('Vite: captured dependencies, native config/plugin outputs and metadata, directory snapshot, JUnit/coverage, quality gates, flattened Docker input, repeatability, native outDir, tamper and failed-producer rejection; this group covers single-platform assembly; matrix qualification belongs to the Docker platform-execution group')
+    verify_conventional(root, base, invoke, validate, source_files, verified)
+
+
+def verify_conventional(root, base, invoke, validate, source_files, verified):
+    project = base/'custom-script-container'
+    shutil.copytree(root/'examples/builds/materialize-directory/project', project,
+                    ignore=shutil.ignore_patterns('node_modules', 'dist'))
+    format_sources(root, project/'frontend')
+    before = source_files(project)
+    # Exercise the authored producer with the image matrix still present, but
+    # not selected. The Docker platform-execution group checks the authored matrix.
+    invoke(project, 'build', 'frontend')
+    producer = validate(project/'dist')
+    assert producer['status'] == 'succeeded' and source_files(project) == before
+    directory, = producer['artifacts']
+    assert directory['kind'] == 'directory' and directory['name'] == 'primary'
+    assert directory['version'] in directory['path'] and '-dev.g' in directory['version']
+    assert {e['path'] for e in directory['entries']} == {'index.html'}
+    assert b'Hello, Oyzu!' in (project/'dist'/directory['path']/'index.html').read_bytes()
+    assert all(r['status'] == 'collected' for r in producer['reports'])
+    assert {r['kind'] for r in producer['reports']} == {'test', 'coverage'}
+
+    # A native-platform variant verifies actual materialization and OCI bytes.
+    # This is not evidence that the original two-platform scenario passed.
+    build_file = project/'build.yaml'
+    build_file.write_text(build_file.read_text().replace('  matrix:\n    platform: [linux/amd64, linux/arm64]\n', ''))
+    before = source_files(project)
+    invoke(project, 'build')
+    manifest = validate(project/'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    directory = next(a for a in manifest['artifacts'] if a['target'] == 'frontend')
+    image = next(a for a in manifest['artifacts'] if a['target'] == 'image')
+    _, _, contents = image_contents(project/'dist'/image['path'])
+    assert contents['site/index.html'] == (project/'dist'/directory['path']/'index.html').read_bytes()
+    assert 'site/dist/index.html' not in contents
+    invoke(project, 'inspect', 'dist')
+    repeated = invoke(project, 'build')
+    assert repeated['planDigest'] == manifest['planDigest']
+    assert [(a['target'], a['digest']) for a in repeated['artifacts']] == [(a['target'], a['digest']) for a in manifest['artifacts']]
+    # A successful custom build that omits dist cannot reuse earlier artifacts.
+    script = project/'frontend/build.mjs'
+    script.write_text('console.log("build completed without output");\n')
+    format_sources(root, script)
+    before = source_files(project)
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert failed['status'] == 'failed' and failed['artifacts'] == []
+    assert source_files(project) == before
+    assert next(a for a in failed['actions'] if a['id'] == 'frontend:package')['status'] == 'failed'
+    assert not any(a['id'] == 'image:build' and a['status'] == 'succeeded' for a in failed['actions'])
+    verified.append('EX-050 custom producer: explicit app default dist, snapshot directory, JUnit/coverage, native-platform Docker materialization, repeatability and missing-output failure; matrix qualification belongs to the Docker platform-execution group')

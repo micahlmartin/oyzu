@@ -7,21 +7,16 @@ pub(crate) fn export_image(
     reference: &str,
     destination: &Path,
     request: &Request<'_>,
+    target: &crate::platform::Platform,
 ) -> Result<Image> {
-    if reference.is_empty()
-        || reference.len() > 512
-        || !reference.as_bytes()[0].is_ascii_alphanumeric()
-        || !reference
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"/._:@-".contains(&b))
-    {
+    if !crate::oci::literal_reference(reference) {
         bail!("invalid provisioned image reference");
     }
     if destination.exists() {
         bail!("image export destination already exists");
     }
     let image = resolve_for(reference, Profile::ImageInput)?;
-    if image.os != request.image.os || image.arch != request.image.arch {
+    if image.platform()? != *target {
         bail!("provisioned base image platform differs from the selected build platform");
     }
     let mut command = Command::new("docker");
@@ -29,7 +24,17 @@ pub(crate) fn export_image(
         .args(["image", "save", "--output"])
         .arg(destination)
         .arg(&image.digest);
-    let result = run(command, request)?;
+    let argv: Vec<_> = std::iter::once(command.get_program())
+        .chain(command.get_args())
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+    let result = run(
+        command,
+        &Request {
+            argv: &argv,
+            ..request.clone()
+        },
+    )?;
     if result.code != 0 {
         bail!("provisioned image export failed; inspect acquisition logs");
     }

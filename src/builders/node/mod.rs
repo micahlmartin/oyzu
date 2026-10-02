@@ -7,7 +7,9 @@ mod mocha;
 mod planning;
 mod quality;
 mod reporting;
+mod toolchain;
 mod vitest;
+mod workspace;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
 use crate::dependencies::Prepared;
@@ -18,6 +20,54 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "pnpm-workspace-build.mjs",
+        contents: include_str!("runtime/pnpm-workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-workspaces.mjs",
+        contents: include_str!("runtime/pnpm-workspaces.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-build.mjs",
+        contents: include_str!("runtime/workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-plan.mjs",
+        contents: include_str!("runtime/workspace-plan.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspace-build.mjs",
+        contents: include_str!("runtime/yarn-workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspaces.mjs",
+        contents: include_str!("runtime/yarn-workspaces.mjs"),
+    },
+    RuntimeFile {
+        name: "native-workspace.mjs",
+        contents: include_str!("runtime/native-workspace.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-workspace-describe.mjs",
+        contents: include_str!("runtime/pnpm-workspace-describe.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspace-describe.mjs",
+        contents: include_str!("runtime/yarn-workspace-describe.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-test-host.mjs",
+        contents: include_str!("runtime/workspace-test-host.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-store.mjs",
+        contents: include_str!("runtime/pnpm-store.mjs"),
+    },
+    RuntimeFile {
+        name: "node-runtime.mjs",
+        contents: include_str!("runtime/node-runtime.mjs"),
+    },
     RuntimeFile {
         name: "mocha.mjs",
         contents: include_str!("runtime/mocha.mjs"),
@@ -55,8 +105,8 @@ static RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/pnpm-registry.mjs"),
     },
     RuntimeFile {
-        name: "npm-workspace-test-scope.mjs",
-        contents: include_str!("runtime/npm-workspace-test-scope.mjs"),
+        name: "workspace-test-scope.mjs",
+        contents: include_str!("runtime/workspace-test-scope.mjs"),
     },
     RuntimeFile {
         name: "npm-workspace-root.mjs",
@@ -71,12 +121,24 @@ static RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/npm-workspace-build.mjs"),
     },
     RuntimeFile {
+        name: "workspace-testing.mjs",
+        contents: include_str!("runtime/workspace-testing.mjs"),
+    },
+    RuntimeFile {
+        name: "npm-workspace-test-host.mjs",
+        contents: include_str!("runtime/npm-workspace-test-host.mjs"),
+    },
+    RuntimeFile {
         name: "npm-workspace-plan.mjs",
         contents: include_str!("runtime/npm-workspace-plan.mjs"),
     },
     RuntimeFile {
         name: "npm-native.mjs",
         contents: include_str!("runtime/npm-native.mjs"),
+    },
+    RuntimeFile {
+        name: "test-command.mjs",
+        contents: include_str!("runtime/test-command.mjs"),
     },
     RuntimeFile {
         name: "npm-workspaces.mjs",
@@ -125,6 +187,11 @@ static RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Node {
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        managers::dependency_providers()
+    }
     fn development_command(
         &self,
         task: &Task,
@@ -136,6 +203,39 @@ impl Builder for Node {
         }
         Ok(quality::development(task))
     }
+    fn development_test(&self, target: &Target, task: &Task) -> Result<Option<super::TaskPlan>> {
+        let package = crate::records::read(&target.path.join("package.json"))?;
+        let manager = managers::get(&target.manager)?;
+        if task.name == "test" && manager.is_workspace(&target.path, &package) {
+            return manager.development_test(target, task);
+        }
+        if task.name != "test"
+            || package.get("workspaces").is_some()
+            || target
+                .discovery
+                .get("test-framework")
+                .is_none_or(|p| !["node-test", "jest", "vitest", "mocha"].contains(&p.selected()))
+        {
+            return Ok(None);
+        }
+        let env = std::collections::BTreeMap::from([
+            (
+                "OYZU_TEST_REPORT".into(),
+                format!("/out/{}/reports/junit.xml", target.name),
+            ),
+            (
+                "OYZU_COVERAGE_REPORT".into(),
+                format!("/out/{}/reports/coverage.lcov", target.name),
+            ),
+        ]);
+        Ok(Some(reporting::test(
+            &target.name,
+            self.instrument_override(target, task, &env)
+                .unwrap_or_else(|| task.argv.clone()),
+            false,
+        )))
+    }
+
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             tools: &["node"],
@@ -151,13 +251,25 @@ impl Builder for Node {
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
         Ok(managers::get(&target.manager)?.image())
     }
+    fn variant_toolchain(&self, target: &Target) -> Result<String> {
+        let manager = managers::get(&target.manager)?;
+        match toolchain::requested(target)? {
+            Some(version) => manager.runtime_image(version),
+            None => Ok(manager.image().into()),
+        }
+    }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
-        self.toolchain(context.target)?;
+        self.variant_toolchain(context.target)?;
+        let namespace = format!("oyzu.dev/{}", context.target.manager);
+        let actual = context
+            .dependencies
+            .and_then(|d| d.record["extensions"][&namespace]["nodeVersion"].as_str());
+        toolchain::verify(context.target, actual)?;
         planning::plan(context)
     }
 
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        self.toolchain(context.target)?;
+        self.variant_toolchain(context.target)?;
         managers::get(&context.target.manager)?.prepare(context)
     }
 

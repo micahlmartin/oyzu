@@ -5,6 +5,7 @@ mod metadata;
 mod planning;
 mod preparation;
 mod quality;
+mod testing;
 #[cfg(test)]
 mod tests;
 
@@ -53,6 +54,14 @@ impl Builder for Helm {
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)
+    }
+
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        testing::development(target, task)
     }
 
     fn development_command(

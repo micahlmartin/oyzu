@@ -34,6 +34,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     for model in &builds {
         for project in &model.projects {
             for archive in &project.archives {
+                if archive.version.is_empty() {
+                    bail!("missing projected Gradle archive version");
+                }
                 let identity = format!("{}:{}", model.directory, archive.task);
                 let name = crate::names::scoped("archive", &identity);
                 let original = archive.file.rsplit('/').next().unwrap();
@@ -65,20 +68,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
                 });
             }
             for test in &project.tests {
-                if !test.sources_known {
-                    bail!(
-                        "Gradle test {} requires native source attribution",
-                        test.task
-                    );
-                }
-                if test.sources.is_empty() {
+                let Some(name) = super::testing::report_identity(&model.directory, test)? else {
                     continue;
-                }
-                if !test.junit_enabled {
-                    bail!("Gradle test {} disabled required JUnit evidence", test.task);
-                }
-                let name =
-                    crate::names::scoped("test", &format!("{}:{}", model.directory, test.task));
+                };
                 build.reports.push(ReportSpec {
                     format: ReportFormat::Junit,
                     filename: "junit.xml",

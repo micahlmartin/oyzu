@@ -15,6 +15,7 @@ ENV MAVEN_HOME=/opt/maven
 ENV PATH=/opt/maven/bin:$PATH
 
 COPY tooling/provision-java-quality.py /tmp/oyzu-provision/tooling/provision-java-quality.py
+COPY tooling/provisioning.py /tmp/oyzu-provision/tooling/provisioning.py
 COPY src/builders/java/runtime /tmp/oyzu-provision/src/builders/java/runtime
 RUN python3 /tmp/oyzu-provision/tooling/provision-java-quality.py --destination /opt/oyzu-java-quality \
     && chmod -R a+rX /opt/oyzu-java-quality \

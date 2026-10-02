@@ -12,9 +12,19 @@ import shutil
 import subprocess
 import tempfile
 import time
+import traceback
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, mocha, node, node_application, node_managers, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, python_testing, rust, vitest
+from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, mocha, node, node_application, node_managers, node_matrix, node_preflight, node_quality, node_workspaces, python_application, python_container, python_legacy, python_quality, python_testing, rust, vitest
+from build_scenarios import docker_dependencies
+from build_scenarios import docker_npm_context
+from build_scenarios import docker_yarn_context
+from build_scenarios import docker_pnpm_context
+from build_scenarios import docker_go_context
+from build_scenarios import docker_rust_context
+from build_scenarios import mixed_monorepo
+from build_scenarios import generated_source, service_test
+from build_scenarios import yarn_workspaces, pnpm_workspaces, affected
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -61,15 +71,22 @@ def validate(bundle):
             else:
                 assert digest(path) == artifact["digest"]
     return records["manifest"]
-SUITES = ('core', 'node', 'python', 'go', 'rust', 'java', 'helm', 'docker')
+SUITES = ('core', 'dependencies', 'node', 'python', 'go', 'rust', 'java', 'helm', 'docker')
 # Registration retains the existing full-run order. A suite is only a selection
 # of these checks; it cannot replace native outcomes or scenario expectations.
 CASES = (
+    ('core', 'mixed-monorepo', mixed_monorepo.verify),
+    ('node', 'affected-targets', affected.verify),
+    ('node', 'generated-source', generated_source.verify),
+    ('node', 'service-test', service_test.verify),
     ('node', 'node-overrides', node.verify_overrides),
     ('core', 'concurrency', concurrency.verify),
     ('node', 'node-preflight', node_preflight.verify),
+    ('node', 'node-matrix', node_matrix.verify),
     ('node', 'node-managers', node_managers.verify),
     ('node', 'node-workspaces', node_workspaces.verify),
+    ('node', 'yarn-workspaces', yarn_workspaces.verify),
+    ('node', 'pnpm-workspaces', pnpm_workspaces.verify),
     ('node', 'node-quality', node_quality.verify),
     ('python', 'python-testing', python_testing.verify),
     ('node', 'jest', jest.verify),
@@ -78,6 +95,14 @@ CASES = (
     ('go', 'go', go.verify),
     ('core', 'materialization', materialization.verify),
     ('docker', 'docker', docker.verify),
+    ('dependencies', 'docker-dependencies', docker_dependencies.verify),
+    ('dependencies', 'docker-uv-context', docker_dependencies.verify_uv),
+    ('dependencies', 'docker-poetry-context', docker_dependencies.verify_poetry),
+    ('dependencies', 'docker-npm-context', docker_npm_context.verify),
+    ('dependencies', 'docker-yarn-context', docker_yarn_context.verify),
+    ('dependencies', 'docker-pnpm-context', docker_pnpm_context.verify),
+    ('dependencies', 'docker-go-context', docker_go_context.verify),
+    ('dependencies', 'docker-rust-context', docker_rust_context.verify),
     ('docker', 'node-application', node_application.verify),
     ('java', 'maven', maven.verify),
     ('java', 'gradle', gradle.verify),
@@ -85,6 +110,7 @@ CASES = (
     ('helm', 'helm', helm.verify),
     ('rust', 'rust', rust.verify),
     ('python', 'python-application', python_application.verify),
+    ('python', 'python-container', python_container.verify),
     ('python', 'python-legacy', python_legacy.verify),
     ('python', 'python-quality', python_quality.verify),
     ('core', 'baselines', partial(baselines.verify, digest=digest)),
@@ -116,11 +142,11 @@ def main():
         evidence.mkdir(parents=True, exist_ok=False)
     invocation = 0
 
-    def invoke(root, *command, success=True):
+    def invoke(root, *command, success=True, timeout=900):
         nonlocal invocation
         started = time.monotonic()
         print(f"[{root.name}] oyzu {' '.join(command)}", flush=True)
-        result = subprocess.run([str(cli), "-C", str(root), *command], capture_output=True, text=True, timeout=900)
+        result = subprocess.run([str(cli), "-C", str(root), *( ["--json"] if command and command[0] == "build" else [] ), *command], capture_output=True, text=True, timeout=timeout)
         print(f"[{root.name}] exit {result.returncode} after {time.monotonic()-started:.1f}s", flush=True)
         if evidence and command and command[0]=='build' and '--plan' not in command:
             invocation += 1
@@ -142,21 +168,31 @@ def main():
 
     selected = select_cases(args.suite)
     summary = {'suite': args.suite, 'status': 'failed', 'selectedChecks': [name for name, _ in selected],
-               'completedChecks': [], 'verified': verified,
+               'completedChecks': [], 'failedChecks': [], 'verified': verified,
                'scope': 'implemented captured-build checks only; full authored scenario catalog remains pending'}
     try:
         with tempfile.TemporaryDirectory(prefix="oyzu-build-check-") as temporary:
             base = Path(temporary)
             for name, check in selected:
                 summary['activeCheck'] = name
-                check(ROOT, base, invoke, validate, source_files, verified)
-                summary['completedChecks'].append(name)
+                try:
+                    check(ROOT, base, invoke, validate, source_files, verified)
+                except Exception as error:
+                    # Each registered group owns its fixture directories. Keep
+                    # failures visible without hiding unrelated native results.
+                    summary['failedChecks'].append({'name': name, 'error': str(error),
+                                                   'traceback': traceback.format_exc()})
+                    traceback.print_exc()
+                else:
+                    summary['completedChecks'].append(name)
             summary.pop('activeCheck', None)
-            summary['status'] = 'succeeded'
+            summary['status'] = 'failed' if summary['failedChecks'] else 'succeeded'
     finally:
         if evidence:
             (evidence/'summary.json').write_text(json.dumps(summary,indent=2))
         print(json.dumps(summary,indent=2))
+    if summary['failedChecks']:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

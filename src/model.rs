@@ -34,12 +34,27 @@ impl Task {
 pub struct Target {
     pub name: String,
     pub builder: String,
+    #[serde(default)]
+    pub builder_selection: BuilderSelection,
     pub manager: String,
     pub path: PathBuf,
     pub version: String,
+    /// Concrete build axes after expansion; discovery leaves these empty.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub variant: BTreeMap<String, String>,
     pub tasks: BTreeMap<String, Task>,
     #[serde(default)]
     pub discovery: BTreeMap<String, crate::discovery::Resolution>,
+}
+
+/// Whether a target's builder is selected by project intent or inferred from
+/// native files. Adapters may use explicit intent to resolve output ambiguity.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BuilderSelection {
+    #[default]
+    Inferred,
+    Explicit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -48,9 +63,46 @@ pub struct Workspace {
     pub targets: BTreeMap<String, Target>,
     pub tasks: BTreeMap<String, Task>,
     #[serde(skip)]
+    pub(crate) declarations: crate::config::BuildInventory,
+    /// Build-only stage aliases preserve single-project root task overrides
+    /// without replacing explicitly qualified task identities during expansion.
+    #[serde(skip)]
+    pub(crate) build_root_overrides: BTreeMap<String, String>,
+    /// An inferred family's standalone instance can lack a unique artifact
+    /// binding even when its explicit platform instances are valid. Selection
+    /// and planning must reject that instance before preparation/execution.
+    #[serde(skip)]
+    pub(crate) build_variant_errors: BTreeMap<String, String>,
+    #[serde(skip)]
     pub configuration: BTreeMap<String, crate::config::resolve::EffectiveConfig>,
     #[serde(skip)]
     pub root_configuration: Option<crate::config::resolve::EffectiveConfig>,
+}
+
+impl Workspace {
+    /// Build consumers require the snapshot produced by discovery. Missing
+    /// snapshots must not turn into defaults or bypass administrative checks.
+    /// Serialized discovery output deliberately cannot reconstruct this state.
+    pub(crate) fn target_configuration(
+        &self,
+        target: &str,
+    ) -> anyhow::Result<&crate::config::resolve::EffectiveConfig> {
+        self.configuration.get(target).ok_or_else(|| {
+            anyhow::anyhow!(
+                "CONFIG_INVALID_VALUE: {target}: missing resolved target configuration; rediscover the workspace"
+            )
+        })
+    }
+
+    pub(crate) fn invocation_configuration(
+        &self,
+    ) -> anyhow::Result<&crate::config::resolve::EffectiveConfig> {
+        self.root_configuration.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "CONFIG_INVALID_VALUE: missing resolved invocation configuration; rediscover the workspace"
+            )
+        })
+    }
 }
 
 fn redact_environment<S: serde::Serializer>(

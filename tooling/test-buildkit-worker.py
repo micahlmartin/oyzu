@@ -185,7 +185,7 @@ def main():
             (project/'Dockerfile').write_text('ARG BASE=oyzu-fixture/alpine:${TARGETARCH}\nFROM ${BASE}\nCOPY probe /probe\nRUN '+json.dumps(['/probe',str(secret)],separators=(', ', ': '))+'\n')
             native = []
             for index in range(2):
-                result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'--root',str(project),'build'],
+                result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'--root',str(project),'--json','build'],
                                         env={**os.environ,'OYZU_BUILDKIT_APPARMOR_PROFILE':args.apparmor_profile},
                                         capture_output=True,text=True,timeout=300)
                 (evidence/f'base-{index}.stdout').write_text(result.stdout)

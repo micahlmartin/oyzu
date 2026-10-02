@@ -35,6 +35,20 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     {
         anyhow::bail!("Docker image inputs do not match captured native requirements");
     }
+    let captured: Option<crate::dependencies::context::Captured> = data
+        .get("dependencyContext")
+        .map(|v| serde_json::from_value(v.clone()))
+        .transpose()?;
+    match (metadata.dependency_base()?, &captured) {
+        (Some(base), Some(captured)) => captured.validate(
+            &base,
+            &images,
+            &serde_json::from_value(platform.clone())?,
+            &context.source.digest,
+        )?,
+        (None, None) => {}
+        _ => anyhow::bail!("Docker dependency context does not match native requirements"),
+    }
     let id = &context.target.name;
     let version = semver_snapshot(context.target, context.source);
     let filename = format!("{id}-{version}.oci.tar");
@@ -50,6 +64,14 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             ],
         ),
     );
+    plan.target_platform = Some(serde_json::from_value(platform.clone())?);
+    plan.execution_platform = Some(serde_json::from_value(
+        dependency.record["manager"]["platform"].clone(),
+    )?);
+    metadata.validate_execution(
+        plan.execution_platform.as_ref().unwrap(),
+        plan.target_platform.as_ref().unwrap(),
+    )?;
     let mut selected = metadata.context.files.clone();
     selected.push("Dockerfile".into());
     if let Some(ignore_file) = &metadata.context.ignore_file {
@@ -81,6 +103,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             .as_str()
             .context("missing captured Dockerfile identity")?
             .into(),
+        generated_recipe: None,
+        dependency_context: captured.map(|c| Box::new(c.binding)),
         images,
     };
     plan.tasks.insert("build".into(), build);

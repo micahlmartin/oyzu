@@ -6,6 +6,7 @@ The same helper provides offline install/build/report operations after freeze.
 """
 import email
 import functools
+import hashlib
 import importlib.util
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -30,9 +31,9 @@ def project():
     return tomllib.loads(path.read_text()) if path.exists() else {}
 
 
-def requirement_lines(locked=()):
+def requirement_lines(locked=(), runtime_only=False):
     """Keep native requirement constraints/hashes; disallow source-route overrides."""
-    data = project()
+    data = {} if runtime_only else project()
     from pip._vendor.packaging.requirements import Requirement
     inputs = []
     purposes = {}
@@ -46,7 +47,7 @@ def requirement_lines(locked=()):
             purposes[name] = purpose
     for item in data.get('project',{}).get('dependencies',[]):
         add(item,'runtime')
-    package_project = Path('pyproject.toml').exists() or Path('setup.py').exists() or Path('setup.cfg').exists()
+    package_project = not runtime_only and (Path('pyproject.toml').exists() or Path('setup.py').exists() or Path('setup.cfg').exists())
     for item in data.get('build-system',{}).get('requires',['setuptools==80.9.0','wheel==0.45.1'] if package_project else []):
         add(item,'build')
     # Native pytest discovers tests at execution, including configured/root paths.
@@ -70,12 +71,12 @@ def requirement_lines(locked=()):
             add(declaration,'runtime')
         # Native pip independently validates source-owned hashes in a second pass.
     locked_names = {re.sub(r'[-_.]+', '-', Requirement(item).name).lower() for item in locked}
-    for item in defaults:
+    for item in ([] if runtime_only else defaults):
         name = re.sub(r'[-_.]+', '-', Requirement(item).name).lower()
         if name not in purposes and name not in locked_names:
             add(item, 'test' if name.startswith('pytest') else 'build')
     quality = {'ruff': '0.11.13', 'black': '25.1.0', 'flake8': '7.3.0'}
-    selected = {os.environ.get('OYZU_PYTHON_LINTER', 'ruff'), os.environ.get('OYZU_PYTHON_FORMATTER', 'ruff')}
+    selected = set() if runtime_only else {os.environ.get('OYZU_PYTHON_LINTER', 'ruff'), os.environ.get('OYZU_PYTHON_FORMATTER', 'ruff')}
     if not selected <= quality.keys():
         raise ValueError('Unsupported Python quality tool selection')
     for name in sorted(selected):
@@ -144,7 +145,7 @@ class Bridge(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def locked_export(manager, destination):
+def locked_export(manager, destination, runtime_only=False):
     """Use native lock semantics without loading project-supplied plugins."""
     if manager=='uv':
         lock=tomllib.loads(Path('uv.lock').read_text())
@@ -152,7 +153,8 @@ def locked_export(manager, destination):
             registry=package.get('source',{}).get('registry')
             if registry and registry.rstrip('/')!='https://pypi.org/simple':
                 raise ValueError('uv lock references an unconfigured source')
-        run(['uv','export','--locked','--offline','--no-python-downloads','--no-managed-python','--python',sys.executable,'--no-emit-project','--format','requirements-txt','--output-file',str(destination)],stdout=subprocess.DEVNULL)
+        groups = ['--no-default-groups'] if runtime_only else []
+        run(['uv','export','--locked','--offline','--no-python-downloads','--no-managed-python','--python',sys.executable,'--no-emit-project','--format','requirements-txt','--output-file',str(destination),*groups],stdout=subprocess.DEVNULL)
     elif manager=='poetry':
         from cleo.io.null_io import NullIO
         from poetry.factory import Factory
@@ -165,17 +167,17 @@ def locked_export(manager, destination):
         poetry=Factory().create_poetry(Path.cwd(),disable_plugins=True,disable_cache=True)
         if not poetry.locker.is_locked() or not poetry.locker.is_fresh():
             raise ValueError('Poetry lock is missing or stale; update it with poetry lock')
-        groups=poetry.package.dependency_group_names(include_optional=False)
+        groups=['main'] if runtime_only else poetry.package.dependency_group_names(include_optional=False)
         Exporter(poetry,NullIO()).only_groups(groups).with_urls(False).export('requirements.txt',destination.parent,destination.name)
 
 
-def acquire():
+def acquire(runtime_only=False):
     manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
     constraint_args=[]
     constraints=[]
     export=Path('/out')/(manager+'-export.txt')
     if manager in {'uv','poetry'}:
-        locked_export(manager,export)
+        locked_export(manager,export,runtime_only=runtime_only)
         from pip._vendor.packaging.requirements import Requirement
         for line in export.read_text().replace('\\\n',' ').splitlines():
             line=line.strip()
@@ -188,9 +190,14 @@ def acquire():
             constraints.append(declaration)
         Path('/out/constraints.txt').write_text('\n'.join(constraints)+'\n')
         constraint_args=['-c','/out/constraints.txt']
-    requirements,purposes=requirement_lines(constraints)
-    # Include native groups, including legacy Poetry requirements, as roots.
-    requirements.extend(constraints)
+    if runtime_only and manager in {'uv','poetry'}:
+        from pip._vendor.packaging.utils import canonicalize_name
+        requirements=list(constraints)
+        purposes={canonicalize_name(Requirement(item).name):'runtime' for item in constraints}
+    else:
+        requirements,purposes=requirement_lines(constraints, runtime_only=runtime_only)
+        # Include native groups, including legacy Poetry requirements, as roots.
+        requirements.extend(constraints)
     server=ThreadingHTTPServer(('127.0.0.1',0),Bridge)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     index='http://127.0.0.1:'+str(server.server_port)+'/index/'
@@ -198,13 +205,32 @@ def acquire():
     # The bridge waits up to 55s for the broker (whose upstream timeout is 45s).
     # pip's 15s default otherwise abandons healthy in-flight work and queues retries.
     args=[sys.executable,'-I','-m','pip','--isolated','download','--timeout','120','--retries','2','--only-binary=:all:','--no-cache-dir','--disable-pip-version-check','--dest','/out/wheels','--index-url',index,'--trusted-host','127.0.0.1']
-    run(args+constraint_args+requirements)
+    if requirements:
+        run(args+constraint_args+requirements)
     if manager in {'uv','poetry'}:
         run(args+['--no-deps','--require-hashes','-r',str(export)])
-    if Path('requirements.txt').exists():
+    if Path('requirements.txt').exists() and (not runtime_only or manager=='pip'):
         run(args+['--no-deps','-r','requirements.txt'])
     server.shutdown()
     inventory(purposes,requirements)
+    if runtime_only:
+        write_install_manifest(Path('/out'))
+
+
+def write_install_manifest(destination):
+    """Pin the resolved native wheel closure for an offline hash-checked install.
+
+    Resolution, marker evaluation and lock validation have already completed;
+    this does not resolve dependencies or reinterpret the source lock.
+    """
+    store=destination/'wheels'
+    lines=[]
+    for wheel in sorted(store.glob('*.whl')):
+        metadata=wheel_metadata(wheel)
+        with wheel.open('rb') as source:
+            checksum=hashlib.file_digest(source, 'sha256').hexdigest()
+        lines.append(f'{metadata["Name"]}=={metadata["Version"]} --hash=sha256:{checksum}')
+    (store/'requirements.txt').write_text('\n'.join(lines)+'\n', encoding='utf-8', newline='\n')
 
 
 def wheel_metadata(path):
@@ -281,7 +307,7 @@ def inventory(purposes, roots, destination=Path('/out')):
         name = canonicalize_name(item.name)
         if purposes.get(name) == 'runtime' and (item.marker is None or item.marker.evaluate()):
             runtime_roots.add(packages[name]['id'])
-    (destination/'packages.json').write_text(json.dumps({'packages':list(packages.values()),'runtimeRoots':sorted(runtime_roots),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
+    (destination/'packages.json').write_text(json.dumps({'packages':list(packages.values()),'runtimeRoots':sorted(runtime_roots),'python':sys.version.split()[0],'implementation':sys.implementation.name,'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
 
 
 def prepare():
@@ -358,6 +384,8 @@ def package():
 if __name__=='__main__':
     if sys.argv[1]=='acquire':
         acquire()
+    elif sys.argv[1]=='acquire-runtime':
+        acquire(runtime_only=True)
     elif sys.argv[1]=='prepare':
         prepare()
     elif sys.argv[1]=='build':

@@ -5,7 +5,7 @@ import io
 from pathlib import Path
 import platform
 import tarfile
-import urllib.request
+from provisioning import download
 
 VERSION = '0.21.0'
 ASSETS = {
@@ -25,8 +25,7 @@ def main():
     key = platform.system(), platform.machine().lower()
     name, digest = ASSETS[key]
     url = f'https://github.com/google/yamlfmt/releases/download/v{VERSION}/yamlfmt_{VERSION}_{name}.tar.gz'
-    with urllib.request.urlopen(url, timeout=60) as response:
-        body = response.read(32*1024*1024+1)
+    body = download(url, 32*1024*1024)
     if len(body) > 32*1024*1024 or hashlib.sha256(body).hexdigest() != digest:
         raise ValueError('yamlfmt release archive failed its pinned digest/size check')
     args.destination.mkdir(parents=True, exist_ok=True)

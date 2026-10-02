@@ -10,12 +10,13 @@ pub(crate) struct Candidate {
 pub(crate) struct Inventory {
     pub targets: Vec<Candidate>,
     pub diagnostics: Vec<config::sources::Diagnostic>,
+    pub declarations: config::BuildInventory,
 }
 pub(crate) fn select(root: &Path) -> Result<Inventory> {
     let mut targets = Vec::new();
-    let (configured, diagnostics) = config::targets_with_diagnostics(root)?;
-    if let Some(configs) = configured {
-        for (name, config) in configs {
+    let (declarations, diagnostics) = config::capture_targets(root)?;
+    if declarations.source_digest.is_some() {
+        for (name, config) in &declarations.targets {
             let builder = builders::get(&config.uses).map_err(|_| {
                 anyhow::anyhow!("CONFIG_INVALID_VALUE: target {name} names an unregistered builder")
             })?;
@@ -28,9 +29,9 @@ pub(crate) fn select(root: &Path) -> Result<Inventory> {
             }
             let dir = config::contained(root, config.path.as_deref().unwrap_or(Path::new(".")))?;
             targets.push(Candidate {
-                name,
+                name: name.clone(),
                 path: dir,
-                builder: Some(config.uses),
+                builder: Some(config.uses.clone()),
             });
         }
     } else {
@@ -109,5 +110,6 @@ pub(crate) fn select(root: &Path) -> Result<Inventory> {
     Ok(Inventory {
         targets,
         diagnostics,
+        declarations,
     })
 }

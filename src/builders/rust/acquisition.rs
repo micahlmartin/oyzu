@@ -21,12 +21,17 @@ struct LockedPackage {
     checksum: Option<String>,
 }
 
-pub(super) fn capture(lock: &Path, destination: &Path) -> Result<Vec<Value>> {
+pub(super) fn capture(
+    lock: &Path,
+    destination: &Path,
+    log: &crate::logging::Log,
+) -> Result<Vec<Value>> {
     let mut fetcher = broker::Fetcher::new(vec![
         broker::Source::new("cargo-index", "https://index.crates.io/", None)?,
         broker::Source::new("cargo-archives", "https://static.crates.io/crates/", None)?,
     ])?;
     capture_with(lock, destination, |url| {
+        log.progress(&format!("Acquiring {}", url));
         let response = fetcher.fetch(url)?;
         if response.status != 200 {
             bail!("Cargo approved source returned HTTP {}", response.status);

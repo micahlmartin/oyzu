@@ -1,15 +1,18 @@
 pub mod broker;
 pub mod build;
 mod builders;
+mod bundle_store;
 pub mod config;
 mod dependencies;
 pub mod discovery;
 pub mod executor;
 pub mod invocation;
 mod launch;
+pub mod logging;
 pub mod model;
 mod names;
 mod oci;
+mod platform;
 pub mod records;
 pub mod reports;
 pub mod snapshot;

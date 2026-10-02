@@ -3,7 +3,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import platform
-import urllib.request
+from provisioning import download
 
 VERSION = '2.15.1'
 MAX_ASSET_BYTES = 128 * 1024 * 1024
@@ -18,10 +18,7 @@ ASSETS = {
 def acquire(url, digest, destination):
     if destination.is_file() and hashlib.sha256(destination.read_bytes()).hexdigest() == digest:
         return
-    with urllib.request.urlopen(url, timeout=60) as response:
-        data = response.read(MAX_ASSET_BYTES + 1)
-    if len(data) > MAX_ASSET_BYTES:
-        raise ValueError('Provisioned asset exceeds the 128 MiB download limit')
+    data = download(url, MAX_ASSET_BYTES)
     if hashlib.sha256(data).hexdigest() != digest:
         raise ValueError('Provisioned asset did not match its pinned SHA-256')
     temporary = destination.with_suffix('.pending')

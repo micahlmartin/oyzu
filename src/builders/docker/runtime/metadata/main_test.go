@@ -61,6 +61,22 @@ func TestExternalAndSensitiveRequirements(t *testing.T) {
 	}
 }
 
+func TestTargetExecutionRequirement(t *testing.T) {
+	for _, c := range []struct {
+		body     string
+		required bool
+	}{
+		{"FROM scratch\nCOPY file /file\n", false},
+		{"FROM scratch\nRUN [\"/app\"]\n", true},
+		{"FROM scratch AS build\nRUN [\"/app\"]\nFROM scratch\n", true},
+	} {
+		m, err := analyzeFixture([]byte(c.body))
+		if err != nil || m.TargetExecution != c.required {
+			t.Fatalf("target execution: %+v, %v", m, err)
+		}
+	}
+}
+
 func TestNativeParserRejectsUnknownOrMalformedInstructions(t *testing.T) {
 	for _, body := range []string{"FROM\n", "FROM scratch\nUNKNOWN anything\n", "FROM scratch\nRUN --mount=type=invalid,target=/tmp true\n", "FROM scratch\nRUN --network=hostile true\n", "# comment only\n"} {
 		if _, err := analyzeFixture([]byte(body)); err == nil {

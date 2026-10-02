@@ -79,7 +79,7 @@ pub(super) fn read(directory: &Path) -> Result<Vec<Build>> {
             }
             for archive in &project.archives {
                 contained(&archive.file, false)?;
-                if archive.version.is_empty() || !archive.task.starts_with(':') {
+                if !archive.task.starts_with(':') {
                     bail!("missing native Gradle archive identity");
                 }
             }

@@ -8,7 +8,43 @@ use serde_json::json;
 use std::fs;
 
 fn metadata() -> serde_json::Value {
-    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}})
+    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","targetExecution":false,"stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}})
+}
+
+#[test]
+fn dependency_context_resolves_stage_runtime_without_becoming_a_remote_image() {
+    let mut native = metadata();
+    native["stages"] =
+        json!([{"name":"base","base":"python:3.13-slim"}, {"name":"app","base":"base"}]);
+    native["requirements"] = json!([
+        {"kind":"image","reference":"python:3.13-slim","stage":0,"line":1},
+        {"kind":"image-or-context","reference":"dependencies","stage":1,"line":3}
+    ]);
+    let parsed: metadata::Metadata = serde_json::from_value(native.clone()).unwrap();
+    assert_eq!(parsed.image_references().unwrap(), ["python:3.13-slim"]);
+    assert_eq!(
+        parsed.dependency_base().unwrap().as_deref(),
+        Some("python:3.13-slim")
+    );
+    native["stages"][1]["base"] = json!("alpine:3.22");
+    native["requirements"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"kind":"image-or-context","reference":"dependencies","stage":0,"line":2}));
+    assert!(serde_json::from_value::<metadata::Metadata>(native.clone())
+        .unwrap()
+        .dependency_base()
+        .is_err());
+    native["stages"][1]["base"] = json!("scratch");
+    assert!(serde_json::from_value::<metadata::Metadata>(native.clone())
+        .unwrap()
+        .dependency_base()
+        .is_err());
+    native["requirements"][1]["stage"] = json!(99);
+    assert!(serde_json::from_value::<metadata::Metadata>(native)
+        .unwrap()
+        .dependency_base()
+        .is_err());
 }
 
 #[test]
@@ -25,6 +61,9 @@ fn native_selection_facts_must_match_execution() {
     }
     let mut old = metadata();
     old.as_object_mut().unwrap().remove("selection");
+    assert!(serde_json::from_value::<super::metadata::Metadata>(old).is_err());
+    let mut old = metadata();
+    old.as_object_mut().unwrap().remove("targetExecution");
     assert!(serde_json::from_value::<super::metadata::Metadata>(old).is_err());
 }
 
@@ -68,7 +107,7 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
     let prepared = Prepared {
         root: capture.path().into(),
         digest: format!("sha256:{}", "1".repeat(64)),
-        record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
+        record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
     };
     let plan = Docker
         .plan(PlanningContext {
@@ -161,7 +200,7 @@ fn external_images_require_captured_bindings_and_use_native_offline_contexts() {
     let mut prepared = Prepared {
         root: control.path().into(),
         digest: format!("sha256:{}", "0".repeat(64)),
-        record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
+        record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
     };
     assert!(Docker
         .plan(PlanningContext {
@@ -190,6 +229,26 @@ fn external_images_require_captured_bindings_and_use_native_offline_contexts() {
             "1".repeat(64)
         )));
     assert!(argv.iter().any(|arg| arg == "force-network-mode=none"));
+    // An external dependency name is never silently treated as an image, nor
+    // admitted without a captured store matching this source and native base.
+    let original = prepared.record.clone();
+    let data = &mut prepared.record["extensions"]["oyzu.dev/docker"];
+    data["metadata"]["stages"][0]["base"] = json!("alpine:3.22");
+    data["metadata"]["requirements"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"kind":"image-or-context","reference":"dependencies","stage":0,"line":2}));
+    assert!(Docker
+        .plan(PlanningContext {
+            target,
+            source: &source,
+            dependencies: Some(&prepared)
+        })
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("does not match native requirements"));
+    prepared.record = original;
     prepared.record["extensions"]["oyzu.dev/docker"]["images"][0]["reference"] =
         json!("unrelated:1");
     assert!(Docker

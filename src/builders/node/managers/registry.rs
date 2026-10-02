@@ -5,21 +5,45 @@ use anyhow::{ensure, Context, Result};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
+pub(super) enum Acquisition {
+    Build,
+    /// Ask the native adapter to export its credential-free consumer layout,
+    /// only after the same frozen-lock validation used by application builds.
+    DependencyContext,
+}
+
+impl Acquisition {
+    fn command(&self) -> &'static str {
+        match self {
+            Self::Build => "acquire",
+            Self::DependencyContext => "acquire-context",
+        }
+    }
+}
+
+/// Manager identity comes from the selected adapter, never from the consumer
+/// target (which can be a Docker image rather than a Node application).
 pub(super) fn prepare(
     context: PreparationContext<'_>,
+    manager: &str,
     runtime: &str,
     lock: &str,
+    acquisition: Acquisition,
     sources: Vec<broker::Source>,
 ) -> Result<Option<Prepared>> {
     let tree = crate::dependencies::preparation::capture(
         &context,
         super::super::RUNTIME,
-        &["node".into(), format!("/oyzu/{runtime}"), "acquire".into()],
-        &BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]),
+        &[
+            "node".into(),
+            format!("/oyzu/{runtime}"),
+            acquisition.command().into(),
+        ],
+        &super::super::toolchain::preparation_environment(context.target)?,
         sources,
     )?;
-    let manager = &context.target.manager;
     let inventory = records::read(&context.destination.join("inventory.json"))?;
+    super::super::toolchain::verify(context.target, inventory["nodeVersion"].as_str())?;
     ensure!(
         inventory["layoutVersion"] == 2,
         "unsupported native registry capture layout"
@@ -31,11 +55,13 @@ pub(super) fn prepare(
             "size":p["size"], "purpose":"build", "dependencies":[], "verification":"digest-only"
         })).collect();
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
+    let workspaces =
+        crate::builders::node::workspace::model::Metadata::read(inventory["workspaces"].clone())?;
     let extensions = BTreeMap::from([(
         format!("oyzu.dev/{manager}"),
         json!({
             "nodeVersion":inventory["nodeVersion"], "inventory":"all-locked-registry-tarballs",
-            "integrity":"lockfile-sha512", "dependencyEdges":"not-modeled", "purposeClassification":"build-inputs"
+            "integrity":"lockfile-sha512", "dependencyEdges":"not-modeled", "purposeClassification":"build-inputs", "workspaces":workspaces
         }),
     )]);
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",

@@ -15,6 +15,25 @@ spec.loader.exec_module(adapter)
 
 
 class WheelMetadataTests(unittest.TestCase):
+    def test_dependency_context_uses_only_requirements_and_keeps_source_guards(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            try:
+                os.chdir(temporary)
+                Path('requirements.txt').write_text('six==1.17.0\n')
+                Path('pyproject.toml').write_text('[project]\ndependencies=["unrelated==1"]\n')
+                requirements, purposes = adapter.requirement_lines(runtime_only=True)
+                self.assertEqual(requirements, ['six==1.17.0'])
+                self.assertEqual(purposes, {'six':'runtime'})
+                for declaration in ['--index-url https://unapproved.invalid\nsix==1.17.0', 'six @ https://unapproved.invalid/six.whl']:
+                    Path('requirements.txt').write_text(declaration)
+                    with self.assertRaises(ValueError):
+                        adapter.requirement_lines(runtime_only=True)
+                Path('requirements.txt').write_text('')
+                self.assertEqual(adapter.requirement_lines(runtime_only=True), ([], {}))
+            finally:
+                os.chdir(previous)
+
     def test_quality_defaults_preserve_declared_and_locked_versions(self):
         previous = Path.cwd()
         with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {'OYZU_PYTHON_LINTER':'flake8', 'OYZU_PYTHON_FORMATTER':'black'}):

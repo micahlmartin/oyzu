@@ -23,6 +23,11 @@ function entrypoint() {
 
 const cli = entrypoint();
 export const nativeRequire = createRequire(cli);
+// Host scripts retain native configuration and lifecycle behavior. Resolve the
+// JavaScript entrypoint so Windows does not need to spawn a .cmd shim or shell.
+export function npmScriptCommand(args) {
+  return [process.execPath, cli, ...args];
+}
 export function npmCommand(args, cache) {
   return [process.execPath, cli, '--offline', '--audit=false', '--fund=false',
     '--update-notifier=false', '--engine-strict=true', '--force=false', '--cache', cache,

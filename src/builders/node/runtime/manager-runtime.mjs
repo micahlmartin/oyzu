@@ -3,10 +3,14 @@ import {spawn} from 'node:child_process';
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {verifyNodeVersion} from './node-runtime.mjs';
 
 export async function run(profile) {
-  const [mode, output = mode === 'acquire' ? '/out' : '/dependencies', workspace = '/workspace', broker = '/broker'] = process.argv.slice(2);
-  if (!['acquire', 'install'].includes(mode)) throw new Error('expected acquire or install');
+  const [operation, output = operation === 'install' ? '/dependencies' : '/out', workspace = '/workspace', broker = '/broker'] = process.argv.slice(2);
+  if (!['acquire', 'acquire-context', 'install'].includes(operation)) throw new Error('expected acquire, acquire-context or install');
+  if (operation === 'acquire-context' && !profile.exportStore) throw new Error('native manager has no dependency-context store export');
+  const mode = operation === 'acquire-context' ? 'acquire' : operation;
+  verifyNodeVersion();
   const temporary = mkdtempSync(join(tmpdir(), `oyzu-${profile.id}-`));
   const environment = {...process.env, HOME:join(temporary,'home'), USERPROFILE:join(temporary,'home'),
     XDG_CONFIG_HOME:join(temporary,'config'), XDG_DATA_HOME:join(temporary,'data'),
@@ -47,6 +51,9 @@ export async function run(profile) {
     if (profile.perform) Object.assign(inventory, await profile.perform({mode, output, workspace, broker, temporary, environment, execute, captured}));
     else await execute(profile.install(mode, temporary));
     if (!readFileSync(join(workspace,profile.lock)).equals(originalLock)) throw new Error('native manager rewrote the frozen lockfile');
+    // Store export happens only after native validation succeeds. Managers own
+    // layout; the lifecycle never exposes its temporary cache/configuration.
+    if (operation === 'acquire-context') await profile.exportStore({output, inventory, temporary});
     if (mode === 'acquire') writeFileSync(join(output,'inventory.json'), JSON.stringify(inventory,null,2)+'\n');
   } finally { rmSync(temporary,{recursive:true,force:true}); }
 }

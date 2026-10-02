@@ -1,7 +1,7 @@
 //! Requirements-only applications retain application identity, never wheel metadata.
 use crate::builders::{
     semver_snapshot, ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext,
-    ReportFormat, ReportSpec, TaskPlan,
+    TaskPlan,
 };
 use anyhow::{bail, Result};
 use std::path::Path;
@@ -57,22 +57,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         &format!("/out/{id}/reports/junit.xml"),
         &format!("/out/{id}/reports/coverage.xml"),
     ]);
-    test.reports = vec![
-        ReportSpec {
-            format: ReportFormat::Junit,
-            filename: "junit.xml",
-            source: crate::reports::ReportSource::File,
-            name: None,
-            input: None,
-        },
-        ReportSpec {
-            format: ReportFormat::Cobertura,
-            filename: "coverage.xml",
-            source: crate::reports::ReportSource::File,
-            name: None,
-            input: None,
-        },
-    ];
+    test.reports = super::testing::reports();
     plan.tasks.insert("test".into(), test);
     super::quality::plan(context.target, &mut plan);
     plan.artifacts.push(ArtifactSpec {

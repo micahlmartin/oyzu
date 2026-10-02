@@ -43,12 +43,19 @@ const RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/AntReports.java"),
     },
     RuntimeFile {
-        name: "ant-test.sh",
-        contents: include_str!("runtime/testing.sh"),
+        name: "ant-test.py",
+        contents: include_str!("runtime/testing.py"),
     },
 ];
 
 impl Builder for Ant {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        Ok(reporting::development(target, task))
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/ant:1.10.18-jdk17")
     }
@@ -109,6 +116,13 @@ impl Builder for Ant {
                     ),
                 );
             }
+        }
+
+        // Expose the conventional test slot even when a project uses custom
+        // names. An explicit replacement can select that native target; without
+        // one, Ant reports the missing conventional target honestly.
+        if !target.tasks.contains_key("test") {
+            insert(target, "test", &["ant", "test"], true);
         }
 
         if !target.tasks.contains_key("build") {

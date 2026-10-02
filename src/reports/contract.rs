@@ -46,6 +46,35 @@ pub struct Declaration {
     pub path: String,
 }
 
+/// A mandatory report obligation in a frozen plan. Native tasks, explicit
+/// report declarations and derived packaging actions share this wire contract.
+/// Keep all required schema fields together rather than assembling partial JSON.
+#[derive(Serialize)]
+pub(crate) struct Intent {
+    id: String,
+    kind: &'static str,
+    format: Format,
+    required: bool,
+    subject: String,
+}
+
+impl Intent {
+    /// The semantic check fulfilled by this obligation, for invocation policy.
+    pub(crate) fn kind(&self) -> &'static str {
+        self.kind
+    }
+
+    pub(crate) fn required(id: impl Into<String>, subject: &str, format: Format) -> Self {
+        Self {
+            id: id.into(),
+            kind: format.kind(),
+            format,
+            required: true,
+            subject: subject.into(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum Root {
@@ -108,6 +137,39 @@ pub(crate) fn validate_declarations(reports: &[Declaration]) -> Result<()> {
 
 /// No symlink traversal. Deterministic ordering and bounded discovery precede reads.
 pub(crate) fn matches(root: &Path, value: &str) -> Result<Vec<String>> {
+    select(root, value, true)
+}
+
+/// Direct host tasks must not consume reports left by an earlier invocation.
+/// Missing literal prefixes are fresh; existing links or discovery errors fail.
+pub(crate) fn ensure_fresh(root: &Path, value: &str) -> Result<()> {
+    pattern(value)?;
+    let mut path = root.to_path_buf();
+    for part in value.split('/').take_while(|p| !p.contains(['*', '?'])) {
+        path.push(part);
+        match std::fs::symlink_metadata(&path) {
+            Ok(metadata) => {
+                let redirected = metadata.file_type().is_symlink();
+                #[cfg(windows)]
+                let redirected = {
+                    use std::os::windows::fs::MetadataExt;
+                    redirected || metadata.file_attributes() & 0x400 != 0
+                };
+                if redirected {
+                    bail!("unsafe existing report path");
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(error.into()),
+        }
+    }
+    if !value.contains(['*', '?']) || !select(root, value, false)?.is_empty() {
+        bail!("declared report already exists; preserve or remove it before running tests so stale evidence cannot satisfy this invocation");
+    }
+    Ok(())
+}
+
+fn select(root: &Path, value: &str, required: bool) -> Result<Vec<String>> {
     let matcher = pattern(value)?;
     if !value.contains(['*', '?']) {
         return Ok(vec![value.into()]);
@@ -156,8 +218,60 @@ pub(crate) fn matches(root: &Path, value: &str) -> Result<Vec<String>> {
         }
     }
     found.sort();
-    if found.is_empty() {
+    if required && found.is_empty() {
         bail!("report glob matched no files: {value}");
     }
     Ok(found)
+}
+
+#[cfg(test)]
+mod freshness_tests {
+    use super::*;
+
+    #[test]
+    fn report_intents_satisfy_required_plan_schema_fields() {
+        let schema: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/contracts/v1alpha1/plan.schema.json"
+        ))
+        .unwrap();
+        let contract = &schema["$defs"]["reportIntent"];
+        for (format, kind) in [
+            (Format::Junit, "test"),
+            (Format::Cobertura, "coverage"),
+            (Format::Lcov, "coverage"),
+            (Format::GoCover, "coverage"),
+            (Format::Jacoco, "coverage"),
+        ] {
+            let value = serde_json::to_value(Intent::required(
+                "api-container/tests",
+                "api-container",
+                format,
+            ))
+            .unwrap();
+            for key in contract["required"].as_array().unwrap() {
+                assert!(value.get(key.as_str().unwrap()).is_some(), "missing {key}");
+            }
+            for key in value.as_object().unwrap().keys() {
+                assert!(contract["properties"].get(key).is_some(), "unknown {key}");
+            }
+            assert_eq!(value["subject"], "api-container");
+            assert_eq!(value["required"], true);
+            assert_eq!(value["kind"], kind);
+        }
+    }
+
+    #[test]
+    fn stale_literals_and_globs_fail_but_missing_prefixes_and_empty_globs_are_fresh() {
+        let root = tempfile::tempdir().unwrap();
+        for path in ["reports/test.xml", "reports/**/*.xml"] {
+            ensure_fresh(root.path(), path).unwrap();
+        }
+        std::fs::create_dir(root.path().join("reports")).unwrap();
+        ensure_fresh(root.path(), "reports/**/*.xml").unwrap();
+        std::fs::write(root.path().join("reports/test.xml"), "stale").unwrap();
+        assert!(ensure_fresh(root.path(), "reports/test.xml").is_err());
+        assert!(ensure_fresh(root.path(), "reports/**/*.xml").is_err());
+        assert!(ensure_fresh(root.path(), "../outside.xml").is_err());
+        ensure_fresh(root.path(), "reports/new.xml").unwrap();
+    }
 }

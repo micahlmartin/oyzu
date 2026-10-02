@@ -1,7 +1,9 @@
 """Bind native Cargo compiler artifacts to a prepared binary inventory.
 
-Preparation supplies schemaVersion=1 and ordered binaries[{packageId, name}].
-Cargo IDs are opaque and are matched without parsing. Only successful native
+Preparation supplies schemaVersion=2 and ordered binaries[{manifestPath, name}].
+Manifest paths are relative to the captured target, so native Cargo identities
+can relocate with nested target workspaces. Legacy schemaVersion=1 uses opaque
+package IDs without parsing them. Only successful native
 compiler messages can populate CARGO_TARGET_DIR/oyzu-binaries/<inventory-index>;
 the shared planner owns final filenames and post-gate artifact collection.
 """
@@ -41,11 +43,14 @@ def build(intent, argv):
     if len(data) > 4 * 1024 * 1024:
         raise ValueError('Cargo binary inventory exceeds 4 MiB')
     data = json.loads(data)
-    if data.get('schemaVersion') != 1 or not isinstance(data.get('binaries'), list):
+    if data.get('schemaVersion') not in [1, 2] or not isinstance(data.get('binaries'), list):
         raise ValueError('Unsupported Cargo binary inventory')
     expected = []
     for item in data['binaries']:
-        key = item['packageId'], item['name']
+        identity = item['manifestPath'] if data['schemaVersion'] == 2 else item['packageId']
+        if data['schemaVersion'] == 2 and (Path(identity).is_absolute() or '..' in Path(identity).parts):
+            raise ValueError('Cargo binary manifest must be inside its target')
+        key = identity, item['name']
         if not all(isinstance(value, str) and value for value in key) or key in expected:
             raise ValueError('Invalid or duplicate Cargo binary identity')
         expected.append(key)
@@ -75,7 +80,10 @@ def build(intent, argv):
             target = event.get('target', {})
             if 'bin' not in target.get('kind', []) or event.get('profile', {}).get('test') is not False:
                 continue
-            key = event.get('package_id'), target.get('name')
+            identity = event.get('package_id')
+            if data['schemaVersion'] == 2:
+                identity = Path(event['manifest_path']).resolve().relative_to(root).as_posix()
+            key = identity, target.get('name')
             if key not in expected:
                 raise ValueError(f'Cargo produced an unplanned binary: {key}')
             path = event.get('executable')

@@ -1,7 +1,6 @@
 mod configuration;
 use crate::builders::task::insert;
 use crate::builders::task::unavailable;
-mod images;
 mod metadata;
 mod planning;
 mod preparation;
@@ -20,6 +19,8 @@ impl Builder for Docker {
         configuration::register(registry)
     }
     fn acquisition_requires_network(&self) -> bool {
+        // Captured bases are local. Optional package stores are separately
+        // admitted by dependencies::context before their broker is started.
         false
     }
     fn executor_profile(&self) -> crate::executor::Profile {
@@ -27,6 +28,25 @@ impl Builder for Docker {
     }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/docker:buildkit0.25.0")
+    }
+    fn execution_platform(
+        &self,
+        _requested: Option<&str>,
+    ) -> Result<Option<crate::platform::Platform>> {
+        // The assembly worker need not execute target code. Preparation checks
+        // native RUN requirements before admitting actions.
+        Ok(None)
+    }
+    fn target_platform(
+        &self,
+        requested: Option<&str>,
+        image: &crate::executor::Image,
+    ) -> Result<crate::platform::Platform> {
+        let target = crate::platform::Platform::requested(requested, &image.platform()?)?;
+        if target.os() != "linux" || !matches!(target.arch(), "amd64" | "arm64") {
+            anyhow::bail!("Docker target platform {target} is not supported; expected linux/amd64 or linux/arm64");
+        }
+        Ok(target)
     }
     fn prepare(
         &self,

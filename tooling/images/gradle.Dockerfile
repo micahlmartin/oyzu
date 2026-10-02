@@ -10,6 +10,7 @@ ENV GRADLE_HOME=/opt/gradle-8.14.3
 ENV PATH=/opt/gradle-8.14.3/bin:$PATH
 
 COPY tooling/provision-java-quality.py /tmp/oyzu-provision/tooling/provision-java-quality.py
+COPY tooling/provisioning.py /tmp/oyzu-provision/tooling/provisioning.py
 COPY src/builders/java/runtime /tmp/oyzu-provision/src/builders/java/runtime
 RUN python3 /tmp/oyzu-provision/tooling/provision-java-quality.py --destination /opt/oyzu-java-quality \
     && chmod -R a+rX /opt/oyzu-java-quality \

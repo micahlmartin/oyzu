@@ -7,6 +7,77 @@ use serde_json::json;
 use std::{collections::BTreeMap, fs};
 
 #[test]
+fn native_workspaces_plan_every_member_and_required_stage_from_captured_facts() {
+    for manager in ["yarn", "pnpm"] {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("package.json"),
+            r#"{"name":"root","version":"0.1.0","private":true,"workspaces":["packages/*"]}"#,
+        )
+        .unwrap();
+        if manager == "yarn" {
+            fs::write(root.path().join("yarn.lock"), "# yarn lockfile v1\n").unwrap();
+        } else {
+            fs::write(
+                root.path().join("package.json"),
+                r#"{"name":"root","version":"0.1.0","private":true}"#,
+            )
+            .unwrap();
+            fs::write(
+                root.path().join("pnpm-workspace.yaml"),
+                "packages: ['packages/*']\n",
+            )
+            .unwrap();
+            fs::write(root.path().join("pnpm-lock.yaml"), "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  packages/app: {}\n  packages/shared: {}\n").unwrap();
+        }
+        let mut members = Vec::new();
+        for name in ["app", "shared"] {
+            let path = format!("packages/{name}");
+            fs::create_dir_all(root.path().join(&path)).unwrap();
+            fs::write(
+                root.path().join(&path).join("package.json"),
+                json!({"name":name,"version":"0.1.0","scripts":{"test":"node --test"}}).to_string(),
+            )
+            .unwrap();
+            members.push(json!({"name":name,"path":path,"version":"0.1.0","private":false,"scripts":{"test":"node --test"},"dependencies":if name=="app" {vec![json!({"name":"shared","target":"shared","kind":"prod","spec":"0.1.0"})]} else {vec![]}}));
+        }
+        let captured = tempfile::tempdir().unwrap();
+        let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+        let workspace = discovery::discover(&captured.path().join("source")).unwrap();
+        let target = &workspace.targets["project"];
+        assert!(target.tasks["build"].build_stage);
+        let prepared = Prepared {
+            root: captured.path().into(),
+            digest: "sha256:prepared".into(),
+            record: json!({"extensions":{format!("oyzu.dev/{manager}"):{"workspaces":{"schemaVersion":1,"members":members}}}}),
+        };
+        let plan = super::super::Node
+            .plan(PlanningContext {
+                target,
+                source: &source,
+                dependencies: Some(&prepared),
+            })
+            .unwrap();
+        plan.validate().unwrap();
+        assert_eq!(plan.artifacts.len(), 2);
+        assert!(plan
+            .artifacts
+            .iter()
+            .all(|a| a.version.as_ref().unwrap().contains("-dev.g")));
+        assert_eq!(plan.tasks["test"].reports.len(), 4);
+        for stage in ["build", "test", "lint", "format-check"] {
+            assert!(plan.tasks.contains_key(stage));
+        }
+        assert_eq!(plan.prepare[0].argv[2], "project");
+        assert_eq!(plan.prepare[1].argv[1], format!("/oyzu/{manager}.mjs"));
+        assert_eq!(
+            plan.package.argv[1],
+            format!("/oyzu/{manager}-workspace-build.mjs")
+        );
+    }
+}
+
+#[test]
 fn manager_profiles_keep_native_packing_and_report_forwarding() {
     let examples =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/builds/node-managers");
@@ -72,6 +143,49 @@ fn manager_profiles_keep_native_packing_and_report_forwarding() {
         assert!(override_command
             .iter()
             .any(|arg| arg.contains("/out/custom.xml")));
+        let mut variant = target.clone();
+        variant.variant.insert("node".into(), "24.14.1".into());
+        assert!(builder
+            .variant_toolchain(&variant)
+            .unwrap()
+            .contains(&format!("/node:{manager}")));
+        assert!(builder
+            .variant_toolchain(&variant)
+            .unwrap()
+            .ends_with("-node24.14.1"));
+        assert!(builder
+            .plan(PlanningContext {
+                target: &variant,
+                source: &source,
+                dependencies: Some(&prepared),
+            })
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("preflight evidence"));
+        let namespace = format!("oyzu.dev/{manager}");
+        let mut observed = Prepared {
+            root: capture.path().into(),
+            digest: prepared.digest.clone(),
+            record: json!({"extensions":{namespace.clone(): {"nodeVersion":"22.14.0"}}}),
+        };
+        assert!(builder
+            .plan(PlanningContext {
+                target: &variant,
+                source: &source,
+                dependencies: Some(&observed),
+            })
+            .is_err());
+        observed.record["extensions"][&namespace]["nodeVersion"] = json!("24.14.1");
+        let variant_plan = builder
+            .plan(PlanningContext {
+                target: &variant,
+                source: &source,
+                dependencies: Some(&observed),
+            })
+            .unwrap();
+        assert_eq!(variant_plan.package.argv, plan.package.argv);
+        assert_eq!(variant_plan.tasks["test"].argv, plan.tasks["test"].argv);
         let package_file = capture.path().join("source/package.json");
         let mut package = crate::records::read(&package_file).unwrap();
         package["dependencies"]["uncaptured"] = "1.0.0".into();
@@ -87,4 +201,22 @@ fn manager_profiles_keep_native_packing_and_report_forwarding() {
             .to_string()
             .contains("capture"));
     }
+}
+
+#[test]
+fn pnpm_patch_settings_do_not_create_a_workspace() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("pnpm-workspace.yaml"),
+        "patchedDependencies: {}\n",
+    )
+    .unwrap();
+    let manager = super::get("pnpm").unwrap();
+    assert!(!manager.is_workspace(root.path(), &json!({})));
+    fs::write(
+        root.path().join("pnpm-workspace.yaml"),
+        "packages: ['packages/*']\n",
+    )
+    .unwrap();
+    assert!(manager.is_workspace(root.path(), &json!({})));
 }

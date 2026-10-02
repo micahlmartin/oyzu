@@ -1,88 +1,7 @@
-use super::*;
+use super::{fixtures::*, *};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, io::Write};
-
-fn digest(bytes: &[u8]) -> String {
-    format!("sha256:{:x}", Sha256::digest(bytes))
-}
-
-fn blob(files: &mut BTreeMap<String, Vec<u8>>, media: &str, bytes: Vec<u8>) -> Value {
-    let id = digest(&bytes);
-    let size = bytes.len();
-    files.insert(format!("blobs/sha256/{}", &id[7..]), bytes);
-    json!({"mediaType":media,"digest":id,"size":size})
-}
-
-fn image(files: &mut BTreeMap<String, Vec<u8>>, arch: &str, gzip: bool, bad_diff: bool) -> Value {
-    let mut layer = tar::Builder::new(Vec::new());
-    let mut header = tar::Header::new_ustar();
-    header.set_size(5);
-    header.set_mode(0o644);
-    header.set_cksum();
-    layer
-        .append_data(&mut header, "greeting", &b"hello"[..])
-        .unwrap();
-    let plain = layer.into_inner().unwrap();
-    let diff = if bad_diff {
-        format!("sha256:{}", "0".repeat(64))
-    } else {
-        digest(&plain)
-    };
-    let (media, bytes) = if gzip {
-        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-        encoder.write_all(&plain).unwrap();
-        (
-            "application/vnd.oci.image.layer.v1.tar+gzip",
-            encoder.finish().unwrap(),
-        )
-    } else {
-        (LAYER, plain)
-    };
-    let layer = blob(files, media, bytes);
-    let config = blob(
-        files,
-        CONFIG,
-        serde_json::to_vec(
-            &json!({"architecture":arch,"os":"linux","rootfs":{"type":"layers","diff_ids":[diff]}}),
-        )
-        .unwrap(),
-    );
-    blob(
-        files,
-        MANIFEST,
-        serde_json::to_vec(
-            &json!({"schemaVersion":2,"mediaType":MANIFEST,"config":config,"layers":[layer]}),
-        )
-        .unwrap(),
-    )
-}
-
-fn layout(files: &mut BTreeMap<String, Vec<u8>>, descriptor: &Value) {
-    files.insert(
-        "oci-layout".into(),
-        br#"{"imageLayoutVersion":"1.0.0"}"#.to_vec(),
-    );
-    files.insert(
-        "index.json".into(),
-        serde_json::to_vec(&json!({"schemaVersion":2,"manifests":[descriptor]})).unwrap(),
-    );
-}
-
-fn archive(files: &BTreeMap<String, Vec<u8>>, path: &Path, duplicate: bool) {
-    let mut tar = tar::Builder::new(fs::File::create(path).unwrap());
-    for (name, body) in files {
-        let mut header = tar::Header::new_ustar();
-        header.set_size(body.len() as u64);
-        header.set_mode(0o644);
-        header.set_cksum();
-        tar.append_data(&mut header, name, &body[..]).unwrap();
-        if duplicate {
-            tar.append_data(&mut header, name, &body[..]).unwrap();
-        }
-    }
-    tar.finish().unwrap();
-}
+mod assembly;
 
 #[test]
 fn verifies_image_and_complete_platform_index_without_extracting_files() {
@@ -158,7 +77,7 @@ fn engine_image_assertions_record_integrity_platform_failures_and_refuse_stale_r
             reference: "fixture".into(),
             digest: format!("sha256:{}", "1".repeat(64)),
             os: "linux".into(),
-            arch: arch.into(),
+            arch: "arm64".into(),
         };
         let mode = crate::executor::Mode::OciValidation {
             input: "image.tar".into(),
@@ -167,6 +86,7 @@ fn engine_image_assertions_record_integrity_platform_failures_and_refuse_stale_r
         let argv = mode.argv(&format!("linux/{arch}")).unwrap();
         crate::executor::execute_mode(
             crate::executor::Request {
+                log: crate::logging::Log::default(),
                 image: &image,
                 workspace: temp.path(),
                 output: temp.path(),
@@ -181,6 +101,7 @@ fn engine_image_assertions_record_integrity_platform_failures_and_refuse_stale_r
             &[],
             &mode,
             &[],
+            &format!("linux/{arch}").parse().unwrap(),
         )
     };
     assert_eq!(verify("amd64", "passed.xml").unwrap().code, 0);
@@ -285,8 +206,17 @@ fn bundle_inspection_rejects_wrong_publication_identity_even_with_valid_archive_
     archive(&files, &path, false);
     fs::write(temp.path().join("envelope.json"), b"{}").unwrap();
     let mut manifest = json!({"kind":"build-manifest","status":"failed","envelopePath":"envelope.json","envelopeDigest":crate::snapshot::file_digest(&temp.path().join("envelope.json")).unwrap(),"artifacts":[{"kind":"oci-image","path":"image.tar","size":fs::metadata(&path).unwrap().len(),"digest":crate::snapshot::file_digest(&path).unwrap(),"ociDigest":root["digest"]}],"reports":[]});
+    manifest["targets"] = json!([{"id":"image", "platform":{"os":"linux", "arch":"amd64"}}]);
+    manifest["artifacts"][0]["target"] = json!("image");
     crate::records::write(&temp.path().join("manifest.json"), &manifest).unwrap();
     crate::build::inspect(temp.path()).unwrap();
+    manifest["targets"][0]["platform"]["arch"] = json!("arm64");
+    crate::records::write(&temp.path().join("manifest.json"), &manifest).unwrap();
+    assert!(crate::build::inspect(temp.path())
+        .unwrap_err()
+        .to_string()
+        .contains("image platform"));
+    manifest["targets"][0]["platform"]["arch"] = json!("amd64");
     manifest["artifacts"][0]["ociDigest"] = json!(format!("sha256:{}", "0".repeat(64)));
     crate::records::write(&temp.path().join("manifest.json"), &manifest).unwrap();
     assert!(crate::build::inspect(temp.path()).is_err());

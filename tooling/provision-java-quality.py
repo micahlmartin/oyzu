@@ -3,7 +3,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import shutil
-import urllib.request
+from provisioning import download
 
 ASSETS = {
     'google-java-format.jar': (
@@ -24,8 +24,7 @@ def main():
         destination = args.destination/name
         if destination.is_file() and hashlib.sha256(destination.read_bytes()).hexdigest() == digest:
             continue
-        with urllib.request.urlopen(url, timeout=60) as response:
-            data = response.read(64 * 1024 * 1024 + 1)
+        data = download(url, 64 * 1024 * 1024)
         if len(data) > 64 * 1024 * 1024 or hashlib.sha256(data).hexdigest() != digest:
             raise ValueError(f'Invalid pinned Java quality artifact: {name}')
         pending = destination.with_suffix('.pending')

@@ -28,7 +28,135 @@ def image_contents(path):
         return root['digest'], config, contents
 
 
+def verify_target_platform(root, base, invoke, validate, source_files, verified):
+    project = base/'docker-arm64-assembly'
+    shutil.copytree(root/'examples/builds/docker-offline/project', project)
+    (project/'build.yaml').write_text('image:\n  uses: docker/image\n  platform: linux/arm64\n')
+    before = source_files(project)
+    invoke(project, 'build')
+    manifest = validate(project/'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    artifact, = manifest['artifacts']
+    digest, config, files = image_contents(project/'dist'/artifact['path'])
+    assert artifact['kind'] == 'oci-image' and '-dev.g' in artifact['version']
+    assert config['os'] == 'linux' and config['architecture'] == 'arm64'
+    assert files['greeting.txt'] == (project/'greeting.txt').read_bytes()
+    assert manifest['targets'][0]['platform'] == {'os':'linux', 'arch':'arm64'}
+    plan = json.loads((project/'dist/plan.json').read_text())
+    assert plan['tools'][0]['platform'] == {'os':'linux', 'arch':'amd64'}
+    assert all(a['executionPlatform'] == {'os':'linux', 'arch':'amd64'} and
+               a['targetPlatform'] == {'os':'linux', 'arch':'arm64'} for a in plan['actions'])
+    dependency = json.loads((project/'dist/dependencies/image.json').read_text())
+    assert dependency['manager']['platform'] == {'os':'linux', 'arch':'amd64'}
+    assert dependency['targetPlatform'] == {'os':'linux', 'arch':'arm64'}
+    assert dependency['extensions']['oyzu.dev/docker']['metadata']['selection']['targetPlatform'] == 'linux/arm64'
+    assert dependency['extensions']['oyzu.dev/docker']['metadata']['targetExecution'] is False
+    assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == 2
+    invoke(project, 'inspect', 'dist')
+    repeated = invoke(project, 'build')
+    assert repeated['planDigest'] == manifest['planDigest']
+    assert repeated['artifacts'][0]['ociDigest'] == digest
+    assert repeated['artifacts'][0]['digest'] == artifact['digest']
+    (project/'Dockerfile').write_text('FROM alpine:3.22\nCOPY greeting.txt /greeting.txt\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert 'base image platform differs' in failed['diagnostics'][0]['message']
+    # An existing worker or host emulator is not authorization/evidence for
+    # target execution. The native parser must identify RUN before actions.
+    (project/'Dockerfile').write_text('FROM scratch\nRUN ["/application"]\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert 'native target execution' in failed['diagnostics'][0]['message']
+    verified.append('Docker arm64 assembly on amd64: distinct worker/target facts, native OCI bytes, snapshot/JUnit/quality, repeatability, mismatched base and foreign RUN rejection; no target application execution claimed')
+
+
+def verify_platform_matrix(root, base, invoke, validate, source_files, verified):
+    project = base/'docker-platform-matrix'
+    shutil.copytree(root/'examples/builds/docker-offline/project', project)
+    (project/'build.yaml').write_text('image:\n  uses: docker/image\n  matrix:\n    platform: [linux/amd64, linux/arm64]\n')
+    before = source_files(project)
+    tasks = invoke(project, 'run', 'list', '--json')
+    assert all(f'image:{stage}' in tasks for stage in ['build', 'test', 'lint', 'format-check'])
+    invoke(project, 'build', 'image')
+    manifest = validate(project/'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    assert len(manifest['artifacts']) == 3
+    targets = {t['variant']['platform']: t['id'] for t in manifest['targets'] if 'platform' in t['variant']}
+    assert set(targets) == {'linux/amd64', 'linux/arm64'}
+    plan = json.loads((project/'dist/plan.json').read_text())
+    selection = plan['extensions']['oyzu.dev/selection']
+    assert selection['requested'] == ['image'] and set(selection['selected']) == set(targets.values())
+    for platform, target in targets.items():
+        artifact, = [a for a in manifest['artifacts'] if a['target'] == target]
+        assert artifact['kind'] == 'oci-image' and '-dev.g' in artifact['version']
+        assert artifact['variant'] == {'platform': platform}
+        digest, config, contents = image_contents(project/'dist'/artifact['path'])
+        assert digest == artifact['ociDigest']
+        assert f"{config['os']}/{config['architecture']}" == platform
+        assert contents['greeting.txt'] == (project/'greeting.txt').read_bytes()
+        for stage in ['build', 'test', 'lint', 'format-check', 'package']:
+            assert next(a for a in manifest['actions'] if a['id'] == f'{target}:{stage}')['status'] == 'succeeded'
+        assert next(r for r in manifest['reports'] if r['target'] == target and r['kind'] == 'test')['summary']['passed'] == 2
+        assert all(a['executionPlatform'] == {'os': 'linux', 'arch': 'amd64'} and
+                   a['targetPlatform'] == {'os': 'linux', 'arch': platform.split('/')[1]}
+                   for a in plan['actions'] if a['target'] == target)
+    index, = [a for a in manifest['artifacts'] if a['kind'] == 'oci-index']
+    assert index['variant'] == {} and '-dev.g' in index['version']
+    aggregate, = [t for t in manifest['targets'] if t['builder'] == 'oyzu/oci-index']
+    assert aggregate['platform'] is None and aggregate['id'] == index['target']
+    operation = next(a for a in plan['actions'] if a['id'] == index['producer'])
+    assert operation['targetPlatform'] is None
+    assert set(operation['dependsOn']) == {f'{target}:package' for target in targets.values()}
+    assert next(a for a in manifest['actions'] if a['id'] == index['producer'])['status'] == 'succeeded'
+    with tarfile.open(project/'dist'/index['path']) as archive:
+        files = {m.name.removeprefix('./'): m for m in archive.getmembers() if m.isfile()}
+        descriptor, = json.load(archive.extractfile(files['index.json']))['manifests']
+        assert descriptor['digest'] == index['ociDigest']
+        data = archive.extractfile(files['blobs/sha256/'+descriptor['digest'].removeprefix('sha256:')]).read()
+        assert hashlib.sha256(data).hexdigest() == descriptor['digest'].removeprefix('sha256:')
+        assert len(data) == descriptor['size']
+        image_index = json.loads(data)
+        expected = {platform: next(a['ociDigest'] for a in manifest['artifacts'] if a['target'] == target) for platform, target in targets.items()}
+        assert {f"{d['platform']['os']}/{d['platform']['architecture']}": d['digest'] for d in image_index['manifests']} == expected
+        for image in image_index['manifests']:
+            assert 'blobs/sha256/'+image['digest'].removeprefix('sha256:') in files
+    invoke(project, 'inspect', str(project/'dist'/index['path']))
+    invoke(project, 'inspect', 'dist')
+    repeated = invoke(project, 'build', 'image')
+    assert repeated['planDigest'] == manifest['planDigest']
+    assert [(a['target'], a['digest']) for a in repeated['artifacts']] == [(a['target'], a['digest']) for a in manifest['artifacts']]
+    # A real platform-specific hook failure must block the complete index while
+    # retaining the successful peer's image and its independent evidence.
+    (project/'oyzu.toml').write_text('[tasks."image:pre_test"]\nargv=["sh", "-ec", "test ! -f /out/'+targets['linux/arm64']+'/container/image.tar"]\n')
+    invoke(project, 'build', 'image', success=False)
+    failed = validate(project/'dist')
+    assert not any(a['kind'] == 'oci-index' for a in failed['artifacts'])
+    assert any(a['target'] == targets['linux/amd64'] for a in failed['artifacts'])
+    assert not any(a['target'] == targets['linux/arm64'] for a in failed['artifacts'])
+    assert next(a for a in failed['actions'] if a['id'] == index['producer'])['status'] == 'blocked'
+    invoke(project, 'inspect', 'dist')
+    # Target execution must not silently use the amd64 worker for ARM tests.
+    native = base/'go-platform-matrix-admission'
+    shutil.copytree(root/'examples/builds/container-variants/project', native)
+    invoke(native, 'build', 'image', '--image', 'go=oyzu-toolchain/go:1.24-mod0.25.0', success=False)
+    failed = validate(native/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert any('native target execution' in d['message'] for d in failed['diagnostics'])
+    (native/'build.yaml').write_text((native/'build.yaml').read_text().replace('  path: api\n', '  path: api\n  platform: windows/amd64\n'))
+    invoke(native, 'build', 'image', success=False)
+    failed = validate(native/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert any('conflicts with explicit producer api' in d['message'] for d in failed['diagnostics'])
+    verified.append('Docker platform matrix: separate amd64/arm64 snapshots and complete OCI index, native JUnit/quality, stable content, unchanged sources, and no partial index after one platform fails; EX-027 rejects missing target execution and conflicting producer constraints')
+
+
 def verify(root, base, invoke, validate, source_files, verified):
+    verify_target_platform(root, base, invoke, validate, source_files, verified)
+    verify_platform_matrix(root, base, invoke, validate, source_files, verified)
+    from .platform_execution import verify_platform_execution
+    verify_platform_execution(root, base, invoke, validate, source_files, verified)
     project = base / 'docker-offline'
     shutil.copytree(root / 'examples/builds/docker-offline/project', project)
     before = source_files(project)

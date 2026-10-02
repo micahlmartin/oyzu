@@ -4,6 +4,7 @@ import {copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from '
 import {join} from 'node:path';
 import {isDeepStrictEqual} from 'node:util';
 import {archives} from './registry-archives.mjs';
+import {model as workspaceModel} from './yarn-workspaces.mjs';
 
 const require = createRequire(import.meta.url);
 function parse(text) {
@@ -17,7 +18,6 @@ export function inputs(workspace) {
     if (existsSync(join(workspace, name))) throw new Error(`Yarn capture does not yet support ${name}`);
   }
   const manifest = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
-  if (manifest.workspaces) throw new Error('Yarn workspace capture is not implemented yet');
   if (manifest.resolutions != null) {
     if (typeof manifest.resolutions !== 'object' || Array.isArray(manifest.resolutions)
         || Object.values(manifest.resolutions).some(value => typeof value !== 'string' || /[:/\\]/.test(value))) {
@@ -29,7 +29,7 @@ export function inputs(workspace) {
   const lock = parse(text);
   for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
     for (const [name, version] of Object.entries(manifest[field] ?? {})) {
-      if (!lock[`${name}@${version}`]) throw new Error(`Yarn capture requires a current frozen lockfile for ${name}`);
+      if (!manifest.workspaces && !lock[`${name}@${version}`]) throw new Error(`Yarn capture requires a current frozen lockfile for ${name}`);
     }
   }
   const packages = new Map();
@@ -89,5 +89,17 @@ export async function perform(context) {
   // Native formatting is not dependency identity; preserve the exact source lock.
   writeFileSync(lockPath, originalLock);
   if (mode === 'install') await execute([...install, '--frozen-lockfile', '--force']);
-  return {layoutVersion:2, packages};
+  const manifest = JSON.parse(readFileSync(join(workspace,'package.json'),'utf8'));
+  const workspaces = manifest.workspaces ? workspaceModel(await execute(['--offline','--non-interactive','--json','workspaces','info']),workspace) : null;
+  return {layoutVersion:2, packages, workspaces};
+}
+
+// Only already-admitted and verified archives enter the portable offline mirror.
+// Native cache metadata, temporary paths, configuration and logs stay private.
+export function exportStore({output, inventory}) {
+  const mirror = join(output, 'mirror');
+  mkdirSync(mirror);
+  for (const entry of inventory.packages) {
+    copyFileSync(join(output, 'tarballs', `${entry.sha256}.tgz`), join(mirror, entry.mirror));
+  }
 }

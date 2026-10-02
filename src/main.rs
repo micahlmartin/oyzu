@@ -118,6 +118,11 @@ enum Commands {
     Discover,
     /// Build captured source with a provisioned container toolchain.
     Build {
+        /// Target IDs; omitted means all targets. Required dependencies are included.
+        targets: Vec<String>,
+        /// Build targets affected since a local Git ref, including dependents.
+        #[arg(long, conflicts_with = "targets")]
+        affected: Option<String>,
         /// Emit the resolved deterministic plan without executing it.
         #[arg(long)]
         plan: bool,
@@ -347,9 +352,35 @@ fn run() -> Result<i32> {
             );
             return Ok(0);
         }
-        Commands::Build { plan, image } => {
-            let result = build::run_with_options(&directory, image, *plan, &options)?;
-            println!("{}", serde_json::to_string_pretty(&result)?);
+        Commands::Build {
+            plan,
+            image,
+            targets,
+            affected,
+        } => {
+            let log = oyzu::logging::Log::console(if cli.json {
+                oyzu::logging::Format::Json
+            } else {
+                oyzu::logging::Format::Text
+            });
+            let selection = if let Some(reference) = affected {
+                build::Targets::Affected(reference)
+            } else {
+                build::Targets::Explicit(targets)
+            };
+            let result =
+                match build::run_logged(&directory, image, *plan, &options, selection, &log) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        log.progress(&format!("ERROR: {error:#}"));
+                        return Ok(2);
+                    }
+                };
+            if cli.json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                presentation::build_result(&result, *plan, &directory);
+            }
             return Ok(if *plan || result["status"] == "succeeded" {
                 0
             } else {

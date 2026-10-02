@@ -1,6 +1,6 @@
 //! Resolve symbolic producer outputs and copy verified bytes into private consumers.
-use super::bundle::safe_file;
-use crate::{config::Materialize, executor::Image, snapshot};
+use crate::bundle_store::safe_file;
+use crate::{config::Materialize, platform::Platform, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, fs, io::Write, path::Path};
@@ -9,7 +9,7 @@ pub(super) fn plan(
     mappings: &[Materialize],
     cwd: &str,
     artifacts: &[Value],
-    images: &BTreeMap<String, Image>,
+    platforms: &BTreeMap<String, Platform>,
     consumer: &str,
     source: &snapshot::Snapshot,
     projection: Option<&snapshot::Projection>,
@@ -88,13 +88,13 @@ pub(super) fn plan(
         if !matches!(artifact["kind"].as_str(), Some("file" | "directory")) {
             bail!("materialization requires a supported file or directory artifact");
         }
-        let producer_platform = images
+        let producer_platform = platforms
             .get(&mapping.from)
             .context("missing producer platform")?;
-        let consumer_platform = images.get(consumer).context("missing consumer platform")?;
-        if producer_platform.os != consumer_platform.os
-            || producer_platform.arch != consumer_platform.arch
-        {
+        let consumer_platform = platforms
+            .get(consumer)
+            .context("missing consumer platform")?;
+        if producer_platform != consumer_platform {
             bail!("incompatible artifact materialization platforms");
         }
         inputs.push(json!({"kind":"artifact","artifact":artifact["id"],"producer":artifact["producer"],"mount":destination}));
@@ -385,12 +385,7 @@ mod tests {
         fs::create_dir(root.path().join("Inputs")).unwrap();
         fs::write(root.path().join("existing"), "source").unwrap();
         let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
-        let image = Image {
-            reference: "test".into(),
-            digest: "sha256:test".into(),
-            os: "linux".into(),
-            arch: "amd64".into(),
-        };
+        let image: Platform = "linux/amd64".parse().unwrap();
         let images = BTreeMap::from([
             ("producer".into(), image.clone()),
             ("consumer".into(), image),
@@ -448,6 +443,20 @@ mod tests {
             None
         )
         .is_ok());
+        let mut incompatible = images.clone();
+        incompatible.insert("consumer".into(), "linux/arm64".parse().unwrap());
+        assert!(plan(
+            &[mapping("Inputs/file")],
+            ".",
+            &artifacts,
+            &incompatible,
+            "consumer",
+            &source,
+            None
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("incompatible artifact"));
         let ambiguous = vec![
             json!({"target":"producer","name":"a"}),
             json!({"target":"producer","name":"b"}),

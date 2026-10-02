@@ -33,7 +33,8 @@ def gradle(goal, repository, digest, metadata, offline):
     env.pop('JAVA_OPTS', None)
     command = ['gradle', '--no-daemon', '--no-watch-fs', '--no-build-cache', '--no-configuration-cache',
                '--console=plain', '--max-workers=2', '-Dorg.gradle.java.installations.auto-download=false',
-               '-I', str(RUNTIME / 'metadata.gradle'), '-I', str(RUNTIME / 'integration.gradle')]
+               '-I', str(RUNTIME / 'metadata.gradle'), '-I', str(RUNTIME / 'reporting.gradle'),
+               '-I', str(RUNTIME / 'integration.gradle')]
     if offline:
         command.append('--offline')
     return subprocess.run(command + [goal], env=env).returncode
