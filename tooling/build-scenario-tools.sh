@@ -31,8 +31,10 @@ if [[ "$mode" == provision ]]; then
       docker build --build-arg QUALITY_IMAGE="oyzu-toolchain/node:quality-${version}" --tag "oyzu-toolchain/node:yarn1.22.22-node${version}" tooling/images/node-yarn
     done
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
-    npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
     docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
+  fi
+  if selected node docker; then
+    npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
     docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
   fi
   if selected go docker core; then
@@ -83,6 +85,8 @@ if [[ "$mode" == provision ]]; then
 else
   if selected docker; then
     PATH="$PWD/tooling/images/node-npm/node_modules/.bin:$PATH" .ci-python/bin/python tooling/test-npm-context.py
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --context --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --context --resolutions --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
     docker run --rm --pull=never --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim tooling/test-python-context.py --manager uv
     docker run --rm --pull=never --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/poetry:2.5.1-python3.12 tooling/test-python-context.py --manager poetry
   fi

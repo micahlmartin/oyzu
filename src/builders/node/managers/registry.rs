@@ -5,20 +5,43 @@ use anyhow::{ensure, Context, Result};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
+pub(super) enum Acquisition {
+    Build,
+    /// Ask the native adapter to export its credential-free consumer layout,
+    /// only after the same frozen-lock validation used by application builds.
+    DependencyContext,
+}
+
+impl Acquisition {
+    fn command(&self) -> &'static str {
+        match self {
+            Self::Build => "acquire",
+            Self::DependencyContext => "acquire-context",
+        }
+    }
+}
+
+/// Manager identity comes from the selected adapter, never from the consumer
+/// target (which can be a Docker image rather than a Node application).
 pub(super) fn prepare(
     context: PreparationContext<'_>,
+    manager: &str,
     runtime: &str,
     lock: &str,
+    acquisition: Acquisition,
     sources: Vec<broker::Source>,
 ) -> Result<Option<Prepared>> {
     let tree = crate::dependencies::preparation::capture(
         &context,
         super::super::RUNTIME,
-        &["node".into(), format!("/oyzu/{runtime}"), "acquire".into()],
+        &[
+            "node".into(),
+            format!("/oyzu/{runtime}"),
+            acquisition.command().into(),
+        ],
         &super::super::toolchain::preparation_environment(context.target)?,
         sources,
     )?;
-    let manager = &context.target.manager;
     let inventory = records::read(&context.destination.join("inventory.json"))?;
     super::super::toolchain::verify(context.target, inventory["nodeVersion"].as_str())?;
     ensure!(

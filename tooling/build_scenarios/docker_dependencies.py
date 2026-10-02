@@ -26,7 +26,7 @@ CMD ["python", "-c", "import six; print(six.__version__)"]
 '''
     (project / 'Dockerfile').write_text(dockerfile)
     before = source_files(project)
-    tasks = invoke(project, 'run', 'list')
+    tasks = invoke(project, 'run', 'list', '--json')
     assert all('image:' + name in tasks for name in ['build', 'test', 'lint', 'format-check'])
     invoke(project, 'build')
     manifest = validate(project / 'dist')

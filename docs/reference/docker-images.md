@@ -108,7 +108,7 @@ Provisioned image capture is shared through `dependencies/images`; Dockerfile pa
 The first application `container: true` integration is [Python application packaging](python-containers.md), whose default and override profiles passed Linux CI. It uses the internal [typed assembly boundary](../container-assembly.md) and shared captured-base acquisition. Additional runtime profiles, application-container matrices and startup smoke tests remain unfinished. Existing Dockerfile builds continue to use their captured source definition. The worker verifies the bytes actually staged for BuildKit against the planned digest, so a definition changed during copying is rejected rather than executed.
 
 
-The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The Docker package-manager integrations are the experimental Python and npm profiles below; their end-to-end native CI results are pending. Other managers, private sources and full EX-058 credential-policy acceptance remain unfinished.
+The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The Docker package-manager integrations are the experimental Python, npm and Yarn Classic profiles below; their end-to-end native CI results are pending. Other managers, private sources and full EX-058 credential-policy acceptance remain unfinished.
 
 ## Offline pip dependency context (experimental)
 
@@ -192,6 +192,31 @@ The store contains only `<sha256>.tgz` files. Preparation fetches all locked reg
 
 Only tarballs enter the named context. npm's temporary cache, logs, user/global configuration, acquisition workspace and broker state are not exported. The consumer seeds its own disposable cache and removes it in the same RUN instruction, avoiding both cache log timestamps and an extra cache layer. Native npm verifies the lock again during installation. Package names, versions, purposes, content hashes, lock/source identity, observed Node/npm versions and immutable base identity remain in `dist/dependencies/<target>.json`; the normal versioned OCI artifact, JUnit and Docker quality checks remain mandatory. This does not promise reproducibility for arbitrary lifecycle scripts or other Dockerfile commands.
 
-Missing/stale locks, unsupported lock versions, integrity failures, incompatible engines or a mismatched declared package manager fail preparation. Correct the native inputs or provisioned base and rebuild; preparation failures emit no actions/artifacts. The current public route is `https://registry.npmjs.org/`; private registries, VCS/direct non-registry sources, managed connector authorization and npm-specific credential canaries are not implemented. There is no persistent acquisition cache or internet fallback during execution. pnpm and Yarn have application-build acquisition adapters but are not yet registered Docker store providers.
+Missing/stale locks, unsupported lock versions, integrity failures, incompatible engines or a mismatched declared package manager fail preparation. Correct the native inputs or provisioned base and rebuild; preparation failures emit no actions/artifacts. The current public route is `https://registry.npmjs.org/`; private registries, VCS/direct non-registry sources, managed connector authorization and npm-specific credential canaries are not implemented. There is no persistent acquisition cache or internet fallback during execution. pnpm has an application-build acquisition adapter but is not yet a registered Docker store provider.
 
 `tooling/test-npm-context.py` passed on Windows with actual npm 11.11.0/Node 24.14.1. It checks broker-transported product acquisition, script suppression, tarball-only export, two fresh offline cache/install operations, transitive runtime packages, omitted development installation, unchanged locks/store and rejected integrity. Its fixture transport does not prove the production broker's network isolation. The registered Linux `docker-npm-context` group additionally requires compiled-CLI preparation, actual offline RUN/import, exact resulting image files, package/runtime evidence, implicit tasks, OCI/JUnit/quality output, repeated identities and integrity rejection before actions. Its native result is pending; this is not full EX-058 acceptance.
+
+## Offline Yarn Classic dependency context (experimental)
+
+`node/yarn` exports a native offline mirror after the existing Yarn acquisition adapter validates the frozen dependency graph. With `package.json` and `yarn.lock`, it is inferred for a Docker target when there is no competing manager/ecosystem. Multiple native locks require an explicit `dependencies: node/yarn` selector. A modern Yarn lock is not silently treated as Classic. The consumer image must already contain Node, Yarn Classic 1.22.22 and the adapter's `@yarnpkg/lockfile` 1.1.0 parser at `/opt/oyzu-yarn/node_modules/@yarnpkg/lockfile` (as in the provided toolchain image). The native adapter also accepts its existing `OYZU_YARN_LOCKFILE` image-provisioning path. Oyzu installs none of these tools during preparation.
+
+For the provisioned CI image:
+
+```dockerfile
+FROM oyzu-toolchain/node:yarn1.22.22-node22
+WORKDIR /app
+COPY package.json yarn.lock ./
+RUN --mount=type=bind,from=dependencies,target=/dependencies \
+    printf 'yarn-offline-mirror "/dependencies"\ndisable-self-update-check true\n' >/tmp/oyzu.yarnrc \
+    && yarn install --offline --non-interactive --frozen-lockfile --ignore-scripts --use-yarnrc /tmp/oyzu.yarnrc --cache-folder /tmp/yarn-cache \
+    && yarn cache clean --offline --non-interactive --cache-folder /tmp/yarn-cache \
+    && rm -rf /tmp/yarn-cache /tmp/oyzu.yarnrc
+COPY app.js .
+CMD ["node", "app.js"]
+```
+
+Only the verified mirror archives enter `dependencies`; temporary Yarn caches, configuration, broker state and inventory files do not. The ephemeral consumer configuration points at that read-only context, and cleanup occurs in the same RUN instruction. Preparation uses the consumer's exact immutable Node/Yarn runtime, validates native package-manager/engine constraints, and keeps lifecycle scripts disabled. Native Yarn performs dependency selection, including supported registry-only `resolutions`; the adapter rejects a changed native graph before exporting the mirror. Source locks remain unchanged. Like its application-build adapter, Yarn captures all locked inputs and conservatively records their purpose as `build`, without claiming a resolved runtime-only inventory.
+
+The admitted profile supports a single project, Classic v1 locks, SHA-512 integrity, transitive and scoped registry packages, and registry version-range resolutions. Acquisition uses the existing public npm/Yarn routes. Workspaces, custom `.yarnrc`/`.yarnrc.yml`/`.npmrc`, path/VCS dependencies, modern Yarn, private registries and managed connector authorization remain unsupported. The shown configuration is generated inside the private RUN filesystem, not checked into the source project. Missing tools, unsupported input profiles, stale locks, altered integrity or changed runtime identity fail before artifacts; correct the inputs/provisioned base and rebuild. Offline execution cannot fill a missing store from the internet, and there is no persistent acquisition cache yet.
+
+The mirror digest, observed manager/runtime, original source/lock identities and verified package identities remain in the Docker dependency evidence; ordinary snapshot OCI output, required JUnit and quality gates are unchanged. Windows native checks using Yarn 1.22.22/Node 24.14.1 passed ordinary and selective-resolution profiles, stable repeated captures, scoped/transitive mirror export, fresh-cache offline installation/tests, lifecycle suppression, unchanged locks/mirrors and corrupt mirror rejection. Existing pnpm patch capture/replay also passed after the shared lifecycle change. These checks use a fixture spool and do not establish Docker isolation. The registered Linux `docker-yarn-context` group requires real compiled-CLI preparation, offline install/import, exact image contents, evidence, repeatability and altered-lock rejection; its native result remains pending.

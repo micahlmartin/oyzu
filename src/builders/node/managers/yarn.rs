@@ -5,10 +5,32 @@ use crate::{
     dependencies::Prepared,
     records,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 pub(super) struct Yarn;
 impl Yarn {
+    fn capture(
+        &self,
+        context: PreparationContext<'_>,
+        acquisition: super::registry::Acquisition,
+    ) -> Result<Option<Prepared>> {
+        let sources = if self.validate(&context.target.path)? {
+            vec![
+                broker::Source::new("npm-public", "https://registry.npmjs.org/", None)?,
+                broker::Source::new("yarn-public", "https://registry.yarnpkg.com/", None)?,
+            ]
+        } else {
+            vec![]
+        };
+        super::registry::prepare(
+            context,
+            Manager::id(self),
+            "yarn.mjs",
+            "yarn.lock",
+            acquisition,
+            sources,
+        )
+    }
     fn validate(&self, root: &std::path::Path) -> Result<bool> {
         let package = records::read(&root.join("package.json"))?;
         if package.get("workspaces").is_some()
@@ -39,6 +61,26 @@ impl Yarn {
         Ok(required)
     }
 }
+
+impl crate::dependencies::context::Provider for Yarn {
+    fn id(&self) -> &'static str {
+        "node/yarn"
+    }
+    fn tools(&self) -> &'static [&'static str] {
+        &["node", "yarn"]
+    }
+    fn detect(&self, source: &std::path::Path) -> bool {
+        source.join("package.json").is_file() && source.join("yarn.lock").is_file()
+    }
+    fn store(&self) -> &'static str {
+        "mirror"
+    }
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Prepared> {
+        self.capture(context, super::registry::Acquisition::DependencyContext)?
+            .context("Yarn preparation did not produce a captured mirror")
+    }
+}
+
 impl Manager for Yarn {
     fn id(&self) -> &'static str {
         "yarn"
@@ -50,15 +92,7 @@ impl Manager for Yarn {
         super::runtime_image(self.image(), node)
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        let sources = if self.validate(&context.target.path)? {
-            vec![
-                broker::Source::new("npm-public", "https://registry.npmjs.org/", None)?,
-                broker::Source::new("yarn-public", "https://registry.yarnpkg.com/", None)?,
-            ]
-        } else {
-            vec![]
-        };
-        super::registry::prepare(context, "yarn.mjs", "yarn.lock", sources)
+        self.capture(context, super::registry::Acquisition::Build)
     }
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()> {
         self.validate(&context.target.path)?;

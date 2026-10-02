@@ -18,7 +18,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     (project / 'build.yaml').write_text('image:\n  uses: docker/image\n')
     (project / 'Dockerfile').write_text(DOCKERFILE)
     before = source_files(project)
-    tasks = invoke(project, 'run', 'list')
+    tasks = invoke(project, 'run', 'list', '--json')
     assert all('image:' + name in tasks for name in ['build', 'test', 'lint', 'format-check'])
     invoke(project, 'build')
     manifest = validate(project / 'dist')

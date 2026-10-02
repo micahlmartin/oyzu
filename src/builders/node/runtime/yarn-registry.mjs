@@ -91,3 +91,13 @@ export async function perform(context) {
   if (mode === 'install') await execute([...install, '--frozen-lockfile', '--force']);
   return {layoutVersion:2, packages};
 }
+
+// Only already-admitted and verified archives enter the portable offline mirror.
+// Native cache metadata, temporary paths, configuration and logs stay private.
+export function exportStore(output, inventory) {
+  const mirror = join(output, 'mirror');
+  mkdirSync(mirror);
+  for (const entry of inventory.packages) {
+    copyFileSync(join(output, 'tarballs', `${entry.sha256}.tgz`), join(mirror, entry.mirror));
+  }
+}

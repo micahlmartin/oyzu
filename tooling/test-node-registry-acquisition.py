@@ -20,12 +20,15 @@ def main():
     parser.add_argument('--native-cli', type=Path, required=True)
     parser.add_argument('--resolutions', action='store_true', help='Exercise the Yarn selective-resolution fixture')
     parser.add_argument('--patches', action='store_true', help='Exercise the pnpm native patch fixture')
+    parser.add_argument('--context', action='store_true', help='Export and consume a native Yarn offline mirror')
     args = parser.parse_args()
     manager = args.manager
     if args.resolutions and manager != 'yarn':
         parser.error('--resolutions requires --manager yarn')
     if args.patches and manager != 'pnpm':
         parser.error('--patches requires --manager pnpm')
+    if args.context and manager != 'yarn':
+        parser.error('--context requires --manager yarn')
     native = args.native_cli.resolve()
     env = dict(os.environ, OYZU_PNPM_YAML=str(native.parents[2] / 'yaml'),
                OYZU_YARN_LOCKFILE=str(native.parents[2] / '@yarnpkg/lockfile'))
@@ -99,7 +102,7 @@ def main():
                 output.mkdir()
                 lock_path = project / ('pnpm-lock.yaml' if manager == 'pnpm' else 'yarn.lock')
                 original_lock = lock_path.read_bytes()
-                run('acquire', output, project)
+                run('acquire-context' if args.context else 'acquire', output, project)
                 assert not (project / 'lifecycle-ran').exists()
                 inventory = json.loads((output / 'inventory.json').read_text())
                 assert {(p['name'], p['version']) for p in inventory['packages']} == expected
@@ -113,6 +116,36 @@ def main():
                 result = subprocess.run(['node', '--test'], cwd=project, capture_output=True, text=True)
                 assert result.returncode == 0, result.stdout + result.stderr
                 assert lock_path.read_bytes() == original_lock
+                if args.context:
+                    # A consumer gets only the exported mirror and original
+                    # source, never the adapter inventory or acquisition cache.
+                    consumer = base / f'context consumer {index}'
+                    shutil.copytree(project, consumer, ignore=shutil.ignore_patterns('node_modules', 'lifecycle-ran'))
+                    mirror = base / f'context mirror {index}'
+                    shutil.copytree(output / 'mirror', mirror)
+                    assert set(tree(mirror)) == {p['mirror'] for p in inventory['packages']}
+                    assert all((mirror / p['mirror']).read_bytes() == (output / 'tarballs' / (p['sha256'] + '.tgz')).read_bytes() for p in inventory['packages'])
+                    config = base / f'context {index}.yarnrc'
+                    config.write_text(f'yarn-offline-mirror {json.dumps(str(mirror))}\nyarn-offline-mirror-pruning false\ndisable-self-update-check true\n')
+
+                    def consume(cache, success=True):
+                        result = subprocess.run(['node', str(native), 'install', '--offline', '--non-interactive',
+                                                 '--frozen-lockfile', '--ignore-scripts', '--use-yarnrc', str(config),
+                                                 '--cache-folder', str(cache)], cwd=consumer, env=env,
+                                                capture_output=True, text=True, timeout=150)
+                        assert (result.returncode == 0) == success, result.stdout + result.stderr
+                        return result
+
+                    consume(base / f'context empty cache {index}')
+                    assert not (consumer / 'lifecycle-ran').exists()
+                    result = subprocess.run(['node', '--test'], cwd=consumer, capture_output=True, text=True)
+                    assert result.returncode == 0, result.stdout + result.stderr
+                    assert (consumer / 'yarn.lock').read_bytes() == original_lock
+                    assert tree(mirror) == tree(output / 'mirror') and len(requests) == count
+                    shutil.rmtree(consumer / 'node_modules')
+                    next(mirror.glob('*.tgz')).write_bytes(b'corrupt')
+                    consume(base / f'context corrupt cache {index}', False)
+                    assert not (consumer / 'lifecycle-ran').exists()
             assert captures[0] == captures[1], 'captured bytes depend on location/time'
             assert sorted(requests) == sorted(urls * 2)
             if args.patches:
@@ -187,7 +220,7 @@ def main():
                 assert 'does not yet support .yarnrc' in run('acquire', output, project, False).stderr
             assert len(requests) == count
             assert not failures, failures
-            print(f'{manager}: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed (resolutions={args.resolutions}, patches={args.patches})')
+            print(f'{manager}: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed (resolutions={args.resolutions}, patches={args.patches}, context={args.context})')
         finally:
             stop.set()
             thread.join()

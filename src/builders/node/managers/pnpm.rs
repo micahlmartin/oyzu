@@ -69,8 +69,14 @@ impl Manager for Pnpm {
             vec![]
         };
         let root = context.target.path.clone();
-        let mut prepared =
-            super::registry::prepare(context, "pnpm.mjs", "pnpm-lock.yaml", sources)?;
+        let mut prepared = super::registry::prepare(
+            context,
+            self.id(),
+            "pnpm.mjs",
+            "pnpm-lock.yaml",
+            super::registry::Acquisition::Build,
+            sources,
+        )?;
         if let Some(prepared) = &mut prepared {
             patches::record(&root, prepared)?;
         }
