@@ -6,6 +6,7 @@ import platform
 import urllib.request
 
 VERSION = '2.15.1'
+MAX_ASSET_BYTES = 128 * 1024 * 1024
 ASSETS = {
     ('Linux', 'x86_64'): ('hadolint-linux-x86_64', 'c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507'),
     ('Darwin', 'arm64'): ('hadolint-macos-arm64', '5c09f3213f8e40406abe048233d985eebef336d4a6a20021be47fadb6cf480a2'),
@@ -18,8 +19,10 @@ def acquire(url, digest, destination):
     if destination.is_file() and hashlib.sha256(destination.read_bytes()).hexdigest() == digest:
         return
     with urllib.request.urlopen(url, timeout=60) as response:
-        data = response.read(64 * 1024 * 1024 + 1)
-    if len(data) > 64 * 1024 * 1024 or hashlib.sha256(data).hexdigest() != digest:
+        data = response.read(MAX_ASSET_BYTES + 1)
+    if len(data) > MAX_ASSET_BYTES:
+        raise ValueError('Provisioned asset exceeds the 128 MiB download limit')
+    if hashlib.sha256(data).hexdigest() != digest:
         raise ValueError('Provisioned asset did not match its pinned SHA-256')
     temporary = destination.with_suffix('.pending')
     temporary.write_bytes(data)
