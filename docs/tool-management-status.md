@@ -275,3 +275,40 @@ Linux in [run 36969203910](https://github.com/oyzuai/mise/actions/runs/369692039
 This resolves the macOS runtime-variable failure. It qualifies only that current
 library boundary, including the fixture-backed real Node catalog parser; it does
 not qualify native installations, distribution licensing or a release.
+
+## Checkpoint 53: upstream-owned Node archive facts and branch integration
+
+Fork candidate `3552b5d03111f6d3143233dbebb94a8368110a9e` adds
+`Session::node_archive_facts` for exact stable versions and the initial three
+target tuples. The Node backend owns the fact type and shares artifact/mirror
+selection with upstream lock metadata, plus native Node/npm path helpers with
+its existing launch behavior. The embedding session enforces its own immutable
+tool admission. Returned locations and paths perform no acquisition or target
+execution and do not prove availability, size, checksums, signatures or admission.
+The [reference](reference/mise-maintenance.md#candidate-node-archive-facts)
+describes the boundary and corporate-route responsibilities.
+
+Linux Rust 1.95 strict library/example Clippy and all six fresh-process scenarios
+passed for the final source. The expanded backend scenario checks two versions,
+all three target facts, parity with upstream artifact URL selection, invalid
+versions/targets and zero additional transport calls. A separate process denies
+Node planning when it is not admitted. Fourteen compliance regressions passed;
+37 inputs and 1,109 unreviewed lock records remain inventory-consistent. No
+dependency, license or notice file changed. Native requalification is running in
+[run 36971369051](https://github.com/oyzuai/mise/actions/runs/36971369051); the prior
+five-scenario native success does not prove this new increment.
+
+The Oyzu branch merged builder work through `7746c1e`, resolving only a status
+history conflict while retaining both histories. This dedicated tool journal is
+linked from the overall status page so independently progressing builder/tool
+histories no longer compete for the same appended checkpoint block. The merged
+Windows GNU Rust 1.94 full suite, strict all-target Clippy, formatting and all
+nine compiled CLI task scenarios passed. Documentation (149 Markdown files),
+all 58 example structures and the pinned layout-schema checker passed; these
+structural checks do not qualify runtime behavior. The full PR CI matrix must
+still be checked after pushing the resolved branch.
+
+TM-02/05/06 remain partial. Actual metadata and publisher verification, conversion
+of the facts into a reviewed admitted layout, native archive parity, production
+source import and worker wiring are not implemented. No separate mise executable
+was built or invoked. The full OEP goal and licensing/release gates remain open.

@@ -45,7 +45,7 @@ release must say which capabilities are absent; it does not complete this OEP.
 
 Each implementation PR names its package, acceptance IDs, affected contracts,
 measured host/worker/target and remaining failures. Update
-[implementation status](../../implementation-status.md) with evidence, not a list
+[tool-management status](../../tool-management-status.md) with evidence, not a list
 of functions added. Tests replacing genuine backend behavior with a fabricated
 successful executable do not satisfy any backend gate.
 
