@@ -2,6 +2,11 @@
 
 ## Separate mise reuse experiment
 
+The [implementation-ready OEP-0003 draft](proposals/OEP-0003-mise-integration/README.md)
+now defines the proposed production architecture and work packages from these
+findings. It remains unaccepted; writing the design does not implement or authorize
+production tool installation under the current builder objective.
+
 The authorized [mise experiment](proposals/OEP-0003-mise-integration/experiment.md)
 investigates tool management separately from the builder objective below.
 Its harness is outside the production Rust crate. The unmodified pinned mise

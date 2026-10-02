@@ -18,6 +18,11 @@ tracking-issue: null
 
 Developers need automatic project environments and fast tool switching without hand-written shell logic. The same configuration must also support explicit, headless command execution.
 
+The [OEP-0003 runtime contract](../OEP-0003-mise-integration/runtime.md) supplies
+the proposed implementation-ready commands, shell matrix, state/rollback
+algorithm, native shims, process supervision and opt-in profile editing. It
+refines the exploratory choices below without marking this design accepted.
+
 ## Configuration and activation
 
 `oyzu.toml` provides tools, an `[env]` table, and tasks; ignored `oyzu.local.toml` provides developer overrides:
@@ -39,7 +44,7 @@ Automatic activation MUST NOT run arbitrary repository tasks or install tools me
 
 ## Switching correctness
 
-On entry, Oyzu captures the prior values it changes and emits only necessary deltas. On exit or switching projects, it restores those values without deleting unrelated user edits. It removes only PATH entries it owns, deduplicates consistently, and handles nested project roots. Shell instances maintain independent activation state.
+On entry, Oyzu captures the prior values it changes and emits only necessary deltas. On exit or switching projects, it restores those values without deleting unrelated user edits. It removes only PATH entries it owns, preserves preexisting duplicate occurrences and ordering, and handles nested project roots. Shell instances maintain independent activation state. OEP-0003 defines conservative handling of ambiguous user edits rather than destructive deduplication.
 
 Tool selection uses the nearest applicable project configuration within the chosen root, then user defaults. Local overrides change development selection but cannot relax mandatory organizational constraints. Frozen build resolution uses the build's recorded configuration, not whichever project a shell previously activated.
 
@@ -68,4 +73,8 @@ Secret environment injection for an explicitly requested development command is 
 
 ## Open decisions
 
-Confirm initial shell list, compatible mise syntax, supported secret reference syntax, profile installer UX, and quantitative activation benchmarks. Avoid implementing a second expression language for environment interpolation.
+Review the concrete shell list, commands, profile installer and performance gates
+in OEP-0003. Mise project syntax is not adopted; Oyzu configuration remains
+authoritative. Secret consumers follow OEP-0002, and literal environment values
+do not introduce another expression language. Additional shells require separate
+conformance before admission.

@@ -23,6 +23,11 @@ All proposals below remain **draft**. Implementation has begun for configuration
 
 The build implementation pass adds detailed companions to OEP-0002/0004–0007/0011–0014/0016. Start with the [build implementation map](../build-implementation.md) and [draft record schemas](../contracts/README.md).
 
+The [OEP-0003 implementation proposal](OEP-0003-mise-integration/README.md) now
+includes concrete runtime, format-2 lock/store, acquisition/authorization and
+delivery contracts derived from the mise experiment. It remains draft; measured
+experiment success does not imply production support or design acceptance.
+
 | ID | Proposal | Dependencies |
 | --- | --- | --- |
 | OEP-0017 | [Package-manager acquisition and credential isolation](OEP-0017-dependency-acquisition/README.md) | OEP-0007, OEP-0009, OEP-0010, OEP-0014 |

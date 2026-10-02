@@ -1,5 +1,11 @@
 # Build preflight and tool-lock integration
 
+The implementation-ready [OEP-0003 contract](../OEP-0003-mise-integration/README.md)
+now specifies the proposed mise integration, commands, authorization and receipt
+store. Its [format-2 lock contract](../OEP-0003-mise-integration/lock-and-store.md)
+supersedes this companion's original format-1 sketch. Both remain drafts; no
+production installation capability or maintainer acceptance is implied.
+
 ## Lock mode and preflight order
 
 `oyzu build` starts with engine preflight: management context, config validity, source boundary, executor capabilities, requested tools, lock compatibility, eligibility, then verified installation. Candidate discovery may read native manifests before tool installation; no project code executes during that read. Tool inspection cannot trust PATH or executable version output alone: installation identity must match a committed, verified store record.
@@ -10,9 +16,23 @@ Tools without enough version information produce an actionable selection diagnos
 
 ## Lock record and store transaction
 
-The proposed lock is TOML with `format = 1` and a `[[tool]]` array. Each tool record has `id` (canonical backend/publisher/name), `request`, `version`, `backend_digest` and a `[[tool.distribution]]` list with `platform`, `digest`, `size`, `source_id`, `verification` and `dependencies` (canonical tool identities). Entries and dependency lists are sorted; every dependency resolves to an exact entry. Cycles, conflicting content for the same identity/version/platform and incomplete closures fail. The tool lock excludes mirror URLs with authorization, ports, tokens and absolute installed paths. `verification` is a typed evidence reference and strength classification, not an assertion that a checksum proves publisher identity.
+The proposed lock is TOML format 2 under OEP-0003. Scoped/profile environment
+records select canonical tool keys; exact per-platform distributions bind
+backend, content, layout, verification and dependency identities. This permits
+different versions in different project scopes while rejecting incompatible
+versions in one closure. Source routes and credentials stay outside the lock.
+The field schema, canonical digest algorithm, editing transaction and explicit
+experimental migration are defined in the linked contract rather than duplicated
+here. Verification strength is not an assertion that a checksum proves publisher
+identity.
 
-Store layout is implementation-owned under the OS Oyzu data directory: `cas/sha256/<digest>`, `tools/<distribution-key>/`, `staging/<operation-id>/`. Acquire a per-distribution process lock, download into staging, verify bytes and archive limits, extract without following escaping links, validate required entrypoints, atomically rename and write a committed installation descriptor. Readers only select committed records. On Windows, open executable leases prevent removal; prune retries after leases end. Store recovery removes abandoned staging only after verifying no active process owns the lease.
+The implementation-owned store follows OEP-0003's versioned layout and receipt
+transaction. It verifies content before extraction and publishes payload plus
+receipt in one atomic directory operation; readers never select partial state.
+Receipt/tree identity and current selection authorization are mandatory even
+when mise reports the version installed. Active process/session leases prevent
+prune, including Windows open-file cases. Recovery validates containment and
+operation ownership before removing abandoned staging.
 
 Policy and content validity are independent checks. Token rotation does not alter a distribution digest. A policy revocation can deny existing bytes without deleting an installation out from under active processes; new actions must reauthorize and currently running operations follow revocation instructions. Source-built tools route through the same captured build model; unsupported backend subprocess downloads are denied rather than trusted because mise supports that backend.
 

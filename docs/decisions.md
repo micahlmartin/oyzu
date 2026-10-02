@@ -43,7 +43,7 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | ID | Decision | Current proposal and next evidence |
 | --- | --- | --- |
 | OPEN-001 | Public license and contribution terms | Unselected; decide before upstream code import or substantive external contributions |
-| OPEN-002 | Rust integration with mise | Audit a pinned source revision, choose reusable modules/fork boundary, preserve notices, benchmark switching |
+| OPEN-002 | Rust integration with mise | Experiment complete; OEP-0003 proposes a pinned source fork, same-binary worker, format-2 locks, verified receipts and explicit backend/transport admission; review before production implementation |
 | OPEN-003 | Configuration schemas and root/merge semantics | OEP-0002 proposes root YAML, nested TOML, whole-task replacement and `oyzu.lock`; prove with fixtures |
 | OPEN-004 | Hook failure/argument rules | Success-only post, no recursive hooks, args to primary only; review TASK examples |
 | OPEN-005 | Cross-platform hermetic executor | Validate Linux/macOS/Windows capabilities; do not silently fall back to host execution |
@@ -66,6 +66,7 @@ The [build implementation map](build-implementation.md) proposes concrete v1alph
 
 | Open item | Proposed initial resolution |
 | --- | --- |
+| OPEN-002 / OPEN-007 | [OEP-0003 implementation proposal](proposals/OEP-0003-mise-integration/README.md): library-only fork, Oyzu-owned selection/store, explicit backend/platform gates and brokered acquisition; experiment failures become mandatory acceptance tests |
 | OPEN-003 | Root target-map YAML, scoped TOML origins, whole-task replacement, bounded strict parsing and no expressions; OEP-0002 implementation |
 | OPEN-004 / OPEN-016 | Success-only nonrecursive hooks; argv for portable commands; explicit sh/PowerShell string semantics; extra CLI arguments require argv/native adapter |
 | OPEN-005 | Linux capability-qualified executor first, Windows/macOS host transport qualification; native targets require separate gates, never host fallback |
@@ -76,6 +77,6 @@ The [build implementation map](build-implementation.md) proposes concrete v1alph
 | OPEN-014 | Finite native runtime axes and typed Helm image-reference bindings, specified in draft schema and candidate examples |
 | OPEN-017 | linux/amd64 proposed standalone image default; explicit/managed target choice remains supported |
 
-Private dependency builds must keep upstream credentials out of project/dependency execution and exported outputs across all supported managers (OEP-0017). New Dockerfile context bindings and convenience fields remain draft UX choices. Public license, mise import boundaries and backend qualification are not silently decided by this specification pass.
+Private dependency builds must keep upstream credentials out of project/dependency execution and exported outputs across all supported managers (OEP-0017). New Dockerfile context bindings and convenience fields remain draft UX choices. Public licensing remains unresolved. Mise import boundaries and backend admission now have explicit proposed resolutions in OEP-0003; they are not agreed decisions or completed production qualification.
 
 The [proposal index](proposals/README.md) resolves OEP IDs. Detailed open decisions inside each OEP remain part of its review; this register highlights choices spanning components.
