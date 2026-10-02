@@ -13,6 +13,7 @@ on:
       - 'tooling/test-tool-environment.py'
       - 'tooling/test-tool-activation.py'
       - 'tooling/test-tool-proxy.py'
+      - 'tooling/test-tool-exec.py'
       - 'tooling/test-shell-profile.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
@@ -56,6 +57,8 @@ jobs:
       - name: Real Node install and execution
         timeout-minutes: 15
         run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
+      - name: Explicit executable development commands
+        run: python tooling/test-tool-exec.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
       - name: Explicit Node version updates
         timeout-minutes: 15
         run: python tooling/test-tool-updates.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"

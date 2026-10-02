@@ -708,19 +708,43 @@ pub fn which(
     Ok(0)
 }
 
-/// Execute the installed frozen Node command while holding its verified lease.
+/// Execute a selected Node command or an explicitly requested executable path
+/// with the frozen environment and lease. Bare unknown commands never use PATH.
 pub fn exec(
     directory: &Path,
     options: &config::session::Options,
     store: &Path,
     arguments: &[OsString],
 ) -> Result<i32> {
-    ensure!(
-        arguments.first().is_some_and(|argument| argument == "node"),
-        "initial exec command must be node"
-    );
+    let requested = arguments.first().context("exec requires a command")?;
     let selected = installed_command(directory, options, store)?;
-    let mut command = Command::new(&selected.executable);
+    let executable = if requested == "node" {
+        selected.executable.clone()
+    } else {
+        let path = Path::new(requested);
+        ensure!(
+            path.is_absolute() || path.components().count() > 1,
+            "unknown bare command; use a declared tool command or an explicit executable path"
+        );
+        #[cfg(windows)]
+        ensure!(
+            path.is_absolute()
+                || !matches!(
+                    path.components().next(),
+                    Some(std::path::Component::Prefix(_))
+                ),
+            "drive-relative executable paths are ambiguous; use an absolute path"
+        );
+        // Resolve against -C before creating the child; Command's relative
+        // executable/current_dir interaction differs between operating systems.
+        let path = directory
+            .join(path)
+            .canonicalize()
+            .context("explicit executable path is unavailable")?;
+        ensure!(path.is_file(), "explicit executable path must be a file");
+        path
+    };
+    let mut command = Command::new(executable);
     command.args(&arguments[1..]).current_dir(directory);
     command.envs(command_environment(&selected)?);
     let status = command.status()?;

@@ -110,6 +110,36 @@ until the direct child exits. Its exit status is returned. Exec performs no impl
 installation and its metadata-facts lookup is local. Initial installation and
 acquisition of uncached content require the network.
 
+`exec` also accepts an explicit absolute or relative executable path. It resolves
+relative paths against `-C`/the invocation directory and applies the same frozen
+Node selection, configuration eligibility and environment. For example:
+
+```sh
+oyzu exec -- ./bin/development-runner "argument with spaces"
+oyzu exec -- /usr/bin/python3 scripts/check.py
+```
+
+On Windows, use a full executable path such as
+`oyzu exec -- C:\Python313\python.exe scripts\check.py`. Drive-relative paths
+such as `C:python.exe` are rejected as ambiguous. A program started this way can
+find the selected Node at the front of PATH; the explicit program itself is a
+requested development command, not a verified locked tool. This is ordinary
+development execution, not the hermetic build executor. Invoke an interpreter
+explicitly for scripts that need one. No implicit shell parsing is added.
+
+Bare unknown commands still fail even if installed globally. Missing paths and
+directories fail without changing the lock or acquiring tools. `which` remains
+limited to the declared `node` command. Managed execution and process-tree/signal
+supervision remain unfinished. Exercise the actual explicit-path flow against
+the retained two-project acceptance workspace with:
+
+```sh
+python tooling/test-tool-exec.py --cli PATH_TO_FEATURE_ENABLED_OYZU --workspace PATH
+```
+
+Linux amd64 passed this scenario with container networking disabled on 2026-10-02.
+Native Windows/macOS explicit-path execution acceptance remains pending in CI.
+
 ## Standalone proxy acquisition
 
 Administrative `registries.routes` can select an opaque connector for Node.
@@ -347,8 +377,8 @@ missing-selection cleanup, user-edited scalar preservation and deactivation.
 The subsequent native-shim replay also passed on Linux Bash/Zsh, including literal
 arguments and exit status. A direct offline probe put a real Node later on PATH
 and confirmed that a missing selection failed instead of invoking it. Native
-macOS activation remains pending. Windows native shim acceptance passed at
-`e335d70` in CI run `37051685318`. Run it against the
+macOS and Windows native shim acceptance passed at `e335d70` in CI run
+`37051685318`, including their native activation/switching flows. Run it against the
 retained two-project workspace:
 
 ```sh
@@ -359,7 +389,8 @@ Linux Bash and Zsh application passed with networking disabled on 2026-10-02:
 the shell launched the same Node executable as `exec`, literal metacharacters
 were preserved, inspection values were redacted and the lock was unchanged.
 PowerShell environment application passed on Windows at `3eefcc2` in CI run
-`37049209850`; native macOS environment application remains pending. Reproduce
+`37049209850`; macOS Bash/Zsh environment application passed at `e335d70` in
+run `37051685318`. Reproduce
 against a retained acceptance workspace with Python 3.11+:
 
 ```sh
@@ -417,8 +448,8 @@ restores 22.15.0 through an explicit update. It checks that the second project i
 unchanged and a repeated update preserves lock bytes. On failure it retains the
 workspace at the failing step for diagnosis.
 This complete update scenario passed on Linux amd64 with Rust 1.95 on 2026-10-02
-and Windows amd64 at `1acb16f` in CI run `37048375166`; native macOS update
-acceptance remains pending.
+and Windows amd64 at `1acb16f` in CI run `37048375166`. Native macOS update
+acceptance passed at `e335d70` in run `37051685318`.
 
 Remaining functional work includes other tools, aliases/native constraints,
 multi-tool and scoped updates, managed connector grants and selection, npm

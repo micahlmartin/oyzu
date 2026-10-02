@@ -2668,3 +2668,31 @@ Default Windows locked tests, strict clippy, formatting and nine real task
 scenarios passed. Linux feature-enabled build, strict all-target clippy and
 formatting passed. Documentation structure and diff checks passed. Full OEP-0003
 functional scope remains incomplete; additional hardening stays deferred.
+
+## Checkpoint 168: explicit executable paths in development exec (2026-10-02)
+
+Exec now accepts explicit absolute/relative executable paths in addition to the
+selected Node command. Relative paths resolve against the invocation directory;
+unknown bare names never use ambient PATH. The same frozen lookup, eligibility,
+environment composition and installation lease apply. An explicit executable is
+not represented as a locked tool and managed execution remains unavailable.
+
+The Linux real-process acceptance ran with container networking disabled. An
+explicit interpreter launched the locked Node through PATH, received literal
+arguments, cwd and TOML environment, and propagated exit status. A relative Node
+path resolved against -C; bare unknown and missing paths failed. Lock bytes were
+unchanged. Native Windows/macOS explicit-path acceptance remains pending in CI.
+
+Feature-enabled Linux build, all-target strict clippy and formatting passed.
+The initial default Windows suite hit WAIT_TIMEOUT (258) in the unchanged
+real_spawn_restricts_handles_environment_and_cleans_descendant_held_control_pipes
+assertion. The full locked suite passed with --test-threads=2, including that test;
+no lifecycle implementation or test was changed. Default strict clippy/formatting
+also passed. This records the intermittent cleanup observation without claiming
+it fixed; cleanup hardening remains deferred.
+
+CI run 37051685318 at e335d70 now confirms macOS Node install/update/offline reuse,
+Bash/Zsh environment and native-shim activation, as well as the previously recorded
+Windows acceptance. These results do not cover the later proxy/profile/exec changes.
+
+Nine real Windows task scenarios and documentation/diff checks also passed.

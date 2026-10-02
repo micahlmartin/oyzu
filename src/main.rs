@@ -88,7 +88,7 @@ enum Commands {
         store: PathBuf,
         command: String,
     },
-    /// Execute a frozen installed Node command (opt-in development integration).
+    /// Execute a selected command or explicit path with the frozen environment.
     #[cfg(feature = "mise-integration")]
     Exec {
         #[arg(long, default_value = ".oyzu/tools")]

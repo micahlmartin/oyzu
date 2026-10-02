@@ -17,7 +17,8 @@ Linux version-switch/switch-back acceptance and preserve the other project's
 selection and lock; multi-tool/scoped updates remain open. The original install/exec scenario
 also passed Windows and macOS at `73bb33d`; offline/which restoration subsequently
 passed Windows at `1acb16f` and macOS at `01e81be`. Explicit updates also passed
-Windows at `1acb16f`; macOS update acceptance remains pending. See the
+Windows at `1acb16f`; macOS updates, environment application and native shim
+activation passed at `e335d70` in run `37051685318`. See the
 [development reference](reference/tool-management-development.md) for its exact
 scope. This milestone does not complete the remaining OEP-0003 functionality.
 The `env` command now shares composition with `exec`, redacts inspection values
@@ -44,6 +45,12 @@ installed locked Node through native shims and deactivated. Repeated installatio
 refusal to overwrite edited blocks and byte-exact restoration passed. Native
 macOS/PowerShell profile acceptance remains pending; wider shell lifecycle work
 remains open.
+Development `exec` now also accepts explicit executable paths with the frozen
+Node environment while rejecting unknown bare commands. Linux acceptance with
+networking disabled ran a real interpreter, selected locked Node in its child,
+preserved literal arguments/cwd/environment and exit status, resolved a relative
+path against `-C`, and left the lock unchanged. Windows/macOS acceptance for this
+extension is pending; managed execution and process supervision remain open.
 
 ## Builder objective
 
