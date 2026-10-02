@@ -10,7 +10,7 @@ use std::{
     collections::BTreeMap,
     ffi::OsString,
     io::Write,
-    path::Path,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::Arc,
 };
@@ -193,7 +193,12 @@ fn plan(archive: &Archive, digest: &str, backend: &str) -> serde_json::Value {
 }
 
 /// Resolve and install a standalone Node selection, or reuse an exact existing lock.
-pub fn install(directory: &Path, options: &config::session::Options, store: &Path) -> Result<i32> {
+pub fn install(
+    directory: &Path,
+    options: &config::session::Options,
+    store: &Path,
+    frozen: bool,
+) -> Result<i32> {
     let directory = directory.canonicalize()?;
     let (session, effective, request) = configuration(&directory, options)?;
     ensure!(
@@ -201,6 +206,10 @@ pub fn install(directory: &Path, options: &config::session::Options, store: &Pat
         "initial Node install supports the workspace root scope"
     );
     let lock_path = session.root.join("oyzu.lock");
+    ensure!(
+        !frozen || lock_path.exists(),
+        "frozen install requires an existing oyzu.lock; run oyzu install first"
+    );
     let edit = super::ToolLockEdit::capture(&lock_path)?;
     let previous = if lock_path.exists() {
         Some(lock::parse(&super::read_record(
@@ -225,6 +234,33 @@ pub fn install(directory: &Path, options: &config::session::Options, store: &Pat
         super::project_tool_requests(&effective, &metadata.aliases, &BTreeMap::new(), &[])?;
     let profile = effective.profile.as_deref().unwrap_or("default");
     let backend = identity()?;
+    if let Some(lock) = &previous {
+        let selection = super::select_for_tool_requests(
+            &session.root,
+            &directory,
+            profile,
+            &requests,
+            platform()?,
+        )?;
+        ensure!(
+            lock.tool[0].backend_digest == backend,
+            "locked backend differs; explicit relocking required"
+        );
+        let installation = &selection.installation_keys[&lock.tool[0].key];
+        if store.join("installs").join(&installation[7..]).exists() {
+            let _lease = super::lease_installation_selection(
+                &lock_path,
+                store,
+                None,
+                ".",
+                profile,
+                platform()?,
+                &backend,
+            )?;
+            println!("Already installed node {}", metadata.archive.version);
+            return Ok(0);
+        }
+    }
     let mut fetcher = fetcher()?;
     let response = fetcher.fetch(&metadata.archive.archive_url)?;
     ensure!(
@@ -251,18 +287,7 @@ pub fn install(directory: &Path, options: &config::session::Options, store: &Pat
         "oyzu.tool-record.v2",
         &json!({"id":"core:node","version":metadata.archive.version,"backend_digest":backend,"options":{}}),
     )?;
-    let bytes = if let Some(lock) = &previous {
-        super::select_for_tool_requests(
-            &session.root,
-            &directory,
-            profile,
-            &requests,
-            platform()?,
-        )?;
-        ensure!(
-            lock.tool[0].backend_digest == backend,
-            "locked backend differs; explicit relocking required"
-        );
+    let bytes = if previous.is_some() {
         super::read_record(&lock_path, lock::MAX_BYTES)?
     } else {
         let document = lock::Lock {
@@ -320,7 +345,11 @@ pub fn install(directory: &Path, options: &config::session::Options, store: &Pat
         &digest,
         distribution.size,
     )?;
-    let staging = tempfile::tempdir_in(std::env::temp_dir().canonicalize()?)?;
+    // Publication renames candidates atomically, so staging must share the
+    // installation store's filesystem (including externally mounted stores).
+    let staging_root = store.join("staging");
+    std::fs::create_dir_all(&staging_root)?;
+    let staging = tempfile::tempdir_in(staging_root.canonicalize()?)?;
     let candidate_lock = staging.path().join("oyzu.lock");
     std::fs::write(&candidate_lock, &bytes)?;
     let installation = &parsed.selections[0].installation_keys[&key];
@@ -354,13 +383,20 @@ pub fn install(directory: &Path, options: &config::session::Options, store: &Pat
     Ok(0)
 }
 
-/// Execute the installed frozen Node command while holding its verified lease.
-pub fn exec(
+struct InstalledCommand {
+    lease: super::InstallationLease,
+    executable: PathBuf,
+    bin: PathBuf,
+    effective: config::resolve::EffectiveConfig,
+}
+
+// Shared frozen lookup for execution and executable discovery. The returned
+// lease keeps the verified installation available for the caller's operation.
+fn installed_command(
     directory: &Path,
     options: &config::session::Options,
     store: &Path,
-    arguments: &[OsString],
-) -> Result<i32> {
+) -> Result<InstalledCommand> {
     let directory = directory.canonicalize()?;
     let (session, effective, request) = configuration(&directory, options)?;
     let lock_path = session.root.join("oyzu.lock");
@@ -393,10 +429,6 @@ pub fn exec(
         platform()?,
         &identity()?,
     )?;
-    ensure!(
-        arguments.first().is_some_and(|argument| argument == "node"),
-        "initial exec command must be node"
-    );
     let selected = lease.command("node")?;
     let ToolLaunch::Native {
         payload_relative_path,
@@ -410,21 +442,55 @@ pub fn exec(
         .join("installs")
         .join(&selected.installation_key[7..])
         .join("payload");
-    let mut command = Command::new(payload.join(payload_relative_path));
-    command.args(&arguments[1..]).current_dir(&directory);
-    for (name, value) in effective.values() {
+    let executable = payload.join(payload_relative_path);
+    Ok(InstalledCommand {
+        lease,
+        executable,
+        bin: payload.join(&metadata.archive.bin_relative_path),
+        effective,
+    })
+}
+
+/// Print the same verified executable selected by exec, without launching it.
+pub fn which(
+    directory: &Path,
+    options: &config::session::Options,
+    store: &Path,
+    name: &str,
+) -> Result<i32> {
+    ensure!(name == "node", "initial which command must be node");
+    let selected = installed_command(directory, options, store)?;
+    println!("{}", selected.executable.display());
+    Ok(0)
+}
+
+/// Execute the installed frozen Node command while holding its verified lease.
+pub fn exec(
+    directory: &Path,
+    options: &config::session::Options,
+    store: &Path,
+    arguments: &[OsString],
+) -> Result<i32> {
+    ensure!(
+        arguments.first().is_some_and(|argument| argument == "node"),
+        "initial exec command must be node"
+    );
+    let selected = installed_command(directory, options, store)?;
+    let mut command = Command::new(&selected.executable);
+    command.args(&arguments[1..]).current_dir(directory);
+    for (name, value) in selected.effective.values() {
         if let Some(name) = name.strip_prefix("env.") {
             if let Some(value) = value.as_str() {
                 command.env(name, value);
             }
         }
     }
-    let mut paths = vec![payload.join(&metadata.archive.bin_relative_path)];
+    let mut paths = vec![selected.bin];
     if let Some(path) = std::env::var_os("PATH") {
         paths.extend(std::env::split_paths(&path));
     }
     command.env("PATH", std::env::join_paths(paths)?);
     let status = command.status()?;
-    drop(lease);
+    drop(selected.lease);
     Ok(status.code().unwrap_or(1))
 }

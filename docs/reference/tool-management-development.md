@@ -34,6 +34,8 @@ Then run the feature-enabled binary:
 
 ```sh
 oyzu install
+oyzu install --frozen
+oyzu which node
 oyzu exec -- node --version
 oyzu exec -- node -e 'console.log(process.env.APP_MODE)'
 ```
@@ -46,7 +48,7 @@ locks retain the exact version; this first implementation has no update command.
 
 The default store is `.oyzu/tools` relative to the invocation directory. For two
 projects sharing installations, pass the same absolute `--store PATH` to both
-`install` and `exec` (before `--` for exec). Commit `oyzu.lock`; keep the store out
+`install`, `which` and `exec` (before `--` for exec). Commit `oyzu.lock`; keep the store out
 of version control. Each project selects its own locked version when executed.
 
 Installation requests metadata and the archive through Oyzu's existing HTTP
@@ -57,19 +59,38 @@ transaction. The lock explicitly records digest-only verification; it does not
 claim a verified publisher signature. An existing incompatible lock fails rather
 than being silently replaced. A failed installation does not publish a new lock.
 
+`install --frozen` requires an existing compatible lock and never resolves a new
+version. Both ordinary and frozen installs reuse an already installed selection
+after verifying its receipt and contents; this path needs no network and leaves
+the lock unchanged. If the installation is absent, the locked archive is acquired
+from the configured public route. Restoring an absent installation solely from
+cached blobs is not implemented yet. A missing lock with `--frozen` fails before
+resolution; run ordinary `install` to create the initial lock.
+
+`which node` prints the absolute executable path selected by `exec`. It uses the
+same frozen configuration/lock matching and verified installation lookup, makes
+no network request and does not install or launch anything. A missing installation
+or mismatched configuration fails instead of returning a system PATH executable.
+
 Execution requires an existing matching lock and installation. It reuses frozen
 selection and a verified installation lease, launches the native Node executable
 directly, passes arguments without a command shell, applies configured environment
 values and prepends the installed binary directory to PATH. The lease is held
 until the direct child exits. Its exit status is returned. Exec performs no implicit
-installation and its metadata-facts lookup is local; initial install requires the
-network, including repeat installs in this first implementation.
+installation and its metadata-facts lookup is local. Initial installation and
+acquisition of missing installed content require the network.
 
 ## Scope and acceptance evidence
 
 Host target mapping currently covers Linux amd64 GNU, Windows amd64 MSVC and
-macOS arm64. Mapping is not native acceptance evidence: the first integrated build
-and test run passed on Linux amd64 under Rust 1.95 on 2026-10-02. The real acceptance runner passed both versions, shared-store project switching, arguments, cwd, TOML environment, unchanged locks during exec and exit status. Windows/macOS integrated acceptance remains pending.
+macOS arm64. On 2026-10-02, Linux amd64 under Rust 1.95 passed both versions,
+shared-store project switching, frozen/repeat installs, which/exec agreement,
+arguments, cwd, TOML environment, unchanged locks and exit status. The same
+projects then passed replay under Docker `--network none`. A separately mounted
+store also passed installation/publication. The original install/exec scenario
+at revision `73bb33d` passed on macOS arm64 in CI run `37045134221`; the expanded
+frozen/which scenario is not yet verified there. Windows integrated acceptance
+remains pending.
 
 Run the real user acceptance scenario with Python 3.11+ and public Node access:
 
@@ -81,6 +102,12 @@ The runner creates two projects selecting Node 22.15.0 and 22.14.0, installs int
 one store, checks frozen version selection, literal arguments, cwd, TOML
 environment and exit-code propagation, and revisits both projects. These are
 actual downloads and executions, not mocked backend or store behavior.
+
+Use `--workspace PATH` to retain these projects, then rerun with the same path and
+`--offline-check` in an environment with network access disabled. The replay
+checks frozen and ordinary install reuse, `which`/`exec` executable agreement,
+unchanged locks and both project versions. `--offline-check` itself does not
+disable networking; the surrounding environment must enforce that condition.
 
 Remaining functional work includes other tools, aliases/native constraints,
 multi-tool and scoped updates, offline cached install, configured corporate

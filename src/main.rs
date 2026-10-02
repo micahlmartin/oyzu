@@ -29,8 +29,18 @@ enum Commands {
     /// Install the configured Node tool (opt-in development integration).
     #[cfg(feature = "mise-integration")]
     Install {
+        /// Require an existing matching lock without resolving new versions.
+        #[arg(long)]
+        frozen: bool,
         #[arg(long, default_value = ".oyzu/tools")]
         store: PathBuf,
+    },
+    /// Locate a verified installed command using the frozen project selection.
+    #[cfg(feature = "mise-integration")]
+    Which {
+        #[arg(long, default_value = ".oyzu/tools")]
+        store: PathBuf,
+        command: String,
     },
     /// Execute a frozen installed Node command (opt-in development integration).
     #[cfg(feature = "mise-integration")]
@@ -121,8 +131,22 @@ fn run() -> Result<i32> {
     };
     match &cli.command {
         #[cfg(feature = "mise-integration")]
-        Commands::Install { store } => {
-            return oyzu::tools::development::install(&directory, &options, &directory.join(store));
+        Commands::Install { store, frozen } => {
+            return oyzu::tools::development::install(
+                &directory,
+                &options,
+                &directory.join(store),
+                *frozen,
+            );
+        }
+        #[cfg(feature = "mise-integration")]
+        Commands::Which { store, command } => {
+            return oyzu::tools::development::which(
+                &directory,
+                &options,
+                &directory.join(store),
+                command,
+            );
         }
         #[cfg(feature = "mise-integration")]
         Commands::Exec { store, args } => {
@@ -247,7 +271,7 @@ fn run() -> Result<i32> {
             unreachable!()
         }
         #[cfg(feature = "mise-integration")]
-        Commands::Install { .. } | Commands::Exec { .. } => unreachable!(),
+        Commands::Install { .. } | Commands::Exec { .. } | Commands::Which { .. } => unreachable!(),
     }
     Ok(0)
 }

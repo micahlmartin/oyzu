@@ -9,6 +9,13 @@ installation, execution and shell activation are not complete. The dedicated
 implementation checkpoints, exact qualification evidence and remaining gates.
 This separate journal lets builder and tool implementation evolve independently.
 
+The opt-in standalone Node path now connects Oyzu TOML, the pinned mise library,
+lock creation, installation, frozen/repeat reuse and `exec`/`which`. Two real Node
+versions sharing a mounted store pass Linux user acceptance; native Windows and
+macOS product acceptance remains pending. See the
+[development reference](reference/tool-management-development.md) for its exact
+scope. This milestone does not complete the remaining OEP-0003 functionality.
+
 ## Builder objective
 
 The active objective is the complete builder system, all applicable sample scenarios passing through real Oyzu behavior, snapshot artifacts, and CI that builds the CLI before running scenario verification. Tool installation is excluded. The checkpoints below do not redefine completion around a subset.

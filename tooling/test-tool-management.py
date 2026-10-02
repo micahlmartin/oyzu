@@ -3,42 +3,59 @@ import argparse
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
+from contextlib import nullcontext
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cli", required=True, type=Path)
+    parser.add_argument("--workspace", type=Path, help="Preserve projects for a later offline replay")
+    parser.add_argument("--offline-check", action="store_true", help="Replay an already provisioned workspace without downloads")
     args = parser.parse_args()
     cli = args.cli.resolve(strict=True)
     verified = []
-    with tempfile.TemporaryDirectory(prefix="oyzu-node-acceptance-") as temporary:
+    if args.offline_check and not args.workspace:
+        parser.error("--offline-check requires --workspace")
+    with (nullcontext(args.workspace) if args.workspace else tempfile.TemporaryDirectory(prefix="oyzu-node-acceptance-")) as temporary:
         root = Path(temporary).resolve()
+        root.mkdir(parents=True, exist_ok=True)
         store = root / "store"
         projects = []
         for version in ("22.15.0", "22.14.0"):
+            print(f"Checking Node {version} ({'offline replay' if args.offline_check else 'install and reuse'})", file=sys.stderr, flush=True)
             project = root / version
-            project.mkdir()
-            (project / "oyzu.toml").write_text(
-                f'[tools]\nnode = "{version}"\n[env]\nAPP_ACCEPTANCE = "from-toml"\n',
-                encoding="utf-8",
-            )
+            if not args.offline_check:
+                project.mkdir()
+                (project / "oyzu.toml").write_text(
+                    f'[tools]\nnode = "{version}"\n[env]\nAPP_ACCEPTANCE = "from-toml"\n',
+                    encoding="utf-8",
+                )
             base = [str(cli), "-C", str(project)]
             def run(command, expected=0):
                 result = subprocess.run(base + command, capture_output=True, text=True, timeout=300)
                 if result.returncode != expected:
                     raise RuntimeError(f"{command}: exit {result.returncode}\n{result.stdout}\n{result.stderr}")
                 return result.stdout.strip()
-            run(["install", "--store", str(store)])
+            if not args.offline_check:
+                run(["install", "--frozen", "--store", str(store)], expected=2)
+                assert not (project / "oyzu.lock").exists()
+                run(["install", "--store", str(store)])
             lock = (project / "oyzu.lock").read_bytes()
+            run(["install", "--frozen", "--store", str(store)])
+            run(["install", "--store", str(store)])
+            executable = Path(run(["which", "--store", str(store), "node"]))
+            assert executable.is_file(), executable
             command = ["exec", "--store", str(store), "--", "node"]
+            assert Path(run(command + ["-p", "process.execPath"])).resolve() == executable.resolve()
             assert run(command + ["--version"]) == "v" + version
             observed = json.loads(run(command + ["-e", "console.log(JSON.stringify([process.env.APP_ACCEPTANCE,process.cwd(),...process.argv.slice(1)]))", "a b", 'a"b', "&|<>^()%!"]))
             assert observed == ["from-toml", str(project), "a b", 'a"b', "&|<>^()%!"], observed
             run(command + ["-e", "process.exit(7)"], expected=7)
             assert (project / "oyzu.lock").read_bytes() == lock
             projects.append((project, version))
-            verified.append(f"Node {version}: TOML, real install, frozen exec, arguments, cwd, environment, exit status")
+            verified.append(f"Node {version}: TOML, {'offline reuse' if args.offline_check else 'real install'}, frozen/repeat install, which/exec agreement, arguments, cwd, environment, exit status")
         for project, version in reversed(projects):
             result = subprocess.run([str(cli), "-C", str(project), "exec", "--store", str(store), "--", "node", "--version"], capture_output=True, text=True, check=True, timeout=120)
             assert result.stdout.strip() == "v" + version

@@ -2455,3 +2455,34 @@ match-guard rewrite in the existing BuildKit image check; no executor behavior
 changed. Documentation structure and diff checks passed. This is the first
 connected Node user-flow evidence, not completion of the remaining functional
 OEP scope. Hardening is reserved for future goals by explicit maintainer direction.
+
+## Checkpoint 160: frozen install reuse and executable lookup
+
+The Node development path now exposes `install --frozen` and `which node`.
+Frozen install requires an existing matching lock; repeat and frozen installs
+verify and reuse an existing installation before acquiring anything. Exec and
+which share one frozen lookup and held installation lease. These changes advance
+TM-03/07 and the MISE-01/03 user flows without claiming the full OEP complete.
+
+The real Linux Rust 1.95 acceptance run passed Node 22.15.0 and 22.14.0 from two
+Oyzu TOML projects, missing-lock frozen rejection, ordinary/frozen install reuse,
+which/exec executable agreement, argument/cwd/environment/exit behavior, unchanged
+locks and shared-store project switching. Running the store on a separate mounted
+filesystem exposed cross-device publication failure; staging now lives inside the
+store so atomic publication works. This was corrected and the full flow reran.
+
+Windows GNU default locked tests, strict all-target Clippy, formatting and nine
+existing task scenarios passed. Linux feature-enabled strict all-target Clippy
+and formatting passed after the publication fix. Network-disabled replay of the
+retained projects is in progress; native product CI remains pending. The pinned
+fork's embedding run 37041298439 completed successfully on all three native hosts.
+The development reference and owner map describe the new commands and limits.
+
+Checkpoint 160 verification completion: the identical retained two-project flow
+passed under Docker `--network none`, including both kinds of install reuse,
+which/exec agreement and unchanged locks. This proves existing installation reuse,
+not restoration from cached archives. Root CI run 37045134221 at 73bb33d completed
+successfully on Linux; its original macOS real install/exec step passed while
+remaining checks were still running. Windows remained in its build step. The new
+frozen/which paths still need native Windows/macOS acceptance. Documentation and
+diff checks passed. Hardening remains reserved for future goals.
