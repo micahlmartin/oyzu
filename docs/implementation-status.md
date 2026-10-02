@@ -694,3 +694,32 @@ production pin absent. The weekly workflow is authored but not scheduled live
 until merged into main. Patch provenance, advisory triage, owner approval gates,
 branch protection, first source import approval and full qualification remain
 outstanding. Do not interpret an observation job's green status as release approval.
+
+## OEP-0003 payload identity and no-follow observation (2026-10-02)
+
+TM-04 now has native handle-based payload observation under `src/tools/store`.
+Unix reads use directory-relative no-follow opens; Windows retains ancestor
+handles without delete sharing and rejects reparse-point file/directory opens.
+The scanner includes directory entries, streams content digests, records internal
+symlinks and resolves their chains without following them on disk. Outside
+hardlinks, escaping/dangling/cyclic links, special files, portable-name violations
+and case collisions fail. This is not yet the extractor, receipt validator,
+transaction manager or lease/prune system. The full goal remains active.
+
+Lock inspection now computes recursive installation keys in addition to selection
+keys. Tests show a dependency artifact change invalidates both the dependency and
+its parent, while adding another platform leaves existing platform keys unchanged.
+The public `tools inspect-tree` command exercises the production observation path;
+[its reference](reference/tool-lock-inspection.md#payload-tree-observation) states
+bounds, errors, no-mutation behavior and the same-user concurrency limitation.
+
+Windows GNU Rust 1.94 passed the full suite (159 tests, two preexisting ignored),
+strict all-target Clippy and formatting. In a Linux Docker runner with Rust 1.94,
+19 tool unit tests, the compiled tree-inspection CLI test and strict all-target
+Clippy passed. Linux tests include actual relative symlinks, special files and a
+root-directory replacement proving held reads do not redirect. Windows tests
+prove replacement is denied while an ancestor handle is held. Native macOS/MSVC
+qualification of this new change is pending the PR jobs. The already-locked libc
+package is now a direct Unix dependency for native descriptor operations; its
+local crate declaration is MIT OR Apache-2.0. No package version was upgraded and
+no first-party license or distribution approval was selected by this change.

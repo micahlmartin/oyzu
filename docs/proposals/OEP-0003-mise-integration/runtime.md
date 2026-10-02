@@ -125,6 +125,7 @@ through an unrelated repository. `--profile` uses OEP-0002 profile selection.
 | `oyzu which COMMAND` | Return the verified launch target and owning tool; does not execute it |
 | `oyzu tools list/search/versions` | List installed/current status locally; search/versions uses explicit authorized catalog access, supports `--offline` for existing catalog only |
 | `oyzu tools inspect-lock [PATH]` | Read-only whole-document format-2 validation and selection identities; does not attest current configuration, policy, backend admission or installed content |
+| `oyzu tools inspect-tree PATH` | Read-only no-follow payload manifest and hashes; an observation, not a committed receipt or execution grant |
 | `oyzu tools prune [--dry-run]` | Remove only unleased, unreferenced committed entries; print candidates and retained reasons; no lock edits |
 | `oyzu shell install SHELL --profile-path PATH` / `remove` | Explicit opt-in bounded profile block editing; validate selected shell and ownership |
 

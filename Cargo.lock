@@ -1454,6 +1454,7 @@ dependencies = [
  "globset",
  "jwt-compact",
  "keyring",
+ "libc",
  "reqwest",
  "roxmltree",
  "serde",

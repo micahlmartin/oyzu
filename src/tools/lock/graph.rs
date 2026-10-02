@@ -76,6 +76,11 @@ pub(super) fn validate(lock: &Lock) -> Result<Vec<super::super::LockedSelection>
                             "platform": platform, "roots": environment.roots, "tools": records
                         }),
                     )?,
+                    installation_keys: state
+                        .installations
+                        .into_iter()
+                        .map(|(key, value)| (key.to_owned(), value))
+                        .collect(),
                 });
             }
         }
@@ -92,6 +97,7 @@ struct Walk<'a> {
     active: BTreeSet<&'a str>,
     done: BTreeMap<&'a str, usize>,
     ids: BTreeMap<&'a str, &'a str>,
+    installations: BTreeMap<&'a str, String>,
 }
 
 fn walk<'a>(
@@ -124,6 +130,18 @@ fn walk<'a>(
         height = height.max(1 + walk(dependency, platform, tools, state, depth + 1)?);
     }
     state.active.remove(tool.key.as_str());
+    let dependencies = distribution.dependencies.iter().map(|key|
+        serde_json::json!({"key": key, "installation_key": state.installations[key.as_str()]}))
+        .collect::<Vec<_>>();
+    let installation_key = crate::records::digest(
+        "oyzu.installation.v1",
+        &serde_json::json!({
+            "tool": {"key": tool.key, "id": tool.id, "version": tool.version,
+                "backend_digest": tool.backend_digest, "options": tool.options},
+            "distribution": distribution, "dependencies": dependencies
+        }),
+    )?;
+    state.installations.insert(&tool.key, installation_key);
     state.done.insert(&tool.key, height);
     Ok(height)
 }

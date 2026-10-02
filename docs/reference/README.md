@@ -4,7 +4,7 @@ This is the entry point for current functionality documentation. Maintain featur
 
 | Reference | Coverage |
 | --- | --- |
-| [Tool lock inspection](tool-lock-inspection.md) | Read-only format-2 validation and selection identities; no installation or execution authority |
+| [Tool identity inspection](tool-lock-inspection.md) | Format-2 selection/installation identities and no-follow payload tree observation; no installation or execution authority |
 | [Mise maintenance](mise-maintenance.md) | Read-only upstream observation, exact Cargo pin checks and scheduled-workflow activation limits |
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |

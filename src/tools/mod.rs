@@ -1,6 +1,8 @@
 //! Oyzu-owned tool identity. Inspection is read-only and confers no install or
 //! execution authority; backend admission and receipt validation are separate.
 mod lock;
+mod store;
+pub use store::{TreeEntry, TreeInspection};
 
 use anyhow::{ensure, Context, Result};
 use serde::Serialize;
@@ -22,6 +24,7 @@ pub struct LockedSelection {
     pub profile: String,
     pub platform: String,
     pub digest: String,
+    pub installation_keys: std::collections::BTreeMap<String, String>,
 }
 
 /// Validate a bounded format-2 document without discovery, network, execution or
@@ -52,4 +55,10 @@ pub fn inspect_lock(path: &Path) -> Result<LockInspection> {
         validation: "structure-and-identity-only",
         selections: document.selections,
     })
+}
+
+/// Observe payload content through no-follow filesystem handles. This does not
+/// create an installation receipt or grant permission to execute the payload.
+pub fn inspect_tree(path: &Path) -> Result<TreeInspection> {
+    store::inspect(&std::path::absolute(path)?)
 }

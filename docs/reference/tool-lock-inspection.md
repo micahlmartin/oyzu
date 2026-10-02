@@ -1,4 +1,4 @@
-# Tool lock inspection
+# Tool identity inspection
 
 `oyzu tools inspect-lock [PATH]` validates an experimental format-2 tool lock
 without resolving, downloading, installing or running a tool. PATH defaults to
@@ -36,6 +36,12 @@ verification metadata, layout and backend identities. Comments and set-like
 array ordering do not affect it. Changing a dependency artifact changes the
 selection digest even when its tool ID and version are unchanged.
 
+Each selection also contains `installation_keys`, mapping tool keys to recursive
+installation identities. A dependency change invalidates its own installation
+and dependent installations. Adding an unselected platform leaves the existing
+platform's installation identities unchanged. These keys name intended content;
+they do not establish that an installation exists or is authorized.
+
 `validation: "structure-and-identity-only"` is deliberate: success does not
 prove publisher authenticity, legal clearance, policy authorization, installed
 content integrity or backend admission. Request digests are checked for shape,
@@ -54,3 +60,44 @@ Unit tests cover graph failures, bounds and semantic identity. The CLI test
 checks an independently computed golden digest, ignores malformed adjacent mise
 and Oyzu configuration, preserves file bytes and rejects tampering. Local results
 and platform limits are recorded in [implementation status](../implementation-status.md).
+
+## Payload tree observation
+
+```sh
+oyzu tools inspect-tree /absolute/path/to/payload
+```
+
+This reads an existing directory and emits its sorted manifest, content byte
+count, domain-separated tree digest and canonical manifest blob digest. It never
+executes payload files, follows payload symlinks, writes a receipt or modifies
+the tree. As with lock inspection, output is JSON, success exits 0 and errors
+exit 2. Relative paths are based on `-C`, `--root` or the current directory.
+Use a physical path without symlink/reparse-point ancestors; redirected roots
+are rejected rather than silently resolved. Parent `..` components are rejected.
+
+File records include content digest/size and Unix executable bits. Directory
+entries and relative symlink targets are included. Windows executable bits are
+zero because Windows does not provide Unix mode bits. Timestamps, owner IDs,
+ACLs and host inode/file IDs do not enter the portable manifest. The scanner
+checks hardlink identities locally and rejects links to files outside the tree;
+internal hardlinks produce explicit file records for each path.
+
+The reader anchors Unix child access to directory descriptors with no-follow
+opens. Windows holds all ancestor directories without delete sharing and rejects
+reparse points when opening regular files/directories. Link chains are resolved
+against the manifest component by component: escaping, cyclic, dangling or
+non-directory chains fail. Portable member names reject Windows devices, ADS,
+trailing-dot/space aliases, controls and case collisions on every host. Root
+directory names may be host-native; payload member names must be portable UTF-8.
+
+Limits are 200,000 entries, 8 GiB of file content, 1 GiB per file, path depth 64,
+64 symlink expansions, 16 KiB link targets and a 32 MiB aggregate path/target
+budget. Hashing streams through a 64 KiB buffer. Special files fail before reads;
+observable file size, identity, link-count or executable-mode changes during
+verification also fail. Limits cannot be raised by project input.
+
+`validation: "payload-observation-only"` does not claim an atomic snapshot against
+a malicious same-user writer. The scanner reads all bytes and uses no mtime-only
+cache, but a trusted receipt comparison, healthy monitor or private managed
+materialization is still required at the selection/execution boundary. Those
+store operations and the archive finalizer are not implemented yet.

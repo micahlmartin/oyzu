@@ -217,3 +217,46 @@ fn cannot_inject_computed_selection_records() {
     let input = [b"selections = []\n".as_slice(), &encoded(&fixture())].concat();
     assert!(parse(&input).is_err());
 }
+
+#[test]
+fn installation_identity_binds_dependencies_but_ignores_other_platforms() {
+    let mut lock = fixture();
+    let dependency = tool("core:python");
+    let root_key = lock.tool[0].key.clone();
+    let dependency_key = dependency.key.clone();
+    lock.tool[0].distribution[0]
+        .dependencies
+        .push(dependency.key.clone());
+    lock.tool.push(dependency);
+    let original = parse(&encoded(&lock)).unwrap().selections[0]
+        .installation_keys
+        .clone();
+    for tool in &mut lock.tool {
+        let mut extra = tool.distribution[0].clone();
+        extra.platform = "darwin/arm64/native".into();
+        extra.digest = hash('1');
+        extra.verification.subject_digest = hash('1');
+        tool.distribution.push(extra);
+    }
+    let expanded = parse(&encoded(&lock)).unwrap();
+    assert_eq!(
+        expanded
+            .selections
+            .iter()
+            .find(|s| s.platform == "linux/amd64/gnu")
+            .unwrap()
+            .installation_keys,
+        original
+    );
+    lock.tool[1].distribution[0].digest = hash('2');
+    lock.tool[1].distribution[0].verification.subject_digest = hash('2');
+    let changed = parse(&encoded(&lock)).unwrap();
+    let changed = &changed
+        .selections
+        .iter()
+        .find(|s| s.platform == "linux/amd64/gnu")
+        .unwrap()
+        .installation_keys;
+    assert_ne!(changed[&root_key], original[&root_key]);
+    assert_ne!(changed[&dependency_key], original[&dependency_key]);
+}

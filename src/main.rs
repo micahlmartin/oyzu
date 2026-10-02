@@ -59,6 +59,8 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum ToolCommand {
+    /// Observe a payload tree without following links or trusting a receipt.
+    InspectTree { path: PathBuf },
     /// Validate format-2 lock structure and identity (not trust or installed state).
     InspectLock {
         #[arg(default_value = "oyzu.lock")]
@@ -92,6 +94,15 @@ fn run() -> Result<i32> {
         ..Default::default()
     };
     match &cli.command {
+        Commands::Tools {
+            command: ToolCommand::InspectTree { path },
+        } => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&oyzu::tools::inspect_tree(&directory.join(path))?)?
+            );
+            return Ok(0);
+        }
         Commands::Tools {
             command: ToolCommand::InspectLock { path },
         } => {
