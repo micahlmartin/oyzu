@@ -16,6 +16,7 @@ pub(super) use layout::stage;
 pub(super) use lease::recover;
 pub use lease::LeaseRecovery;
 pub(super) use receipt::verify;
+pub use receipt::{LeasedToolCommand, ToolArgument, ToolInstallPath, ToolLaunch};
 pub(super) use transaction::transact;
 pub use transaction::InstallationLease;
 pub(super) use tree::inspect;

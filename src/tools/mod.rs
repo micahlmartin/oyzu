@@ -19,6 +19,7 @@ mod store;
 pub use store::InstallationLease;
 pub use store::LeaseRecovery;
 pub use store::VerifiedBlob;
+pub use store::{LeasedToolCommand, ToolArgument, ToolInstallPath, ToolLaunch};
 pub use store::{TreeEntry, TreeInspection};
 
 use anyhow::{ensure, Context, Result};

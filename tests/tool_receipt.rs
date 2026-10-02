@@ -271,6 +271,27 @@ fn typed_interpreters_and_arguments_bind_to_declared_payloads() {
         "prefix_args":[{"kind":"literal","value":"--test"},{"kind":"path","path":{"installation_key":key,"relative_path":"bin"}}]});
     fixture.save(&changed);
     assert!(fixture.verify().is_ok());
+    let lease = fixture.lease(None).unwrap();
+    let command = lease.command("script").unwrap();
+    match command.launch {
+        oyzu::tools::ToolLaunch::Interpreter {
+            payload_relative_path,
+            interpreter,
+            prefix_args,
+        } => {
+            assert_eq!(payload_relative_path, "bin/node");
+            assert_eq!(interpreter.installation_key, key.as_str().unwrap());
+            assert_eq!(interpreter.relative_path, "bin/node");
+            assert!(
+                matches!(&prefix_args[0], oyzu::tools::ToolArgument::Literal { value } if value == "--test")
+            );
+            assert!(
+                matches!(&prefix_args[1], oyzu::tools::ToolArgument::Path { path } if path.relative_path == "bin")
+            );
+        }
+        _ => panic!("interpreter metadata was lost"),
+    }
+    drop(lease);
     changed["entrypoints"]["script"]["interpreter"]["relative_path"] = json!("bin/absent");
     fixture.save(&changed);
     assert!(fixture.verify().is_err());
@@ -330,8 +351,79 @@ fn dependency_payload_is_rehashed_even_when_parent_is_unchanged() {
     )
     .unwrap();
     assert!(fixture.verify().is_ok());
+    receipt["entrypoints"] = fixture.receipt["entrypoints"].clone();
+    fs::write(
+        child.join("receipt.json"),
+        serde_json::to_vec(&receipt).unwrap(),
+    )
+    .unwrap();
+    let lease = fixture.lease(None).unwrap();
+    assert!(lease
+        .command("node")
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("TOOL_COMMAND_AMBIGUOUS"));
+    drop(lease);
     fs::write(child.join("payload/bin/node"), b"changed dependency only").unwrap();
     assert!(fixture.verify().is_err());
+}
+
+#[test]
+fn leased_commands_use_verified_metadata_without_path_search_or_reopening_receipts() {
+    let fixture = Fixture::new();
+    let mut receipt = fixture.receipt.clone();
+    receipt["entrypoints"]["node"]["prefix_args"] = json!([
+        {"kind":"literal","value":""}, {"kind":"literal","value":"quote\" & | héllo"}
+    ]);
+    fixture.save(&receipt);
+    let lease = fixture.lease(None).unwrap();
+    let command = lease.command("node").unwrap();
+    assert_eq!(command.selection_digest, lease.selection_digest);
+    assert_eq!(command.tool_id, "core:node");
+    assert_eq!(
+        command.installation_key,
+        fixture.receipt["installation_key"].as_str().unwrap()
+    );
+    assert_eq!(command.platform, fixture.platform);
+    match command.launch {
+        oyzu::tools::ToolLaunch::Native {
+            payload_relative_path,
+            prefix_args,
+        } => {
+            assert_eq!(payload_relative_path, "bin/node");
+            assert!(
+                matches!(&prefix_args[0], oyzu::tools::ToolArgument::Literal { value } if value.is_empty())
+            );
+            assert!(
+                matches!(&prefix_args[1], oyzu::tools::ToolArgument::Literal { value } if value == "quote\" & | héllo")
+            );
+        }
+        _ => panic!("native metadata was lost"),
+    }
+    assert_eq!(lease.command("NODE").is_ok(), cfg!(windows));
+    for missing in ["definitely-not-a-selected-tool", "node.exe"] {
+        assert!(lease
+            .command(missing)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("TOOL_COMMAND_MISSING"));
+    }
+    for invalid in ["../node", "bin/node", "C:\\node", ""] {
+        assert!(lease
+            .command(invalid)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("TOOL_COMMAND_INVALID"));
+    }
+    receipt["entrypoints"]["node"]["payload_relative_path"] = json!("bin/absent");
+    fixture.save(&receipt);
+    // The held result remains an acquisition-time metadata snapshot, not a live
+    // filesystem monitor. A new selection rechecks and rejects this edit.
+    assert!(lease.command("node").is_ok());
+    assert!(fixture.lease(None).is_err());
 }
 
 #[test]

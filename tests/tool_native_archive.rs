@@ -233,11 +233,25 @@ fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
         lease.selection_digest
     );
     assert_eq!(fs::read(&lock_path)?, original_lock);
+    let selected = lease.command(case.tool)?;
+    assert_eq!(selected.tool_id, case.canonical);
+    assert_eq!(selected.version, case.version);
+    assert_eq!(selected.platform, PLATFORM);
+    assert_eq!(selected.installation_key, installation);
+    let tools::ToolLaunch::Native {
+        payload_relative_path,
+        prefix_args,
+    } = selected.launch
+    else {
+        anyhow::bail!("archive fixture requires a native launch descriptor")
+    };
+    assert_eq!(payload_relative_path, case.executable);
+    assert!(prefix_args.is_empty());
     let executable = store
         .join("installs")
-        .join(&installation[7..])
+        .join(&selected.installation_key[7..])
         .join("payload")
-        .join(case.executable);
+        .join(payload_relative_path);
     assert!(executable.is_file());
     #[cfg(windows)]
     {

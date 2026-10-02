@@ -30,36 +30,40 @@ struct Receipt {
     dependency_installation_keys: Vec<String>,
     tree_digest: String,
     tree_manifest_digest: String,
-    entrypoints: BTreeMap<String, Launch>,
+    entrypoints: BTreeMap<String, ToolLaunch>,
     environment: BTreeMap<String, Environment>,
     installer_release_digest: String,
 }
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct InstallPath {
-    installation_key: String,
-    relative_path: String,
+/// A symbolic reference inside a verified installation payload, not a host path.
+pub struct ToolInstallPath {
+    pub installation_key: String,
+    pub relative_path: String,
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-enum Argument {
+/// A literal UTF-8 argument or an installation-relative path; never shell syntax.
+pub enum ToolArgument {
     Literal { value: String },
-    Path { path: InstallPath },
+    Path { path: ToolInstallPath },
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
-enum Launch {
+/// Receipt launch shape. Deserialization alone does not validate its references
+/// or grant permission to execute; leased lookup borrows the verified snapshot.
+pub enum ToolLaunch {
     Native {
         payload_relative_path: String,
-        prefix_args: Vec<Argument>,
+        prefix_args: Vec<ToolArgument>,
     },
     Interpreter {
         payload_relative_path: String,
-        interpreter: InstallPath,
-        prefix_args: Vec<Argument>,
+        interpreter: ToolInstallPath,
+        prefix_args: Vec<ToolArgument>,
     },
 }
 
@@ -67,7 +71,54 @@ enum Launch {
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 enum Environment {
     Literal { value: String },
-    Paths { paths: Vec<InstallPath> },
+    Paths { paths: Vec<ToolInstallPath> },
+}
+
+/// Symbolic launch metadata borrowed from a verified, leased selection. These
+/// paths remain relative to installation payloads; this is not authorization,
+/// an absolute executable path or protection against subsequent same-user edits.
+pub struct LeasedToolCommand<'a> {
+    pub selection_digest: &'a str,
+    pub tool_key: &'a str,
+    pub installation_key: &'a str,
+    pub tool_id: &'a str,
+    pub version: &'a str,
+    pub platform: &'a str,
+    pub launch: &'a ToolLaunch,
+}
+
+pub(super) struct VerifiedSelection {
+    pub(super) digest: String,
+    records: BTreeMap<String, Receipt>,
+}
+
+impl VerifiedSelection {
+    pub(super) fn command(&self, name: &str) -> Result<LeasedToolCommand<'_>> {
+        access::component(name).map_err(|_| anyhow::anyhow!("TOOL_COMMAND_INVALID"))?;
+        let mut found = None;
+        for receipt in self.records.values() {
+            for (command, launch) in &receipt.entrypoints {
+                let matches = if receipt.platform.starts_with("windows/") {
+                    command.to_uppercase() == name.to_uppercase()
+                } else {
+                    command == name
+                };
+                if matches {
+                    ensure!(found.is_none(), "TOOL_COMMAND_AMBIGUOUS");
+                    found = Some(LeasedToolCommand {
+                        selection_digest: &self.digest,
+                        tool_key: &receipt.tool_key,
+                        installation_key: &receipt.installation_key,
+                        tool_id: &receipt.tool_id,
+                        version: &receipt.version,
+                        platform: &receipt.platform,
+                        launch,
+                    });
+                }
+            }
+        }
+        found.context("TOOL_COMMAND_MISSING")
+    }
 }
 
 pub(in crate::tools) fn verify(
@@ -82,6 +133,7 @@ pub(in crate::tools) fn verify(
     verify_with(lock, scope, profile, platform, installer, |key| {
         root.child(&key[7..])
     })
+    .map(|verified| verified.digest)
 }
 
 pub(super) fn verify_with(
@@ -91,7 +143,7 @@ pub(super) fn verify_with(
     platform: &str,
     installer: &str,
     directory: impl Fn(&str) -> Result<Directory>,
-) -> Result<String> {
+) -> Result<VerifiedSelection> {
     lock::digest(installer)?;
     let selection = lock
         .selections
@@ -197,7 +249,7 @@ pub(super) fn verify_with(
                     .map(String::as_str),
             )
             .collect();
-        let path = |reference: &InstallPath, directory: Option<bool>| -> Result<()> {
+        let path = |reference: &ToolInstallPath, directory: Option<bool>| -> Result<()> {
             ensure!(
                 allowed.contains(reference.installation_key.as_str()),
                 "receipt path references an undeclared installation"
@@ -231,11 +283,11 @@ pub(super) fn verify_with(
                 "receipt command case collision"
             );
             let (payload, args, native) = match launch {
-                Launch::Native {
+                ToolLaunch::Native {
                     payload_relative_path,
                     prefix_args,
                 } => (payload_relative_path, prefix_args, true),
-                Launch::Interpreter {
+                ToolLaunch::Interpreter {
                     payload_relative_path,
                     interpreter,
                     prefix_args,
@@ -257,8 +309,8 @@ pub(super) fn verify_with(
             ensure!(args.len() <= 256, "receipt prefix argument limit exceeded");
             for arg in args {
                 match arg {
-                    Argument::Literal { value } => literal(value)?,
-                    Argument::Path { path: reference } => {
+                    ToolArgument::Literal { value } => literal(value)?,
+                    ToolArgument::Path { path: reference } => {
                         path(reference, None)?;
                     }
                 }
@@ -298,7 +350,13 @@ pub(super) fn verify_with(
             }
         }
     }
-    Ok(selection.digest.clone())
+    Ok(VerifiedSelection {
+        digest: selection.digest.clone(),
+        records: records
+            .into_iter()
+            .map(|(key, (receipt, _))| (key, receipt))
+            .collect(),
+    })
 }
 
 fn literal(value: &str) -> Result<()> {

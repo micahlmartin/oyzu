@@ -1491,3 +1491,28 @@ This is collection evidence, not legal interpretation: original missing-notice
 counts, unreviewed dispositions and false approval/release flags are unchanged.
 The maintenance reference now documents the exact normalization and remaining
 search limitations. Production source admission still requires recorded review.
+
+## Checkpoint 114: typed command lookup on verified leases
+
+Installation leases now retain the receipt snapshot verified during acquisition
+and expose borrowed command metadata from the exact selected closure. Native and
+interpreter launch shapes preserve installation-relative paths and typed ordered
+arguments. Missing or invalid names fail without PATH/wrapper/extension guessing;
+multiple selected receipts providing the requested command fail ambiguity.
+Windows-target lookup follows receipt uppercase comparison; Unix uses exact names.
+
+Windows passed all 16 active receipt tests, the full locked Rust suite, strict
+all-target Clippy, formatting and all nine CLI scenarios. Linux passed 17 active
+receipt tests and strict all-target Clippy offline. Tests cover typed interpreter
+references, literal argument preservation, name rules, ambiguity across dependencies
+and the distinction between retained metadata and a newly reverified selection.
+The real jq fixture now derives its executable from leased command metadata;
+Windows passed publication, lookup, native version execution and changed-lock
+denial, and Linux passed foreign-target lookup/materialization without execution.
+Documentation/diff checks passed. Native macOS checks remain pending in CI.
+
+Lookup does not rehash current bytes, monitor edits, return executable host paths
+or authorize a process. The returned borrow is tied to the held lease; launch
+consumers still need current content/authority checks, path resolution and process
+supervision. No CLI which/exec, shims or production backend admission is enabled.
+The reference and code map document this TM-07 foundation and its limits.

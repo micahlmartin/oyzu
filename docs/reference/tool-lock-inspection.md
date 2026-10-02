@@ -210,6 +210,31 @@ authorization or turn arbitrary supplied receipts into approved installations.
 Staging uses `installs/<installation-key-hex>/{receipt.json,payload/}`. Extra root
 entries, redirected objects and hardlinked receipts fail.
 
+The lease retains the receipt snapshot verified during acquisition. Call
+`lease.command("node")` to obtain borrowed `LeasedToolCommand` metadata from that
+exact selection: selection/tool/installation identities, tool ID, version,
+platform and a typed `ToolLaunch`. Native launches retain a payload-relative
+file and ordered prefix arguments. Interpreter launches additionally retain an
+explicit interpreter installation/path. `ToolArgument` distinguishes literal
+UTF-8 arguments (including empty strings) from typed installation-relative paths;
+no quoting, shell parsing or wrapper inference occurs.
+
+Lookup searches the entire selected closure and fails `TOOL_COMMAND_AMBIGUOUS`
+if multiple receipts supply the requested command. Unknown commands fail
+`TOOL_COMMAND_MISSING`; path-like or invalid names fail `TOOL_COMMAND_INVALID`.
+It never searches ambient PATH or adds/removes `.exe`. Windows-target lookup
+uses the receipt validator's uppercase command comparison; Unix targets use exact
+spelling. A syntactically supported foreign target can be inspected this way,
+but the metadata does not imply it can run on the current host.
+
+The result borrows the lease and contains symbolic paths, not executable host
+paths or execution authority. Lookup does not reopen receipts, rehash payloads,
+run tools, contact a service or observe later edits. A new lease acquisition
+rechecks current bytes; a retained lease is not a change monitor or protection
+against same-user mutation. Future launch consumers must separately enforce
+current authorization/content validity, resolve paths within leased payloads and
+supervise the child tree. No `which`/`exec` command is enabled by this library API.
+
 Mutation locks live permanently under `locks/<key-hex>` and are acquired in
 lexical order. All selected existing/candidate receipts and payloads are checked
 before any new member is published. Regular files and receipts are flushed;

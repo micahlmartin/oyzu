@@ -38,6 +38,13 @@ worker dispatch or containment. The shared strict JSON parser imposes
 an additional 10,000-entry bound. See the current
 [framing reference](../../reference/tool-lock-inspection.md#internal-worker-control-framing).
 
+TM-07 now has a first command lookup on held installation leases: it borrows
+typed native/interpreter metadata from the receipt snapshot verified at lease
+acquisition, rejects ambiguous/missing names and never falls back to PATH.
+Absolute path resolution, current launch authorization, environment composition,
+process supervision, CLI exec/which and shims remain absent. Snapshot lookup is
+not a live payload monitor and does not authorize execution.
+
 TM-03 now has a first frozen selection boundary: given an already resolved
 workspace, working directory, profile, request digest and platform, it chooses
 the nearest physical locked scope and rejects stale requests or an unavailable

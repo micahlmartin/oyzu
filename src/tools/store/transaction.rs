@@ -23,6 +23,7 @@ pub struct InstallationLease {
     journal: Journal,
     _leases: Vec<OwnedLease>,
     _root: Directory,
+    verified: receipt::VerifiedSelection,
 }
 
 impl InstallationLease {
@@ -30,6 +31,14 @@ impl InstallationLease {
     /// exit may leave this record after its kernel locks have been released.
     pub fn lease_id(&self) -> &str {
         self.journal.id()
+    }
+
+    /// Look up only commands in the receipt snapshot verified when this lease
+    /// was acquired. Never searches PATH, guesses wrappers or runs a tool. The
+    /// returned borrow keeps metadata tied to this lease; callers must separately
+    /// revalidate current content/authority before any eventual launch.
+    pub fn command(&self, name: &str) -> Result<receipt::LeasedToolCommand<'_>> {
+        self.verified.command(name)
     }
 }
 
@@ -85,7 +94,7 @@ pub(in crate::tools) fn transact(
     }
     // Validate the entire closure before publishing any new member. Existing
     // committed entries are always reverified, never overwritten or repaired.
-    let digest = receipt::verify_with(lock, scope, profile, platform, installer, |key| {
+    let verified = receipt::verify_with(lock, scope, profile, platform, installer, |key| {
         if missing.contains(key) {
             candidates
                 .as_ref()
@@ -114,13 +123,14 @@ pub(in crate::tools) fn transact(
         acquire(&file, deadline, true)?;
         leases.push(OwnedLease(file));
     }
-    let journal = Journal::create(&root, &digest, &keys)?;
+    let journal = Journal::create(&root, &verified.digest, &keys)?;
     drop(held);
     Ok(InstallationLease {
-        selection_digest: digest,
+        selection_digest: verified.digest.clone(),
         journal,
         _leases: leases,
         _root: root,
+        verified,
     })
 }
 
