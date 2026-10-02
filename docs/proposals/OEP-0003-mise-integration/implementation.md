@@ -104,6 +104,18 @@ integration remain outstanding; this does not complete TM-03 or TM-06.
 
 ## Dependency order and deliverables
 
+Current end-to-end proof status: the Node TOML-to-lock-to-install-to-exec flow is
+not connected. The maintained fork's consumer feature blocker is fixed in
+[`9290bcac695c8ff8a56760ccebd785d5062b459c`](https://github.com/oyzuai/mise/commit/9290bcac695c8ff8a56760ccebd785d5062b459c):
+an external dependency can request `default-features = false` and
+`features = ["rustls", "vendored-lua"]`. Cargo rejects the earlier nested
+`vfox/vendored-lua` spelling inside a dependency feature list. An isolated Linux
+consumer metadata resolution confirms the intended features without mise defaults;
+its library-linked executable build is pending. This is an integration prerequisite,
+not product proof or approval of the dependency graph. Production import remains
+subject to the licensing gate; permission for a controlled development import has
+been requested from the maintainer and is not yet recorded.
+
 The maintainer's 2026-10-02 [implementation-priority decision](../../decisions.md#end-to-end-first-implementation-priority)
 governs delivery sequencing. First demonstrate a real Node flow from Oyzu TOML
 through the maintained mise library, Oyzu lock creation/consumption, intended
