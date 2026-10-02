@@ -26,6 +26,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Inspect the frozen environment or render literal shell assignments.
+    #[cfg(feature = "mise-integration")]
+    Env {
+        #[arg(long, default_value = ".oyzu/tools")]
+        store: PathBuf,
+        #[arg(long, value_parser = ["bash", "zsh", "pwsh"])]
+        shell: Option<String>,
+    },
     /// Install the configured Node tool (opt-in development integration).
     #[cfg(feature = "mise-integration")]
     Install {
@@ -137,6 +145,16 @@ fn run() -> Result<i32> {
     };
     match &cli.command {
         #[cfg(feature = "mise-integration")]
+        Commands::Env { store, shell } => {
+            return oyzu::tools::development::environment(
+                &directory,
+                &options,
+                &directory.join(store),
+                shell.as_deref(),
+                cli.json,
+            );
+        }
+        #[cfg(feature = "mise-integration")]
         Commands::Install {
             store,
             frozen,
@@ -163,6 +181,10 @@ fn run() -> Result<i32> {
         }
         #[cfg(feature = "mise-integration")]
         Commands::Exec { store, args } => {
+            anyhow::ensure!(
+                !cli.json,
+                "--json is not supported for exec; use oyzu env --json to inspect selection"
+            );
             return oyzu::tools::development::exec(
                 &directory,
                 &options,
@@ -284,7 +306,10 @@ fn run() -> Result<i32> {
             unreachable!()
         }
         #[cfg(feature = "mise-integration")]
-        Commands::Install { .. } | Commands::Exec { .. } | Commands::Which { .. } => unreachable!(),
+        Commands::Install { .. }
+        | Commands::Exec { .. }
+        | Commands::Which { .. }
+        | Commands::Env { .. } => unreachable!(),
     }
     Ok(0)
 }

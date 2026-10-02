@@ -2539,3 +2539,31 @@ formatting passed, including the final unsupported-target guard. Documentation
 structure and diff checks passed. The preceding cached-restoration revision
 01e81be passed its complete Linux CI job in run 37047681781; macOS restoration and
 Windows build were still running when inspected. Hardening remains deferred.
+
+## Checkpoint 163: shared environment inspection and mise shell rendering
+
+`oyzu env` and `env --json` now inspect frozen installed selection with values
+redacted. Explicit `env --shell bash|zsh|pwsh` uses mise's EnvDiff and shell
+assignment renderer inside the fresh same-image child. Exec and env share one
+owned environment composition function; all three consumers reuse frozen lookup.
+An already leading binary directory is not prepended again. Exec rejects --json.
+This advances TM-08's real shell integration without claiming prompt activation,
+reversible state, automatic directory switching or active-shell retention.
+
+Under Docker --network none, real Linux Bash and Zsh applied generated assignments
+and executed installed Node 22.15.0. Their version, exact executable, literal TOML
+values and environment matched direct Oyzu exec. Quotes, dollar expressions,
+backticks and shell metacharacters remained literal; the sentinel command was not
+executed. JSON inspection redacted values and lock bytes remained unchanged.
+The runner restores its temporary TOML edit and requires each requested real shell.
+CI now adds Bash on Unix, Zsh on macOS and PowerShell on Windows. Native macOS and
+PowerShell environment acceptance is pending; no shell lifecycle completion claim.
+
+Windows GNU default locked tests, strict all-target Clippy, formatting and nine
+real CLI task scenarios passed. Linux feature-enabled build, strict all-target
+Clippy and formatting passed. Documentation structure and diff checks passed.
+Separately, the prior Windows revision 1acb16f passed installation, explicit
+updates, offline restoration, feature lint and formatting in run 37048375166;
+macOS 01e81be passed the complete cached-restoration job in run 37047681781.
+These close prior native evidence gaps, not the remaining functionality scope.
+Hardening remains reserved for future goals.

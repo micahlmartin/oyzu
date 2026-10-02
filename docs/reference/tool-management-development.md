@@ -37,6 +37,7 @@ oyzu install
 oyzu install --frozen
 oyzu install --frozen --offline
 oyzu which node
+oyzu env --json
 oyzu exec -- node --version
 oyzu exec -- node -e 'console.log(process.env.APP_MODE)'
 ```
@@ -108,6 +109,57 @@ until the direct child exits. Its exit status is returned. Exec performs no impl
 installation and its metadata-facts lookup is local. Initial installation and
 acquisition of uncached content require the network.
 
+## Environment inspection and shell application
+
+`oyzu env` and `oyzu env --json` inspect the existing frozen selection and report
+the executable and environment variable names. All environment values, including
+PATH, are redacted. Missing or stale selections fail without installing anything.
+The environment composition is shared with `exec`: literal TOML values plus the
+selected binary directory prepended to inherited PATH. An already leading selected
+directory is not prepended again. Exec rejects `--json` so application stdout is
+not mixed with status output.
+
+To explicitly print assignments with their actual values, select a shell:
+
+```sh
+# Bash
+eval "$(oyzu env --shell bash)"
+node --version
+```
+
+For Zsh use `--shell zsh`. For PowerShell 7 use:
+
+```powershell
+oyzu env --shell pwsh | Out-String | Invoke-Expression
+node --version
+```
+
+`--shell` conflicts with `--json`. Rendering uses the pinned mise library's
+environment diff and shell assignment quoting in the isolated same-image child.
+It performs no network or installation. Values remain literal, including quotes,
+dollar signs and shell metacharacters; they are not interpreted as config code.
+Rendering requires UTF-8 environment values. Pass the same `--store` used for
+installation when using a shared store.
+
+This is a one-time application to the current shell. It does not install prompt
+hooks, automatically switch on directory changes or restore old values. Apply it
+in a disposable shell while automatic activation/deactivation is being connected.
+The lookup/rendering lease ends when the command returns; this does not establish
+an active-shell retention lease. Those lifecycle capabilities remain unfinished.
+
+Linux Bash and Zsh application passed with networking disabled on 2026-10-02:
+the shell launched the same Node executable as `exec`, literal metacharacters
+were preserved, inspection values were redacted and the lock was unchanged.
+PowerShell and native macOS environment application remain pending. Reproduce
+against a retained acceptance workspace with Python 3.11+:
+
+```sh
+python tooling/test-tool-environment.py --cli PATH_TO_FEATURE_ENABLED_OYZU --workspace PATH --shell bash --shell zsh
+```
+
+Use `--shell pwsh` to require the real PowerShell interpreter. Requested shells
+must be installed; the runner does not skip a missing interpreter.
+
 ## Scope and acceptance evidence
 
 Host target mapping currently covers Linux amd64 GNU, Windows amd64 MSVC and
@@ -120,8 +172,8 @@ retaining their real archives then passed `install --frozen --offline` restorati
 and execution for both versions with networking disabled; an empty cache failed
 as expected and locks remained byte-identical. The original install/exec scenario
 at revision `73bb33d` passed on macOS arm64 and Windows amd64 in CI run
-`37045134221`; the expanded frozen/which/restoration scenarios are not yet
-verified on those hosts.
+`37045134221`. Frozen/which/restoration then passed on macOS at `01e81be` in
+run `37047681781` and Windows at `1acb16f` in run `37048375166`.
 
 Run the real user acceptance scenario with Python 3.11+ and public Node access:
 
@@ -155,8 +207,9 @@ checks stale-selection rejection, updates and executes the new version, then
 restores 22.15.0 through an explicit update. It checks that the second project is
 unchanged and a repeated update preserves lock bytes. On failure it retains the
 workspace at the failing step for diagnosis.
-This complete update scenario passed on Linux amd64 with Rust 1.95 on 2026-10-02;
-native Windows/macOS update acceptance remains pending.
+This complete update scenario passed on Linux amd64 with Rust 1.95 on 2026-10-02
+and Windows amd64 at `1acb16f` in CI run `37048375166`; native macOS update
+acceptance remains pending.
 
 Remaining functional work includes other tools, aliases/native constraints,
 multi-tool and scoped updates, configured corporate

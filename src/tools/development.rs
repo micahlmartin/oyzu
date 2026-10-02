@@ -19,6 +19,16 @@ const PIN: &str = "9290bcac695c8ff8a56760ccebd785d5062b459c";
 const SOURCE: &str = "https://nodejs.org/dist/";
 
 #[derive(Serialize, Deserialize)]
+enum WorkerRequest {
+    Metadata(Request),
+    RenderEnvironment {
+        shell: String,
+        original: BTreeMap<String, String>,
+        desired: BTreeMap<String, String>,
+    },
+}
+
+#[derive(Serialize, Deserialize)]
 struct Request {
     request: String,
     exact: Option<String>,
@@ -61,7 +71,7 @@ fn platform() -> Result<&'static str> {
 
 /// Internal child entrypoint. Call before creating any application thread.
 pub fn worker() -> Result<i32> {
-    let request: Request = serde_json::from_reader(std::io::stdin())?;
+    let operation: WorkerRequest = serde_json::from_reader(std::io::stdin())?;
     let state = tempfile::tempdir()?;
     let transport: Arc<mise::embedding::HttpTransport> = Arc::new(|request| {
         Box::pin(async move {
@@ -86,6 +96,35 @@ pub fn worker() -> Result<i32> {
         transport: Some(transport),
     })
     .map_err(|error| anyhow::anyhow!("{error:#}"))?;
+    let request = match operation {
+        WorkerRequest::Metadata(request) => request,
+        WorkerRequest::RenderEnvironment {
+            shell,
+            original,
+            desired,
+        } => {
+            let renderer = match shell.as_str() {
+                "bash" => mise::shell::ShellType::Bash,
+                "zsh" => mise::shell::ShellType::Zsh,
+                "pwsh" => mise::shell::ShellType::Pwsh,
+                _ => anyhow::bail!("supported shells are bash, zsh and pwsh"),
+            }
+            .as_shell();
+            let diff = mise::env_diff::EnvDiff::new(&original, desired);
+            let mut script = String::new();
+            for patch in diff.to_patches() {
+                use mise::env_diff::EnvDiffOperation;
+                script.push_str(&match patch {
+                    EnvDiffOperation::Add(key, value) | EnvDiffOperation::Change(key, value) => {
+                        renderer.set_env(&key, &value)
+                    }
+                    EnvDiffOperation::Remove(key) => renderer.unset_env(&key),
+                });
+            }
+            serde_json::to_writer(std::io::stdout(), &script)?;
+            return Ok(0);
+        }
+    };
     let aliases = session
         .tool_aliases()
         .map_err(|error| anyhow::anyhow!("{error:#}"))?;
@@ -121,6 +160,14 @@ pub fn worker() -> Result<i32> {
 }
 
 fn metadata(request: &Request) -> Result<Metadata> {
+    worker_call(&WorkerRequest::Metadata(Request {
+        request: request.request.clone(),
+        exact: request.exact.clone(),
+        target: request.target.clone(),
+    }))
+}
+
+fn worker_call<T: serde::de::DeserializeOwned>(request: &WorkerRequest) -> Result<T> {
     let home = tempfile::tempdir()?;
     let mut command = Command::new(std::env::current_exe()?);
     command
@@ -146,7 +193,7 @@ fn metadata(request: &Request) -> Result<Metadata> {
         .context("worker input unavailable")?
         .write_all(&serde_json::to_vec(request)?)?;
     let output = child.wait_with_output()?;
-    ensure!(output.status.success(), "mise metadata worker failed");
+    ensure!(output.status.success(), "mise integration worker failed");
     Ok(serde_json::from_slice(&output.stdout)?)
 }
 
@@ -538,19 +585,85 @@ pub fn exec(
     let selected = installed_command(directory, options, store)?;
     let mut command = Command::new(&selected.executable);
     command.args(&arguments[1..]).current_dir(directory);
-    for (name, value) in selected.effective.values() {
-        if let Some(name) = name.strip_prefix("env.") {
-            if let Some(value) = value.as_str() {
-                command.env(name, value);
-            }
-        }
-    }
-    let mut paths = vec![selected.bin];
-    if let Some(path) = std::env::var_os("PATH") {
-        paths.extend(std::env::split_paths(&path));
-    }
-    command.env("PATH", std::env::join_paths(paths)?);
+    command.envs(command_environment(&selected)?);
     let status = command.status()?;
     drop(selected.lease);
     Ok(status.code().unwrap_or(1))
+}
+
+// Execution and shell output share one environment composition contract.
+fn command_environment(selected: &InstalledCommand) -> Result<BTreeMap<String, OsString>> {
+    let mut environment = BTreeMap::new();
+    for (name, value) in selected.effective.values() {
+        if let Some(name) = name.strip_prefix("env.") {
+            if let Some(value) = value.as_str() {
+                environment.insert(name.to_owned(), OsString::from(value));
+            }
+        }
+    }
+    let mut paths = std::env::var_os("PATH")
+        .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
+        .unwrap_or_default();
+    if paths.first() != Some(&selected.bin) {
+        paths.insert(0, selected.bin.clone());
+    }
+    environment.insert("PATH".into(), std::env::join_paths(paths)?);
+    Ok(environment)
+}
+
+/// Inspect the frozen environment with redacted values, or explicitly render
+/// literal assignments through mise for applying in the named shell. No install
+/// or network occurs. The lease protects lookup/rendering, not the caller shell.
+pub fn environment(
+    directory: &Path,
+    options: &config::session::Options,
+    store: &Path,
+    shell: Option<&str>,
+    json_output: bool,
+) -> Result<i32> {
+    ensure!(
+        !(shell.is_some() && json_output),
+        "--shell conflicts with --json"
+    );
+    let selected = installed_command(directory, options, store)?;
+    let environment = command_environment(&selected)?;
+    if let Some(shell) = shell {
+        let desired = environment
+            .into_iter()
+            .map(|(name, value)| {
+                Ok((
+                    name,
+                    value
+                        .into_string()
+                        .map_err(|_| anyhow::anyhow!("shell environment requires UTF-8 values"))?,
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>>>()?;
+        let original = desired
+            .keys()
+            .filter_map(|key| std::env::var(key).ok().map(|value| (key.clone(), value)))
+            .collect();
+        let script: String = worker_call(&WorkerRequest::RenderEnvironment {
+            shell: shell.into(),
+            original,
+            desired,
+        })?;
+        print!("{script}");
+    } else {
+        let values: BTreeMap<_, _> = environment.keys().map(|key| (key, "<redacted>")).collect();
+        if json_output {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(
+                    &json!({"tool":"core:node", "executable":selected.executable, "environment":values})
+                )?
+            );
+        } else {
+            println!("node: {}", selected.executable.display());
+            for (name, value) in values {
+                println!("{name}={value}");
+            }
+        }
+    }
+    Ok(0)
 }

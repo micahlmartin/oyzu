@@ -10,6 +10,7 @@ on:
       - 'Cargo.lock'
       - 'tooling/test-tool-management.py'
       - 'tooling/test-tool-updates.py'
+      - 'tooling/test-tool-environment.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
 
@@ -58,6 +59,15 @@ jobs:
       - name: Restore Node from cached archives in offline mode
         timeout-minutes: 15
         run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --offline-check --restore-cached
+      - name: Apply environment in Bash
+        if: runner.os != 'Windows'
+        run: python tooling/test-tool-environment.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell bash
+      - name: Apply environment in Zsh
+        if: runner.os == 'macOS'
+        run: python tooling/test-tool-environment.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell zsh
+      - name: Apply environment in PowerShell
+        if: runner.os == 'Windows'
+        run: python tooling/test-tool-environment.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell pwsh
       - name: Check feature-enabled code
         run: cargo clippy --locked --features mise-integration --all-targets -- -D warnings
       - name: Formatting

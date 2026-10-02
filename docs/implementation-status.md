@@ -15,10 +15,15 @@ versions sharing a mounted store pass Linux user acceptance, including restorati
 from cached archives with networking disabled. Explicit Node updates now pass
 Linux version-switch/switch-back acceptance and preserve the other project's
 selection and lock; multi-tool/scoped updates remain open. The original install/exec scenario
-also passed Windows and macOS at `73bb33d`; expanded offline/which acceptance on
-those hosts remains pending. See the
+also passed Windows and macOS at `73bb33d`; offline/which restoration subsequently
+passed Windows at `1acb16f` and macOS at `01e81be`. Explicit updates also passed
+Windows at `1acb16f`; macOS update acceptance remains pending. See the
 [development reference](reference/tool-management-development.md) for its exact
 scope. This milestone does not complete the remaining OEP-0003 functionality.
+The `env` command now shares composition with `exec`, redacts inspection values
+and uses mise to render literal Bash/Zsh/PowerShell assignments. Linux Bash/Zsh
+application agrees with actual exec under disabled networking; automatic shell
+activation, switching and deactivation remain unfinished.
 
 ## Builder objective
 
