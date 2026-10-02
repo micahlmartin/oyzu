@@ -260,6 +260,59 @@ the front of PATH while the session is active. Its `node` invocation fails on a
 missing selection instead of falling back to a system Node. Deactivation removes
 the session's PATH insertion and restores the previous environment.
 
+### Install activation in a shell profile
+
+Profile editing is explicit; `activate` alone never edits a file. Choose the
+profile your shell loads, then run:
+
+```sh
+oyzu shell install bash --profile-path ~/.bashrc
+oyzu shell remove bash --profile-path ~/.bashrc
+```
+
+Use `zsh` with your `.zshrc`, or PowerShell:
+
+```powershell
+oyzu shell install pwsh --profile-path $PROFILE
+oyzu shell remove pwsh --profile-path $PROFILE
+```
+
+The required path resolves relative to `-C`/the invocation directory. Oyzu creates
+missing parent directories and files, appends one marked block, and preserves
+surrounding UTF-8 content and existing permissions. The block invokes the absolute
+running Oyzu frontend with shell-specific quoting. Keep that frontend available;
+rerunning installation after moving/upgrading it replaces an intact block. Repeated
+installation with the same frontend is a no-op. `--json` reports `changed`, `shell`
+and `profile_path` instead of human-readable status.
+
+The block uses ordinary activation defaults: the current project's `.oyzu/tools`
+store and configuration at shell startup. Install the project's locked tools before
+opening a new shell. It does not embed a project, profile selection, credentials or
+shared store path. Shell profile editing itself performs no networking or activation.
+To use an explicit shared store or custom activation options, keep a separately
+maintained initialization command outside the managed block.
+
+Installation/removal refuses modified, incomplete, duplicate or differently owned
+blocks. Preserve any manual customization elsewhere and restore/reconcile the
+managed block before retrying. Symlink profiles require the explicit real target;
+non-UTF-8 profiles require conversion before use. Removal deletes only the intact
+block, including its inserted separator, preserving surrounding content byte for
+byte. A newly created profile remains as an empty file after removal. Removing the
+block affects future loads; run `oyzu deactivate` to end the current active session.
+
+The real acceptance runner installs Node, loads each managed profile in its shell,
+executes the locked Node through its shim, deactivates, and checks idempotence,
+edited-block preservation and byte-exact removal:
+
+```sh
+python tooling/test-shell-profile.py --cli PATH_TO_FEATURE_ENABLED_OYZU --shell bash --shell zsh
+```
+
+Use `--shell pwsh` for PowerShell. The runner requires public Node access for its
+fresh installation and never edits the user's actual shell profile.
+Linux Bash and Zsh passed this complete flow on 2026-10-02. Native macOS and
+PowerShell profile acceptance remain pending in the three-host CI workflow.
+
 ### Native executable shims
 
 Install and activation provision `node` (`node.exe` on Windows) as a hardlink to
@@ -284,8 +337,9 @@ absolute binary with `deactivate` only prints it. No profile file is modified.
 Starting another activation in an already active session is rejected; independent
 and nested shell lifecycle qualification remains open. Hooks currently verify
 installed contents on every call, which can be slow in debug builds. Active-shell
-retention, abandoned-session recovery, fully reversible PATH alignment and profile
-installation remain unfinished. This is a controlled development integration.
+retention, abandoned-session recovery and fully reversible PATH alignment remain
+unfinished. Profile installation/removal is explicit as described above. This is
+a controlled development integration.
 
 The real Linux Bash/Zsh acceptance passed with networking disabled: activation,
 automatic `cd` switching between Node 22.15.0 and 22.14.0, unchanged-hook output,
@@ -293,7 +347,8 @@ missing-selection cleanup, user-edited scalar preservation and deactivation.
 The subsequent native-shim replay also passed on Linux Bash/Zsh, including literal
 arguments and exit status. A direct offline probe put a real Node later on PATH
 and confirmed that a missing selection failed instead of invoking it. Native
-macOS activation and Windows shim results remain pending. Run it against the
+macOS activation remains pending. Windows native shim acceptance passed at
+`e335d70` in CI run `37051685318`. Run it against the
 retained two-project workspace:
 
 ```sh

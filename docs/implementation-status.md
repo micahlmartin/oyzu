@@ -24,8 +24,9 @@ The `env` command now shares composition with `exec`, redacts inspection values
 and uses mise to render literal Bash/Zsh/PowerShell assignments. Linux Bash/Zsh
 application agrees with actual exec under disabled networking. Initial upstream
 hooks now connect Bash/Zsh activation, automatic directory switching, unavailable
-selection cleanup and deactivation. Full shell lifecycle qualification and
-PowerShell shim qualification remain unfinished; initial PowerShell activation
+selection cleanup and deactivation. Full shell lifecycle qualification remains
+unfinished; PowerShell native shim acceptance passed at `e335d70` in CI run
+`37051685318`. Initial PowerShell activation
 passed on Windows at `83049fa`, following environment application at `3eefcc2`.
 Native Node shims now retain the frontend image, validate their adjacent manifest
 and resolve frozen selection for each invocation. Active sessions retain the shim
@@ -37,6 +38,12 @@ on 2026-10-02 installed and executed real Node through an authenticated forwardi
 proxy, rejected missing/denied bindings without public fallback, and reused the
 frozen installation offline without proxy credentials. Managed agent grants remain
 unimplemented; this does not establish managed-network containment.
+Explicit `shell install/remove` now manages one activation block at a required
+profile path. Linux Bash/Zsh loaded the generated profiles, executed a freshly
+installed locked Node through native shims and deactivated. Repeated installation,
+refusal to overwrite edited blocks and byte-exact restoration passed. Native
+macOS/PowerShell profile acceptance remains pending; wider shell lifecycle work
+remains open.
 
 ## Builder objective
 

@@ -26,6 +26,12 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Explicitly install or remove an Oyzu shell profile block.
+    #[cfg(feature = "mise-integration")]
+    Shell {
+        #[command(subcommand)]
+        command: ShellCommand,
+    },
     /// Emit upstream-rendered Oyzu shell activation hooks.
     #[cfg(feature = "mise-integration")]
     Activate {
@@ -137,6 +143,23 @@ enum ToolCommand {
     },
 }
 
+#[cfg(feature = "mise-integration")]
+#[derive(Subcommand)]
+enum ShellCommand {
+    Install {
+        #[arg(value_parser = ["bash", "zsh", "pwsh"])]
+        shell: String,
+        #[arg(long)]
+        profile_path: PathBuf,
+    },
+    Remove {
+        #[arg(value_parser = ["bash", "zsh", "pwsh"])]
+        shell: String,
+        #[arg(long)]
+        profile_path: PathBuf,
+    },
+}
+
 fn main() {
     match run() {
         Ok(code) => std::process::exit(code),
@@ -174,6 +197,36 @@ fn run() -> Result<i32> {
         ..Default::default()
     };
     match &cli.command {
+        #[cfg(feature = "mise-integration")]
+        Commands::Shell { command } => {
+            let (shell, path, install) = match command {
+                ShellCommand::Install {
+                    shell,
+                    profile_path,
+                } => (shell, profile_path, true),
+                ShellCommand::Remove {
+                    shell,
+                    profile_path,
+                } => (shell, profile_path, false),
+            };
+            let changed = oyzu::tools::profile::edit(&directory.join(path), shell, install)?;
+            if cli.json {
+                println!(
+                    "{}",
+                    serde_json::json!({"changed":changed,"shell":shell,"profile_path":directory.join(path)})
+                );
+            } else {
+                println!(
+                    "{}",
+                    if changed {
+                        "Shell profile updated"
+                    } else {
+                        "Shell profile unchanged"
+                    }
+                );
+            }
+            return Ok(0);
+        }
         #[cfg(feature = "mise-integration")]
         Commands::Activate { shell, store } => {
             anyhow::ensure!(!cli.json, "activation emits shell code, not JSON");
@@ -364,7 +417,10 @@ fn run() -> Result<i32> {
         | Commands::Which { .. }
         | Commands::Env { .. } => unreachable!(),
         #[cfg(feature = "mise-integration")]
-        Commands::Activate { .. } | Commands::Deactivate { .. } | Commands::HookEnv { .. } => {
+        Commands::Shell { .. }
+        | Commands::Activate { .. }
+        | Commands::Deactivate { .. }
+        | Commands::HookEnv { .. } => {
             unreachable!()
         }
     }

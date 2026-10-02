@@ -2649,3 +2649,22 @@ Default Windows tests, strict clippy, formatting and nine real task scenarios pa
 Feature-enabled Linux build, all-target strict clippy and formatting passed. Further
 hardening remains deferred; managed acquisition and the remaining OEP functional
 scope stay open. The detailed development reference owns usage and limitations.
+
+## Checkpoint 167: explicit shell profile installation and removal (2026-10-02)
+
+The opt-in CLI now implements shell install/remove for Bash, Zsh and PowerShell
+with a required --profile-path. The profile owner edits only one marked block,
+quotes the absolute frontend, preserves surrounding bytes and permissions, and
+refuses modified or ambiguous blocks. It does not run the profile during editing.
+Activation/session behavior continues to use the existing shell subsystem.
+
+Real Linux Bash and Zsh acceptance installed Node into a fresh project, loaded
+managed profiles, executed the locked Node via the native shim, and deactivated.
+Repeated installation, user-edited block refusal and byte-exact removal passed.
+PowerShell/macOS profile evidence remains pending; CI now runs those native flows.
+The earlier Windows native-shim scenario at e335d70 passed in run 37051685318.
+
+Default Windows locked tests, strict clippy, formatting and nine real task
+scenarios passed. Linux feature-enabled build, strict all-target clippy and
+formatting passed. Documentation structure and diff checks passed. Full OEP-0003
+functional scope remains incomplete; additional hardening stays deferred.

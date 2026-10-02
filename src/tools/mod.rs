@@ -10,6 +10,8 @@ pub mod development;
 mod edit;
 mod grant;
 #[cfg(feature = "mise-integration")]
+pub mod profile;
+#[cfg(feature = "mise-integration")]
 pub mod shell;
 #[cfg(feature = "mise-integration")]
 pub mod shims;
