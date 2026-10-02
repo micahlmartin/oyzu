@@ -111,7 +111,13 @@ an external dependency can request `default-features = false` and
 `features = ["rustls", "vendored-lua"]`. Cargo rejects the earlier nested
 `vfox/vendored-lua` spelling inside a dependency feature list. An isolated Linux
 consumer metadata resolution confirms the intended features without mise defaults;
-its library-linked executable build is pending. This is an integration prerequisite,
+its library-linked executable now builds and runs under Rust 1.95 with networking
+disabled. The external consumer uses the local checkout at that exact fork commit,
+initializes the embedding session and returns Node 22.15.0 archive facts and its
+canonical alias. Its first invocation rejected the incomplete `linux/amd64` target;
+the supported `linux/amd64/gnu` target succeeds. This verifies local consumer
+linkage and API invocation, not a public Git dependency build or actual tool
+installation/execution. This is an integration prerequisite,
 not product proof or approval of the dependency graph. Production import remains
 subject to the licensing gate; permission for a controlled development import has
 been requested from the maintainer and is not yet recorded.
