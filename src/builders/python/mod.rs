@@ -16,6 +16,7 @@ pub(super) struct Python;
 impl Builder for Python {
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["python"],
             ids: &["python/app", "python/package", "python/library"],
         }
     }

@@ -106,6 +106,9 @@ pub(super) fn plan_with_dependencies(
             }
         }
         let builder = builders::get(&target.builder)?;
+        if let Some(config) = workspace.configuration.get(&id) {
+            crate::config::enforcement::execution_preflight(config, builder.descriptor().tools)?;
+        }
         let intent = builder.plan(builders::PlanningContext {
             target,
             source,
@@ -143,6 +146,10 @@ pub(super) fn plan_with_dependencies(
         }
         if let Some(projection) = projection {
             record["extensions"]["oyzu.dev/source-projection"] = json!(projection);
+        }
+        if let Some(config) = workspace.configuration.get(&id) {
+            record["extensions"]["oyzu.dev/configuration"] =
+                json!({"digest": config.digest, "profile": config.profile});
         }
         target_records.push(record);
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));
@@ -230,6 +237,9 @@ pub(super) fn plan_with_dependencies(
                     env.extend(reports.env);
                 }
                 env.extend(bindings.env);
+                if let Some(config) = workspace.configuration.get(&id) {
+                    config.validate_environment(&env)?;
+                }
                 for (name, value) in &intent.fixed_env {
                     if env.get(name) != Some(value) {
                         bail!("{step}: {name} must remain {value} for the captured builder capability");
@@ -294,8 +304,21 @@ pub(super) fn plan_with_dependencies(
         package["outputs"] = json!(outputs);
         planned.push(package);
     }
-    // Initial scheduler is deliberately serial; every actual ordering edge is explicit.
-    let mut previous: Option<String> = None;
+    // Targets have private workspaces. Preserve their internal mutation/hook
+    // sequence without inventing dependencies between unrelated targets.
+    let final_actions: BTreeMap<String, String> = planned
+        .iter()
+        .map(|action| {
+            Ok((
+                action["target"]
+                    .as_str()
+                    .context("missing action target")?
+                    .into(),
+                action["id"].as_str().context("missing action id")?.into(),
+            ))
+        })
+        .collect::<Result<_>>()?;
+    let mut previous: BTreeMap<String, String> = BTreeMap::new();
     for a in &mut planned {
         if let Some(inputs) = a["target"].as_str().and_then(|id| materialized.get(id)) {
             a["inputs"].as_array_mut().unwrap().extend(inputs.clone());
@@ -312,15 +335,70 @@ pub(super) fn plan_with_dependencies(
             .filter(|input| input["kind"] == "artifact")
             .filter_map(|input| input["producer"].as_str().map(str::to_owned))
             .collect();
-        if let Some(p) = &previous {
+        let target = a["target"]
+            .as_str()
+            .context("missing action target")?
+            .to_owned();
+        if let Some(p) = previous.get(&target) {
             prerequisites.insert(p.clone());
         }
+        if let Some(config) = configs.get(&target) {
+            for dependency in &config.depends_on {
+                prerequisites.insert(
+                    final_actions
+                        .get(dependency)
+                        .context("target dependency has no final action")?
+                        .clone(),
+                );
+            }
+        }
+        if let Some(config) = a["target"]
+            .as_str()
+            .and_then(|id| workspace.configuration.get(id))
+        {
+            a["extensions"]["oyzu.dev/configuration-digest"] = json!(config.digest);
+            a["extensions"]["oyzu.dev/coverage-minimum"] = config
+                .get("checks.coverageMinimum")
+                .cloned()
+                .unwrap_or(json!(0));
+        }
         a["dependsOn"] = json!(prerequisites);
-        previous = a["id"].as_str().map(str::to_string);
+        previous.insert(
+            target,
+            a["id"].as_str().context("missing action id")?.into(),
+        );
     }
-    let policy = json!({"mode":"standalone","enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"offline":true,"productionEligible":false,"executor":"docker-v1"}))?,"requiredChecks":[]});
+    validate_required_checks(workspace, &planned)?;
+    let managed = workspace
+        .configuration
+        .values()
+        .find_map(|config| config.management.as_ref());
+    let required: BTreeSet<_> = workspace
+        .configuration
+        .values()
+        .filter_map(|config| config.get("checks.required").and_then(Value::as_array))
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect();
+    let digests: BTreeMap<_, _> = workspace
+        .configuration
+        .iter()
+        .map(|(id, config)| (id, &config.digest))
+        .collect();
+    let mut policy = json!({"mode":if managed.is_some(){"managed"}else{"standalone"},"enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"configuration":digests,"productionEligible":false,"executor":"docker-v1"}))?,"requiredChecks":required});
+    if let Some(management) = managed {
+        policy["extensions"]["oyzu.dev/configuration-policy"] = management.clone();
+    }
+    // A nested target cannot raise the invocation's shared concurrency ceiling.
+    let jobs = workspace
+        .root_configuration
+        .iter()
+        .chain(workspace.configuration.values())
+        .filter_map(|config| config.get("build.jobs").and_then(Value::as_u64))
+        .min()
+        .unwrap_or(1);
     Ok(
-        json!({"schemaVersion":"v1alpha1","kind":"build-plan","source":{"treeDigest":source.digest,"commit":null,"dirty":true},"policy":policy,"tools":tools,"targets":target_records,"actions":planned,"artifacts":artifacts}),
+        json!({"schemaVersion":"v1alpha1","kind":"build-plan","extensions":{"oyzu.dev/execution":{"jobs":jobs}},"source":{"treeDigest":source.digest,"commit":null,"dirty":true},"policy":policy,"tools":tools,"targets":target_records,"actions":planned,"artifacts":artifacts}),
     )
 }
 
@@ -354,6 +432,40 @@ pub(super) fn resolve_images(
         );
     }
     Ok(images)
+}
+
+fn validate_required_checks(workspace: &Workspace, actions: &[Value]) -> Result<()> {
+    for (id, config) in &workspace.configuration {
+        let checks = config
+            .get("checks.required")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let coverage = config
+            .get("checks.coverageMinimum")
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        for check in checks
+            .iter()
+            .filter_map(Value::as_str)
+            .chain((coverage > 0).then_some("coverage"))
+        {
+            let present = actions.iter().filter(|a| a["target"] == *id).any(|a| {
+                if matches!(check, "tests" | "coverage") {
+                    let kind = if check == "tests" { "test" } else { "coverage" };
+                    a["reports"]
+                        .as_array()
+                        .is_some_and(|reports| reports.iter().any(|r| r["kind"] == kind))
+                } else {
+                    a["operation"] == check
+                }
+            });
+            if !present {
+                bail!("CONFIG_OVERRIDE_DENIED: {id} cannot satisfy required {check} check");
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]

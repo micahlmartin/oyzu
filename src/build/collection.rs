@@ -189,8 +189,19 @@ fn parsed_report(action: &Value, mut record: Value, parsed: Result<Value>) -> Co
     let diagnostic = match parsed {
         Ok(summary) => {
             record["status"] = json!("collected");
+            let minimum = action["extensions"]["oyzu.dev/coverage-minimum"]
+                .as_u64()
+                .unwrap_or(0);
+            let insufficient = record["kind"] == "coverage"
+                && minimum > 0
+                && summary["total"].as_u64().is_none_or(|total| {
+                    total == 0
+                        || summary["covered"].as_u64().is_none_or(|covered| {
+                            (covered as u128) * 100 < (total as u128) * (minimum as u128)
+                        })
+                });
             record["summary"] = summary;
-            None
+            insufficient.then(|| json!({"code":"CONFIG_OVERRIDE_DENIED","phase":"collect","severity":"error","message":"coverage is below the configured minimum","action":action["id"],"target":action["target"]}))
         }
         Err(error) => Some(
             json!({"code":"report-invalid","phase":"collect","severity":"error",

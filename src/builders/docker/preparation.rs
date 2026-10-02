@@ -38,15 +38,12 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     metadata.validate(&format!("{}/{}", context.image.os, context.image.arch))?;
     // Host provisioning is explicit, and the selected boundary is part of the
     // prepared record/plan. Never change host security settings during a build.
-    let apparmor = std::env::var("OYZU_BUILDKIT_APPARMOR_PROFILE").unwrap_or_else(|_| {
-        if fs::read_to_string("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
-            .is_ok_and(|v| v.trim() == "1")
-        {
-            "oyzu-buildkit".into()
-        } else {
-            "unconfined".into()
-        }
-    });
+    let apparmor = context
+        .configuration
+        .and_then(|config| config.get("docker.apparmorProfile"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned)
+        .unwrap_or_else(super::configuration::default_apparmor);
     let tree = snapshot::capture_prepared(context.destination, &control.path().join("frozen"))?;
     let version = fs::read_to_string(context.destination.join("manager-version.txt"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});

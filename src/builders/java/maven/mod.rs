@@ -43,6 +43,7 @@ impl Builder for Maven {
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["java"],
             ids: &["java/maven"],
         }
     }

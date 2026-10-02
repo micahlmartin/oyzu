@@ -40,6 +40,8 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 
 ## Proposed choices needing review or experiments
 
+Maintainer direction for the OEP-0002 configuration delivery defers login/authentication design to OEP-0016. Complete the shared configuration engine and document deferred integrations without claiming full OEP conformance. Standalone configuration requires no login; protected enrollment and fail-closed managed enforcement remain unchanged. Browser, device-code, token and workload login flows are discussion proposals, not selected contracts. The [delivery follow-up gates](implementation-status.md#oep-0002-delivery-scope-and-follow-up-gates) preserve both authentication-dependent and independent remaining work.
+
 | ID | Decision | Current proposal and next evidence |
 | --- | --- | --- |
 | OPEN-001 | Public license and contribution terms | Unselected; decide before upstream code import or substantive external contributions |
@@ -79,3 +81,5 @@ The [build implementation map](build-implementation.md) proposes concrete v1alph
 Private dependency builds must keep upstream credentials out of project/dependency execution and exported outputs across all supported managers (OEP-0017). New Dockerfile context bindings and convenience fields remain draft UX choices. Public license, mise import boundaries and backend qualification are not silently decided by this specification pass.
 
 The [proposal index](proposals/README.md) resolves OEP IDs. Detailed open decisions inside each OEP remain part of its review; this register highlights choices spanning components.
+
+OEP-0002 implementation now has an [experimental configuration reference](reference/configuration.md) and an acceptance-mapped checkpoint in [implementation status](implementation-status.md). Its cascade, constraint algebra, pinned-signature verification and 24-hour upper bound are implemented without changing the design's draft status. Native OS permission/keychain and real platform interoperability remain release gates. Docker's registered `docker.apparmorProfile` preserves the existing host default; the legacy environment override is a constrained migration input rather than a separate bypass.

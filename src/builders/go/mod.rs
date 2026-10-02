@@ -50,6 +50,7 @@ impl Builder for Go {
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["go"],
             ids: &["go/app", "go/library"],
         }
     }

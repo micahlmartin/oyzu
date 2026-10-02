@@ -8,8 +8,9 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 
 | Responsibility | Current entry points | Boundary to preserve as the code grows |
 | --- | --- | --- |
-| CLI input and output | `src/main.rs` | Parse arguments, call operations, render results; keep business rules in the library |
-| Configuration | `src/config.rs` | Own parsing, validation and effective settings; implement future precedence/provenance here rather than in each consumer |
+| CLI input and output | `src/main.rs`, `src/config_args.rs`, `src/presentation.rs` | Parse arguments, call operations, render results; keep business rules in the library |
+| Invocation composition | `src/invocation.rs` | Capture configuration before shared non-executing target selection; compose subsystem operations without moving their rules into CLI parsing |
+| Configuration | `src/config.rs`, `src/config/` | Own bounded source capture, typed settings, profiles, constraints, immutable resolution and edits; keep protected policy verification and effectful refresh separate from pure resolution |
 | Discovery and resolution | `src/discovery.rs`, `src/discovery/` | Gather bounded evidence and resolve ownership/capabilities deterministically; never execute project code during static detection |
 | Ecosystem integration | `src/builders/<ecosystem>/` | Own native manager/framework semantics; implement shared contracts and declare commands, artifacts and reports |
 | Development tasks | `src/tasks.rs`, `src/launch.rs` | Own task lookup, ordering, hooks and host launch behavior; keep ecosystem inference in builders and distinguish development execution from isolated builds |
@@ -20,11 +21,30 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 | Reports and artifacts | `src/reports.rs`, `src/reports/`, `src/oci/`, `src/build/collection.rs`, `src/build/bundle.rs` | Parse/verify formats separately from collection; record actual outputs and failures rather than trusting an adapter's success claim |
 | Shared data contracts | `src/model.rs`, `src/records.rs`, `docs/contracts/` | Hold genuinely shared concepts and record encoding; keep subsystem-specific types with their owner |
 
+Configuration's pure resolver consumes captured sources and registered types. `config/session` captures filesystem/context facts, `config/operations` exposes parser-independent inspection/edit operations over supplied selection, and `config/agent` owns signed policy cache transitions through its runtime boundary. `config/locations` owns native roots and administrative file protection, including its private Darwin ACL adapter. Builder registration owns ecosystem setting definitions and deprecated input aliases; shared configuration does not name ecosystem-specific environment variables. CLI flags remain in `config_args`. `discovery/inventory` owns explicit and conventional target-directory selection; both discovery and configuration inspection consume it through invocation composition.
+
 Tool installation, environment activation, caching, agent/connectors, publishing and desktop/platform surfaces need the same ownership discipline as they arrive. Their proposed boundaries are in the architecture and OEPs. Do not create placeholder crates or put their future behavior into a general-purpose service object now.
+
+Configuration enforcement admits both captured builds and development task sequences before effects. Effective configuration validates the final task environment after task overrides and native adapter additions, so administrative environment restrictions cannot be bypassed by another input channel. Discovery derives single-target root operations from that target's final cascade, including replacements and removals. The policy agent alone reconciles administratively changed bootstrap records: online verification uses current pins while preserving sequence high-water state, and authorization rechecks time after transport and storage.
+
+Build planning owns action dependency edges: actions that mutate one target workspace remain sequenced, explicit target dependencies wait for the producer's final action, and materialization retains its producer edges. Unrelated targets do not acquire ordering edges merely because their records are adjacent. `build/scheduling` owns bounded ready-action admission and worker batches; `build/execution` owns private target workspaces/output roots and ordered collection. A deferred report failure also fails its collection boundary before dependent actions are admitted. Plans freeze the smallest root/target jobs ceiling, and execution never rereads settings.
 
 Existing broad public modules, dynamic records and partially combined responsibilities are migration work, not a pattern to copy blindly. Improve the relevant boundary with the feature being changed; preserve observable behavior and avoid unrelated repository-wide rewrites.
 
 ## Interfaces that earn their place
+
+### Choose the smallest structure
+
+| When adding or changing... | Start with... | Extract or expand when... |
+| --- | --- | --- |
+| A pure calculation or validation | A function and typed values in the owning module | Multiple callers share the same rule and should change together |
+| A subsystem with several responsibilities | Private child modules and a narrow entry point | A responsibility needs its own invariants, tests or dependencies |
+| A builder, detector or backend implementation | The existing capability contract and an owned implementation | A consumer needs a capability the contract cannot express; evolve it at its owner |
+| A finite set of engine-owned states | An enum with explicit variants | A real need for independent implementations justifies a trait |
+| Process, filesystem or network access | The existing effect-owning boundary with explicit inputs | A new adapter needs substitution or a different platform implementation |
+| Reusable code across products | The existing library/module boundary | A second consumer or dependency/distribution constraint warrants a separate crate |
+
+Do not put code in a shared module merely because two functions look alike. For example, configuration precedence should have one authoritative implementation, while npm and Poetry retain their own lockfile semantics. Conversely, adding a new test framework should not create another hook scheduler or report collector. Reuse the existing owners of those behaviors.
 
 ### Dependency direction
 
@@ -68,7 +88,7 @@ When behavior is genuinely shared, move it to a named owner with a narrow contra
 2. Add or extend the smallest necessary contract. For a new detector, return evidence and let the resolver decide; for a builder, declare work and let shared execution/collection enforce it. See the [builder extension guide](builder-code-organization.md) and [detector contract](proposals/OEP-0006-discovery-and-planning/detectors.md).
 3. Keep implementation, ecosystem runtime assets and focused tests near their owner. Use `tests/` for public operation interactions, `tooling/` for repository validation/native conformance, and `examples/` for authored product contracts. Production behavior belongs in the library or owned runtime adapters, not in the acceptance harness.
 4. Verify behavior and relevant failure modes with actual native tools when claiming native integration. Mock transport or deterministic inputs where useful; a mock command cannot prove a real package was built. Preserve distinct evidence for discovery, development tasks and sandboxed builds.
-5. Update the relevant map/reference/status when behavior or a boundary changes. In the PR, identify the owning subsystem, any interface change, and checks actually run. A local fix does not require a new OEP; changes to public contracts or major boundaries follow the existing proposal process.
+5. Update the owning feature reference in the same PR for every behavior change, following the [documentation maintenance standard](documentation.md). Update the map/status when boundaries or measured capabilities change. In the PR, link the documentation and identify the owning subsystem, any interface change, and checks actually run. A local fix does not require a new OEP; changes to public contracts or major boundaries follow the existing proposal process.
 
 For a new subsystem, a short module-level responsibility/invariant comment, a narrow entry point and meaningful tests are enough to start. No per-function design documents, mandatory pattern catalog, line-count quotas or new architecture framework are required. Compiler visibility, review and focused conformance tests provide the first enforcement; add automated boundary checks when a recurring violation warrants them.
 

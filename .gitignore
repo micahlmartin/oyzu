@@ -20,6 +20,7 @@
 .env.*
 !.env.example
 oyzu.local.toml
+.oyzu-config-edit.lock
 *.pem
 *.key
 # Editor and OS files

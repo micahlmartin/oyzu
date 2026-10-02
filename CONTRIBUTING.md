@@ -16,11 +16,19 @@ Open an issue to discuss a bug, feature, or bounded implementation task. For sig
 
 A useful issue identifies the problem, owning subsystem if known, expected outcome and a reproducer or relevant example. Reports, documentation and design feedback are welcome without an implementation. Small documentation corrections and localized fixes do not need a new proposal. Follow the license status below before submitting external code.
 
+For a first contribution, choose one observable outcome: clarify an example, reproduce a bug, or identify a missing detector case. You can submit the evidence without knowing the whole architecture. Maintainers should make implementation tasks approachable by linking the owning module, the relevant contract/example and the verification command, and by stating any design decisions still unresolved. For code contributions, the AI-generated workflow and license status below still apply.
+
 Design acceptance and delivery status are separate. The initial accountable maintainer is micahlmartin; generated work must not mark its own proposals accepted. Link implementation issues to acceptance criteria and example fixtures. Public work must remain independently implementable without private repository access.
 
 Pull requests should explain the intended behavior, reference related issues or proposals, and provide relevant verification evidence. Include operating-system and shell differences where applicable.
 
 For code changes, briefly identify the AI tool used, how you directed/reviewed the change, and the subsystem/interface affected. A short summary is enough; full chat logs, private prompts and credentials are not required. Keep changes reviewable and scoped to one coherent outcome. Do not weaken an acceptance criterion merely to make generated code pass.
+
+## Documentation with every functionality change
+
+Documentation is part of implementation and review, not a later task. Follow the [documentation maintenance standard](docs/documentation.md) for every feature, changed behavior, deprecation or removal. Update the owning reference page in the same PR, with practical usage, defaults, outputs, failure/recovery behavior and verified limits. Add a new page to the [reference index](docs/reference/README.md) when no existing page owns the feature. Implementation checkpoints and draft OEPs supplement this reference; they do not replace it.
+
+Reviewers should compare the documentation to the changed code and verification evidence before considering a change complete. The PR must link the updated pages or explain specifically why an internal-only change has no documentation impact. Missing documentation for older behavior should be corrected when that behavior is touched; unrelated gaps should be recorded in implementation status with their owning subsystem, rather than silently described as covered.
 
 ## Local verification
 

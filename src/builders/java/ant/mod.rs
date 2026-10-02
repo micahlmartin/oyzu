@@ -69,7 +69,10 @@ impl Builder for Ant {
         reporting::instrument(task, env)
     }
     fn descriptor(&self) -> Descriptor {
-        Descriptor { ids: &["java/ant"] }
+        Descriptor {
+            ids: &["java/ant"],
+            tools: &["java"],
+        }
     }
     fn detect(&self, path: &Path) -> Option<&'static str> {
         ["build.xml"]

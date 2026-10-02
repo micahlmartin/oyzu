@@ -46,6 +46,8 @@ Verify the pinned key, organization/enrollment, audience, expected context, capa
 
 Reject issuance more than 120 seconds in the future; this tolerance does not extend expiry or offline deadlines. A strictly lower sequence than the recorded high-water mark is rejected. An equal sequence is accepted only for identical payload digest. New snapshots, including renewals of unchanged policy, use a higher sequence. Signature keys and bootstrap identity changes invalidate incompatible caches.
 
+For an administratively changed bootstrap within the same enrollment/context, online reconciliation verifies a response against the currently provisioned keys and requires a sequence strictly above the retained high-water mark before committing the new bootstrap binding. Adding overlapping keys and later removing old keys each require this reconciliation; clearing the sequence state is not the rotation procedure. Cached responses cannot reconcile a changed bootstrap. Authorization samples time again after network and storage operations so elapsed refresh/commit time cannot extend expiry or an offline deadline.
+
 The proposed standards are [JCS](https://www.rfc-editor.org/rfc/rfc8785.html), [Ed25519 JWK representation](https://www.rfc-editor.org/rfc/rfc8037.html), and [fully specified JOSE algorithms](https://www.rfc-editor.org/rfc/rfc9864.html). Library interoperability is a release gate.
 
 ## Cache and refresh lifecycle
@@ -81,5 +83,20 @@ Offline builds can consume already installed approved tools and dependencies ava
 Signing, publishing, promotion and obtaining new protected credential grants require fresh online authorization bound to the relevant subject, operation, destination and artifact/source evidence. Inferred CI alone is insufficient. The initial 24-hour offline allowance applies to local builds, not CI builds; managed CI requires an online context resolution at start. Non-executing inspection and cache diagnostics remain available in every state with redaction.
 
 ## Operational verification
+
+### Authentication integration follow-up
+
+The initial configuration delivery defers authentication design to OEP-0016. Its policy context currently has no authenticated subject; this is not evidence that a managed server permits anonymous access. A server requiring authentication remains unavailable until the session integration exists. No login flow is selected by this delivery.
+
+When the public authentication contract is designed, revisit these boundaries:
+
+- Supply a server-verified subject or workload identity to context resolution. Never derive authority from unverified token claims, profile names or CI environment variables. Confirm platform/audience and enrolled organization before activating the session.
+- Bind cached policy and integrity state to the verified subject and existing organization/enrollment/context. Test that logout and account switching cannot reactivate a previous user's cache, including a refresh response arriving after a switch.
+- Distinguish passive token expiry from explicit logout. Preserve signed offline deadlines for an applicable retained subject only as the final authentication contract permits; explicit logout clears the active subject and grants. A machine-only snapshot requires independent verification and authorization.
+- Specify credential storage, concurrent renewal, revocation, recovery and process/agent lifecycle. Preserve protected enrollment and rollback high-water state across logout; clearing authentication must never enable public acquisition.
+- Connect fresh credential, publishing and signing authorization to the verified identity, operation, destination and evidence. Cached configuration is never a substitute for these grants.
+- Run public authenticated HTTPS conformance fixtures for wrong audience/tenant/subject, expired or revoked sessions, account switches, outages and CI workload exchange. Qualify native-store failure and interrupted commits separately from substituted-store tests.
+
+Verified tool-store/native-lock consumption, approved connector routing, development secret consumers, long-running agent operation and action caches also remain separate subsystem integrations. They are not implemented merely by adding login. The [delivery status](../../implementation-status.md#oep-0002-delivery-scope-and-follow-up-gates) tracks these limits without weakening the acceptance scenarios below.
 
 Test first enrollment, anonymous versus subject-bound cache, logout, renewal, offline deadline equality (expired at deadline), shorter administrator limits, missing offline fields, negative server responses, signature/key mismatch, unknown capabilities/operators, wrong audience/context, revision rollback, equal-sequence changed payload, truncated writes, concurrent readers, disk-full, clock rollback, reboot and OS permission failures. Publication/signing tests must prove denial even when CI variables and profile names are spoofed.
