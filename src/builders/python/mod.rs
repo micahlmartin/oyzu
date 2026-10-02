@@ -49,6 +49,10 @@ impl Builder for Python {
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         &[
             RuntimeFile {
+                name: "python-quality.py",
+                contents: include_str!("runtime/quality.py"),
+            },
+            RuntimeFile {
                 name: "python.py",
                 contents: acquisition::PYTHON_HELPER,
             },

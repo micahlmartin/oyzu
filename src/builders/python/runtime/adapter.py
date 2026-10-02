@@ -30,7 +30,7 @@ def project():
     return tomllib.loads(path.read_text()) if path.exists() else {}
 
 
-def requirement_lines():
+def requirement_lines(locked=()):
     """Keep native requirement constraints/hashes; disallow source-route overrides."""
     data = project()
     from pip._vendor.packaging.requirements import Requirement
@@ -57,12 +57,6 @@ def requirement_lines():
     defaults=['build==1.2.2.post1','wheel==0.45.1'] if package_project else []
     if Path('tests').is_dir() or Path('test').is_dir():
         defaults += ['pytest==8.3.5','pytest-cov==6.0.0']
-    for item in defaults:
-        name=Requirement(item).name
-        if name not in purposes:
-            add(item,'test' if name.startswith('pytest') else 'build')
-    if 'ruff' in data.get('tool',{}) or not package_project or (Path('setup.py').exists() and not Path('pyproject.toml').exists()):
-        add('ruff==0.11.13','test')
     requirements = Path('requirements.txt')
     if requirements.exists():
         text = requirements.read_text().replace('\\\n',' ')
@@ -75,6 +69,18 @@ def requirement_lines():
             declaration = line.split(' --hash=',1)[0]
             add(declaration,'runtime')
         # Native pip independently validates source-owned hashes in a second pass.
+    locked_names = {re.sub(r'[-_.]+', '-', Requirement(item).name).lower() for item in locked}
+    for item in defaults:
+        name = re.sub(r'[-_.]+', '-', Requirement(item).name).lower()
+        if name not in purposes and name not in locked_names:
+            add(item, 'test' if name.startswith('pytest') else 'build')
+    quality = {'ruff': '0.11.13', 'black': '25.1.0', 'flake8': '7.3.0'}
+    selected = {os.environ.get('OYZU_PYTHON_LINTER', 'ruff'), os.environ.get('OYZU_PYTHON_FORMATTER', 'ruff')}
+    if not selected <= quality.keys():
+        raise ValueError('Unsupported Python quality tool selection')
+    for name in sorted(selected):
+        if name not in purposes and name not in locked_names:
+            add(name + '==' + quality[name], 'test')
     return inputs, purposes
 
 
@@ -164,14 +170,13 @@ def locked_export(manager, destination):
 
 
 def acquire():
-    requirements,purposes=requirement_lines()
     manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
     constraint_args=[]
+    constraints=[]
     export=Path('/out')/(manager+'-export.txt')
     if manager in {'uv','poetry'}:
         locked_export(manager,export)
         from pip._vendor.packaging.requirements import Requirement
-        constraints=[]
         for line in export.read_text().replace('\\\n',' ').splitlines():
             line=line.strip()
             if not line or line.startswith('#'):
@@ -181,10 +186,11 @@ def acquire():
             if parsed.url or parsed.extras:
                 raise ValueError('Unsupported locked source form')
             constraints.append(declaration)
-            # Include native groups, including legacy Poetry requirements, as roots.
-            requirements.append(declaration)
         Path('/out/constraints.txt').write_text('\n'.join(constraints)+'\n')
         constraint_args=['-c','/out/constraints.txt']
+    requirements,purposes=requirement_lines(constraints)
+    # Include native groups, including legacy Poetry requirements, as roots.
+    requirements.extend(constraints)
     server=ThreadingHTTPServer(('127.0.0.1',0),Bridge)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     index='http://127.0.0.1:'+str(server.server_port)+'/index/'

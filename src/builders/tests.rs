@@ -81,6 +81,11 @@ fn python_planning_requires_captured_dependencies_and_declares_typed_outputs() {
     assert_eq!(plan.tasks["test"].reports.len(), 2);
     assert_eq!(plan.tasks["test"].reports[0].format.name(), "junit");
     assert_eq!(plan.env["PIP_NO_INDEX"], "1");
+    for name in ["lint", "format-check"] {
+        assert!(target.tasks[name].build_stage);
+        assert_eq!(plan.tasks[name].argv[0], ".oyzu-build/venv/bin/python");
+        assert_eq!(plan.tasks[name].argv[2], "/oyzu/python-quality.py");
+    }
 }
 
 #[test]

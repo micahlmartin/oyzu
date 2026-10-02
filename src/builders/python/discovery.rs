@@ -9,6 +9,10 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     target
         .discovery
         .insert("package-manager".into(), profile.manager);
+    target.discovery.insert("linter".into(), profile.linter);
+    target
+        .discovery
+        .insert("formatter".into(), profile.formatter);
     if let Some(version) = value
         .get("project")
         .and_then(|v| v.get("version"))
@@ -57,11 +61,6 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             test.build_stage = false;
         }
     }
-    if value.get("tool").and_then(|v| v.get("ruff")).is_some()
-        || super::application::matches(&target.path)
-        || super::legacy::matches(&target.path)
-    {
-        super::quality::discover(target);
-    }
+    super::quality::discover(target);
     Ok(())
 }

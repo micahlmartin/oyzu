@@ -39,6 +39,14 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let session = broker::Session::start(&spool, &private, sources)?;
     let env = BTreeMap::from([
         ("OYZU_PYTHON_MANAGER".into(), manager.into()),
+        (
+            "OYZU_PYTHON_LINTER".into(),
+            context.target.discovery["linter"].selected().into(),
+        ),
+        (
+            "OYZU_PYTHON_FORMATTER".into(),
+            context.target.discovery["formatter"].selected().into(),
+        ),
         ("UV_CACHE_DIR".into(), "/tmp/uv-cache".into()),
         ("HOME".into(), "/tmp/oyzu-home".into()),
         ("PYTHONNOUSERSITE".into(), "1".into()),

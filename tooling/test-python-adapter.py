@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import warnings
 import zipfile
 
@@ -14,6 +15,24 @@ spec.loader.exec_module(adapter)
 
 
 class WheelMetadataTests(unittest.TestCase):
+    def test_quality_defaults_preserve_declared_and_locked_versions(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {'OYZU_PYTHON_LINTER':'flake8', 'OYZU_PYTHON_FORMATTER':'black'}):
+            root = Path(temporary)
+            (root/'requirements.txt').write_text('black==24.10.0\n')
+            try:
+                os.chdir(root)
+                requirements, _ = adapter.requirement_lines(['flake8==7.2.0'])
+                self.assertEqual(requirements, ['black==24.10.0'])
+                requirements, _ = adapter.requirement_lines()
+                self.assertIn('flake8==7.3.0', requirements)
+                self.assertNotIn('black==25.1.0', requirements)
+                os.environ['OYZU_PYTHON_LINTER'] = 'unrecognized'
+                with self.assertRaises(ValueError):
+                    adapter.requirement_lines()
+            finally:
+                os.chdir(previous)
+
     def test_runtime_role_survives_shared_build_and_test_requirements(self):
         previous = Path.cwd()
         with tempfile.TemporaryDirectory() as temporary:
