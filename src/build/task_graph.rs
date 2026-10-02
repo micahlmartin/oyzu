@@ -106,22 +106,19 @@ impl TaskGraph {
                 }
                 let sequence = tasks::sequence_for_build(workspace, &id, &native)?;
                 graph.assign_owner(workspace, &id, target)?;
-                if let Some(previous) = previous {
-                    // Preserve the owner's stage order for newly introduced
-                    // local prerequisites too. Foreign prerequisites retain
-                    // their own pipeline instead of inheriting this one.
-                    let first = sequence
-                        .iter()
-                        .find(|step| !seen.contains(*step) && graph.owners[*step] == *target)
-                        .expect("selected stage contains its owning task");
-                    graph
-                        .dependencies
-                        .entry(first.clone())
-                        .or_default()
-                        .insert(previous);
-                }
-                previous = Some(completion(workspace, &id));
                 for step in sequence {
+                    // Preserve the entire local mutation sequence, including
+                    // sibling prerequisites. Only foreign-owned work follows
+                    // another pipeline. Shared tasks remain single actions.
+                    if !seen.contains(&step) && graph.owners[&step] == *target {
+                        if let Some(previous) = previous.replace(step.clone()) {
+                            graph
+                                .dependencies
+                                .entry(step.clone())
+                                .or_default()
+                                .insert(previous);
+                        }
+                    }
                     seen.insert(step.clone());
                     if emitted.insert(step.clone()) {
                         graph.ordered.push(step);

@@ -22,6 +22,11 @@ producer:
     (project / 'build.yaml').write_text(configuration)
     (project / 'oyzu.toml').write_text('''[tasks."producer:post_test"]
 argv = ["sh", "-c", "printf private > ../producer-marker"]
+[tasks."producer:verify"]
+argv = ["go", "version"]
+[tasks."consumer:pre_test"]
+argv = ["node", "--check", "build.mjs"]
+depends_on = ["producer:verify"]
 ''')
     (project / 'consumer/materialization.test.mjs').write_text('''import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,6 +44,11 @@ test('consume the tested binary without sharing producer writes', () => {
     manifest = validate(project / 'dist')
     assert manifest['status'] == 'succeeded' and len(manifest['artifacts']) == 2
     assert source_files(project) == before
+    plan = json.loads((project/'dist/plan.json').read_text())
+    verification = next(a for a in plan['actions'] if a['id']=='producer:verify')
+    assert verification['target']=='producer' and verification['tools']==['producer']
+    assert verification['cwd']=='producer' and verification['argv']==['go','version']
+    assert next(a for a in manifest['actions'] if a['id']=='producer:verify')['status']=='succeeded'
     producer = next(a for a in manifest['artifacts'] if a['target'] == 'producer')
     evidence = next(e for e in manifest['evidence'] if e['kind'] == 'artifact-materialization')
     receipt = json.loads((project / 'dist' / evidence['path']).read_text())['inputs'][0]
@@ -59,4 +69,4 @@ test('consume the tested binary without sharing producer writes', () => {
     invoke(project, 'build', success=False)
     cycle = validate(project / 'dist')
     assert not cycle['actions'] and any('cycle' in d['message'] for d in cycle['diagnostics'])
-    verified.append('Materialization: symbolic ordering, executable Go artifact, verified digest receipt, private consumer copy, source collision and cycle rejection')
+    verified.append('Materialization: symbolic ordering, executable Go artifact, verified digest receipt, private consumer copy, cross-language task prerequisite uses its Go owner, source collision and cycle rejection')

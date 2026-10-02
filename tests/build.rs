@@ -269,6 +269,35 @@ fn cross_target_prerequisites_keep_owner_reports_and_hooks() {
 }
 
 #[test]
+fn local_prerequisite_sequence_cannot_overtake_an_earlier_build_stage() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"ordered","version":"1.0.0","scripts":{"build":"node -e 0"}}"#,
+    )
+    .unwrap();
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"project:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['project:first','project:second']\n[tasks.\"project:first\"]\nargv=['node','-e','0']\n[tasks.\"project:second\"]\nargv=['node','-e','0']\n").unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    for (consumer, producer) in [
+        ("project:first", "project:build"),
+        ("project:second", "project:first"),
+        ("project:pre_test", "project:second"),
+    ] {
+        let action = actions.iter().find(|a| a["id"] == consumer).unwrap();
+        assert!(
+            action["dependsOn"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(producer)),
+            "{producer} must precede {consumer}"
+        );
+    }
+}
+
+#[test]
 fn implicit_node_tests_and_custom_scripts_inherit_report_obligations() {
     let root = tempfile::tempdir().unwrap();
     fs::write(

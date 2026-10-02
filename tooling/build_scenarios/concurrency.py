@@ -75,3 +75,20 @@ setTimeout(() => console.log('OYZU_CONCURRENCY ' + JSON.stringify({start, end: D
     for target in ['alpha','beta']:
         assert next(a for a in failed['actions'] if a['id']==f'{target}:pre_test')['status']=='blocked'
     verified.append('Cross-target task prerequisites: one owned execution, private workspaces, post-hook ordering, per-target reports/artifacts and failed-hook gating')
+    # Waiting on a foreign prerequisite must not let a later local stage's
+    # sibling prerequisites run before compilation or before one another.
+    first = "const fs=require('node:fs'); fs.readFileSync('dist/greeting.mjs'); fs.writeFileSync('first.txt','done');"
+    second = "const fs=require('node:fs'); fs.readFileSync('dist/greeting.mjs'); if(fs.readFileSync('first.txt','utf8')!=='done')process.exit(1);"
+    config = '[build]\njobs=2\n'
+    config += '[tasks."beta:hold"]\nargv='+json.dumps(['node','-e','setTimeout(()=>{},1000)'])+'\n'
+    config += '[tasks."alpha:build"]\nargv=["node","build.mjs"]\ndepends_on=["beta:hold"]\n'
+    config += '[tasks."alpha:pre_test"]\nargv=["node","--check","build.mjs"]\ndepends_on=["alpha:first","alpha:second"]\n'
+    for name, script in [('first',first),('second',second)]:
+        config += f'[tasks."alpha:{name}"]\nargv='+json.dumps(['node','-e',script])+'\n'
+    (project/'oyzu.toml').write_text(config)
+    before = source_files(project)
+    invoke(project,'build')
+    ordered = validate(project/'dist')
+    assert ordered['status']=='succeeded' and len(ordered['artifacts'])==2
+    assert source_files(project)==before
+    verified.append('Local sibling prerequisites retain build-stage and mutation order while compilation waits on another target')
