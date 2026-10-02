@@ -1438,3 +1438,31 @@ containment remain unimplemented. The codec cannot interrupt arbitrary blocking
 Read/Write operations and provides no authorization. The reference, code map
 and OEP distinguish this framing component from a qualified worker; TM-05 is
 not complete.
+
+## Checkpoint 112: worker envelope correlation and terminal exchange
+
+The worker now has closed outer request/response envelopes, exact protocol and
+request/context correlation, recognized operation/platform syntax and bounded
+sorted capability IDs. One exchange consumes at most one terminal response;
+malformed or mismatched responses cannot be retried against the same instance.
+An explicit cancel may be emitted once, and a racing success after cancellation
+is discarded. Abort handles caller-observed timeout/transport loss. Diagnostics
+are code-only records. Payloads remain explicitly untrusted, not typed backend
+requests or publication authority. Shared request UUID and platform validation
+reuse existing tool identity rules.
+
+Nine framing/exchange tests passed on Windows and Linux, including shared schema
+fixtures, unknown fields, identity mismatches, terminal-state reuse and cancellation
+races. The schema checker passed one valid/10 invalid request envelopes and one
+valid/seven invalid response envelopes, plus existing contracts. Full Windows
+locked tests, strict all-target Clippy, formatting and all nine CLI scenarios
+passed; the added shared-fixture test and five grant regressions were rerun after
+the full suite. Linux strict all-target Clippy passed with networking disabled.
+Documentation/diff checks passed. Native macOS checks remain pending.
+
+The new schema describes only outer envelopes. Operation-specific payloads,
+worker-side cancel/dispatch, private OS channels, handshake/operation deadlines,
+process supervision and executor containment are still absent. Cancel encoding,
+code-only diagnostics and cancellation-race handling remain draft contract choices.
+Reference documentation, code ownership and OEP implementation/runtime pages now
+state these boundaries; this does not complete TM-01 or TM-05.

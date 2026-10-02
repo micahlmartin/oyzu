@@ -93,8 +93,9 @@ host preference within policy, never project syntax.
 The initial framing implementation counts four-byte prefixes in the total control
 budget and uses the shared strict JSON parser's additional 10,000-entry ceiling.
 These conservative draft limits require protocol review with typed payloads.
-The codec alone admits JSON objects, not protocol envelopes or operations;
-private transport, lifecycle and deadline enforcement remain separate work.
+The codec alone admits JSON objects; the separate exchange validates closed outer
+envelopes and supervisor-side response correlation. Operation-specific admission,
+private transport, worker lifecycle and deadline enforcement remain separate work.
 
 Envelope fields are `protocol = "oyzu.tool-worker/1"`, `request_id` (UUID),
 `operation` (`resolve`, `prepare`, `environment`, `executable`),
@@ -111,6 +112,16 @@ Progress events are bounded/redacted diagnostic-channel records, not stdout
 shell fragments. Unrecognized responses, mismatched identity, pipe loss, timeout
 or panic fail the operation. The supervisor verifies output containment, digests
 and receipts; worker success alone cannot authorize publication or selection.
+
+Initial draft wire details are recorded in the
+[outer-envelope schema](../../contracts/tools-v1/worker-envelope.schema.json).
+Cancel contains only protocol/request/context and `operation="cancel"`.
+Terminal diagnostics contain only a bounded uppercase `code`, with no arbitrary
+message text. Once the supervisor requests cancellation, a racing success is
+discarded; no result from that operation may be published. The exchange consumes
+one terminal response attempt even when validation fails. These details require
+contract review; operation-specific payload schemas and worker-side handling are
+still outstanding.
 
 ## Commands and mutation rules
 

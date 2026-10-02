@@ -241,7 +241,7 @@ fn scope(value: &str) -> Result<()> {
     text(value, "scope")
 }
 
-fn platform(value: &str) -> Result<()> {
+pub(super) fn platform(value: &str) -> Result<()> {
     let parts: Vec<_> = value.split('/').collect();
     ensure!(
         matches!(

@@ -4,6 +4,8 @@
 use anyhow::{ensure, Context, Result};
 use serde_json::Value;
 use std::io::{Read, Write};
+mod exchange;
+pub use exchange::{ToolWorkerExchange, ToolWorkerOperation, ToolWorkerOutcome};
 
 const FRAME_BYTES: usize = 8 * 1024 * 1024;
 const SESSION_BYTES: usize = 32 * 1024 * 1024;

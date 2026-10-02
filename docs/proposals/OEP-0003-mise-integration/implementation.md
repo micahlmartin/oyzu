@@ -25,13 +25,16 @@ including offline-operation and resolve-only restrictions. Initial Rust EdDSA
 signature verification, exact caller-supplied context binding and in-memory
 wall/monotonic expiry checks are implemented with shared shape fixtures. Trusted
 agent context/key provisioning, lifecycle notifications, authorizer interoperability
-and grant-backed launch remain unimplemented. The worker schema remains
-outstanding.
+and grant-backed launch remain unimplemented. The worker now has an outer-envelope
+schema; operation-specific payload schemas remain outstanding.
 
 TM-05 has an initial bounded duplex JSON framing codec, with one shared 32 MiB
 budget including prefixes, 8 MiB frame bodies and terminal failure handling.
-It does not yet implement typed envelopes, private OS transport, protocol lifecycle,
-deadlines, worker dispatch or containment. The shared strict JSON parser imposes
+An initial supervisor-side exchange validates closed outer requests, binds one
+terminal response to its request/context and discards success after cancellation.
+Payloads remain explicitly untrusted. It does not yet implement operation-specific
+payload admission, private OS transport, worker-side lifecycle, deadlines,
+worker dispatch or containment. The shared strict JSON parser imposes
 an additional 10,000-entry bound. See the current
 [framing reference](../../reference/tool-lock-inspection.md#internal-worker-control-framing).
 

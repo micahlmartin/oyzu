@@ -1,0 +1,57 @@
+[
+  {
+    "name": "protocol",
+    "pointer": "/protocol",
+    "value": "other"
+  },
+  {
+    "name": "operation",
+    "pointer": "/operation",
+    "value": "install"
+  },
+  {
+    "name": "request id",
+    "pointer": "/request_id",
+    "value": "bad"
+  },
+  {
+    "name": "context digest",
+    "pointer": "/context_digest",
+    "value": "bad"
+  },
+  {
+    "name": "release digest",
+    "pointer": "/backend_release_digest",
+    "value": "bad"
+  },
+  {
+    "name": "target",
+    "pointer": "/target_platform",
+    "value": "other"
+  },
+  {
+    "name": "duplicate capability",
+    "pointer": "/capabilities",
+    "value": [
+      "a",
+      "a"
+    ]
+  },
+  {
+    "name": "invalid capability",
+    "pointer": "/capabilities",
+    "value": [
+      "a b"
+    ]
+  },
+  {
+    "name": "payload must be object",
+    "pointer": "/payload",
+    "value": null
+  },
+  {
+    "name": "unknown command",
+    "pointer": "/command",
+    "value": "sh"
+  }
+]

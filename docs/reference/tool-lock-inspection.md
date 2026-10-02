@@ -873,10 +873,45 @@ supervised operation rather than attempting stream resynchronization. Errors
 use `TOOL_WORKER_*` codes without payload or transport-error text. No files,
 network connections or credentials are created by the codec itself.
 
-Framing success is not envelope admission: typed operation payloads, unknown-field
-rejection, protocol/request/context identity checks, single-request/terminal-result
-sequencing and cancellation remain to be implemented above this layer. Private
+Framing success is not envelope admission. `ToolWorkerExchange`, described below,
+adds closed outer envelopes and response correlation; operation-specific payload
+admission and worker-side dispatch remain unimplemented. Private
 OS channel creation, handshake/operation deadlines, embedded backend dispatch and
 executor containment are also absent. Tests exercise fragmented reads/writes,
 exact frame bounds, combined budgets, invalid/truncated JSON and terminal errors;
 they do not qualify a running worker or complete TM-05.
+
+### Worker exchange correlation
+
+`ToolWorkerExchange::new(request_bytes)` checks a closed outer request: exact
+protocol, canonical UUID, context/backend-release digests, a recognized target
+platform, operation enum, sorted unique capability IDs and an object payload.
+Use one exchange per supervised operation. `operation()` exposes the selected
+operation; `untrusted_payload()` deliberately does not imply payload admission.
+Recognized platform syntax does not establish backend/platform support, and
+capability names do not prove executor capabilities.
+
+`finish(response_bytes)` compares protocol, request ID and context digest with
+the original request. It accepts exactly one `ok` response with an object result,
+or `error`/`cancelled` with a closed diagnostic containing only `code`. Codes are
+1-64 uppercase ASCII letters, digits or underscores; arbitrary worker message
+text is not accepted. Even successful results use the explicitly named
+`ToolWorkerOutcome::UntrustedResult` variant and require operation-specific
+validation, containment/digest checks and current authorization before use.
+
+Call `cancel()` once to obtain a correlated envelope with the same protocol,
+request ID and context digest and `operation="cancel"`. It marks cancellation
+before transport; any write failure requires aborting the operation. A later
+success response is discarded rather than allowing a cancelled operation to
+publish. `abort()` handles timeout, transport loss or supervisor cancellation.
+Any response attempt, including malformed or mismatched input, terminates the
+exchange; a second response is rejected. This state machine does not send bytes,
+interrupt a blocking transport, cancel a process or authenticate the channel.
+
+The [outer-envelope schema](../contracts/tools-v1/worker-envelope.schema.json)
+and shared fixtures cover request/response shapes. Sorting, response correlation
+and lifecycle rules are runtime checks. Cancel encoding, code-only diagnostics
+and cancellation-race handling are initial draft wire choices requiring contract
+review. Operation-specific request/result records and worker-side cancel handling
+remain outstanding; this is not the complete typed worker schema or a deployed
+worker protocol.

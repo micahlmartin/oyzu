@@ -84,16 +84,6 @@ pub struct VerifiedToolGrant {
 fn text(value: &str) -> bool {
     !value.is_empty() && value.chars().count() <= 256 && !value.chars().any(char::is_control)
 }
-fn uuid(value: &str) -> bool {
-    value.len() == 36
-        && value.bytes().enumerate().all(|(i, b)| {
-            if [8, 13, 18, 23].contains(&i) {
-                b == b'-'
-            } else {
-                b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
-            }
-        })
-}
 fn json(bytes: &[u8], limit: usize) -> Result<serde_json::Value> {
     crate::config::policy::strict_json_limit(bytes, limit)
         .map_err(|_| anyhow::anyhow!("TOOL_GRANT_INVALID: malformed or excessive JSON"))
@@ -155,7 +145,7 @@ impl VerifiedToolGrant {
             payload.protocol == "oyzu.tool-selection/1"
                 && payload.audience == "oyzu.tool-selection"
                 && payload.decision == "allow"
-                && uuid(&payload.request_id),
+                && super::valid_request_id(&payload.request_id),
             "TOOL_GRANT_INVALID: protocol or identity"
         );
         ensure!(

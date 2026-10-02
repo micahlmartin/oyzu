@@ -59,6 +59,10 @@ def check_contract(name, schema_path, fixture_path, cases_path, valid_path=None)
 
 
 def main():
+    check_contract("worker request envelope", "docs/contracts/tools-v1/worker-envelope.schema.json",
+                   "tests/fixtures/tool-worker/request.json", "tests/fixtures/tool-worker/invalid-requests.json")
+    check_contract("worker response envelope", "docs/contracts/tools-v1/worker-envelope.schema.json",
+                   "tests/fixtures/tool-worker/response.json", "tests/fixtures/tool-worker/invalid-responses.json")
     check_contract("selection grant", "docs/contracts/tools-v1/selection-grant.schema.json",
                    "tests/fixtures/tool-grant/payload.json", "tests/fixtures/tool-grant/invalid-shapes.json",
                    "tests/fixtures/tool-grant/valid-shapes.json")

@@ -1,0 +1,39 @@
+[
+  {
+    "name": "protocol",
+    "pointer": "/protocol",
+    "value": "other"
+  },
+  {
+    "name": "request id",
+    "pointer": "/request_id",
+    "value": "bad"
+  },
+  {
+    "name": "context",
+    "pointer": "/context_digest",
+    "value": "bad"
+  },
+  {
+    "name": "status",
+    "pointer": "/status",
+    "value": "progress"
+  },
+  {
+    "name": "result",
+    "pointer": "/result",
+    "value": null
+  },
+  {
+    "name": "extra",
+    "pointer": "/extra",
+    "value": 0
+  },
+  {
+    "name": "both outcomes",
+    "pointer": "/diagnostic",
+    "value": {
+      "code": "FAIL"
+    }
+  }
+]

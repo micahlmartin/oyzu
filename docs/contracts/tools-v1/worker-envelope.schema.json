@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Draft Oyzu worker outer envelopes (not payload admission)",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "request_id",
+        "context_digest",
+        "operation",
+        "backend_release_digest",
+        "target_platform",
+        "capabilities",
+        "payload"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oyzu.tool-worker/1"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "context_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "operation": {
+          "enum": [
+            "resolve",
+            "prepare",
+            "environment",
+            "executable"
+          ]
+        },
+        "backend_release_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "target_platform": {
+          "type": "string",
+          "pattern": "^(linux/(amd64|arm64)/(gnu|musl)|darwin/(amd64|arm64)/native|windows/(amd64|arm64)/msvc)$"
+        },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9_.:/-]+$"
+          }
+        },
+        "payload": {
+          "type": "object",
+          "description": "Untrusted operation data; operation-specific contracts remain outstanding."
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "request_id",
+        "context_digest",
+        "operation"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oyzu.tool-worker/1"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "context_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "operation": {
+          "const": "cancel"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "request_id",
+        "context_digest",
+        "status",
+        "result"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oyzu.tool-worker/1"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "context_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "status": {
+          "const": "ok"
+        },
+        "result": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "protocol",
+        "request_id",
+        "context_digest",
+        "status",
+        "diagnostic"
+      ],
+      "properties": {
+        "protocol": {
+          "const": "oyzu.tool-worker/1"
+        },
+        "request_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        },
+        "context_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "status": {
+          "enum": [
+            "error",
+            "cancelled"
+          ]
+        },
+        "diagnostic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[A-Z0-9_]+$"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

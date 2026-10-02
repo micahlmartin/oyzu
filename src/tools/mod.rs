@@ -14,7 +14,7 @@ pub use backend::{inspect as inspect_backend, BackendInspection};
 pub use edit::{ToolLockChange, ToolLockChangeKind, ToolLockEdit, ToolLockProposal};
 pub use requests::{project_tool_requests, ToolRequestIdentity};
 pub use selection::{select_for_tool_requests, select_locked_environment};
-pub use worker::ToolWorkerChannel;
+pub use worker::{ToolWorkerChannel, ToolWorkerExchange, ToolWorkerOperation, ToolWorkerOutcome};
 mod store;
 pub use store::InstallationLease;
 pub use store::LeaseRecovery;
@@ -229,4 +229,16 @@ fn read_record(path: &Path, limit: usize) -> Result<Vec<u8>> {
     file.take(limit as u64 + 1).read_to_end(&mut bytes)?;
     ensure!(bytes.len() <= limit, "tool record exceeds byte limit");
     Ok(bytes)
+}
+
+// Shared canonical request identity for tool control protocols.
+fn valid_request_id(value: &str) -> bool {
+    value.len() == 36
+        && value.bytes().enumerate().all(|(i, b)| {
+            if [8, 13, 18, 23].contains(&i) {
+                b == b'-'
+            } else {
+                b.is_ascii_digit() || (b'a'..=b'f').contains(&b)
+            }
+        })
 }
