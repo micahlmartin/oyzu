@@ -120,6 +120,8 @@ Before extracting shared code, ask whether its callers have the same semantics a
 
 When behavior is genuinely shared, move it to a named owner with a narrow contract and migrate the relevant callers together. Do not create a second validator, resolver or configuration precedence implementation just to finish a feature. Keep authoritative rules in one place and test their consumers against that contract.
 
+Use the reason for change as the reuse test: would fixing this rule require the same correction in every caller? If yes, give it one owner. If two native tools merely happen to use similar code today, keep their differing semantics local. When a shared API accumulates ecosystem-specific flags, reconsider which responsibility is common before adding another flag. This decision belongs in ordinary code review; it needs no additional design form.
+
 ## A small change workflow
 
 ### Review boundaries in practice
@@ -146,6 +148,8 @@ A review should be able to identify the rule's owner, the contract crossing each
 5. Update the owning feature reference in the same PR for every behavior change, following the [documentation maintenance standard](documentation.md). Update the map/status when boundaries or measured capabilities change. In the PR, link the documentation and identify the owning subsystem, any interface change, and checks actually run. A local fix does not require a new OEP; changes to public contracts or major boundaries follow the existing proposal process.
 
 For a new subsystem, a short module-level responsibility/invariant comment, a narrow entry point and meaningful tests are enough to start. No per-function design documents, mandatory pattern catalog, line-count quotas or new architecture framework are required. Compiler visibility, review and focused conformance tests provide the first enforcement; add automated boundary checks when a recurring violation warrants them.
+
+Keep the contributor path equally small: repository-wide rules live in `AGENTS.md`, contribution steps in `CONTRIBUTING.md`, and ownership in this map. Add a nested `AGENTS.md` only when a subsystem has real additional constraints; reference shared rules instead of copying them. Put contract obligations beside the interface so implementation changes and their documentation are reviewed together.
 
 Tests should preserve those boundaries too. Consumer tests exercise supported entry points and observable guarantees; tests of private algorithms stay with the owning module. Do not make implementation details public solely for a test harness. For a detector, check evidence, ambiguity and selection outcomes through the relevant contracts, rather than asserting its private function sequence. Shared contract checks verify common promises across implementations; native adapter checks verify ecosystem-specific behavior. A private refactor that preserves the contract should not require unrelated consumers to rewrite their tests.
 
