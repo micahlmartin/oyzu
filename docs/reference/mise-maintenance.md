@@ -678,3 +678,21 @@ standard-library gzip decoder is independent of the fork's Rust decoder; passing
 capture tests does not establish identical handling of every gzip edge case.
 The helper does not establish publisher authenticity or legal approval. Original
 metadata stays outside Git; retain it separately for reproducible replay.
+
+To replay these retained inputs through the fork's Rust decoder and embedded
+artifact selector, set `OYZU_PYTHON_METADATA_FIXTURE` to the absolute fixture path
+and run from the fork checkout:
+
+```sh
+cargo test --locked --lib --no-default-features --features rustls,vfox/vendored-lua python_catalog_captured_replay -- --ignored
+```
+
+This opt-in test verifies original compressed and decoded identities for all three
+targets. It requires Python 3.12.13's exact 20250323 install-only artifact, removes
+that artifact from each decoded catalog, then requires substitution denial. It
+needs no network during replay. A Linux container run with networking disabled
+passed against the retained 2026-10-02 capture. This tests private backend parsing
+and selection, not the supplied HTTP transport or complete Python Session API.
+The fork workflow now provisions independently captured inputs with a pinned
+helper and retains fixture/report evidence for 30 days; native results for this
+new replay remain pending. Ordinary library test runs skip this opt-in test.

@@ -2057,3 +2057,18 @@ paths, not Python resolution, worker integration or installation support.
 The separate compliance workflow 37020409077 requires current-head human approval
 from @micahlmartin. No approval is inferred from passing technical checks.
 Documentation and diff checks pass; full OEP-0003 implementation remains active.
+
+## Checkpoint 142: actual Python catalog decoder and selector replay
+
+Fork revision 5da9db2287c3ab94783b752ec700c53a3020100d adds opt-in replay
+of the independently captured Python catalogs. Linux passed the Rust test with
+networking disabled: compressed/decoded hashes match, all three exact target
+artifacts are retained, and removing each locked artifact rejects substitution.
+Rust 1.95 formatting and strict library/example Clippy pass; compliance inventory
+is consistent and 24 guard tests pass with two Windows symlink skips.
+
+Native CI now captures using a revision/hash-pinned helper and retains fixtures
+and reports. Those new native results remain pending. The maintenance reference
+contains reproduction instructions and boundaries: this is private parser/selector
+coverage, not HTTP transport, a Python resolver API, installation, or approval.
+Documentation and diff checks pass; full OEP-0003 remains in progress.
