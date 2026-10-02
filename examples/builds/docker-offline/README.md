@@ -34,6 +34,8 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 ## Failure and variation cases
 
 - **external-add:** Use the negative Dockerfile. Expected: Reject undeclared external acquisition before a hermetic action.
+- **quality-gates:** Introduce noncanonical spacing or a relative WORKDIR. Native format/lint checks fail and block final artifacts without changing source.
+- **ignored-quality-config:** Exclude target-local Hadolint/EditorConfig files with `.dockerignore`. Checks must still use them while image layers omit them. See the [Dockerfile quality reference](../../../docs/reference/docker-quality.md) for native defaults and provisioning.
 
 ## Contract and limitations
 

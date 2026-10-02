@@ -11,7 +11,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     fs::create_dir(context.destination)?;
     let stdout = control.path().join("stdout");
     let stderr = control.path().join("stderr");
-    let argv = crate::builders::strings(&["sh", "-c", "oyzu-docker-metadata /workspace > /out/metadata.json && buildctl --version > /out/manager-version.txt"]);
+    let argv = crate::builders::strings(&["sh", "-ec", "oyzu-docker-metadata /workspace > /out/metadata.json\nbuildctl --version > /out/manager-version.txt\nhadolint --version > /out/linter-version.txt\ndockerfmt version > /out/formatter-version.txt"]);
     let result = executor::execute(executor::Request {
         image: context.image,
         workspace: &workspace,
@@ -48,10 +48,12 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let version = fs::read_to_string(context.destination.join("manager-version.txt"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
-        "adapter":{"id":"docker/local-context","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"1"},
+        "adapter":{"id":"docker/local-context","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"2"},
         "manager":{"id":"buildkit","version":version.trim(),"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[],"targetPlatform":platform,"packages":[],"preparedTree":tree.digest,
-        "extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":apparmor,"dockerfileDigest":snapshot::file_digest(&context.target.path.join("Dockerfile"))?}}});
+        "extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":apparmor,"dockerfileDigest":snapshot::file_digest(&context.target.path.join("Dockerfile"))?,
+            "quality":{"hadolint":fs::read_to_string(context.destination.join("linter-version.txt"))?.trim(),
+                "dockerfmt":fs::read_to_string(context.destination.join("formatter-version.txt"))?.trim()}}}});
     Ok(Prepared {
         root: context.destination.into(),
         digest: records::digest("oyzu.dependencies.v1alpha1", &record)?,

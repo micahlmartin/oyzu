@@ -23,6 +23,16 @@
       "name": "external-add",
       "change": "Use the negative Dockerfile.",
       "expect": "Reject undeclared external acquisition before a hermetic action."
+    },
+    {
+      "name": "quality-gates",
+      "change": "Introduce noncanonical Dockerfile spacing or a relative WORKDIR.",
+      "expect": "Native read-only format or lint checks fail, preserve source, and block final OCI artifacts."
+    },
+    {
+      "name": "ignored-quality-config",
+      "change": "Configure native Hadolint and EditorConfig, then exclude those files using .dockerignore.",
+      "expect": "The checkers use the captured configuration while the image COPY context excludes it."
     }
   ],
   "nativeChecks": [

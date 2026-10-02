@@ -74,6 +74,7 @@ src/
         AntCoverage.java      # Application class ownership and JaCoCo reporting
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
     docker/                   # Container builder
+      quality.rs              # Native linter/formatter detector evidence and task defaults
       metadata.rs             # Typed native facts and captured-input admission
       preparation.rs          # Offline native metadata and worker-profile capture
       planning.rs             # Snapshot OCI output and typed BuildKit action intent

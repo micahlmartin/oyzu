@@ -685,6 +685,8 @@ mod tests {
                 "project:pre_test",
                 "project:test",
                 "project:post_test",
+                "project:lint",
+                "project:format-check",
                 "project:package"
             ]
         );
