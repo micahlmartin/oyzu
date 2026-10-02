@@ -69,6 +69,12 @@ npm workspace composition reuses that Mocha adapter for each package and the sam
 
 Do not put code in a shared module merely because two functions look alike. For example, configuration precedence should have one authoritative implementation, while npm and Poetry retain their own lockfile semantics. Conversely, adding a new test framework should not create another hook scheduler or report collector. Reuse the existing owners of those behaviors.
 
+### Keeping traits focused
+
+Design a trait from the consumer's needs: name the operation it needs, the implementations that vary, and the guarantees it relies on. A trait should not expose an adapter's entire implementation just because that adapter already has several methods. One implementation can satisfy several focused contracts when independent consumers need different capabilities. This is a reason to separate responsibilities, not to create a trait for every method.
+
+For example, recognizing a Python framework and constructing its test invocation have different consumers and effects. Keep detection evidence separate from task planning, even if both use the same ecosystem metadata. Likewise, a future registry connector's download support does not imply publishing or signing support. Represent capability availability explicitly and extract an independent contract when an actual consumer needs it; do not require dummy methods or report unsupported work as success. Existing broad contracts can evolve incrementally when touched, without speculative restructuring.
+
 ### Extracting shared behavior
 
 DRY applies to knowledge and rules, not just repeated syntax. Before extracting shared code, identify the invariant both callers need, the subsystem responsible for enforcing it, and the differences that must remain native. Put the operation with that owner and migrate affected callers together; leaving parallel implementations preserves the original maintenance problem.

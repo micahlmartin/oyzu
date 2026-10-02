@@ -13,6 +13,8 @@ From a project checkout to a build you can inspect, Oyzu aims to bring tools, en
 
 [Platform vision](docs/vision/VIS-001-platform.md) · [Current capabilities](docs/implementation-status.md) · [Design library](docs/README.md) · [Contribute](CONTRIBUTING.md)
 
+**100% AI-built, community-directed.** People define requirements, guide agents, review and verify results; AI generates our first-party implementation code, tests and scripts. See the [contribution policy](CONTRIBUTING.md#ai-built-community-directed) and [engineering rules](AGENTS.md#architecture-rules).
+
 ## The vision
 
 - **Batteries included.** Tool management, environment activation, native tasks, testing, reports, artifacts, and caching belong in a coordinated developer experience.
@@ -51,7 +53,7 @@ All designs remain drafts for maintainer review. Run `cargo test --locked`, `car
 
 ## Contributing
 
-**Oyzu is 100% AI-built and community-directed.** AI generates our first-party code; people define requirements, guide implementation, review and validate results. Handcrafted code patches are not our contribution workflow.
+Handcrafted code patches are not our contribution workflow. Ideas, bug reports, design feedback, examples, testing and reviewed AI-generated changes are welcome under the [contribution policy](CONTRIBUTING.md), including its current license restrictions.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
