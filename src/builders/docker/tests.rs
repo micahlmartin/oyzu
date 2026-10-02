@@ -8,7 +8,24 @@ use serde_json::json;
 use std::fs;
 
 fn metadata() -> serde_json::Value {
-    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]}})
+    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}})
+}
+
+#[test]
+fn native_selection_facts_must_match_execution() {
+    for (field, value) in [("targetPlatform", "linux/arm64"), ("sourceDateEpoch", "0")] {
+        let mut native = metadata();
+        native["selection"][field] = json!(value);
+        let native: super::metadata::Metadata = serde_json::from_value(native).unwrap();
+        assert!(native
+            .validate("linux/amd64")
+            .unwrap_err()
+            .to_string()
+            .contains("selection facts"));
+    }
+    let mut old = metadata();
+    old.as_object_mut().unwrap().remove("selection");
+    assert!(serde_json::from_value::<super::metadata::Metadata>(old).is_err());
 }
 
 #[test]

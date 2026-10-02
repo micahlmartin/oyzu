@@ -9,6 +9,14 @@ pub(super) struct Metadata {
     pub stages: Vec<Stage>,
     pub requirements: Vec<Requirement>,
     pub context: ContextFiles,
+    pub selection: SelectionFacts,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct SelectionFacts {
+    target_platform: String,
+    source_date_epoch: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -60,6 +68,11 @@ impl Metadata {
     }
 
     pub fn validate(&self, platform: &str) -> Result<()> {
+        if self.selection.target_platform != platform
+            || self.selection.source_date_epoch != crate::executor::BUILDKIT_SOURCE_DATE_EPOCH
+        {
+            bail!("Docker argument selection facts differ from the planned executor");
+        }
         self.image_references()?;
         if self.schema_version != "v1alpha1"
             || self.frontend != "dockerfile.v0"

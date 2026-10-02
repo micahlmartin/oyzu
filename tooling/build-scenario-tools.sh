@@ -56,6 +56,7 @@ if [[ "$mode" == provision ]]; then
   fi
   if selected docker go; then
     docker pull alpine:3.22
+    docker tag alpine:3.22 oyzu-fixture/alpine:amd64
     docker build --tag oyzu-toolchain/docker:buildkit0.25.0 --file tooling/images/docker-metadata.Dockerfile .
     sudo apparmor_parser -r tooling/images/buildkit.apparmor
   fi

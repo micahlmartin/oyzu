@@ -148,8 +148,9 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert expanded_files['etc/alpine-release']==alias_files['etc/alpine-release']
     expanded_inputs=json.loads((arguments/'dist/dependencies/project.json').read_text())['extensions']['oyzu.dev/docker']
     expanded_binding,=expanded_inputs['images']
-    assert expanded_binding['reference']=='docker.io/library/alpine:3.22'
+    assert expanded_binding['reference']=='oyzu-fixture/alpine:amd64'
     assert expanded_inputs['metadata']['stages'][0]['base']==expanded_binding['reference']
+    assert expanded_inputs['metadata']['selection']=={'targetPlatform':'linux/amd64','sourceDateEpoch':'315532800'}
     (arguments/'Dockerfile').write_text('ARG BASE\nFROM ${BASE}\n')
     invoke(arguments,'build',success=False)
     empty=validate(arguments/'dist')

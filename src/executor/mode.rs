@@ -2,6 +2,9 @@
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 
+/// Fixed native export epoch shared with Docker input selection.
+pub(crate) const BUILDKIT_SOURCE_DATE_EPOCH: &str = "315532800";
+
 #[derive(Clone, Copy, Default)]
 pub(crate) enum Profile {
     #[default]
@@ -101,7 +104,7 @@ impl Mode {
                     "--opt",
                     "force-network-mode=none",
                     "--opt",
-                    "build-arg:SOURCE_DATE_EPOCH=315532800",
+                    &format!("build-arg:SOURCE_DATE_EPOCH={BUILDKIT_SOURCE_DATE_EPOCH}"),
                     "--output",
                     &format!(
                         "type=oci,dest=/output/image.tar,name={image_name},rewrite-timestamp=true"

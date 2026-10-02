@@ -6,7 +6,7 @@ mod validation;
 mod worker;
 use anyhow::{bail, Context, Result};
 pub(crate) use images::export_image;
-pub(crate) use mode::{ImageInput, Mode, Profile};
+pub(crate) use mode::{ImageInput, Mode, Profile, BUILDKIT_SOURCE_DATE_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{

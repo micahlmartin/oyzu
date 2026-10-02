@@ -661,7 +661,7 @@ mod tests {
             os: "linux".into(),
             arch: "amd64".into(),
         };
-        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","oyzu.toml"]}});
+        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","oyzu.toml"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}});
         let dependency = dependencies::Prepared {
             root: capture.path().into(),
             digest: format!("sha256:{}", "2".repeat(64)),

@@ -2,21 +2,25 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/containerd/platforms"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 )
 
-// Image selection uses only declared global defaults. Native expansion handles
-// quoting, escapes and parameter operators; no process environment is consulted.
-// Automatic/platform and executor-supplied arguments need captured facts before
-// they can participate in selection, even when a fallback is written for them.
+// Selection facts are supplied by the executor contract, never ambient state.
+type selectionFacts struct {
+	TargetPlatform  string `json:"targetPlatform"`
+	SourceDateEpoch string `json:"sourceDateEpoch"`
+}
+
+// Worker facts are not inferred from target facts: a worker may execute another
+// platform. Native expansion must not silently treat these built-ins as absent.
 func reservedArgument(name string) bool {
 	switch name {
-	case "BUILDPLATFORM", "BUILDOS", "BUILDOSVERSION", "BUILDARCH", "BUILDVARIANT",
-		"TARGETPLATFORM", "TARGETOS", "TARGETOSVERSION", "TARGETARCH", "TARGETVARIANT",
-		"TARGETSTAGE", "SOURCE_DATE_EPOCH":
+	case "BUILDPLATFORM", "BUILDOS", "BUILDOSVERSION", "BUILDARCH", "BUILDVARIANT":
 		return true
 	}
 	return false
@@ -37,16 +41,37 @@ func expandSelection(lex *shell.Lex, word string, environment shell.EnvGetter) (
 	return result.Result, nil
 }
 
-func globalDefaults(lex *shell.Lex, declarations []instructions.ArgCommand) (shell.EnvGetter, error) {
-	values := []string{}
+func globalDefaults(lex *shell.Lex, declarations []instructions.ArgCommand, facts selectionFacts, finalStage string) (shell.EnvGetter, error) {
+	platform, err := platforms.Parse(facts.TargetPlatform)
+	if err != nil {
+		return nil, fmt.Errorf("invalid captured target platform: %w", err)
+	}
+	epoch, err := strconv.ParseInt(facts.SourceDateEpoch, 10, 64)
+	if err != nil || epoch < 0 || strconv.FormatInt(epoch, 10) != facts.SourceDateEpoch {
+		return nil, fmt.Errorf("invalid captured source date epoch")
+	}
+	if finalStage == "" {
+		finalStage = "default"
+	}
+	values := []string{
+		"TARGETPLATFORM=" + platforms.FormatAll(platform),
+		"TARGETOS=" + platform.OS, "TARGETOSVERSION=" + platform.OSVersion,
+		"TARGETARCH=" + platform.Architecture, "TARGETVARIANT=" + platform.Variant,
+		"TARGETSTAGE=" + finalStage,
+	}
 	for _, declaration := range declarations {
 		for _, argument := range declaration.Args {
-			if argument.Value == nil {
+			if argument.Value == nil && argument.Key != "SOURCE_DATE_EPOCH" {
 				continue
 			}
-			value, err := expandSelection(lex, *argument.Value, shell.EnvsFromSlice(values))
-			if err != nil {
-				return nil, err
+			// This build argument is always supplied by the executor, so it
+			// overrides a Dockerfile default only when globally declared.
+			value := facts.SourceDateEpoch
+			if argument.Key != "SOURCE_DATE_EPOCH" {
+				value, err = expandSelection(lex, *argument.Value, shell.EnvsFromSlice(values))
+				if err != nil {
+					return nil, err
+				}
 			}
 			// Redeclaration replaces the prior default, including an empty one.
 			prefix := argument.Key + "="

@@ -21,8 +21,8 @@
   "cases": [
     {
       "name": "argument-base",
-      "change": "Use variants/argument-base with its image provisioned; global ARG defaults compose the base reference.",
-      "expect": "Native expansion determines the captured base before execution without reading ambient environment variables. Missing defaults that produce an empty base fail preparation."
+      "change": "Use variants/argument-base with alpine:3.22 explicitly tagged as oyzu-fixture/alpine:amd64 for the Linux AMD64 executor; global ARG defaults and captured TARGETARCH compose the base reference.",
+      "expect": "Native expansion records target/epoch facts and resolves the captured base without ambient values. Native RUN observes the declared target architecture and fixed epoch. Missing defaults producing an empty base fail preparation."
     },
     {
       "name": "image-aliases",

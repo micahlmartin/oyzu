@@ -1,5 +1,7 @@
-ARG REGISTRY=docker.io/library
-ARG VERSION=3.22
+ARG REGISTRY=oyzu-fixture
+ARG VERSION=$TARGETARCH
 ARG BASE=${REGISTRY}/alpine:${VERSION}
 FROM ${BASE}
-RUN test -f /etc/alpine-release
+ARG TARGETARCH
+ARG SOURCE_DATE_EPOCH
+RUN test -f /etc/alpine-release && test -n "$TARGETARCH" && test "$SOURCE_DATE_EPOCH" = 315532800

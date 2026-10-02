@@ -213,6 +213,7 @@ jobs:
         run: |
           docker pull moby/buildkit:v0.25.0-rootless
           docker pull alpine:3.22
+          docker tag alpine:3.22 oyzu-fixture/alpine:amd64
           docker pull golang:1.24-bookworm
       - name: Compile and test native Dockerfile metadata adapter
         run: docker build -f tooling/images/docker-metadata.Dockerfile -t oyzu-toolchain/docker:buildkit0.25.0 .

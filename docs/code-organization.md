@@ -82,6 +82,8 @@ Python distribution applications extend the native package plan through `builder
 
 Docker image preparation owns native reference requirements and OCI conversion under `builders/docker/images` and its Go runtime. `executor/images` alone exports explicitly provisioned daemon images by immutable identity. The executor's typed `ImageInput` binds relative prepared stores and digests; the worker verifies private copies before mounting them as native OCI contexts. Project code never receives daemon access. Registry acquisition can feed this content contract later without moving Dockerfile parsing or source policy into the worker.
 
+Docker's native metadata adapter expands arguments from explicit target-platform and epoch facts supplied by preparation. The Rust metadata contract validates those facts against execution before planning. The executor owns the fixed export epoch shared with selection; target facts do not stand in for unverified worker-platform facts.
+
 The internal builder development-task hook may resolve a typed command (arguments and required environment) after an explicit `oyzu run` request. Static discovery never calls it. Native invocation context stays with the builder; the shared task runner launches the resulting command. Captured builds use prepared facts instead. `BuilderPlan.fixed_env` declares captured toolchain facts and input locations that effective task environments must preserve; the shared planner checks these after applying overrides.
 
 ### Boundaries across implementation languages

@@ -32,11 +32,12 @@ type stage struct {
 }
 
 type metadata struct {
-	SchemaVersion string        `json:"schemaVersion"`
-	Frontend      string        `json:"frontend"`
-	Stages        []stage       `json:"stages"`
-	Requirements  []requirement `json:"requirements"`
-	Context       contextFiles  `json:"context"`
+	SchemaVersion string         `json:"schemaVersion"`
+	Frontend      string         `json:"frontend"`
+	Stages        []stage        `json:"stages"`
+	Requirements  []requirement  `json:"requirements"`
+	Context       contextFiles   `json:"context"`
+	Selection     selectionFacts `json:"selection"`
 }
 
 func readBounded(path string) ([]byte, error) {
@@ -59,8 +60,8 @@ func readBounded(path string) ([]byte, error) {
 	return body, err
 }
 
-func analyze(body []byte) (metadata, error) {
-	m := metadata{SchemaVersion: "v1alpha1", Frontend: "dockerfile.v0", Stages: []stage{}, Requirements: []requirement{}}
+func analyze(body []byte, facts selectionFacts) (metadata, error) {
+	m := metadata{SchemaVersion: "v1alpha1", Frontend: "dockerfile.v0", Stages: []stage{}, Requirements: []requirement{}, Selection: facts}
 	if frontend, _, _, ok := parser.DetectSyntax(body); ok {
 		m.Frontend = frontend
 		m.Requirements = append(m.Requirements, requirement{Kind: "frontend", Reference: frontend, Stage: -1, Line: 1})
@@ -77,7 +78,7 @@ func analyze(body []byte) (metadata, error) {
 		return m, fmt.Errorf("Dockerfile has no stages")
 	}
 	lex := shell.NewLex(parsed.EscapeToken)
-	defaults, err := globalDefaults(lex, arguments)
+	defaults, err := globalDefaults(lex, arguments, facts, stages[len(stages)-1].Name)
 	if err != nil {
 		return m, err
 	}
@@ -183,12 +184,12 @@ func analyze(body []byte) (metadata, error) {
 	return m, nil
 }
 
-func inspect(root string) (metadata, error) {
+func inspect(root string, facts selectionFacts) (metadata, error) {
 	body, err := readBounded(filepath.Join(root, "Dockerfile"))
 	if err != nil {
 		return metadata{}, err
 	}
-	m, err := analyze(body)
+	m, err := analyze(body, facts)
 	if err != nil {
 		return m, err
 	}
@@ -197,11 +198,11 @@ func inspect(root string) (metadata, error) {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: oyzu-docker-metadata <captured-context>")
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "usage: oyzu-docker-metadata <captured-context> <target-platform> <source-date-epoch>")
 		os.Exit(2)
 	}
-	m, err := inspect(os.Args[1])
+	m, err := inspect(os.Args[1], selectionFacts{os.Args[2], os.Args[3]})
 	if err == nil {
 		err = json.NewEncoder(os.Stdout).Encode(m)
 	}

@@ -182,7 +182,7 @@ def main():
             project.mkdir()
             shutil.copyfile(context/'probe',project/'probe')
             (project/'probe').chmod(0o755)
-            (project/'Dockerfile').write_text('ARG BASE=alpine:3.22\nFROM ${BASE}\nCOPY probe /probe\nRUN '+json.dumps(['/probe',str(secret)],separators=(', ', ': '))+'\n')
+            (project/'Dockerfile').write_text('ARG BASE=oyzu-fixture/alpine:${TARGETARCH}\nFROM ${BASE}\nCOPY probe /probe\nRUN '+json.dumps(['/probe',str(secret)],separators=(', ', ': '))+'\n')
             native = []
             for index in range(2):
                 result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'--root',str(project),'build'],
@@ -198,7 +198,7 @@ def main():
                 assert manifest['status']=='succeeded' and digest==artifact['ociDigest']
                 captured=json.loads((project/'dist/dependencies/project.json').read_text())
                 binding,=captured['extensions']['oyzu.dev/docker']['images']
-                assert binding['reference']=='alpine:3.22' and binding['config'].startswith('sha256:')
+                assert binding['reference']=='oyzu-fixture/alpine:amd64' and binding['config'].startswith('sha256:')
                 native.append((manifest['planDigest'],digest,artifact['digest']))
             assert native[0]==native[1], 'captured base build is not repeatable'
     record = {'worker': identity, 'apparmorProfile': args.apparmor_profile,
