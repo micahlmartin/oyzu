@@ -2,6 +2,34 @@
 
 This is repository-wide engineering guidance for contributors and coding agents. The concise rules live in [AGENTS.md](../AGENTS.md); the [contribution workflow](../CONTRIBUTING.md) explains how to apply them. Product direction and proposed future components live in [architecture](architecture.md). This map is not a claim that every intended subsystem or invariant is implemented.
 
+## Prove the solution before hardening
+
+Follow the end-to-end-first priority in [AGENTS.md](../AGENTS.md). Start a feature
+or proposal experiment with a runnable user scenario, its real integration path
+and an observable pass/fail result. Connect the existing owners along that path
+before refining each owner independently. Architecture work should enable the
+scenario rather than create a growing collection of unused interfaces.
+
+For example, a tool-management proof must read the user's configuration, resolve
+through the intended backend, write and consume the lock, acquire through the
+intended transport and execute the selected real tool. A resolver fixture, archive
+test or worker-channel round trip alone does not prove that flow. Use a controlled
+environment and label its supported scope; retain all remaining platforms,
+backends and acceptance criteria for subsequent delivery.
+
+Before starting another hardening change, state which observed failure prevents
+that scenario from working. If none does, defer the change to a named hardening
+stage with its risk and verification criterion. Once the flow works, address
+mandatory release requirements and expand failure/platform coverage, then pursue
+optional robustness improvements according to maintainer priorities. Necessary
+licensing and safe execution constraints still apply to the proof. Surface a real
+blocker and the decision needed to resolve it; do not substitute unrelated
+hardening for progress while leaving the blocker unexplained.
+
+Implementation updates should state whether the real flow ran, what happened,
+and which integration remains missing. Do not infer completion from the number
+of components implemented, checks passed or checkpoints recorded.
+
 ## Find the owner first
 
 Oyzu currently uses one Rust package with a library and CLI binary. Modules establish boundaries now; separate crates are a later option when reuse, dependency isolation or distribution warrants them. A new ecosystem does not automatically need a new crate.

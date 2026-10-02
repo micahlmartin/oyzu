@@ -47,6 +47,13 @@ LLM tasks receive the accepted contract, scope, acceptance criteria, and relevan
 
 Required subjects are problem, goals/non-goals, user experience, contracts, state/flow, security, failure handling, platform behavior, performance, verification, rollout, alternatives, and open decisions. A proposal may combine related sections or mark a genuinely irrelevant topic with justification.
 
+The maintainer's [end-to-end-first implementation priority](../../decisions.md#end-to-end-first-implementation-priority)
+also requires a concrete proof of the intended solution: real inputs, integration
+path, runnable scenario and observed result. Make this the first implementation
+milestone, then expand scope and harden in explicit stages. Clearly separate
+prerequisites for responsible proof execution, mandatory release requirements and
+optional robustness improvements. Component tests alone do not prove a proposal.
+
 Stable graduation requires demonstrated acceptance criteria, compatibility documentation, user reference updates, and relevant OS coverage. A private GitHub Project may summarize delivery across repositories; public issues remain sufficient for community work.
 
 ## Acceptance criteria

@@ -104,6 +104,19 @@ integration remain outstanding; this does not complete TM-03 or TM-06.
 
 ## Dependency order and deliverables
 
+The maintainer's 2026-10-02 [implementation-priority decision](../../decisions.md#end-to-end-first-implementation-priority)
+governs delivery sequencing. First demonstrate a real Node flow from Oyzu TOML
+through the maintained mise library, Oyzu lock creation/consumption, intended
+acquisition transport and execution of the locked tool. Connect the minimum
+necessary parts of the packages below to run that flow in a controlled environment.
+Package dependencies do not require completing every hardening item in an earlier
+package before integrating a later one. Preserve the licensing/import gate and
+constraints necessary for responsible execution; surface actual blockers promptly.
+After the flow works, expand platforms/backends and complete mandatory acceptance
+and release requirements. Optional hardening must not displace this first proof
+or silently enlarge the completion scope. The proof does not by itself complete
+this OEP or mark its design accepted.
+
 Each package is a reviewable change with an executable acceptance result. Do not
 enable an advertised capability merely because its interfaces or fixtures exist.
 

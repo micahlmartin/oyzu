@@ -32,6 +32,20 @@ Define inputs, outputs, identities, state transitions, dependencies, compatibili
 
 Describe standalone/managed and local/CI behavior, identity and credential boundaries, offline operation, and Windows/macOS/Linux differences. State which capabilities are measured, assumed, or still need a prototype.
 
+## End-to-end proof and implementation order
+
+Define the first real user scenario from input through all essential integrations
+to the resulting behavior. Specify the runnable command, actual dependencies,
+controlled environment and observable pass/fail evidence. Identify the smallest
+complete implementation that proves the proposed solution and the concrete
+integration blockers. Record what actually ran and what remains unproven.
+
+Make that proof the first implementation milestone. Separate safeguards required
+to run it responsibly from later mandatory release hardening and optional
+robustness improvements. Plan expansion to the full scope after the path works;
+do not replace the intended integration with mocks or narrow the final acceptance
+criteria. A list of tested components is not end-to-end evidence.
+
 ## Failure handling and performance
 
 Describe cancellation, partial results, retries, concurrent operations, invalid data, cache behavior, and relevant resource bounds.

@@ -85,3 +85,19 @@ Private dependency builds must keep upstream credentials out of project/dependen
 The [proposal index](proposals/README.md) resolves OEP IDs. Detailed open decisions inside each OEP remain part of its review; this register highlights choices spanning components.
 
 OEP-0002 implementation now has an [experimental configuration reference](reference/configuration.md) and an acceptance-mapped checkpoint in [implementation status](implementation-status.md). Its cascade, constraint algebra, pinned-signature verification and 24-hour upper bound are implemented without changing the design's draft status. Native OS permission/keychain and real platform interoperability remain release gates. Docker's registered `docker.apparmorProfile` preserves the existing host default; the legacy environment override is a constrained migration input rather than a separate bypass.
+
+## End-to-end-first implementation priority
+
+On 2026-10-02, the maintainer explicitly directed that proving the real end-to-end
+solution is the first priority for proposals and implementation. Connect and run
+the complete intended flow before progressively hardening individual components.
+Avoid repeated edge-case work while the overall solution remains unproven.
+After the proof, stage hardening according to concrete risk and agreed acceptance
+requirements; optional robustness work must not expand indefinitely.
+
+This execution priority is agreed maintainer direction, not acceptance of every
+draft OEP or permission to ignore licensing, credentials, data integrity or other
+explicit constraints. It preserves the full final scope while changing delivery
+order. The operational rule lives in [AGENTS.md](../AGENTS.md#implementation-priority-prove-the-end-to-end-solution-first),
+with application guidance in the [engineering guide](code-organization.md#prove-the-solution-before-hardening)
+and a proof section in the [proposal template](proposals/TEMPLATE.md).

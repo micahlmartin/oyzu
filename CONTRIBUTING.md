@@ -26,6 +26,13 @@ For code changes, briefly identify the AI tool used, how you directed/reviewed t
 
 ## Find a bounded starting point
 
+For feature implementation, follow the [end-to-end-first rule](AGENTS.md#implementation-priority-prove-the-end-to-end-solution-first).
+The first milestone is a working user flow through the real integrations.
+Proposals should prove that solution; component hardening follows in explicit
+stages. A bounded contribution should connect or unblock that flow, or address
+an agreed later hardening requirement. Do not confuse a small component change
+with a demonstrated feature.
+
 Use this table to narrow your first change, then consult the [code map](docs/code-organization.md) for the authoritative ownership details. You do not need to understand every subsystem before contributing.
 
 | Contribution | Start here | Useful evidence |
@@ -39,7 +46,7 @@ An implementation issue should name one outcome, link its owner and existing con
 
 When directing an AI agent, a useful starting prompt is:
 
-> Read AGENTS.md and the code map. Implement [one observable outcome], using [issue/example] as the expected behavior. Find the owning subsystem and existing contracts before editing. Keep ecosystem details with their adapter and reuse shared configuration, scheduling, execution and reporting rules. Update the relevant documentation, run the applicable checks, and report the changed boundaries, verification results and remaining limitations. Preserve unrelated work.
+> Read AGENTS.md and the code map. Implement [one observable outcome], using [issue/example] as the expected behavior. Define and run the real end-to-end scenario first; prioritize connecting the path before component hardening. Find the owning subsystem and existing contracts before editing. Keep ecosystem details with their adapter and reuse shared configuration, scheduling, execution and reporting rules. Update the relevant documentation, run the applicable checks, and report whether the end-to-end flow works, its evidence and the next missing integration. Preserve unrelated work.
 
 Replace the brackets with your task; this is an optional starting point, not a required tool or submission format. Review the resulting implementation and evidence against the requested behavior. An agent's statement that it followed the architecture is not a substitute for inspecting the diff.
 

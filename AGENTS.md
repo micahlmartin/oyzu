@@ -7,6 +7,21 @@ This is the public Oyzu repository. It must be buildable and usable without priv
 
 Oyzu is a 100% AI-built project. All first-party implementation code, tests and scripts, including fixes and refactors, are AI-generated. People define requirements, guide agents, review results and approve changes; handcrafted code patches are not our contribution workflow. Dependencies and upstream code retain their actual authorship and licenses. Follow [CONTRIBUTING.md](CONTRIBUTING.md); AI generation never replaces verification or maintainer accountability.
 
+## Implementation priority: prove the end-to-end solution first
+
+Getting the real end-to-end process working is the first implementation priority.
+Proposals and their implementation must prove that the intended solution works
+before investing in progressively stronger hardening of individual components.
+
+- Define the first runnable scenario from actual user input through the real integration to an observable result. Name the command, dependencies and pass/fail evidence before building components.
+- Implement the smallest complete path through the intended architecture first. Use real dependencies and product entry points; mocks, inspectors, disconnected primitives and success-only harnesses do not prove the solution. A narrow first scenario is a delivery milestone, not a reduction of the final scope.
+- Prioritize work that connects or unblocks that path. Before adding hardening, edge-case handling, abstraction, optimization or another component test, identify the concrete failure preventing the end-to-end scenario from working. If it does not block that proof, record it for the hardening phase and continue integration.
+- Keep only the safeguards needed to run the proof responsibly in its stated environment. Preserve licensing, credential protection, data integrity and explicit user constraints. Do not treat every proposed production safeguard as a prerequisite for a controlled proof; identify any actual blocker precisely and surface it promptly rather than spending successive turns polishing unrelated components.
+- After the path works, expand coverage and harden in explicit, risk-based stages. Distinguish mandatory acceptance/release requirements from optional robustness improvements; do not expand the latter indefinitely. Retain the full agreed completion requirements.
+- Lead progress reports with the end-to-end scenario's status, the evidence that ran, and the next missing integration. Component test counts and green CI are supporting evidence, not a substitute for working product behavior. If work is not advancing the path, reassess the sequence before continuing.
+
+See the [engineering guide](docs/code-organization.md#prove-the-solution-before-hardening) for application and the [proposal template](docs/proposals/TEMPLATE.md) for recording the proof.
+
 ## Architecture rules
 
 Before implementation, answer three questions: **Who owns this behavior? Which existing contract should it use? What observable result will verify it?** A local fix needs no separate design document. The [code map and engineering guide](docs/code-organization.md) supplies ownership, extension decisions and detailed review examples behind these eight rules.
