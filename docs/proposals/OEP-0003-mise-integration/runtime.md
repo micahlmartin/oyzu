@@ -103,8 +103,9 @@ atomic accounting and terminal state; a pending response read must not prevent
 the supervisor sending cancel. OS transport shutdown is still required to
 interrupt blocked I/O when the operation deadline or cancellation grace expires.
 The native allocation foundation creates non-inheritable Unix socketpair or
-Windows anonymous-pipe endpoints. Process creation and explicit restricted
-inheritance remain unimplemented; allocation alone is not worker isolation.
+Windows anonymous-pipe endpoints. Windows now has a separate native process
+primitive with restricted inheritance; Unix spawning and the complete supervisor
+remain unfinished. Allocation alone is not worker isolation.
 
 ### Native supervisor implementation constraints
 
@@ -163,8 +164,12 @@ job-wide termination. Assignment failure consumes the attempt; the spawn adapter
 must terminate/reap the unassigned suspended process instead of resuming it.
 Closing the job handle is a fallback termination request, not exit confirmation.
 Native tests cover a real worker/descendant tree, breakaway denial and an unrelated
-live job. Production image verification, creation, restricted handle inheritance
-and integration with I/O cleanup remain outstanding, as does Unix process cleanup.
+live job. A separate Windows process primitive now pins the running image against
+an independently supplied release digest, creates suspended with an explicit
+environment and handle list, assigns the job and resumes. Its native tests compose
+job termination with I/O shutdown while a descendant retains the control pipes.
+The product bootstrap, release-manifest admission, automatic deadlines and complete
+supervisor integration remain outstanding, as does Unix process cleanup.
 See the [Windows lifecycle contract](../../reference/tool-lock-inspection.md#windows-worker-process-tree-cleanup).
 
 Envelope fields are `protocol = "oyzu.tool-worker/1"`, `request_id` (UUID),

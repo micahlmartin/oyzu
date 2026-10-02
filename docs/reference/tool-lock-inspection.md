@@ -1062,7 +1062,8 @@ killing a child closes handles inherited by descendants, or that a live peer can
 be interrupted; the supervisor must establish those lifecycle properties.
 The test watchdog bounds the test harness, not production I/O. macOS uses the
 Unix implementation but native verification of this increment remains pending.
-Cross-process inheritance and same-binary worker dispatch are still unimplemented.
+The Windows process primitive below now implements explicit cross-process
+inheritance. Unix inheritance and actual worker dispatch remain unfinished.
 
 ### Interruptible native control I/O
 
@@ -1102,10 +1103,10 @@ Tests exercise simultaneous partial-frame read and backpressured write with a
 live peer, duplex request/cancel traffic, cancellation independent of another
 channel, discarded completed results, pending-operation rejection, joining on
 drop and retained ownership after cleanup timeout. Run
-`cargo test --locked --lib tools::worker::io`. Native process creation, image and
-channel authentication, process-tree termination, deadline scheduling and backend
-dispatch remain separate unfinished work. These tests do not establish those
-properties or authorize use of a backend.
+`cargo test --locked --lib tools::worker::io`. Native process creation and job
+termination are separate Windows components described below. These I/O tests do
+not establish channel authentication, deadline scheduling, backend dispatch or
+authorization to use a backend.
 The six tests pass on Windows GNU with Rust 1.94 and Linux with Rust 1.95
 (network disabled). At commit `63e8073`, the full locked unit/integration test,
 strict Clippy and formatting steps also passed on Windows, macOS and Linux in
@@ -1157,11 +1158,80 @@ The same checks passed on Linux and macOS; the Windows-only job tests do not run
 on those hosts. The complete workflow was still running when these completed
 steps were recorded; downstream build/task acceptance is not inferred from them.
 
-This is the Windows lifecycle component, not a complete native spawn adapter.
-Production same-binary creation, image verification, explicit inherited handle
-lists, combined process/I/O deadlines and backend dispatch remain unimplemented.
+This is the Windows job component. The process primitive below supplies pinned
+same-binary creation and an explicit inherited handle list. Combined process/I/O
+deadline scheduling and backend dispatch remain unimplemented.
 Unix process groups and their equivalent cleanup verification remain outstanding.
 The implementation follows Microsoft's [job-object lifecycle contract](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
+
+### Windows same-binary process creation
+
+`WindowsToolWorkerProcess::spawn_current(expected_image_digest, arguments,
+environment, directory, inherited_handles)` is an experimental native supervisor
+primitive. It resolves the running executable from the OS, never PATH or a project
+image setting. The expected `sha256:` digest must come from independently trusted
+release admission; computing a hash of whatever file happens to be present does
+not establish that admission. This API does not approve the release, admit backend
+capabilities, authenticate a protocol bootstrap or expose an install/exec command.
+
+Before creation it opens the image and all canonical parent directories without
+following reparse points at those opens. Parent handles deny directory replacement;
+the image handle denies writes/deletion while held. It hashes the opened image in
+bounded chunks and requires the expected digest and exact observed length. Images
+larger than 512 MiB are rejected by this initial implementation. The handles stay
+owned for the process owner's lifetime. A changed release fails with
+`TOOL_WORKER_IMAGE_DIGEST_MISMATCH`; retry requires trusted release selection, not
+accepting the newly observed hash. No image or parent directory is modified.
+
+The caller supplies an absolute, admitted private working directory and literal
+bootstrap arguments. Arguments are quoted for native Windows parsing, without a
+shell. There are at most 256 arguments and 32,767 UTF-16 code units in the encoded
+command line including its terminator; NUL values are rejected. An explicit
+environment map replaces the inherited environment. It permits at most 256 ASCII
+alphanumeric/underscore names of 1-256 bytes, rejects case-insensitive duplicates
+and embedded NULs, and bounds the complete UTF-16 block to 32,767 code units.
+The empty map produces an empty environment block. The supervisor must supply
+only admitted settings; the primitive does not interpret or authorize their values.
+
+At most 16 caller-owned capability handles are consumed by launch. Their raw
+values remain unchanged for bootstrap arguments; the caller must bind their kinds
+and purpose independently. The child receives only these selected handles and
+one null-device handle used for its standard streams. Standard streams carry no
+control traffic and inherit no parent console output handle. Parent copies of
+the consumed handles close before the child is resumed. This uses the native
+[process handle-list attribute](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute), not broad inheritance into this child.
+Selected handles are temporarily inheritable in the parent during launch;
+coordination with any concurrent broad-inheritance launchers remains a supervisor
+integration obligation. The worker bootstrap must validate and clear inheritance
+on received handles before executing backend code.
+
+Creation is hidden and suspended. The process is assigned to its private job
+before its primary thread resumes. A failed assignment/resume terminates and
+waits for the initial process instead of leaving a suspended orphan. Earlier
+failure closes consumed handles without resuming a child. Native startup itself
+is synchronous; automatic handshake/operation deadline scheduling is not supplied
+by this primitive. `try_wait()` reports the full native DWORD exit code of the
+initial process. `terminate(deadline)` confirms an empty job and initial-process
+exit; it does not join I/O. Call the I/O owner's shutdown as part of the same
+supervised cleanup. Dropping the process owner requests job termination through
+kill-on-close, without claiming observed exit.
+
+Tests spawn this same test binary through the primitive. They verify literal
+argument parsing, explicit environment, access to a selected event but no access
+to an unrelated inheritable event, request/response traffic on private pipes,
+termination with a descendant retaining those pipes and blocked I/O, partial-frame
+child exit, preservation of a high-bit DWORD exit code, wrong-image rejection and
+handle closure after failed native creation. A separate native Windows argument
+parser checks empty, quoted, Unicode and trailing-backslash argument round trips.
+Run `cargo test --locked --lib tools::worker::windows_process`.
+All four native process tests pass on Windows GNU Rust 1.94, together with the
+full locked suite, strict all-target Clippy, formatting and real CLI task scenarios.
+Windows MSVC verification of this process-creation increment remains pending.
+
+The tests are lifecycle qualification, not mise execution. Release-manifest
+admission, the product worker entry point and authenticated bootstrap, automatic
+deadlines, backend dispatch, Unix spawning and the complete supervisor remain
+unfinished. No separate mise executable is used.
 
 ### Worker exchange correlation
 
@@ -1250,5 +1320,7 @@ A native private-channel test sends a request and cancel, receives the correlate
 cancellation diagnostic and observes peer closure. The 15-second test watchdog
 does not implement production deadlines. Run `cargo test --locked tools::worker`;
 no mise dependency, network or backend execution is required. Worker process
-creation, image/channel authentication, inherited handles, actual dispatch,
-OS deadlines, backend cancellation and typed operation payloads remain absent.
+composition and channel authentication, actual dispatch, OS deadline scheduling,
+backend cancellation and typed operation payloads remain absent. The Windows
+native process primitive above separately implements image pinning and restricted
+inheritance; the session itself does not perform those operations.

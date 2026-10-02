@@ -2268,3 +2268,41 @@ success is not claimed. This checkpoint changes verification evidence only.
 Native production spawn, image and channel admission, explicit inheritance,
 combined process/I/O cleanup and the remaining OEP-0003 implementation stay open.
 Documentation structure and diff checks pass.
+
+## Checkpoint 154: Windows same-image spawn with restricted inheritance
+
+WindowsToolWorkerProcess now pins the running image against an independently
+supplied SHA-256 release identity, holding the image and canonical ancestors
+against writes/deletion/replacement while owned. Native startup bounds and quotes
+literal arguments, constructs a fully explicit environment with case-collision
+rejection, and uses PROC_THREAD_ATTRIBUTE_HANDLE_LIST for at most 16 consumed
+capability handles plus null standard streams. It creates hidden and suspended,
+assigns the private job, closes the supplied parent handle copies and resumes.
+Failed assignment/resume terminates and waits for the initial child. Explicit
+termination confirms the empty job and initial-process exit, preserving its DWORD
+exit code; I/O joining remains a separate required cleanup step.
+
+Four new native process tests pass on Windows GNU Rust 1.94. They launch this test
+binary through the real native primitive, exchange private-pipe frames, verify
+literal arguments and an explicit environment without parent PATH, and confirm
+access to a selected event but no access to an unrelated inheritable event. A
+nested descendant retains the control pipes while both directions block; job
+termination and I/O shutdown complete. Additional cases cover partial-frame child
+exit with a high-bit DWORD, wrong-image rejection, failed-spawn handle closure,
+invalid startup inputs and native Windows argument-parser round trips. The ignored
+fixture is explicitly invoked by the parent tests and is not a product worker.
+
+Windows full cargo test --locked, strict all-target Clippy, formatting and all
+nine real CLI task scenarios pass. External-archive opt-ins were not run locally
+for this increment. Documentation structure and diff checks pass. Reference,
+code map and OEP runtime describe the native primitive and supersede earlier
+statements that Windows creation/restricted inheritance were entirely absent.
+No dependency, lockfile or notice change was needed. Native MSVC verification of
+this increment remains pending; earlier CI does not cover it.
+
+This is not release admission or completed tool execution. The supervisor must
+supply independently admitted release identity, capabilities, arguments, environment
+and private cwd. Coordination with concurrent broad-inheritance launchers, product
+worker bootstrap and received-handle validation, automatic deadlines, backend
+wiring, Unix creation and the complete supervisor remain unfinished. All OEP-0003
+acceptance requirements remain tracked at their full scope.
