@@ -25,6 +25,8 @@ docker build -f tooling/images/rust.Dockerfile -t oyzu-toolchain/rust:1.94.0-nex
 
 The image supplies Rust 1.94.0, rustfmt, Clippy, LLVM tools, cargo-nextest 0.9.146, cargo-llvm-cov 0.9.1 and Python 3 for the owned artifact adapter. Custom `--image cargo=<image>` profiles must supply these capabilities. Python is now required for compiler-message collection; rebuild older images with the same tag. Tool/image provisioning is explicit and separate from project execution. Oyzu does not download a missing toolchain image.
 
+Docker dependency contexts use the narrower [`rust/cargo` provider](docker-images.md#offline-cargo-registry-context-experimental). Its standard Rust 1.94.0 consumer image needs no Python, nextest or llvm-cov. It validates the original lock/workspace and exports only the native registry, without artifact version projection or report setup. The tool requirements above still apply to ordinary `rust/app` and `rust/library` builds.
+
 The CLI supports Windows, macOS and Linux; that does not imply a native captured-build executor on each host. Current isolated Rust acceptance runs on Linux with Docker. The native artifact probe also runs separately on all three CI hosts. See [implementation status](../implementation-status.md) for revision-specific evidence.
 
 ## Preparation and build gates

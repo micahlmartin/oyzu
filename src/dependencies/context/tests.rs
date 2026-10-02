@@ -111,6 +111,17 @@ fn provider_selection_preserves_ambiguity_and_managed_admission_before_effects()
     assert!(select(&context).is_err());
     fs::write(root.path().join("go.mod"), "module example.test/fixture\n").unwrap();
     assert_eq!(select(&context).unwrap().id(), "go/modules");
+    context.dependency_selector = Some("rust/cargo");
+    assert!(select(&context).is_err());
+    fs::write(
+        root.path().join("Cargo.toml"),
+        "[package]\nname='fixture'\nversion='0.1.0'\n",
+    )
+    .unwrap();
+    assert_eq!(select(&context).unwrap().id(), "rust/cargo");
+    context.dependency_selector = None;
+    assert!(select(&context).is_err());
+
     fs::write(root.path().join("requirements.txt"), "six==1.17.0\n").unwrap();
     context.dependency_selector = Some("python/pip");
     assert_eq!(select(&context).unwrap().id(), "python/pip");

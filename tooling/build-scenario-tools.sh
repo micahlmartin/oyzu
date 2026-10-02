@@ -44,6 +44,8 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/go:1.24-mod0.25.0 --file tooling/images/go.Dockerfile .
   fi
   if selected dependencies; then
+    docker pull rust:1.94.0-slim-bookworm
+    docker pull debian:bookworm-slim
     docker pull python:3.13-slim-bookworm
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-npm
   fi

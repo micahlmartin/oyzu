@@ -1,4 +1,4 @@
-//! Prepare version-projected Cargo inputs without executing build scripts or project code.
+//! Prepare native Cargo inputs; project versions only for owned artifact builds.
 use super::metadata::Metadata;
 use crate::{builders::PreparationContext, dependencies::Prepared, executor, records, snapshot};
 use anyhow::{bail, Context, Result};
@@ -38,6 +38,19 @@ pub(super) fn command(argv: Vec<String>) -> Vec<String> {
 }
 
 pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
+    capture(context, Purpose::Build)
+}
+
+pub(super) fn prepare_context(context: PreparationContext<'_>) -> Result<Prepared> {
+    capture(context, Purpose::DependencyContext)
+}
+
+enum Purpose {
+    Build,
+    DependencyContext,
+}
+
+fn capture(context: PreparationContext<'_>, purpose: Purpose) -> Result<Prepared> {
     let root = &context.target.path;
     if !root.join("Cargo.lock").is_file() {
         bail!(
@@ -68,18 +81,9 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         "--no-deps",
     ])?)?;
     original.validate()?;
-    // Full native resolution checks the existing lock before any projection.
-    runner.run(&[
-        "cargo",
-        "metadata",
-        "--format-version",
-        "1",
-        "--offline",
-        "--locked",
-    ])?;
-    let mut files = original.project_versions(&workspace, context.source_digest)?;
-    runner.run(&["cargo", "generate-lockfile", "--offline"])?;
-    let projected: Metadata = serde_json::from_str(&runner.run(&[
+    // Resolve the original lock before projection. Contexts consume these
+    // unchanged inputs and require no packaging/reporting adapters in the base.
+    let resolved: Metadata = serde_json::from_str(&runner.run(&[
         "cargo",
         "metadata",
         "--format-version",
@@ -87,55 +91,82 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         "--offline",
         "--locked",
     ])?)?;
-    projected.validate()?;
-    records::write(
-        &context.destination.join("binaries.json"),
-        &json!({"schemaVersion":1,"binaries":projected.binaries()?.iter().map(|(package, target)| {
-            json!({"packageId":package.id,"name":target.name})
-        }).collect::<Vec<_>>()}),
-    )?;
+    resolved.validate()?;
     let rustc = runner.run(&["rustc", "-vV"])?;
     let host = rustc
         .lines()
         .find_map(|line| line.strip_prefix("host: "))
         .context("rustc host missing")?;
     let cargo = runner.run(&["cargo", "--version"])?;
-    let nextest = runner.run(&["cargo", "nextest", "--version"])?;
-    let coverage = runner.run(&["cargo", "llvm-cov", "--version"])?;
-    runner.run(&["cargo", "llvm-cov", "show-env", "--sh"])?;
     let manager_version = cargo
         .split_whitespace()
         .nth(1)
         .context("Cargo version missing")?;
-    files.push("Cargo.lock".into());
-    let overlay = context.destination.join("overlay");
-    fs::create_dir(&overlay)?;
-    for file in files {
-        let out = overlay.join(&file);
-        fs::create_dir_all(out.parent().unwrap())?;
-        fs::copy(workspace.join(file), out)?;
-    }
-    fs::write(
-        context.destination.join("nextest.toml"),
-        super::reporting::configuration(
-            &workspace,
-            &format!("/out/{}/reports/junit.xml", context.target.name),
-        )?,
-    )?;
-    records::write(
-        &context.destination.join("metadata.json"),
-        &serde_json::to_value(&projected)?,
-    )?;
-    fs::write(context.destination.join("host.txt"), host)?;
+    let (adapter, layout, extensions) = match purpose {
+        Purpose::DependencyContext => (
+            "rust/cargo-context",
+            "1",
+            json!({"oyzu.dev/cargo-workspace":{"original":resolved},
+                "oyzu.dev/cargo-tools":{"rustc":rustc.trim()}}),
+        ),
+        Purpose::Build => {
+            let mut files = original.project_versions(&workspace, context.source_digest)?;
+            runner.run(&["cargo", "generate-lockfile", "--offline"])?;
+            let projected: Metadata = serde_json::from_str(&runner.run(&[
+                "cargo",
+                "metadata",
+                "--format-version",
+                "1",
+                "--offline",
+                "--locked",
+            ])?)?;
+            projected.validate()?;
+            records::write(
+                &context.destination.join("binaries.json"),
+                &json!({"schemaVersion":1,"binaries":projected.binaries()?.iter().map(|(package, target)| {
+                    json!({"packageId":package.id,"name":target.name})
+                }).collect::<Vec<_>>()}),
+            )?;
+            let nextest = runner.run(&["cargo", "nextest", "--version"])?;
+            let coverage = runner.run(&["cargo", "llvm-cov", "--version"])?;
+            runner.run(&["cargo", "llvm-cov", "show-env", "--sh"])?;
+            files.push("Cargo.lock".into());
+            let overlay = context.destination.join("overlay");
+            fs::create_dir(&overlay)?;
+            for file in files {
+                let out = overlay.join(&file);
+                fs::create_dir_all(out.parent().unwrap())?;
+                fs::copy(workspace.join(file), out)?;
+            }
+            fs::write(
+                context.destination.join("nextest.toml"),
+                super::reporting::configuration(
+                    &workspace,
+                    &format!("/out/{}/reports/junit.xml", context.target.name),
+                )?,
+            )?;
+            records::write(
+                &context.destination.join("metadata.json"),
+                &serde_json::to_value(&projected)?,
+            )?;
+            fs::write(context.destination.join("host.txt"), host)?;
+            (
+                "rust/cargo-workspace",
+                "4",
+                json!({"oyzu.dev/cargo-workspace":{"original":original,"projected":projected},
+                    "oyzu.dev/cargo-tools":{"rustc":rustc.trim(),"nextest":nextest.trim(),"llvmCov":coverage.trim()}}),
+            )
+        }
+    };
     let tree = snapshot::capture_prepared(context.destination, &control.path().join("frozen"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch,"abi":host});
     let record = json!({
         "schemaVersion":"v1alpha1", "kind":"dependency-snapshot",
-        "adapter":{"id":"rust/cargo-workspace", "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":"4"},
+        "adapter":{"id":adapter, "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":layout},
         "manager":{"id":"cargo","version":manager_version,"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&root.join("Cargo.lock"))?],
         "targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,
-        "extensions":{"oyzu.dev/cargo-workspace":{"original":original,"projected":projected},"oyzu.dev/cargo-tools":{"rustc":rustc.trim(),"nextest":nextest.trim(),"llvmCov":coverage.trim()}}
+        "extensions":extensions
     });
     Ok(Prepared {
         root: context.destination.into(),

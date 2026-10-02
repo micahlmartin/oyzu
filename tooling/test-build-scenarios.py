@@ -20,6 +20,7 @@ from build_scenarios import docker_npm_context
 from build_scenarios import docker_yarn_context
 from build_scenarios import docker_pnpm_context
 from build_scenarios import docker_go_context
+from build_scenarios import docker_rust_context
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -89,6 +90,7 @@ CASES = (
     ('dependencies', 'docker-yarn-context', docker_yarn_context.verify),
     ('dependencies', 'docker-pnpm-context', docker_pnpm_context.verify),
     ('dependencies', 'docker-go-context', docker_go_context.verify),
+    ('dependencies', 'docker-rust-context', docker_rust_context.verify),
     ('docker', 'node-application', node_application.verify),
     ('java', 'maven', maven.verify),
     ('java', 'gradle', gradle.verify),
