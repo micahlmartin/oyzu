@@ -68,12 +68,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
                 version: Some(project.version.clone()),
             });
         }
-        let tests = project.test_roots.iter().any(|path| {
-            walkdir::WalkDir::new(context.target.path.join(path))
-                .into_iter()
-                .flatten()
-                .any(|e| e.file_type().is_file())
-        });
+        let tests = super::testing::has_tests(project, &context.target.path);
         if tests {
             if project.test_reports.is_empty() {
                 anyhow::bail!(

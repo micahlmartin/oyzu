@@ -45,8 +45,9 @@ pub(crate) trait Builder: Sync {
     /// profile still lacks direct-run evidence integration. No acquisition or
     /// sandbox claim is implied; commands use already provisioned host tools.
     /// Called after shared host task admission. Implementations may observe
-    /// installed native metadata, but must not install dependencies or execute
-    /// project scripts while constructing the contract.
+    /// installed native metadata, but must not install dependencies or run
+    /// project lifecycle tasks while constructing the contract. Native model
+    /// evaluation can load ecosystem extensions; it is not static discovery.
     /// Commands may reference `/oyzu/<name>` from runtime_files(); host execution
     /// stages those owned assets privately and translates the declared paths.
     fn development_test(&self, _target: &Target, _task: &Task) -> Result<Option<TaskPlan>> {

@@ -151,6 +151,13 @@ jobs:
           python -m pip install -r tooling/design-requirements.txt
           if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
           python tooling/test-ant-direct.py --cli "$CLI" --tools .ci-ant-reporting
+      - name: Native Maven direct test bundles
+        shell: bash
+        run: |
+          python tooling/provision-maven.py --destination .ci-maven
+          python -m pip install -r tooling/design-requirements.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-maven-direct.py --cli "$CLI" --maven-home .ci-maven/apache-maven-3.9.11 --repository .ci-maven/repository --acquire
       - name: Native Dockerfile quality tasks
         shell: bash
         run: |

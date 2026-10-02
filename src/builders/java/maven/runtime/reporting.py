@@ -6,6 +6,7 @@ XML is copied unchanged; parsing and result admission remain engine-owned.
 """
 import hashlib
 from pathlib import Path
+import xml.etree.ElementTree as ET
 
 
 def directory(value):
@@ -37,6 +38,11 @@ def prepare(groups):
     output.mkdir()
     for index, paths in enumerate(groups):
         (output/str(index)).mkdir()
+    clear(groups)
+
+
+def clear(groups):
+    for paths in groups:
         for value in paths:
             for file in directory(value).glob('TEST-*.xml'):
                 if file.is_symlink() or not file.is_file():
@@ -46,17 +52,37 @@ def prepare(groups):
 
 def collect(groups):
     for index, paths in enumerate(groups):
-        remaining = 64 * 1024 * 1024
-        for value in paths:
-            for file in sorted(directory(value).glob('TEST-*.xml')):
-                if file.is_symlink() or not file.is_file() or file.stat().st_size > 16 * 1024 * 1024:
-                    raise ValueError('Unsafe or oversized Maven report')
-                identity = hashlib.sha256(file.as_posix().encode()).hexdigest()
-                destination = Path('.oyzu-maven/reports')/str(index)/f'TEST-{identity}.xml'
-                with file.open('rb') as source:
-                    data = source.read(min(16 * 1024 * 1024, remaining) + 1)
-                if len(data) > min(16 * 1024 * 1024, remaining):
-                    raise ValueError('Maven report group exceeds collection budget')
-                remaining -= len(data)
-                with destination.open('xb') as target:
-                    target.write(data)
+        for file, data in files(paths):
+            identity = hashlib.sha256(file.as_posix().encode()).hexdigest()
+            destination = Path('.oyzu-maven/reports')/str(index)/f'TEST-{identity}.xml'
+            with destination.open('xb') as target:
+                target.write(data)
+
+
+def files(paths):
+    remaining = 64 * 1024 * 1024
+    for value in paths:
+        for file in sorted(directory(value).glob('TEST-*.xml')):
+            if file.is_symlink() or not file.is_file() or file.stat().st_size > 16 * 1024 * 1024:
+                raise ValueError('Unsafe or oversized Maven report')
+            with file.open('rb') as source:
+                data = source.read(min(16 * 1024 * 1024, remaining) + 1)
+            if len(data) > min(16 * 1024 * 1024, remaining):
+                raise ValueError('Maven report group exceeds collection budget')
+            remaining -= len(data)
+            yield file, data
+
+
+def combined(paths, destination):
+    # Keep native suites/cases intact; the shared collector owns validation and
+    # outcome counts. Missing XML remains missing evidence, never an empty pass.
+    suites = ET.Element('testsuites')
+    found = False
+    for _, data in files(paths):
+        native = ET.fromstring(data)
+        if native.tag not in {'testsuite', 'testsuites'}:
+            raise ValueError('Unexpected Maven JUnit root')
+        suites.append(native)
+        found = True
+    if found:
+        ET.ElementTree(suites).write(destination, encoding='utf-8', xml_declaration=True)

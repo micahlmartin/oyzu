@@ -2,6 +2,7 @@ use crate::builders::task::insert;
 mod metadata;
 mod planning;
 mod preparation;
+mod testing;
 #[cfg(test)]
 mod tests;
 use crate::builders::{
@@ -17,6 +18,18 @@ pub(in crate::builders) struct Maven;
 const RUNTIME: &[RuntimeFile] = &[
     super::quality::RUNTIME,
     RuntimeFile {
+        name: "maven-host.py",
+        contents: include_str!("runtime/host.py"),
+    },
+    RuntimeFile {
+        name: "OyzuMetadata.java",
+        contents: include_str!("runtime/OyzuMetadata.java"),
+    },
+    RuntimeFile {
+        name: "components.xml",
+        contents: include_str!("runtime/components.xml"),
+    },
+    RuntimeFile {
         name: "maven_reporting.py",
         contents: include_str!("runtime/reporting.py"),
     },
@@ -31,6 +44,13 @@ const RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Maven {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        testing::development(target, task)
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/maven:3.9.11-jdk17")
     }
