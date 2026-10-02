@@ -16,6 +16,7 @@ yaml-rust2 = { version = "0.13", default-features = false }
 sha2 = "0.10"
 tar = { version = "0.4", default-features = false }
 flate2 = "1.1"
+zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2"] }
 toml = "0.8"
 toml_edit = "0.22"
 base64 = "0.22"

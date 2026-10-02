@@ -664,3 +664,36 @@ archive tests, nine layout tests and strict all-target Clippy. Native macOS
 confirmation of the path refactor remains pending. Separately, fork `136d65573`
 passes all eight scenarios and library/example Clippy on all three native hosts
 in run `36977793983`, qualifying the Java metadata boundary only.
+
+## Checkpoint 72: bounded ZIP candidate staging
+
+The archive-layout finalizer now handles ZIP32 stored and DEFLATE files through
+the fork's `zip` 8.6.0 decoder version, with default features disabled. The lock
+adds only zip and typed-path; both packages' original license texts are preserved
+under `third-party/` and match independently downloaded Cargo sources. This does
+not approve the shipping graph or enable the production mise provider.
+
+Before decoder indexing, Oyzu validates bounded metadata and entry counts,
+duplicates, local/central agreement, physical record coverage, size/ratio budgets
+and data descriptors. Extraction reuses anchored path admission and requires
+decoded size/CRC checks before receipt creation. ZIP64, encryption, split
+archives, stubs, links, special entries and alternate name encodings remain
+explicitly unsupported. See the [reference](reference/tool-lock-inspection.md)
+for the exact subset and recovery behavior. This advances TM-04; real upstream
+archive parity and the full OEP acceptance matrix remain incomplete.
+
+Stored and DEFLATE integration fixtures exercise candidate staging, publication
+and subsequent locked-content verification. Negative fixtures cover corrupt
+payloads, inconsistent headers, oversized metadata, duplicate names, traversal,
+case collisions and unsupported extensions. Both ZIP32 descriptor encodings are
+extracted and corrupted variants rejected. Windows GNU Rust 1.94 full tests,
+strict all-target Clippy, formatting and nine real CLI task scenarios passed.
+Linux archive/layout tests and strict all-target Clippy passed. Documentation
+structure and shared contract fixtures passed. Native macOS/MSVC qualification
+of this change remains pending.
+
+Separately, previously running captured-source CI job `110739178439` in run
+`36975364359` completed with failure during Helm lint: the parent chart reported
+a missing child dependency. Earlier passing native build/task checks do not turn
+that captured-source run into passing end-to-end evidence. The failure remains
+to be resolved and reverified.

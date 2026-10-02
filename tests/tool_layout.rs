@@ -187,6 +187,84 @@ fn finalizes_stripped_archive_and_publishes_verifiable_locked_receipt() {
     assert_eq!(fs::read(&fixture.lock).unwrap(), original);
 }
 
+fn zip_archive(method: zip::CompressionMethod) -> Vec<u8> {
+    use std::io::{Cursor, Write};
+    let mut writer = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(method)
+        .unix_permissions(0o755);
+    writer.start_file("release/bin/node", options).unwrap();
+    writer.write_all(b"synthetic, never executed").unwrap();
+    writer.finish().unwrap().into_inner()
+}
+
+#[test]
+fn zip_stored_and_deflated_layouts_publish_verifiable_receipts() {
+    for method in [
+        zip::CompressionMethod::Stored,
+        zip::CompressionMethod::Deflated,
+    ] {
+        let mut fixture = Fixture::new();
+        fixture.bytes = zip_archive(method);
+        fixture.layout["archive_kind"] = json!("zip");
+        fixture.prepare();
+        assert_eq!(fixture.stage().unwrap(), fixture.key);
+        assert_eq!(
+            fs::read(fixture.candidate().join("payload/bin/node")).unwrap(),
+            b"synthetic, never executed"
+        );
+        let lease = tools::lease_installation_selection(
+            &fixture.lock,
+            &fixture.store,
+            Some(&fixture.staging),
+            ".",
+            "default",
+            fixture.platform,
+            &fixture.installer,
+        )
+        .unwrap();
+        assert_eq!(
+            tools::verify_installation_selection(
+                &fixture.lock,
+                &fixture.store,
+                ".",
+                "default",
+                fixture.platform,
+                &fixture.installer,
+            )
+            .unwrap(),
+            lease.selection_digest
+        );
+    }
+}
+
+#[test]
+fn zip_corruption_and_header_disagreement_never_create_receipts() {
+    for mutation in 0..6 {
+        let mut fixture = Fixture::new();
+        fixture.bytes = zip_archive(zip::CompressionMethod::Stored);
+        fixture.layout["archive_kind"] = json!("zip");
+        let central = fixture
+            .bytes
+            .windows(4)
+            .position(|b| b == b"PK\x01\x02")
+            .unwrap();
+        match mutation {
+            0 => fixture.bytes[30 + "release/bin/node".len()] ^= 1,
+            1 => fixture.bytes[30] = b'X',
+            2 => fixture.bytes[central + 8] |= 1,
+            3 => fixture.bytes[central + 24..central + 28].copy_from_slice(&u32::MAX.to_le_bytes()),
+            4 => {
+                fixture.bytes.pop();
+            }
+            _ => fixture.bytes[central + 42] = 1,
+        }
+        fixture.prepare();
+        assert!(fixture.stage().is_err(), "mutation {mutation}");
+        assert!(!fixture.candidate().join("receipt.json").exists());
+    }
+}
+
 #[test]
 fn rejects_unadmitted_changed_plan_and_open_records_before_extraction() {
     for mutate in [

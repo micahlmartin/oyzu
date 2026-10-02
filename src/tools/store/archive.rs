@@ -6,6 +6,7 @@ use super::{
 };
 use anyhow::{ensure, Context, Result};
 mod paths;
+mod zip;
 
 use std::{
     io::{self, Read},
@@ -14,6 +15,20 @@ use std::{
 
 const MAX_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_FILE: u64 = 1024 * 1024 * 1024;
+
+pub(super) fn unpack_zip(
+    verified: super::VerifiedBlob,
+    root: Directory,
+    strip_prefix: Option<&str>,
+    bounds: &Bounds,
+) -> Result<TreeInspection> {
+    bounds.validate()?;
+    if let Some(prefix) = strip_prefix {
+        access::relative(prefix)?;
+    }
+    zip::extract(verified.into_file()?, &root, strip_prefix, bounds)?;
+    super::tree::inspect_directory(&root)
+}
 
 #[derive(Clone, serde::Deserialize, serde::Serialize)]
 #[serde(deny_unknown_fields)]

@@ -131,7 +131,8 @@ pub(in crate::tools) fn stage(
     );
     // Unsupported transforms are errors, never silently ignored.
     ensure!(
-        matches!(plan.archive_kind.as_str(), "tar" | "tar.gz") && plan.payload_subtree == ".",
+        matches!(plan.archive_kind.as_str(), "tar" | "tar.gz" | "zip")
+            && plan.payload_subtree == ".",
         "archive layout transform is not implemented"
     );
     plan.extraction_bounds.validate()?;
@@ -152,13 +153,22 @@ pub(in crate::tools) fn stage(
         "candidate staging must be empty"
     );
     let payload = root.create_directory("payload")?;
-    let mut tree = archive::unpack_layout(
-        blob,
-        payload.duplicate()?,
-        plan.archive_kind == "tar.gz",
-        plan.strip_prefix.as_deref(),
-        &plan.extraction_bounds,
-    )?;
+    let mut tree = if plan.archive_kind == "zip" {
+        archive::unpack_zip(
+            blob,
+            payload.duplicate()?,
+            plan.strip_prefix.as_deref(),
+            &plan.extraction_bounds,
+        )?
+    } else {
+        archive::unpack_layout(
+            blob,
+            payload.duplicate()?,
+            plan.archive_kind == "tar.gz",
+            plan.strip_prefix.as_deref(),
+            &plan.extraction_bounds,
+        )?
+    };
     if !plan.executable_paths.is_empty() {
         mark_executable(&payload, &plan.executable_paths)?;
         tree = super::tree::inspect_directory(&payload)?;

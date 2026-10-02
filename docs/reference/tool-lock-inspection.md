@@ -347,7 +347,7 @@ The initial [JSON Schema](../contracts/tools-v1/archive-layout.schema.json) reco
 the closed field names. Rust adds portable path, byte, graph, identity and content
 checks that JSON Schema cannot establish.
 
-Currently supported plans use `tar` or `tar.gz`, optional `strip_prefix`,
+Currently supported plans use `tar`, `tar.gz` or the ZIP subset described below, optional `strip_prefix`,
 `payload_subtree: "."`. Other archive kinds and subtree projection fail explicitly.
 On Unix, `executable_paths` may contain at most 4096 sorted, unique portable
 payload-relative file paths. Each must resolve through ordinary directories to
@@ -427,9 +427,15 @@ formatting differences do not change it. Compiled descriptor admission, provenan
 validation, source licensing approval and compatibility remain separate unimplemented
 gates. A self-consistent malicious descriptor can pass inspection.
 
-### ZIP implementation constraint
+### ZIP candidate materialization
 
-ZIP is still rejected. Inspection of the maintained fork's `zip` 8.6.0 dependency
+`stage_tool_candidate` accepts `archive_kind: "zip"` for bounded ZIP32 archives
+using stored or DEFLATE compression. The standalone tar materialization API is
+unchanged. This is a library staging capability, not a production installation
+command or backend qualification. It uses the same verified blob, admitted plan,
+path checks, required payload checks and receipt boundary as tar layouts.
+
+Inspection of the maintained fork's `zip` 8.6.0 dependency
 found that its high-level archive reader builds a filename-indexed map that
 collapses duplicate names, after allocating central-directory metadata. Checking
 only `ZipArchive::len()` and then applying Oyzu path checks would therefore miss
@@ -437,11 +443,33 @@ duplicate records and apply resource limits too late. Its streaming visitor also
 ends central-directory parsing on an error, so successful visitation alone does
 not establish a valid complete directory.
 
-ZIP implementation must validate bounded central-directory metadata, duplicate
-records and local/central consistency before publication, while retaining verified
-blob identity, anchored extraction, portable paths, expansion limits and CRC/error
-propagation. Do not substitute the library's convenience extraction method for
-these store guarantees. No ZIP dependency or support is introduced by this finding.
+Oyzu therefore preflights the complete central directory before initializing the
+decoder. Entry counts, total local/central metadata (32 MiB), individual and total
+expanded sizes, and per-file expansion ratios are bounded. The expanded archive
+budget includes local headers, central metadata and the footer/comment as well as
+payload. Names must be ASCII or explicitly flagged UTF-8. Duplicate raw names,
+inconsistent local/central names, sizes, methods and CRCs, overlapping local
+records, unconsumed gaps and trailing data fail. Both signed and unsigned ZIP32
+data descriptors are checked. Decoder output must reach EOF with the declared
+size and valid CRC; a corrupt payload never receives a receipt.
+
+Only ordinary files and empty directories from DOS/Unix originating systems are
+admitted. Unix executable bits are preserved in otherwise private file modes;
+Windows launch validation still uses receipt rules. ZIP64, encryption, split
+archives, self-extracting stubs, Unicode override extra fields, links and special
+entries are rejected. Archives requiring these features need further qualified
+implementation; they are never silently interpreted as another format. On any
+failure, discard the incomplete staging directory and retry with an admitted
+artifact in new empty staging. Extraction has no network access or subprocesses.
+
+The exact `zip` 8.6.0 dependency uses only `deflate-flate2`, with default features
+disabled. Original notices for it and its new transitive dependency `typed-path`
+are preserved in [third-party notices](../../third-party/README.md). This does not
+approve the complete shipping dependency graph or establish publisher authenticity.
+Tests cover stored/DEFLATE staging and receipt publication, CRC corruption,
+header disagreement, duplicate metadata, limits, traversal, case collisions and
+both data-descriptor encodings. Real upstream archive parity and native platform
+qualification remain separate gates.
 
 Archive path admission is centralized under `store/archive/paths`: raw duplicate
 detection, strip-prefix validation, case/type collision checks, expanded entry and
@@ -449,5 +477,4 @@ depth limits, and anchored destination traversal use one rule set. The 32 MiB
 name budget now includes original names retained for duplicate detection, even
 when stripping skips a prefix ancestor, as well as expanded destination names
 and link targets. Archives that previously escaped this accounting can fail
-earlier; no receipt is written on failure. This prepares shared validation for
-additional decoders but does not enable ZIP.
+earlier; no receipt is written on failure. TAR and ZIP use this same path owner.
