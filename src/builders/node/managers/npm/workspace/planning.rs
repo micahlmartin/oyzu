@@ -49,6 +49,19 @@ fn framework(profile: &detection::Profile) -> Result<String> {
     Ok(name.into())
 }
 
+fn package_artifact(name: &str, version: String) -> ArtifactSpec {
+    ArtifactSpec {
+        kind: ArtifactKind::File,
+        name: crate::names::scoped("package", name),
+        filename: format!(
+            "{}-{version}.tgz",
+            name.trim_start_matches('@').replace('/', "-")
+        ),
+        media_type: "application/gzip",
+        version: Some(version),
+    }
+}
+
 pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let prepared = context
         .dependencies
@@ -57,9 +70,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         Metadata::read(prepared.record["extensions"]["oyzu.dev/npm"]["workspaces"].clone())?
             .context("missing captured npm workspace model")?;
     let package = crate::records::read(&context.target.path.join("package.json"))?;
-    if package["private"] != true {
-        bail!("npm workspace root artifact ownership requires a private aggregation root in this profile");
-    }
     let root_version = crate::builders::semver_snapshot(context.target, context.source);
     let mut plan = BuilderPlan::new(
         root_version.clone(),
@@ -75,33 +85,42 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let mut test = TaskPlan::command(&["node", "/oyzu/npm-workspace-build.mjs", "test"]);
     for member in ordered(&metadata)? {
         let profile = detection::detect(&context.target.path.join(&member.path))?;
-        let id = crate::names::scoped("package", &member.name);
         let version = format!(
             "{}-dev.g{}",
             member.version.split(['-', '+']).next().unwrap(),
             &context.source.digest[7..19]
         );
-        let filename = format!(
-            "{}-{version}.tgz",
-            member.name.trim_start_matches('@').replace('/', "-")
-        );
-        modules.push(json!({"id":id,"name":member.name,"path":member.path,"version":version,"filename":filename,"scripts":member.scripts,"dependencies":member.dependencies,"framework":framework(&profile)?,"quality":{"linter":profile.linter.selected(),"formatter":profile.formatter.selected()}}));
-        plan.artifacts.push(ArtifactSpec {
-            kind: ArtifactKind::File,
-            name: id.clone(),
-            filename,
-            media_type: "application/gzip",
-            version: Some(version),
-        });
+        let artifact = package_artifact(&member.name, version);
+        modules.push(json!({"id":artifact.name,"name":member.name,"path":member.path,"version":artifact.version,"filename":artifact.filename,"scripts":member.scripts,"dependencies":member.dependencies,"framework":framework(&profile)?,"quality":{"linter":profile.linter.selected(),"formatter":profile.formatter.selected()}}));
         if !root_test {
-            reports(&mut test, &id);
+            reports(&mut test, &artifact.name);
         }
+        plan.artifacts.push(artifact);
     }
-    if root_test {
+    let root_artifact = if package["private"] != true {
+        let name = package["name"]
+            .as_str()
+            .context("npm workspace root requires a package name")?;
+        if name.is_empty()
+            || !name
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"@/._-".contains(&b))
+            || metadata.members.iter().any(|m| m.name == name)
+        {
+            bail!("invalid or colliding npm workspace root package name");
+        }
+        let artifact = package_artifact(name, root_version.clone());
+        let record = json!({"id":artifact.name,"name":name,"path":".","version":artifact.version,"filename":artifact.filename});
+        plan.artifacts.push(artifact);
+        Some(record)
+    } else {
+        None
+    };
+    if root_test || root_artifact.is_some() {
         reports(&mut test, "root");
     }
     let root_profile = detection::detect(&context.target.path)?;
-    let specification = json!({"rootVersion":root_version,"rootScripts":root_scripts,"rootDependencies":metadata.root_dependencies,"rootFramework":framework(&root_profile)?,"rootQuality":{"linter":root_profile.linter.selected(),"formatter":root_profile.formatter.selected()},"modules":modules,
+    let specification = json!({"rootVersion":root_version,"rootArtifact":root_artifact,"rootScripts":root_scripts,"rootDependencies":metadata.root_dependencies,"rootFramework":framework(&root_profile)?,"rootQuality":{"linter":root_profile.linter.selected(),"formatter":root_profile.formatter.selected()},"modules":modules,
         "nodeTestArguments":crate::builders::node::reporting::arguments("__OYZU_TEST_REPORT__", "__OYZU_COVERAGE_REPORT__")});
     let encoded = serde_json::to_string(&specification)?;
     if encoded.len() > 120_000 {

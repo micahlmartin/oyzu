@@ -1,5 +1,6 @@
 """Exercise native Vitest reports and configuration with provisioned dependencies."""
 import argparse
+import json
 import os
 from pathlib import Path
 import shutil
@@ -22,12 +23,13 @@ def main():
         report = base / 'reports/tests.xml'
         coverage = base / 'reports/coverage.lcov'
         env = dict(os.environ, OYZU_TEST_REPORT=str(report), OYZU_COVERAGE_REPORT=str(coverage))
+        scope = []
 
         def run(success, reports=True):
             report.unlink(missing_ok=True)
             coverage.unlink(missing_ok=True)
             result = subprocess.run(['node', str(ROOT / 'src/builders/node/runtime/vitest.mjs'),
-                                     'node', 'node_modules/vitest/vitest.mjs', 'run'], cwd=project,
+                                     'node', 'node_modules/vitest/vitest.mjs', 'run', *scope], cwd=project,
                                     env=env, capture_output=True, text=True, encoding='utf-8', timeout=120)
             assert (result.returncode == 0) == success, result.stdout + result.stderr
             if reports:
@@ -57,6 +59,16 @@ def main():
         config.write_text("export default {test:{reporters:['default','./reporter.mjs'], coverage:{include:['src/**'], reporter:['json-summary']}}};\n")
         run(True)
         assert (project / 'custom-reporter-ran').read_text() == 'yes'
+        for directory in ['packages/member', '.oyzu-build', 'ignored']:
+            (project/directory).mkdir(parents=True)
+            (project/directory/'failure.test.js').write_text("throw Error('excluded suite executed');\n")
+        config.write_text("export default {test:{exclude:['**/node_modules/**','ignored/**'], coverage:{include:['src/**']}}};\n")
+        module = (ROOT/'src/builders/node/runtime/npm-workspace-root.mjs').as_uri()
+        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{rootFrameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(rootFrameworkArguments('vitest',process.cwd(),[{{path:'packages/member'}}])));"], cwd=project, text=True))
+        assert len(run(True).findall('.//testcase')) == 3
+        for directory in ['packages', '.oyzu-build', 'ignored']:
+            shutil.rmtree(project/directory)
+        scope = []
         # Native Vite config fallback and threshold failure remain effective.
         config.rename(project / 'vite.config.mjs')
         run(True)

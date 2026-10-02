@@ -7,6 +7,7 @@ import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {npm, npmCommand} from './npm-native.mjs';
 import {digest, project, read, regular, root, specification, state} from './npm-workspace-plan.mjs';
+import {packRoot, rootNodeTests, rootFrameworkArguments} from './npm-workspace-root.mjs';
 
 const [mode, encoded, location] = process.argv.slice(2);
 if (mode === 'project') {
@@ -17,6 +18,7 @@ if (mode === 'project') {
   try {
   const artifactDirectory = join(state, 'artifacts');
   const receipt = join(state, 'artifacts.json');
+  const packages = [...spec.modules, ...(spec.rootArtifact ? [spec.rootArtifact] : [])];
   const runtime = dirname(fileURLToPath(import.meta.url));
   const invoke = (command, cwd, env = process.env) => {
     const result = spawnSync(command[0], command.slice(1), {cwd, env, stdio:'inherit'});
@@ -34,18 +36,19 @@ if (mode === 'project') {
     }
     mkdirSync(artifactDirectory);
     const artifacts = [];
-    for (const member of spec.modules) {
+    for (const member of packages) {
       const pkg = read(join(root, member.path, 'package.json'));
       if (pkg.name !== member.name || pkg.version !== member.version) throw new Error('Build changed planned package identity');
-      const packed = JSON.parse(npm(['pack', '--ignore-scripts', '--json', '--workspace', member.name, '--pack-destination', artifactDirectory], root, cache));
+      const packed = member.path === '.' ? packRoot(root, artifactDirectory, cache)
+        : JSON.parse(npm(['pack', '--ignore-scripts', '--json', '--workspace', member.name, '--pack-destination', artifactDirectory], root, cache));
       if (packed.length !== 1 || packed[0].filename !== member.filename || packed[0].name !== member.name || packed[0].version !== member.version) throw new Error('Native npm pack differs from planned artifact');
       artifacts.push({filename:member.filename, sha256:digest(regular(join(artifactDirectory, member.filename)))});
     }
     writeFileSync(receipt, JSON.stringify(artifacts), {flag:'wx'});
   } else if (mode === 'test') {
-    const producers = spec.rootScripts.test
-      ? [{id:'root', path:'.', scripts:spec.rootScripts, framework:spec.rootFramework}]
-      : spec.modules;
+    const rootProducer = {id:'root', path:'.', scripts:spec.rootScripts, framework:spec.rootFramework};
+    const producers = spec.rootScripts.test ? [rootProducer]
+      : [...spec.modules, ...(spec.rootArtifact ? [rootProducer] : [])];
     for (const member of producers) {
       const reports = join(state, 'reports', member.id);
       mkdirSync(reports, {recursive:true});
@@ -60,7 +63,13 @@ if (mode === 'project') {
       } else throw new Error(`No native test command for ${member.name}`);
       if (member.framework === 'node-test') {
         command.push(...spec.nodeTestArguments.map(v => v.replace('__OYZU_TEST_REPORT__', env.OYZU_TEST_REPORT).replace('__OYZU_COVERAGE_REPORT__', env.OYZU_COVERAGE_REPORT)));
+        if (member.id === 'root' && !member.scripts.test) command.push(...rootNodeTests(root, spec.modules));
       } else if (['jest', 'vitest'].includes(member.framework)) {
+        if (member.id === 'root' && !member.scripts.test) {
+          const native = createRequire(join(cwd, 'package.json'));
+          const version = member.framework === 'jest' ? native('jest/package.json').version : undefined;
+          command.push(...rootFrameworkArguments(member.framework, root, spec.modules, version));
+        }
         command = [process.execPath, join(runtime, `${member.framework}.mjs`), ...command];
       }
       const status = invoke(command, member.scripts.test ? root : cwd, env);
@@ -91,10 +100,10 @@ if (mode === 'project') {
     }
   } else if (mode === 'package') {
     const artifacts = read(receipt);
-    if (artifacts.length !== spec.modules.length) throw new Error('Incomplete workspace artifact receipt');
+    if (artifacts.length !== packages.length) throw new Error('Incomplete workspace artifact receipt');
     const output = join(location ?? '/out', process.env.OYZU_TARGET, 'artifacts');
     mkdirSync(output, {recursive:true});
-    for (const member of spec.modules) {
+    for (const member of packages) {
       const artifact = artifacts.find(a => a.filename === member.filename);
       const source = join(artifactDirectory, member.filename);
       if (!artifact || digest(regular(source)) !== artifact.sha256) throw new Error('Workspace artifact changed after build');

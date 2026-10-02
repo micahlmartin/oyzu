@@ -2,6 +2,7 @@
 import json
 import shutil
 import tarfile
+from .node_fixtures import format_sources
 
 
 def verify(root, base, invoke, validate, source_files, verified):
@@ -71,4 +72,41 @@ def verify(root, base, invoke, validate, source_files, verified):
     failed = validate(project/'dist')
     assert not failed['artifacts']
     assert next(a for a in failed['actions'] if a['id'] == 'project:lint')['status'] == 'failed'
+    (project/'packages/app/quality.mjs').unlink()
+    # A public root is a package as well as a workspace coordinator. No Oyzu
+    # configuration or root test script is necessary for conventional tests.
+    root_manifest = project/'package.json'
+    root_package = json.loads(root_manifest.read_text())
+    root_package.pop('private', None)
+    root_manifest.write_text(json.dumps(root_package))
+    (project/'index.mjs').write_text('export const value = 42;\n')
+    root_test = project/'root.test.mjs'
+    root_test.write_text("import {test} from 'node:test'; import assert from 'node:assert/strict'; import {value} from './index.mjs'; test('root package',()=>assert.equal(value,42));\n")
+    format_sources(root, project/'index.mjs', root_test)
+    before = source_files(project)
+    invoke(project, 'build')
+    public = validate(project/'dist')
+    assert public['status'] == 'succeeded' and source_files(project) == before
+    assert len(public['artifacts']) == 3
+    tests = [r for r in public['reports'] if r['kind'] == 'test']
+    coverage = [r for r in public['reports'] if r['kind'] == 'coverage']
+    assert len(tests) == len(coverage) == 3
+    assert all(t['summary']['passed'] == 1 and t['summary']['failed'] == 0 for t in tests)
+    assert all(c['summary']['covered'] > 0 for c in coverage)
+    for artifact in public['artifacts']:
+        with tarfile.open(project/'dist'/artifact['path']) as tar:
+            package = json.load(tar.extractfile('package/package.json'))
+            assert package['version'] == artifact['version']
+            if package['name'] == root_package['name']:
+                assert 'package/index.mjs' in tar.getnames()
+                assert not any('/.oyzu-build/' in n or '/.oyzu/' in n for n in tar.getnames())
+    invoke(project, 'build')
+    repeat = validate(project/'dist')
+    assert repeat['planDigest'] == public['planDigest']
+    assert {a['name']:a['digest'] for a in repeat['artifacts']} == {a['name']:a['digest'] for a in public['artifacts']}
+    root_test.write_text("import {test} from 'node:test'; test('root failure',()=>{throw Error('expected')});\n")
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    assert sum(r['summary']['failed'] for r in failed['reports'] if r['kind'] == 'test') == 1
     verified.append('EX-020 npm workspaces: isolated native link replay, per-member snapshot packages/JUnit/coverage, internal snapshot references, stable artifacts and failed-test package blocking; affected selection remains pending')

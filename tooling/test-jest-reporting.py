@@ -1,5 +1,6 @@
 """Exercise the real Jest adapter with an explicitly provisioned native Jest CLI."""
 import argparse
+import json
 import os
 from pathlib import Path
 import shutil
@@ -22,13 +23,14 @@ def main():
         report = base / 'reports/custom-tests.xml'
         coverage = base / 'reports/custom-coverage.lcov'
         env = dict(os.environ, OYZU_TEST_REPORT=str(report), OYZU_COVERAGE_REPORT=str(coverage))
+        scope = []
 
         def run(success):
             if report.exists():
                 report.unlink()
             if coverage.exists():
                 coverage.unlink()
-            result = subprocess.run(['node', str(ROOT / 'src/builders/node/runtime/jest.mjs'), 'node', str(jest)],
+            result = subprocess.run(['node', str(ROOT / 'src/builders/node/runtime/jest.mjs'), 'node', str(jest), *scope],
                                     cwd=project, env=env, capture_output=True, text=True, encoding='utf-8', timeout=120)
             assert (result.returncode == 0) == success, result.stdout + result.stderr
             document = ET.parse(report)
@@ -60,6 +62,16 @@ def main():
         (project / 'test/skipped.test.js').write_text("describe.skip('skipped suite',()=>{test('native skipped test',()=>{})});\n")
         document = run(True)
         assert len(document.findall('.//skipped')) == 3
+        # Root scoping must exclude members without replacing native ignores.
+        for directory in ['packages/member', '.oyzu-build', 'ignored']:
+            (project/directory).mkdir(parents=True)
+            (project/directory/'failure.test.js').write_text("throw Error('excluded suite executed');\n")
+        (project/'jest.config.cjs').write_text("module.exports={testPathIgnorePatterns:['/ignored/']};\n")
+        module = (ROOT/'src/builders/node/runtime/npm-workspace-root.mjs').as_uri()
+        version = json.loads((jest.parent.parent/'package.json').read_text())['version']
+        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{rootFrameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(rootFrameworkArguments('jest',process.cwd(),[{{path:'packages/member'}}],{json.dumps(version)})));"], cwd=project, text=True))
+        document = run(True)
+        assert len(document.findall('.//testcase')) == 4 and len(document.findall('.//skipped')) == 3
     print('Native Jest reports passed: inferred tests, measured coverage, escaped names, skip/todo, assertion and suite failures, existing reporters')
 
 

@@ -363,15 +363,23 @@ mod tests {
 
     #[test]
     fn npm_workspace_plans_keep_each_artifact_and_required_report_under_override() {
-        for (custom, format_stage) in [
-            (false, "format-check"),
-            (true, "format-check"),
-            (false, "format:check"),
+        for (custom, format_stage, public_root) in [
+            (false, "format-check", false),
+            (true, "format-check", false),
+            (false, "format:check", false),
+            (false, "format-check", true),
+            (true, "format-check", true),
         ] {
             let temp = tempfile::tempdir().unwrap();
             let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("examples/builds/node-workspace/project");
             let source = snapshot::capture(&fixture, &temp.path().join("source")).unwrap();
+            if public_root {
+                let manifest = temp.path().join("source/package.json");
+                let mut package = records::read(&manifest).unwrap();
+                package["private"] = json!(false);
+                records::write(&manifest, &package).unwrap();
+            }
             if format_stage == "format:check" {
                 let manifest = temp.path().join("source/package.json");
                 let mut package = records::read(&manifest).unwrap();
@@ -438,7 +446,10 @@ mod tests {
                 1
             );
             let test = actions.iter().find(|a| a["id"] == "project:test").unwrap();
-            assert_eq!(test["reports"].as_array().unwrap().len(), 4);
+            assert_eq!(
+                test["reports"].as_array().unwrap().len(),
+                if public_root { 6 } else { 4 }
+            );
             assert!(test["reports"]
                 .as_array()
                 .unwrap()
@@ -451,7 +462,10 @@ mod tests {
                 .iter()
                 .find(|a| a["id"] == "project:package")
                 .unwrap();
-            assert_eq!(package["outputs"].as_array().unwrap().len(), 2);
+            assert_eq!(
+                package["outputs"].as_array().unwrap().len(),
+                if public_root { 3 } else { 2 }
+            );
         }
     }
 

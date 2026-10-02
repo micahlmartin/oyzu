@@ -36,6 +36,7 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 
 ## Failure and variation cases
 
+- **publishable-root:** Remove `private: true` from the root package and add conventional root source and tests. Expected: a third snapshot package, separate root JUnit/coverage, no duplicate member tests, no engine state in archives, and a failed root test blocking artifacts. No Oyzu configuration or root test script is needed. The native probe and compiled-CLI scenario suite construct this variation from the checked-in project.
 - **duplicate-execution:** Select both workspace root and package targets. Expected: Do not run the same native workspace task twice.
 
 ## Contract and limitations

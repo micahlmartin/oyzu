@@ -5,6 +5,10 @@ import {nativeRequire} from './npm-native.mjs';
 
 export async function members(workspace, packageJson) {
   if (packageJson.workspaces == null) return [];
+  if (packageJson.private !== true && (!nativeRequire('semver').valid(packageJson.version) ||
+      typeof packageJson.name !== 'string' || !nativeRequire('validate-npm-package-name')(packageJson.name).validForNewPackages)) {
+    throw new Error('Publishable npm workspace root requires a valid native name/version');
+  }
   const patterns = Array.isArray(packageJson.workspaces) ? packageJson.workspaces : packageJson.workspaces?.packages;
   if (!Array.isArray(patterns) || patterns.some(p => typeof p !== 'string' || !p ||
       p.includes('..') || /[\\:]/.test(p) || p.replace(/^!/, '').startsWith('/') || p.split('/').includes('node_modules'))) {
@@ -16,6 +20,7 @@ export async function members(workspace, packageJson) {
   const result = [];
   const paths = new Set();
   for (const [name, directory] of mapping) {
+    if (packageJson.private !== true && name === packageJson.name) throw new Error('Workspace root and member package names collide');
     const path = relative(root, resolve(directory)).split(sep).join('/');
     if (!path || path.startsWith('../') || isAbsolute(path) || path.split('/').some(p => !p || p === '..') || paths.has(path.toLowerCase())) {
       throw new Error('Invalid or colliding native npm workspace path');
