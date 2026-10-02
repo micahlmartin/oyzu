@@ -88,6 +88,10 @@ static RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/npm-native.mjs"),
     },
     RuntimeFile {
+        name: "test-command.mjs",
+        contents: include_str!("runtime/test-command.mjs"),
+    },
+    RuntimeFile {
         name: "npm-workspaces.mjs",
         contents: include_str!("runtime/npm-workspaces.mjs"),
     },
@@ -157,7 +161,7 @@ impl Builder for Node {
             || target
                 .discovery
                 .get("test-framework")
-                .is_none_or(|p| p.selected() != "node-test")
+                .is_none_or(|p| !["node-test", "jest", "vitest", "mocha"].contains(&p.selected()))
         {
             return Ok(None);
         }

@@ -145,7 +145,7 @@ def main():
         config.write_text("module.exports={reporter:'dot'};\n")
         tasks = json.loads(subprocess.check_output([cli,'run','list','--json'],cwd=project,text=True))
         assert tasks['project:test']['argv']==['node','node_modules/mocha/bin/mocha.js']
-        subprocess.run([cli,'run','test'],cwd=project,check=True,capture_output=True)
+        subprocess.run([cli,'run','test'],cwd=project,env=env,check=True,capture_output=True)
         workspace(cli, Path(temporary), npm)
     print('Native Mocha discovery, configuration, reporter composition, lifecycle, JUnit/LCOV, failures, thresholds, implicit/scripted workspace suites, package scope and root ownership passed.')
 

@@ -6,9 +6,10 @@ import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {testCommand} from './test-command.mjs';
 
 const test = process.env.OYZU_TEST_REPORT, coverage = process.env.OYZU_COVERAGE_REPORT;
-const [command, ...args] = process.argv.slice(2);
+const [command, ...args] = await testCommand(process.argv.slice(2));
 if (!test || !coverage || !command) throw new Error('Missing Mocha command/report contract');
 const project = createRequire(join(process.cwd(), 'package.json'));
 const version = project('mocha/package.json').version;

@@ -200,6 +200,10 @@ jobs:
           python tooling/test-jest-reporting.py --jest-cli tooling/fixtures/jest/node_modules/jest/bin/jest.js
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/vitest
           python tooling/test-vitest-reporting.py --node-modules tooling/fixtures/vitest/node_modules
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/mocha
+          if [ "$RUNNER_OS" = "Windows" ]; then FRAMEWORK_CLI=cli/oyzu.exe; else FRAMEWORK_CLI=cli/oyzu; fi
+          python -m pip install -r tooling/design-requirements.txt
+          python tooling/test-node-framework-direct.py --cli "$FRAMEWORK_CLI"
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-go-metadata.py --cli cli/oyzu.exe
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
@@ -301,14 +305,19 @@ jobs:
         with:
           platforms: arm64
       - name: Provision suite toolchains and contract validator
+        id: provision
         run: bash tooling/build-scenario-tools.sh provision "${{ matrix.suite }}"
       - name: Check acceptance suite inventory
+        id: inventory
         run: .ci-python/bin/python tooling/check-build-suites.py
       - name: Native adapter conformance
         run: |
           chmod +x cli/oyzu
           bash tooling/build-scenario-tools.sh native "${{ matrix.suite }}"
       - name: Build and verify native snapshot artifacts through the compiled CLI
+        # Preserve native conformance failures, but still gather the independent
+        # end-to-end result when its tools and inventory were prepared correctly.
+        if: ${{ !cancelled() && steps.provision.outcome == 'success' && steps.inventory.outcome == 'success' }}
         env:
           OYZU_BUILDKIT_APPARMOR_PROFILE: oyzu-buildkit
         run: .ci-python/bin/python tooling/test-build-scenarios.py --suite "${{ matrix.suite }}" --cli cli/oyzu --evidence-dir build-evidence
