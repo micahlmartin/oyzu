@@ -18,8 +18,13 @@ def main():
     parser.add_argument('--yarn-cli', type=Path, required=True)
     parser.add_argument('--tar-stream', type=Path, required=True)
     args = parser.parse_args()
+    os.environ['OYZU_PNPM_YAML'] = str(args.pnpm_cli.resolve().parents[2] / 'yaml')
+    os.environ['OYZU_YARN_LOCKFILE'] = str(args.yarn_cli.resolve().parents[2] / '@yarnpkg/lockfile')
     with tempfile.TemporaryDirectory(prefix='oyzu-native-managers-') as temporary:
         base = Path(temporary)
+        runtime = base / 'runtime'
+        shutil.copytree(ROOT / 'src/builders/node/runtime', runtime)
+        shutil.copyfile(ROOT / 'src/broker/runtime/transport.mjs', runtime / 'broker_transport.mjs')
         for manager, native, expected in [('pnpm',args.pnpm_cli,'10.11.0'),('yarn',args.yarn_cli,'1.22.22')]:
             native = native.resolve()
             project = base / manager
@@ -30,8 +35,8 @@ def main():
             package_file.write_text(json.dumps(package))
             (project / 'lifecycle.cjs').write_text("require('node:fs').writeFileSync('lifecycle-ran','yes');\n")
             wrapper = base / (manager+'.mjs')
-            wrapper.write_text(f"import {{profile}} from {json.dumps((ROOT / f'src/builders/node/runtime/{manager}.mjs').as_uri())};\n"
-                               f"import {{run}} from {json.dumps((ROOT / 'src/builders/node/runtime/manager-runtime.mjs').as_uri())};\n"
+            wrapper.write_text(f"import {{profile}} from {json.dumps((runtime / f'{manager}.mjs').as_uri())};\n"
+                               f"import {{run}} from {json.dumps((runtime / 'manager-runtime.mjs').as_uri())};\n"
                                f"profile.command.splice(0,1,process.execPath,{json.dumps(str(native))}); await run(profile);\n")
             output = base / (manager+'-capture')
             output.mkdir()

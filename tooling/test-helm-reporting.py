@@ -99,7 +99,7 @@ def main():
         # A build must reject that success until the baseline is reviewed input.
         assert validate(project/'chart','application',report,rendered,helm,unit_report) != 0
         assert not (tests/'__snapshot__').exists(), 'testing must leave source baselines unchanged'
-        subprocess.run([helm, 'unittest', '--strict', '--update-snapshot', str(project/'chart')], check=True)
+        subprocess.run([helm, 'unittest', '--strict', '--update-snapshot', '.'], cwd=project/'chart', check=True)
         assert list((tests/'__snapshot__').glob('*.snap'))
         assert not ET.parse(unit_report).findall('.//failure')
         baseline = {p.name:p.read_bytes() for p in (tests/'__snapshot__').glob('*.snap')}
@@ -137,6 +137,18 @@ def main():
         cli_test(False, subcharts)
         # Native package contents alone do not make the pinned plugin run tests.
         # Oyzu expands a private copy so packaged-only suites must run and fail.
+        authored = base/'authored-packaged-only'
+        shutil.copytree(ROOT/'examples/builds/helm-chart/variants/packaged-only', authored)
+        authored_before = {str(p.relative_to(authored)):p.read_bytes() for p in authored.rglob('*') if p.is_file()}
+        subprocess.run([helm,'lint','--strict',str(authored)],check=True)
+        assert validate(authored,'application',report,rendered,helm,unit_report)==0
+        assert len(ET.parse(unit_report).findall('.//testcase'))==1
+        cli_test(True, authored)
+        assert authored_before == {str(p.relative_to(authored)):p.read_bytes() for p in authored.rglob('*') if p.is_file()}
+        authored_prepared = base/'authored-prepared'
+        shutil.copytree(authored, authored_prepared)
+        runpy.run_path(str(ROOT/'src/builders/helm/runtime/charts.py'))['expand'](authored_prepared)
+        subprocess.run([helm,'dependency','build',str(authored_prepared),'--skip-refresh'],check=True)
         packed = base/'packaged-only'
         shutil.copytree(ROOT/'examples/builds/helm-chart/variants/subchart-only', packed)
         child = packed/'charts/child'

@@ -68,7 +68,7 @@ def maven(state, goals, offline=False, check=True, test_plan=False):
     env['OYZU_MAVEN_TEST_PLAN'] = 'true' if test_plan else 'false'
     env.pop('MAVEN_ARGS', None)
     env.pop('MAVEN_OPTS', None)
-    command = ['mvn', '-B', '-ntp', '-C', '-Dstyle.color=never', '-s', str(state / 'settings.xml'), '-gs', str(state / 'settings.xml'),
+    command = ['mvn', '-B', '-e', '-ntp', '-C', '-Dstyle.color=never', '-s', str(state / 'settings.xml'), '-gs', str(state / 'settings.xml'),
                '-Dmaven.repo.local=' + str(state / 'repository'), '-Duser.home=/tmp/oyzu-home',
                '-Dmaven.ext.class.path=' + EXTENSION, '-Dproject.build.outputTimestamp=315532800']
     if offline:

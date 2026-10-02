@@ -98,6 +98,10 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     }
     plan.tasks.insert("test".into(), test);
     plan.tasks.insert(
+        "format-check".into(),
+        TaskPlan::command(&["python", "-I", "/oyzu/helm-quality.py", "format-check", "."]),
+    );
+    plan.tasks.insert(
         "lint".into(),
         TaskPlan::command(&[
             "helm",

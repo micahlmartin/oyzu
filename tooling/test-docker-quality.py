@@ -36,6 +36,16 @@ def main():
         run('run', 'lint')
         run('run', 'format-check')
         assert source.read_bytes() == before
+        # Authored standalone fixtures must pass without inheriting this repo's
+        # EditorConfig; captured builds transport only their selected inputs.
+        variants = Path(__file__).resolve().parents[1] / 'examples/builds/docker-offline/variants'
+        for name in ['provisioned-base', 'argument-base', 'image-aliases']:
+            source.write_bytes((variants / name / 'Dockerfile').read_bytes())
+            original = source.read_bytes()
+            run('run', 'lint')
+            run('run', 'format-check')
+            assert source.read_bytes() == original
+        source.write_text(good, newline='\n')
         run('run', 'lint', success=False, environment={**env, 'PATH':''})
 
         source.write_text('FROM scratch\nWORKDIR relative\n', newline='\n')

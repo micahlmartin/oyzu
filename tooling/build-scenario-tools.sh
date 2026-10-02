@@ -17,13 +17,15 @@ selected() {
 if [[ "$mode" == provision ]]; then
   python3 -m venv .ci-python
   .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
-  if selected node core; then
+  if selected node core docker; then
     docker pull node:22-bookworm-slim
     docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
     docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
   fi
   if selected node; then
+    npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
+    npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
     docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
     docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
   fi
@@ -47,7 +49,7 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1 --file tooling/images/rust.Dockerfile tooling/images
   fi
   if selected helm; then
-    docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile tooling/images
+    docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile .
   fi
   if selected java; then
     docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile .
@@ -61,6 +63,12 @@ if [[ "$mode" == provision ]]; then
     sudo apparmor_parser -r tooling/images/buildkit.apparmor
   fi
 else
+  if selected node; then
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager pnpm --native-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager pnpm --patches --native-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --resolutions --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
+  fi
   if selected python; then
     .ci-python/bin/python tooling/test-python-adapter.py
     .ci-python/bin/python tooling/test-python-reporting.py

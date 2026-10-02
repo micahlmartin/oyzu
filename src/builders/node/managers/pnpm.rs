@@ -1,35 +1,50 @@
-use super::{empty, Manager};
+use super::Manager;
+mod patches;
 use crate::{
+    broker,
     builders::{BuilderPlan, CommandSpec, PlanningContext, PreparationContext},
     dependencies::Prepared,
+    records,
 };
 use anyhow::{bail, Context, Result};
 
 pub(super) struct Pnpm;
 impl Pnpm {
-    fn validate(&self, root: &std::path::Path) -> Result<()> {
-        empty::validate(root)?;
+    fn validate(&self, root: &std::path::Path) -> Result<bool> {
+        let package = records::read(&root.join("package.json"))?;
+        if package.get("workspaces").is_some()
+            || [".npmrc", ".pnpmfile.cjs"]
+                .iter()
+                .any(|name| root.join(name).exists())
+        {
+            bail!("pnpm workspace/custom configuration capture is not implemented yet");
+        }
         let lock: serde_yaml::Value =
             serde_yaml::from_str(&std::fs::read_to_string(root.join("pnpm-lock.yaml"))?)?;
-        for field in ["packages", "snapshots"] {
-            if lock
-                .get(field)
-                .is_some_and(|v| v.as_mapping().is_none_or(|m| !m.is_empty()))
-            {
-                bail!("pnpm dependency capture is not implemented yet");
-            }
-        }
         let importers = lock["importers"]
             .as_mapping()
             .context("pnpm lock missing importers")?;
         if importers.len() != 1
-            || !importers
+            || importers
                 .get(serde_yaml::Value::String(".".into()))
-                .is_some_and(|v| v.as_mapping().is_some_and(|m| m.is_empty()))
+                .is_none_or(|v| v.as_mapping().is_none())
         {
             bail!("pnpm workspace/dependency capture is not implemented yet");
         }
-        Ok(())
+        for field in ["dependencies", "devDependencies", "optionalDependencies"] {
+            if let Some(dependencies) = package[field].as_object() {
+                for (name, specifier) in dependencies {
+                    if lock["importers"]["."][field][name]["specifier"].as_str()
+                        != specifier.as_str()
+                    {
+                        bail!("pnpm capture requires a current frozen lockfile for {name}");
+                    }
+                }
+            }
+        }
+        Ok(lock
+            .get("packages")
+            .is_some_and(|packages| packages.as_mapping().is_some_and(|p| !p.is_empty())))
     }
 }
 impl Manager for Pnpm {
@@ -40,8 +55,23 @@ impl Manager for Pnpm {
         "oyzu-toolchain/node:pnpm10.11.0-node22"
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        self.validate(&context.target.path)?;
-        empty::prepare(context, "pnpm.mjs", "pnpm-lock.yaml")
+        let required = self.validate(&context.target.path)?;
+        let sources = if required {
+            vec![broker::Source::new(
+                "npm-public",
+                "https://registry.npmjs.org/",
+                None,
+            )?]
+        } else {
+            vec![]
+        };
+        let root = context.target.path.clone();
+        let mut prepared =
+            super::registry::prepare(context, "pnpm.mjs", "pnpm-lock.yaml", sources)?;
+        if let Some(prepared) = &mut prepared {
+            patches::record(&root, prepared)?;
+        }
+        Ok(prepared)
     }
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()> {
         self.validate(&context.target.path)?;

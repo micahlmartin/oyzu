@@ -1,0 +1,10 @@
+diff --git a/index.js b/index.js
+index a1ea391ee081d61686677c531abfd27001a0e5bb..3dcf6412dfe17863e44ff632c8bfdc0e1daa5265 100644
+--- a/index.js
++++ b/index.js
+@@ -29,3 +29,5 @@ module.exports = function isNumber(num) {
+   }
+   return false;
+ };
++
++module.exports.oyzuPatched = 'native-patch-applied';

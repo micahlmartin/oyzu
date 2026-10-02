@@ -170,6 +170,19 @@ jobs:
           CGO_ENABLED=0 GOPROXY=off GOSUMDB=off go build -mod=readonly -trimpath -o "$FORMATTER" github.com/reteps/dockerfmt
           cd "$GITHUB_WORKSPACE"
           python tooling/test-docker-quality.py --cli "$CLI" --tools .ci-docker-quality
+      - name: Native Helm YAML quality tasks
+        shell: bash
+        run: |
+          python tooling/provision-yamlfmt.py --destination .ci-helm-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            CLI=cli/oyzu.exe
+            FORMATTER=.ci-helm-quality/yamlfmt.exe
+          else
+            CLI=cli/oyzu
+            FORMATTER=.ci-helm-quality/yamlfmt
+            chmod +x "$CLI"
+          fi
+          python tooling/test-helm-quality.py --cli "$CLI" --yamlfmt "$FORMATTER"
       - name: Native Python test discovery and reporting
         shell: bash
         run: |
@@ -209,6 +222,7 @@ jobs:
             python tooling/test-npm-workspace-tests.py --cli cli/oyzu.exe
             python tooling/test-node-quality.py --cli cli/oyzu.exe
             python tooling/test-biome-quality.py --cli cli/oyzu.exe
+            python tooling/test-node-application.py --cli cli/oyzu.exe
           else
             chmod +x cli/oyzu
             python3 tooling/test-go-metadata.py --cli cli/oyzu
@@ -217,6 +231,7 @@ jobs:
             python3 tooling/test-npm-workspace-tests.py --cli cli/oyzu
             python3 tooling/test-node-quality.py --cli cli/oyzu
             python3 tooling/test-biome-quality.py --cli cli/oyzu
+            python3 tooling/test-node-application.py --cli cli/oyzu
           fi
 
   container-worker-contract:
@@ -267,7 +282,7 @@ jobs:
         with:
           python-version: '3.12'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        if: matrix.suite == 'node' || matrix.suite == 'core'
+        if: matrix.suite == 'node' || matrix.suite == 'core' || matrix.suite == 'docker'
         with:
           node-version: '22'
       - name: Provision JDK for native adapter verification

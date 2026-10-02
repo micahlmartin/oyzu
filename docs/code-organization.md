@@ -27,6 +27,10 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 
 Discovery source capture supports bounded binary evidence as well as strict UTF-8 metadata. Format-specific inspection stays with its detector; Helm archive inspection never extracts files, while private archive expansion belongs to the Helm execution adapter.
 
+The broker's `http` module owns authorized fetches, deadlines, retries and payload budgets. Its private `failure` type defines sanitized channel outcomes; `broker.rs` owns routes and the session/channel lifecycle. Adapters consume this shared transport without adding manager-specific retries or exposing upstream credentials. Native checksum validation remains adapter-owned. HTTP-date parsing is delegated to `httpdate` rather than another local parser.
+
+Helm's `quality` module owns implicit YAML formatter selection and development command adaptation. Its `runtime/quality.py` selects chart YAML and delegates formatting to native yamlfmt. Shared task hooks, build ordering and artifact gates retain their existing owners; Go-template formatting is not implied by YAML formatting support.
+
 Configuration's pure resolver consumes captured sources and registered types. `config/session` captures filesystem/context facts, `config/operations` exposes parser-independent inspection/edit operations over supplied selection, and `config/agent` owns signed policy cache transitions through its runtime boundary. `config/locations` owns native roots and administrative file protection, including its private Darwin ACL adapter. Builder registration owns ecosystem setting definitions and deprecated input aliases; shared configuration does not name ecosystem-specific environment variables. CLI flags remain in `config_args`. `discovery/inventory` owns explicit and conventional target-directory selection; both discovery and configuration inspection consume it through invocation composition.
 
 Tool installation, environment activation, caching, agent/connectors, publishing and desktop/platform surfaces need the same ownership discipline as they arrive. Their proposed boundaries are in the architecture and OEPs. Do not create placeholder crates or put their future behavior into a general-purpose service object now.
@@ -34,6 +38,12 @@ Tool installation, environment activation, caching, agent/connectors, publishing
 Configuration enforcement admits both captured builds and development task sequences before effects. Effective configuration validates the final task environment after task overrides and native adapter additions, so administrative environment restrictions cannot be bypassed by another input channel. Discovery derives single-target root operations from that target's final cascade, including replacements and removals. The policy agent alone reconciles administratively changed bootstrap records: online verification uses current pins while preserving sequence high-water state, and authorization rechecks time after transport and storage.
 
 Build planning owns action dependency edges: actions that mutate one target workspace remain sequenced, explicit target dependencies wait for the producer's final action, and materialization retains its producer edges. Unrelated targets do not acquire ordering edges merely because their records are adjacent. `build/scheduling` owns bounded ready-action admission and worker batches; `build/execution` owns private target workspaces/output roots and ordered collection. A deferred report failure also fails its collection boundary before dependent actions are admitted. Plans freeze the smallest root/target jobs ceiling, and execution never rereads settings.
+
+`build/directory` owns directory artifact inventories and integrity checks used by collection, bundle inspection and materialization. `snapshot` owns their shared bounded tree traversal/identity, with a read-only inventory operation that applies the same rules as copying. Artifact traversal never applies source exclusions. Native output selection remains a builder responsibility; directory content alone does not establish platform independence.
+
+`executor/worker` owns private BuildKit context assembly. It combines native-selected source files with complete materialized file/directory inputs, using snapshot traversal for directory copying and identity checks. Contained input path validation lives in `executor/files`; callers retain responsibility for allowed terminal kinds. Neither operation selects native outputs or reimplements artifact inventories.
+
+`builders/node/detection/outputs` observes native output profiles; `builders/node/application` owns Vite's literal output selection, configured-build wrapper and artifact declarations. `runtime/vite.mjs` calls the native builder API and records resolved/written output without evaluating configuration during discovery or acquisition. The application staging runtime copies the selected tree and rejects unsafe entry types. Shared collection owns the authoritative inventory and digest, and materialization owns consumer copies. Node quality owns browser defaults and native-output exclusions, using recorded output or explicit task-time native configuration resolution; these details do not enter shared orchestration.
 
 Existing broad public modules, dynamic records and partially combined responsibilities are migration work, not a pattern to copy blindly. Improve the relevant boundary with the feature being changed; preserve observable behavior and avoid unrelated repository-wide rewrites.
 
@@ -51,6 +61,14 @@ Existing broad public modules, dynamic records and partially combined responsibi
 | Reusable code across products | The existing library/module boundary | A second consumer or dependency/distribution constraint warrants a separate crate |
 
 Do not put code in a shared module merely because two functions look alike. For example, configuration precedence should have one authoritative implementation, while npm and Poetry retain their own lockfile semantics. Conversely, adding a new test framework should not create another hook scheduler or report collector. Reuse the existing owners of those behaviors.
+
+### Extracting shared behavior
+
+DRY applies to knowledge and rules, not just repeated syntax. Before extracting shared code, identify the invariant both callers need, the subsystem responsible for enforcing it, and the differences that must remain native. Put the operation with that owner and migrate affected callers together; leaving parallel implementations preserves the original maintenance problem.
+
+For example, two test frameworks may both emit JUnit. Their adapters own invocation and native report locations; the report subsystem owns common parsing and validation. Share the parser without making it select frameworks or launch tests. Conversely, similarly shaped npm and Poetry lock entries do not justify one universal lockfile interpreter.
+
+Give the shared operation the smallest typed input that expresses its job. A pure function often suffices; introduce a trait only when callers need interchangeable implementations. Keep configuration flags and callbacks out unless they represent a concrete supported variation. Verify the invariant at its owner and check affected integrations through their supported entry points, including relevant failures. Remove obsolete copies and documentation within the change.
 
 ### Dependency direction
 
@@ -98,6 +116,12 @@ Reusable operations take their necessary inputs explicitly. Avoid hidden depende
 
 Java managers share `builders/java/quality` for native lint/format defaults and its owned Java runtime adapter; native Maven/Gradle/Ant lifecycles remain in their manager modules. Task scheduling and artifact gates stay in the shared engine.
 
+The pnpm and Yarn managers own registry admission and routes. `managers/registry` assembles their shared immutable-archive snapshot records; `runtime/registry-archives.mjs` captures and verifies those archives through the broker. Native lock interpretation remains in each manager's runtime adapter. pnpm serves a local archive allowlist; Yarn materializes its native offline mirror. `manager-runtime.mjs` owns private native invocation and lifecycle cleanup, allowing asynchronous native operations while pnpm serves local archives. `integrity.mjs` owns the SHA-512 verification also used by npm. These shared contracts do not move native lock or installation rules into orchestration.
+
+Yarn's owned adapter also verifies native resolution against the parsed captured lock in a script-disabled private install before enabling lifecycle scripts. This admits native selective version overrides without adding a shared-engine override matcher or treating a suppressed lockfile write as evidence of unchanged dependency resolution.
+
+pnpm's `runtime/pnpm-patches.mjs` admits native patch configuration and contained source files; native pnpm owns patch selection, hash verification and application. `managers/pnpm/patches.rs` records the verified source-patch identities in the manager's dependency extension. Shared registry capture continues to inventory pristine archives and does not learn native patch semantics.
+
 Python distribution applications extend the native package plan through `builders/python/distribution_app`. The owned runtime assembles native wheel payloads and console metadata; `runtime/application.py` owns shared archive writing, archive-source testing and packaging checks for both requirements and distribution applications. Collection and task scheduling remain engine responsibilities.
 
 Docker image preparation owns native reference requirements and OCI conversion under `builders/docker/images` and its Go runtime. `executor/images` alone exports explicitly provisioned daemon images by immutable identity. The executor's typed `ImageInput` binds relative prepared stores and digests; the worker verifies private copies before mounting them as native OCI contexts. Project code never receives daemon access. Registry acquisition can feed this content contract later without moving Dockerfile parsing or source policy into the worker.
@@ -117,6 +141,8 @@ Treat exchanged arguments, environment and structured output as an internal cont
 Before extracting shared code, ask whether its callers have the same semantics and should change together. Shared capture/cleanup lifecycle belongs in acquisition infrastructure. npm, pnpm and Yarn lock interpretation belongs to their respective managers, even when portions look similar. Small local duplication is preferable to a shared function with a growing list of ecosystem flags.
 
 When behavior is genuinely shared, move it to a named owner with a narrow contract and migrate the relevant callers together. Do not create a second validator, resolver or configuration precedence implementation just to finish a feature. Keep authoritative rules in one place and test their consumers against that contract.
+
+Use the reason for change as the reuse test: would fixing this rule require the same correction in every caller? If yes, give it one owner. If two native tools merely happen to use similar code today, keep their differing semantics local. When a shared API accumulates ecosystem-specific flags, reconsider which responsibility is common before adding another flag. This decision belongs in ordinary code review; it needs no additional design form.
 
 ## A small change workflow
 
@@ -145,6 +171,10 @@ A review should be able to identify the rule's owner, the contract crossing each
 
 For a new subsystem, a short module-level responsibility/invariant comment, a narrow entry point and meaningful tests are enough to start. No per-function design documents, mandatory pattern catalog, line-count quotas or new architecture framework are required. Compiler visibility, review and focused conformance tests provide the first enforcement; add automated boundary checks when a recurring violation warrants them.
 
+Keep the contributor path equally small: repository-wide rules live in `AGENTS.md`, contribution steps in `CONTRIBUTING.md`, and ownership in this map. Add a nested `AGENTS.md` only when a subsystem has real additional constraints; reference shared rules instead of copying them. Put contract obligations beside the interface so implementation changes and their documentation are reviewed together.
+
+Tests should preserve those boundaries too. Consumer tests exercise supported entry points and observable guarantees; tests of private algorithms stay with the owning module. Do not make implementation details public solely for a test harness. For a detector, check evidence, ambiguity and selection outcomes through the relevant contracts, rather than asserting its private function sequence. Shared contract checks verify common promises across implementations; native adapter checks verify ecosystem-specific behavior. A private refactor that preserves the contract should not require unrelated consumers to rewrite their tests.
+
 Captured-build acceptance has a separate test-only composition boundary: `tooling/test-build-scenarios.py` registers/selects suites and retains invocation evidence; owned modules under `tooling/build_scenarios/` assert native results. `baselines.py` owns the original cross-ecosystem artifact/hook/isolation cases. `tooling/build-scenario-tools.sh` provisions acceptance tooling and runs native probes, while `check-build-suites.py` checks registration against CI. These files must not implement missing product behavior. See [builder acceptance checks](reference/build-verification.md).
 
 ## Lessons from other projects
@@ -153,6 +183,9 @@ These sources inform our engineering choices; their contribution policies are no
 
 - [rust-analyzer architecture](https://rust-analyzer.github.io/book/contributing/architecture.html) documents a code map, explicit API boundaries and architectural invariants. Oyzu adopts that clarity about ownership and permitted dependencies, without reproducing its crate count.
 - [uv's contribution guide](https://docs.astral.sh/uv/reference/contributing/#crate-structure) makes its crate dependency hierarchy inspectable. Oyzu likewise makes ownership and dependency direction visible in this map, starting with modules rather than adopting another project's crate layout.
+- [The Rust compiler's source guide](https://rustc-dev-guide.rust-lang.org/compiler-src.html) explains both the build-time benefits of crate boundaries and the cost of scattering related functionality. Oyzu should extract crates for a demonstrated boundary or dependency need while keeping related behavior discoverable together.
 - [Cargo's library architecture](https://doc.rust-lang.org/stable/nightly-rustc/src/cargo/lib.rs.html) separates command wrappers from reusable operations. Oyzu keeps presentation at its entry points so operations can serve CLI, CI and later agent/UI consumers.
+- [Cargo's testing guide](https://doc.crates.io/contrib/tests/writing.html) describes integration tests that create temporary projects and invoke the real executable. Oyzu uses that approach to verify observable CLI behavior while keeping private algorithm tests with their owner; a test harness must not implement behavior missing from the product.
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/future-proofing.html) and [rust-analyzer's style guide](https://rust-analyzer.github.io/book/contributing/style.html) inform narrow visibility, invariant-preserving types and deliberate API commitments. Traits serve actual boundaries rather than becoming a universal abstraction layer.
 - [Bazel rules](https://bazel.build/extending/rules) distinguish analysis, declared actions and execution. Oyzu applies that separation to builder intent and shared execution while keeping project configuration minimal.
+- [Pants rule concepts](https://www.pantsbuild.org/2.30/docs/writing-plugins/the-rules-api/concepts) use typed inputs/results and route effects through the engine. Oyzu takes the explicit-contract and controlled-effects principles; adopting them does not require Pants' rule engine, implicit dependency injection or a new configuration language.

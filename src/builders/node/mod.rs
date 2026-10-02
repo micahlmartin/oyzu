@@ -1,3 +1,4 @@
+mod application;
 mod detection;
 mod discovery;
 mod jest;
@@ -16,6 +17,34 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "node-vite.mjs",
+        contents: include_str!("runtime/vite.mjs"),
+    },
+    RuntimeFile {
+        name: "node-application.mjs",
+        contents: include_str!("runtime/application.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-patches.mjs",
+        contents: include_str!("runtime/pnpm-patches.mjs"),
+    },
+    RuntimeFile {
+        name: "registry-archives.mjs",
+        contents: include_str!("runtime/registry-archives.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-registry.mjs",
+        contents: include_str!("runtime/yarn-registry.mjs"),
+    },
+    RuntimeFile {
+        name: "integrity.mjs",
+        contents: include_str!("runtime/integrity.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-registry.mjs",
+        contents: include_str!("runtime/pnpm-registry.mjs"),
+    },
     RuntimeFile {
         name: "npm-workspace-test-scope.mjs",
         contents: include_str!("runtime/npm-workspace-test-scope.mjs"),

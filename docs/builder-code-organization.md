@@ -21,7 +21,8 @@ src/
       managers/mod.rs         # Crate-private native Manager interface and registration
       managers/{npm,pnpm,yarn}.rs # Native toolchain, preparation, script and packaging behavior
       managers/npm/preparation.rs # npm lock admission and scoped tarball snapshot records
-      managers/empty.rs       # Initial dependency-free manager admission and evidence
+      managers/registry.rs    # Shared immutable-archive snapshot evidence for pnpm/Yarn
+      managers/pnpm/patches.rs # Source-patch evidence after native frozen validation
       runtime/                # Native manager capture/replay, lifecycle and integrity validation
       reporting.rs            # Native test reporters and exact-command override adaptation
       jest.rs                 # Jest default invocation and exact script/override adaptation
@@ -86,6 +87,8 @@ src/
       planning.rs             # Snapshot OCI output and typed BuildKit action intent
       runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
+      quality.rs              # Implicit native YAML formatter tasks and host command adaptation
+      runtime/quality.py      # Bounded chart YAML selection and native read-only/mutating formatting
       archives.rs             # Bounded static archive-member observations; no extraction
       runtime/charts.py       # Private chart expansion and native assertion execution
       detection.rs            # Bounded root/unpacked-subchart suite evidence and validation fallback

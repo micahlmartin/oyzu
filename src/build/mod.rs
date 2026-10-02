@@ -1,6 +1,7 @@
 //! Captured-source build lifecycle (OEP-0006/0007/0012).
 mod bundle;
 mod collection;
+mod directory;
 mod execution;
 mod materialization;
 mod planning;

@@ -4,6 +4,7 @@ mod detection;
 mod metadata;
 mod planning;
 mod preparation;
+mod quality;
 #[cfg(test)]
 mod tests;
 
@@ -19,6 +20,10 @@ pub(super) struct Helm;
 
 pub(super) const IMAGE: &str = "oyzu-toolchain/helm:3.22.0";
 pub(super) const RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "helm-quality.py",
+        contents: include_str!("runtime/quality.py"),
+    },
     RuntimeFile {
         name: "helm-charts.py",
         contents: include_str!("runtime/charts.py"),
@@ -70,7 +75,7 @@ impl Builder for Helm {
                 }));
             }
         }
-        Ok(None)
+        Ok(quality::development(task))
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
@@ -122,6 +127,7 @@ impl Builder for Helm {
             );
         }
 
+        quality::discover(target)?;
         Ok(())
     }
 }

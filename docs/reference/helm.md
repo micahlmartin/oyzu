@@ -12,6 +12,8 @@ Development commands use an already provisioned Helm executable. Native assertio
 oyzu run list
 oyzu run test
 oyzu run lint
+oyzu run format-check
+oyzu run format
 oyzu build --plan
 oyzu build
 oyzu inspect dist
@@ -25,7 +27,17 @@ Captured builds require Docker and an explicitly provisioned toolchain image:
 docker build -f tooling/images/helm.Dockerfile -t oyzu-toolchain/helm:3.22.0 .
 ```
 
-This repository provisioning step downloads checksum-pinned Helm and unittest distributions. The CLI does not download toolchain images or plugins during a build. The current image is Linux amd64 and includes Python 3.12 for the owned reporting/archive adapters. Its plugin directory is `/opt/oyzu-helm-plugins`; the build plan fixes `HELM_PLUGINS` to that toolchain-owned location so a task environment override cannot redirect it to project code. Custom images must provide the compatible executables and directory layout. Image identity is captured in build evidence.
+This repository provisioning step downloads checksum-pinned Helm, unittest and yamlfmt distributions. The CLI does not download toolchain images or plugins during a build. The current image is Linux amd64 and includes Python 3.12 for the owned reporting/archive/formatting adapters and yamlfmt 0.21.0. Its plugin directory is `/opt/oyzu-helm-plugins`; the build plan fixes `HELM_PLUGINS` to that toolchain-owned location so a task environment override cannot redirect it to project code. Custom images must provide the compatible executables and directory layout. Image identity is captured in build evidence.
+
+## YAML formatting
+
+Discovery supplies a read-only `format-check` build stage and an explicit, source-mutating `format` development task. Both use native yamlfmt through an owned Python adapter. Development execution requires Python 3.11+ as `python` and yamlfmt on PATH; verification uses yamlfmt 0.21.0. Missing tools fail with process diagnostics. The repository's `python tooling/provision-yamlfmt.py --destination <directory>` is an explicit maintainer/CI provisioning step that verifies pinned release digests and retains the upstream license. It is not invoked by the CLI. Put that directory on PATH before running development formatting.
+
+The adapter selects `.yaml`/`.yml` files immediately inside chart roots identified by `Chart.yaml`, plus YAML below their `tests/` and `crds/` directories. It includes unpacked subcharts and contained sibling charts within the target root. Go templates under `templates/`, native `__snapshot__` baselines, packaged chart archives, `Chart.lock`, generated output and hidden directories are excluded. Formatting does not edit or repack dependency archives. Template formatting remains unfinished; a passing YAML check makes no claim about Go-template style.
+
+An explicit private yamlfmt configuration fixes LF line endings and a final newline while retaining native basic-formatter defaults. Parent/home formatter configuration is ignored. Target-local `.yamlfmt`, `.yamlfmt.yaml`, `.yamlfmt.yml`, `yamlfmt.yaml` or `yamlfmt.yml` currently fails the implicit operation with guidance to override the affected tasks; native custom formatter configuration support remains unfinished. Use existing TOML task overrides when customization is necessary, without adding a build-file formatting DSL.
+
+`format-check` lists differing paths and exits unsuccessfully without changing files. Invalid YAML also fails with the native diagnostic. Run `oyzu run format`, review the changes and retry the check/build. Explicit formatting writes changed files as it proceeds; if a later file fails, earlier formatting edits remain. Neither command downloads dependencies or contacts a cluster. Selection rejects links/reparse points and nonregular YAML inputs, with limits of 100000 traversed entries, 4 MiB per selected file and 64 MiB total. Native formatter invocations each have a 30-second timeout. Host tasks are not a security sandbox; captured builds use the executor's isolation.
 
 ## Inference and native assertions
 
@@ -56,11 +68,13 @@ Archive inspection is static and never extracts into the checkout. Archive input
 
 No test section is added to `build.yaml`. `oyzu run test` displays the logical `helm unittest --strict <chart>` task; its adapter expands packaged subcharts in a private copy before invoking the native plugin. Captured builds run both the independent render/schema validation and native unittest, requesting the plugin's JUnit output. Native subchart behavior remains enabled when the plugin is selected. Test suites remain source inputs; use native `.helmignore` with `tests/` if they should be excluded from the published chart archive. Oyzu does not silently rewrite the chart's packaging rules.
 
+Helm can interpret non-chart files beneath `charts/` as dependencies. Keep checksum metadata outside that directory or exclude sidecars using native `.helmignore`, such as `charts/*.tgz.sha256`. The packaged-only example retains its fixture checksum in source and excludes it from native chart loading/packaging. Its host probe now exercises the exact checked-in chart through lint, rendering, assertions and private dependency preparation, including the sidecar.
+
 ## Build outputs and failure handling
 
 Preparation expands contained prepackaged subcharts in its private workspace and captures the chart's contained local `file://` dependency closure, rejects cycles/escapes and runs native dependency preparation offline. Existing locks are honored; stale locks fail. Generated lock timestamps and chart archive metadata are normalized. Expansion never overwrites an existing chart directory; ambiguous packed/unpacked copies fail. Prepared layout version 2 records this behavior; regenerate older prepared dependencies. Each source archive remains unchanged in the checkout. The root chart version gains the source-derived `-dev.g...` snapshot suffix; native `appVersion` and dependency versions retain their own meanings.
 
-The build packages the chart, runs testing and strict lint, then collects successful outputs. Applications produce a snapshot `.tgz` and `rendered.yaml`; libraries produce the snapshot `.tgz` only. A failing check prevents final artifact collection. Build-time rendering, generated files and snapshot projection take place in private captured workspaces, leaving the checkout unchanged. Helm formatting is not currently implemented; there is no fabricated successful format task.
+The build packages the chart, runs testing, strict lint and read-only YAML formatting, then collects successful outputs. Applications produce a snapshot `.tgz` and `rendered.yaml`; libraries produce the snapshot `.tgz` only. A failing check prevents final artifact collection. Build-time rendering, generated files and snapshot projection take place in private captured workspaces, leaving the checkout unchanged. Formatting checks the captured source YAML, not the regenerated dependency chart or its projected version. This adds a default gate: previously accepted charts with formatting differences now need explicit formatting or a task override.
 
 Shared bundle collection retains reports beneath `dist/`, and `dist/manifest.json` records their paths, content digests and parsed summaries:
 
@@ -87,8 +101,11 @@ The baseline inventory rejects symbolic links, unreadable traversal and nonregul
 ```text
 python tooling/test-helm-reporting.py --helm <provisioned-helm> --cli <compiled-oyzu>
 python tooling/test-helm-archive.py
+python tooling/test-helm-quality.py --cli <compiled-oyzu> --yamlfmt <provisioned-yamlfmt>
 ```
 
 The native reporting probe exercises static CLI listing with an empty PATH, successful and failed native assertions (including subchart-only suites), malformed suites, independent render/schema results, library validation, missing-tool stale-output rejection, missing snapshot creation, matching reviewed baselines and native snapshot mismatches. Packaged-only native probes passed real assertions and failures, unchanged source archives, declared local archive dependencies, empty-suite rejection and read-only baseline handling on Windows. Static archive tests cover nested evidence and rejected unsafe/oversized inputs; these new captured scenarios await Linux CI. Rust tests cover discovery, dependency containment, planning, required report declarations and fixed plugin location. CI captured-build cases additionally require snapshot chart/rendered artifacts, manifest evidence, unchanged source and artifact rejection after assertion or baseline-integrity failure; root-suite/baseline cases passed run 36967080170 at `51464a9`; the newer subchart-only assertions still require CI confirmation. See [implementation status](../implementation-status.md) for revision-specific results.
 
-Automatic discovery of custom suite globs, templated test charts and suites in unprepared sibling `file://` dependencies remains unfinished. Static discovery follows unpacked chart directories and inspects local chart archives already present under the selected chart; it does not extract archives or acquire dependencies. Other plugins, remote/OCI chart dependency acquisition, image-artifact bindings, Helm formatting, publishing/signing and broader platform execution remain required work. These limitations do not change the full builder/scenario objective.
+The compiled-CLI quality probe checks implicit task metadata, native read-only checks, explicit formatting, unchanged templates/baselines, invalid YAML, ambient configuration isolation, custom-config rejection and task overrides against authored charts. It is wired into the three-host task jobs. The captured Helm suite additionally requires a successful format action and proves unformatted values block artifact collection without changing source; this new gate awaits Linux CI evidence. The earlier chart/assertion scenarios, including packaged subcharts, passed Linux job 110767008279 in [run 36983990838](https://github.com/micahlmartin/oyzu/actions/runs/36983990838), resolving the earlier pending subchart acceptance above.
+
+Automatic discovery of custom suite globs, templated test charts and suites in unprepared sibling `file://` dependencies remains unfinished. Static discovery follows unpacked chart directories and inspects local chart archives already present under the selected chart; it does not extract archives or acquire dependencies. Other plugins, remote/OCI chart dependency acquisition, image-artifact bindings, Go-template formatting, native formatter customization, publishing/signing and broader platform execution remain required work. These limitations do not change the full builder/scenario objective.

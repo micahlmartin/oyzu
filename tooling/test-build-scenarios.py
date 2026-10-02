@@ -14,7 +14,7 @@ import tempfile
 import time
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, python_testing, rust, vitest
+from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_application, node_managers, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, python_testing, rust, vitest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,7 +41,25 @@ def validate(bundle):
         records[name] = value
     for artifact in records["manifest"]["artifacts"] + records["manifest"]["reports"]:
         if "path" in artifact:
-            assert digest(bundle / artifact["path"]) == artifact["digest"]
+            path = bundle / artifact['path']
+            if artifact.get('kind') == 'directory':
+                entries = artifact['entries']
+                assert [e['path'] for e in entries] == sorted(p.relative_to(path).as_posix() for p in path.rglob('*'))
+                for entry in entries:
+                    member = path/entry['path']
+                    assert not member.is_symlink()
+                    if entry['kind'] == 'file':
+                        assert member.is_file() and digest(member) == entry['digest']
+                        assert member.stat().st_size == entry['size']
+                    else:
+                        assert member.is_dir() and entry['size'] == 0
+                # Entry keys are ASCII and numbers are bounded integers; this
+                # encoding matches JCS for this deliberately narrow record.
+                encoded = json.dumps(entries, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
+                assert 'sha256:'+hashlib.sha256(b'oyzu.tree.v1alpha1\0'+encoded).hexdigest() == artifact['digest']
+                assert sum(e['size'] for e in entries) == artifact['size']
+            else:
+                assert digest(path) == artifact["digest"]
     return records["manifest"]
 SUITES = ('core', 'node', 'python', 'go', 'rust', 'java', 'helm', 'docker')
 # Registration retains the existing full-run order. A suite is only a selection
@@ -59,6 +77,7 @@ CASES = (
     ('go', 'go', go.verify),
     ('core', 'materialization', materialization.verify),
     ('docker', 'docker', docker.verify),
+    ('docker', 'node-application', node_application.verify),
     ('java', 'maven', maven.verify),
     ('java', 'gradle', gradle.verify),
     ('java', 'ant', ant.verify),
