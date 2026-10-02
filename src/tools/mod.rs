@@ -18,6 +18,7 @@ pub use worker::{
     native_tool_worker_channel, split_tool_worker_channel, NativeToolWorkerEndpoint,
     NativeToolWorkerReader, NativeToolWorkerWriter, ToolWorkerChannel, ToolWorkerExchange,
     ToolWorkerOperation, ToolWorkerOutcome, ToolWorkerReceiver, ToolWorkerSender,
+    ToolWorkerSession,
 };
 mod store;
 pub use store::InstallationLease;

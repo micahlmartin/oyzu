@@ -1037,6 +1037,37 @@ The [outer-envelope schema](../contracts/tools-v1/worker-envelope.schema.json)
 and shared fixtures cover request/response shapes. Sorting, response correlation
 and lifecycle rules are runtime checks. Cancel encoding, code-only diagnostics
 and cancellation-race handling are initial draft wire choices requiring contract
-review. Operation-specific request/result records and worker-side cancel handling
+review. Operation-specific request/result records and backend cancellation
 remain outstanding; this is not the complete typed worker schema or a deployed
 worker protocol.
+
+### Worker-side operation session
+
+`ToolWorkerSession::new(request_bytes)` applies the same bounded outer-request
+validation as the supervisor exchange before a future dispatcher initializes a
+backend. `operation()` and `untrusted_payload()` expose only the validated
+operation name and untrusted payload. One session represents one operation; it
+does not authorize serving multiple workspaces in a persistent worker process.
+
+`accept_cancel(bytes)` accepts exactly the correlated cancel envelope once.
+Unknown fields, duplicate JSON keys, another initial request, foreign identities,
+malformed JSON and repeated cancellation permanently end the session. A valid
+cancel prevents later success output. The dispatcher must still interrupt or
+stop backend work; accepting the envelope alone has no process effect.
+
+`finish(ToolWorkerOutcome)` encodes one correlated terminal response and reuses
+the supervisor's validation, including frame limits, object results, code-only
+diagnostics and cancellation-race rejection. Invalid output consumes the attempt;
+it cannot be replaced with a second response. `abort()` ends the session after
+transport loss or dispatcher failure. A send failure requires teardown, with no
+retry or new context in the same worker. Result contents remain untrusted and
+require independent supervisor validation before any publication or execution.
+
+Focused tests cover all three terminal outcomes, invalid/oversized output,
+malformed/foreign/duplicate cancel, repeated response and success-after-cancel.
+A native private-channel test sends a request and cancel, receives the correlated
+cancellation diagnostic and observes peer closure. The 15-second test watchdog
+does not implement production deadlines. Run `cargo test --locked tools::worker`;
+no mise dependency, network or backend execution is required. Worker process
+creation, image/channel authentication, inherited handles, actual dispatch,
+OS deadlines, backend cancellation and typed operation payloads remain absent.

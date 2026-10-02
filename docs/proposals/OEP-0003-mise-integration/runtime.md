@@ -95,7 +95,7 @@ budget and uses the shared strict JSON parser's additional 10,000-entry ceiling.
 These conservative draft limits require protocol review with typed payloads.
 The codec alone admits JSON objects; the separate exchange validates closed outer
 envelopes and supervisor-side response correlation. Operation-specific admission,
-process channel inheritance, worker lifecycle and deadline enforcement remain separate work.
+process channel inheritance, backend dispatch and deadline enforcement remain separate work.
 The framing API also supports separately owned read/write halves with shared
 atomic accounting and terminal state; a pending response read must not prevent
 the supervisor sending cancel. OS transport shutdown is still required to
@@ -127,8 +127,10 @@ Terminal diagnostics contain only a bounded uppercase `code`, with no arbitrary
 message text. Once the supervisor requests cancellation, a racing success is
 discarded; no result from that operation may be published. The exchange consumes
 one terminal response attempt even when validation fails. These details require
-contract review; operation-specific payload schemas and worker-side handling are
-still outstanding.
+contract review. The worker-side session now reuses envelope validation, accepts
+one correlated cancel and encodes at most one terminal response, rejecting success
+after cancellation. Actual backend interruption, process lifecycle and
+operation-specific payload schemas remain outstanding.
 
 ## Commands and mutation rules
 

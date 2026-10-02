@@ -113,6 +113,32 @@ impl ToolWorkerExchange {
         self.terminal = true;
     }
 
+    /// Worker-side encoding reuses exactly the supervisor's result validation
+    /// and terminal transition. Invalid output consumes the response attempt.
+    pub(super) fn encode_terminal(&mut self, outcome: ToolWorkerOutcome) -> Result<Vec<u8>> {
+        let mut value = serde_json::json!({
+            "protocol": PROTOCOL, "request_id": self.request.request_id,
+            "context_digest": self.request.context_digest
+        });
+        match outcome {
+            ToolWorkerOutcome::UntrustedResult(result) => {
+                value["status"] = Value::from("ok");
+                value["result"] = result;
+            }
+            ToolWorkerOutcome::Error { code } => {
+                value["status"] = Value::from("error");
+                value["diagnostic"] = serde_json::json!({"code":code});
+            }
+            ToolWorkerOutcome::Cancelled { code } => {
+                value["status"] = Value::from("cancelled");
+                value["diagnostic"] = serde_json::json!({"code":code});
+            }
+        }
+        let bytes = serde_json::to_vec(&value)?;
+        self.finish(&bytes)?;
+        Ok(bytes)
+    }
+
     /// Accept one terminal response with exact request/context correlation.
     /// A successful response racing cancellation is discarded as an error, never
     /// returned for publication. A fresh operation is required after any failure.

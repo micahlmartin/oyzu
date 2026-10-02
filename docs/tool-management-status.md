@@ -1593,3 +1593,27 @@ fixture. Admission remains synthetic. This does not establish publisher-signatur
 verification, license/distribution approval, Java backend admission, native
 Linux/macOS JDK execution, OS process containment or product builder integration.
 Production mise import and the remaining OEP-0003 requirements are still open.
+
+## Checkpoint 118: worker-side single-operation session
+
+The worker-side session now shares the supervisor's bounded outer-request and
+terminal-response validation. It accepts one exactly correlated cancel envelope;
+malformed, foreign or duplicate cancellation permanently ends the session.
+It encodes at most one terminal outcome, rejects success after cancellation and
+consumes an invalid output attempt rather than permitting a replacement result.
+Results remain untrusted. A transport send failure requires teardown, not retry.
+The new session module owns sequencing, not backend effects or process lifetime.
+
+Windows passed 16 focused worker tests, the full locked suite, strict all-target
+Clippy, formatting and all nine CLI scenarios. Linux passed 17 focused tests and
+strict all-target Clippy with networking disabled. The new tests cover invalid
+and oversized output, repeated terminal attempts, malformed/foreign/duplicate
+cancel, abort and cancellation races. A real native channel carries the initial
+request, cancel and terminal diagnostic, then observes peer closure. Documentation
+and diff checks passed; native macOS verification of this increment is pending.
+
+Reference, code-map and OEP runtime/implementation pages now describe both sides
+of the control sequence. This is not a running mise worker: same-binary process
+creation, image/channel authentication, restricted inherited handles, OS deadlines,
+backend interruption, typed payload admission and actual dispatch remain absent.
+The native test uses threads and its watchdog only bounds the test itself.
