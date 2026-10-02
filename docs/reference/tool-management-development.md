@@ -626,3 +626,11 @@ Managed configuration is explicitly rejected by this standalone proof. Child
 stdio currently carries internal metadata; authenticated worker IPC, full process
 tree cleanup and further hardening are deferred. Transitive notices/SBOM and
 distribution approval remain separate from the authorized development import.
+
+Native checkpoint: at `1c2bd16`, CI run `37056475928` passed Windows PowerShell
+profile installation/removal and explicit-path exec on both Windows and macOS.
+Its Linux job passed Go installation, compilation, cached restore and shell
+execution. Windows Go and macOS profile failures were corrected subsequently;
+the corrected native results remain pending. See the consolidated
+[review checkpoint](../implementation-status.md#oep-0003-review-checkpoint-2026-10-02)
+for the remaining functional scope and evidence boundaries.

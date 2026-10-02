@@ -84,6 +84,41 @@ The Windows Go CI failure was traced to a 799:1 compiler fixture in the official
 ZIP; the product now uses the previously qualified Go 800:1 expansion allowance.
 Native verification of that correction remains pending.
 
+## OEP-0003 review checkpoint (2026-10-02)
+
+Implementation through `e0406c5` is available in [draft PR #4](https://github.com/micahlmartin/oyzu/pull/4).
+The maintained library fork is [oyzuai/mise PR #2](https://github.com/oyzuai/mise/pull/2),
+pinned at `9290bcac695c8ff8a56760ccebd785d5062b459c`. This is a functional
+checkpoint, not completion of OEP-0003 or distribution approval.
+
+| Area | Working implementation and evidence | Remaining functional acceptance |
+| --- | --- | --- |
+| Configuration and resolution | Oyzu TOML, format-2 locks, Node/Go mixed roots, explicit selective updates and canonical registry names; real Linux execution and unchanged-lock checks | Native manifest constraints, scoped/profile/multi-platform lock creation and updates, explicit migration |
+| Installation and transport | Real Node/Go archives, shared store, frozen reuse and cached restore; authenticated Node proxy flow | Java, PBS Python, jq, npm tool closures; corporate Go and additional backend proxy acceptance |
+| Commands and shells | Exec, which, environment rendering, native shims, Bash/Zsh/PowerShell activation and explicit profile editing | Remaining shell lifecycle, command coverage, interactive process/signal behavior and pruning |
+| Managed operation and builds | Contracts and component foundations only; standalone managed mode is rejected | Real managed selection/grants, public conformance and service interoperability, builder requirements/materialization/identity handoff |
+| Release and upstream maintenance | Public fork pin, retained MIT notice and documented maintenance procedure | Shipped dependency notices/SBOM and distribution review, actual upgrade/rollback rehearsal and complete native functional matrix |
+
+Authoritative native evidence from [run 37056475928](https://github.com/micahlmartin/oyzu/actions/runs/37056475928)
+at `1c2bd16`: Linux completed the entire then-current workflow, including Go
+compilation, cached restore and shell execution. Windows PowerShell profile
+installation/removal and explicit-path exec passed; macOS explicit-path exec
+passed. Windows Go installation failed on the expansion allowance and macOS
+profile installation failed on a symlinked project path. Fixes are committed in
+`e0406c5` and `785499e` respectively. Those corrected native flows, mixed-tool
+acceptance and canonical-name acceptance are not yet verified by completed CI.
+The latest [run 37060499018](https://github.com/micahlmartin/oyzu/actions/runs/37060499018)
+was in progress when this checkpoint was written.
+
+Local Linux mixed-tool and alias flows passed as detailed above. Default Windows
+locked tests, strict Clippy, formatting and nine real task scenarios passed;
+feature-enabled Linux build/Clippy/formatting passed. The
+[development reference](reference/tool-management-development.md) owns commands,
+prerequisites, recovery and limitations. The [checkpoint journal](tool-management-status.md)
+retains detailed evidence. Hardening, including additional fault-injection,
+worker isolation and robustness work, is reserved for future goals and is not
+represented as completed or used to block remaining functional implementation.
+
 ## Builder objective
 
 The active objective is the complete builder system, all applicable sample scenarios passing through real Oyzu behavior, snapshot artifacts, and CI that builds the CLI before running scenario verification. Tool installation is excluded. The checkpoints below do not redefine completion around a subset.
