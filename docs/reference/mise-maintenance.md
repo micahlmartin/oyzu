@@ -654,3 +654,27 @@ Each host ran the library checks and captured Go/Java replay, including Java
 selection/intersection and invalid-input cases. This verifies the experimental
 library boundary on those hosts, not production worker dispatch or the remaining
 native range-language and admission obligations above.
+
+### Retaining Python catalog inputs
+
+The experimental capture helper requires Python 3.11+ and public HTTPS access:
+
+```sh
+python tooling/mise-upstream/capture_python_metadata.py --output /outside/repository/python-metadata.json
+```
+
+It retrieves precompiled catalogs for Linux amd64 GNU, macOS arm64 and Windows
+amd64 MSVC. It preserves original gzip response bytes as base64, with target,
+URL, compressed/decoded sizes and SHA-256 identities. Each compressed input and
+decoded catalog is capped at 16 MiB; invalid UTF-8, gzip corruption/truncation and
+empty catalogs fail. The output is created exclusively after all three captures
+succeed; existing files and repository-local destinations are rejected. Transport
+errors require a later retry; offline capture is unavailable. No tool archives
+are downloaded or executed, and no credentials or account are required.
+
+These are independently captured inputs for future backend replay, not evidence
+that Python resolution, artifact verification or installation works. Python's
+standard-library gzip decoder is independent of the fork's Rust decoder; passing
+capture tests does not establish identical handling of every gzip edge case.
+The helper does not establish publisher authenticity or legal approval. Original
+metadata stays outside Git; retain it separately for reproducible replay.

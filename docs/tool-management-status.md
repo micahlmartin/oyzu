@@ -2032,3 +2032,15 @@ This is a frozen-identity safeguard for TM-03/TM-06, not a complete Python adapt
 or worker implementation. Direct locked-URL acquisition, provenance and admission
 remain separate requirements. No root Rust implementation changed. Documentation
 and diff checks pass; OEP-0003 remains in progress.
+
+## Checkpoint 140: retained Python catalog inputs
+
+Added an independent Python capture helper that preserves exact compressed catalog
+bytes and compressed/decoded hashes for the initial three targets. Four regressions
+cover byte retention, both size limits, gzip damage/truncation, UTF-8, empty inputs
+and transport failure. A live capture on 2026-10-02 produced a 37,004-byte external
+fixture with SHA-256 529c646efb5101876adea94a7dc5cfb858a57c7fcbef109923a0224fbd6045ba.
+Decoded sizes were 195,798 / 181,436 / 158,412 bytes for Linux/macOS/Windows.
+The operational reference documents usage and limitations. This retains inputs;
+it does not claim Rust backend replay, Python resolution or installation success.
+OEP-0003 remains incomplete.
