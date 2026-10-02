@@ -1992,3 +1992,17 @@ qualification at that revision. They do not cover subsequent schema commits,
 the pending fork Python metadata change, production mise import, native tool-worker
 supervision or the full OEP-0003 tool-management lifecycle. No product behavior
 changed in this evidence update. Documentation and diff checks pass.
+
+## Checkpoint 137: bounded fork Python precompiled metadata
+
+Fork commit 23598b3db1df9f3f1f8e11c35a69a9bff1c5d7a2 reuses bounded HTTP
+collection and caps gzip expansion on both Python precompiled catalog paths.
+The qualification companion records exact limits, passing local regression,
+Clippy/format/harness evidence, current catalog size observations and remaining
+Python admission work. Native embedding run 37016853259 is active on all three
+hosts. Compliance inventory checks and 24 guard tests (two Windows symlink skips)
+pass; current-head human review remains required by the separate CI gate.
+
+This is input-boundary work for TM-05/TM-06, not production Python tool selection,
+installation or completion of OEP-0003. No root Rust dependency or behavior changed.
+Documentation and diff checks pass.

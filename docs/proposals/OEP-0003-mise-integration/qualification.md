@@ -343,3 +343,26 @@ qualification rather than inheriting the Node result:
 | Aqua registry | Registry is baked into the pinned source from `aquaproj/aqua-registry` commit `de88b84179743a8f44ad9f279a9dc4522e25f371`; locked asset names are checked against that registry | Real jq acquisition and frozen execution pass; other verification modes remain open |
 | Script/plugin backend | `asdf-community/asdf-golang` at `a75b761963d8e6eda1a185c73476da8a75b8d300` invokes curl against a hard-coded HTTPS archive/checksum URL; mise's asdf backend explicitly delegates downloads to scripts | Pin plugin code separately; test native-client containment and binding to the Oyzu distribution digest |
 | Native package-manager backend | Explicit native npm mode uses Node/npm from the locked dependency toolset; checksum is a backend option, not a locked URL | Prettier install, execution and bad-digest rejection pass; arbitrary package graphs and lifecycle downloads remain unqualified |
+
+### Python precompiled catalog input bounds
+
+Fork revision `23598b3db1df9f3f1f8e11c35a69a9bff1c5d7a2` bounds both existing
+precompiled-catalog fetch paths to 16 MiB of HTTP response data and 16 MiB of
+application-level gzip output, with one decoded overflow-probe byte. Oversized,
+invalid UTF-8, truncated and checksum-corrupt catalogs fail before selection.
+The upstream platform/flavor/version ordering is unchanged. This is not a bound
+on total process memory or an artifact extraction limit.
+
+Linux passed the decoder regression, scoped strict library/example Clippy,
+formatting and 22 existing embedding scenarios. Three-platform validation is
+[run 37016853259](https://github.com/oyzuai/mise/actions/runs/37016853259), pending
+at this observation. Read-only upstream catalog observations on 2026-10-02 measured
+195,798 decoded bytes for Linux amd64 GNU, 181,436 for macOS arm64 and 158,412 for
+Windows amd64 MSVC. They establish compatibility with this cap at that time;
+they are not retained provenance or a replay through the Python backend.
+
+Python embedding selection, explicit snapshot provenance, broker integration,
+attestation validation and full archive/runtime qualification remain outstanding.
+The root CLI still imports no mise dependency. The fork inventory is consistent,
+but its separate sensitive-change review gate requires current-head approval
+from @micahlmartin; owner assignment and passing tests do not supply that approval.
