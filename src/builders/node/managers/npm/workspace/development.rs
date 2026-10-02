@@ -27,6 +27,7 @@ enum Operation {
         excludes: Vec<String>,
     },
     Quality {
+        checker: String,
         framework: String,
         excludes: Vec<String>,
     },

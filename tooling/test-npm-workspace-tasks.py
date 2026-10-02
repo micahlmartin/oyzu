@@ -28,7 +28,7 @@ def main():
 
         def run(*args, success=True, env=None):
             environment = {**os.environ, 'OYZU_NODE_QUALITY_HOME':str(ROOT/'tooling/images/node-quality'), **(env or {})}
-            result = subprocess.run([str(cli), '-C', str(project), *args], capture_output=True, text=True, timeout=120, env=environment)
+            result = subprocess.run([str(cli), '-C', str(project), *args], capture_output=True, text=True, encoding='utf-8', timeout=120, env=environment)
             assert (result.returncode == 0) == success, result.stdout + result.stderr
             return result
 
@@ -138,6 +138,17 @@ def main():
         tasks = json.loads(run('run','list','--json').stdout)
         assert 'project:format:check' in tasks and 'project:format-check' not in tasks
         run('run','format:check')
+        # A member can select Biome while its root uses defaults and siblings own scripts.
+        package.pop('scripts')
+        manifest.write_text(json.dumps(package))
+        (project/'packages/app/biome.jsonc').write_text('// Native member config\n'+json.dumps({'linter':{'rules':{'recommended':False,'suspicious':{'noDebugger':'error'}}}}))
+        run('run','format')
+        run('run','lint')
+        run('run','format-check')
+        invalid.write_text('debugger;\n',newline='\n')
+        result = run('run','lint',success=False)
+        assert 'noDebugger' in result.stdout + result.stderr
+        invalid.unlink()
     print('Compiled CLI npm workspace tasks: dependency order, native lifecycle, exact arguments, failures, root ownership, overrides, nonexecuting discovery, mixed quality, nested scopes, format aliases and explicit formatting passed')
 
 

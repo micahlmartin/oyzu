@@ -1,28 +1,33 @@
 // Native quality APIs; usable as a runtime file or embedded development command.
 import {existsSync, lstatSync, readFileSync, readdirSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
-import {isAbsolute, join, relative, resolve, sep} from 'node:path';
+import {spawnSync} from 'node:child_process';
+import {dirname, isAbsolute, join, relative, resolve, sep} from 'node:path';
 
 const root = process.cwd();
-const mode = process.argv.at(-1);
+const args = process.argv.slice(process.execArgv.includes('-e') ? 1 : 2);
+if (args.length !== 1) throw new Error('Implicit quality checks do not accept extra arguments; define a native script or an argv task');
+const biome = args[0].startsWith('biome-');
+const mode = args[0].replace(/^biome-/, '');
 if (!['lint', 'format-check', 'format'].includes(mode)) throw new Error('Expected Node quality operation');
 const project = createRequire(join(root, 'package.json'));
 const fallback = process.env.OYZU_NODE_QUALITY_HOME
   ? createRequire(join(resolve(process.env.OYZU_NODE_QUALITY_HOME), 'package.json')) : null;
 const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-function library(name) {
+function locate(name, request = name) {
   let resolved;
-  try { resolved = project.resolve(name); }
+  try { resolved = project.resolve(request); }
   catch (error) {
     if (error.code !== 'MODULE_NOT_FOUND') throw error;
     if (['dependencies','devDependencies','optionalDependencies'].some(k => Object.hasOwn(pkg[k] ?? {}, name))) {
       throw new Error(`Declared ${name} is not installed; prepare the project's native dependencies first`);
     }
     if (!fallback) throw new Error(`No provisioned ${name}; supply project dependencies or OYZU_NODE_QUALITY_HOME`);
-    resolved = fallback.resolve(name);
+    resolved = fallback.resolve(request);
   }
-  return project(resolved);
+  return resolved;
 }
+const library = name => project(locate(name));
 const excluded = new Set(['node_modules','.git','.oyzu','.oyzu-build','dist','build','coverage']);
 const scopes = JSON.parse(process.env.OYZU_NODE_QUALITY_EXCLUDE ?? '[]');
 if (!Array.isArray(scopes) || scopes.length > 1024 || scopes.some(p => typeof p !== 'string' || !p || isAbsolute(p) || /[\\:]/.test(p) || p.split('/').some(c => !c || c === '.' || c === '..'))) {
@@ -41,7 +46,30 @@ function walk(directory) {
   }
 }
 walk(root);
-if (mode === 'lint') {
+if (biome) {
+  const metadata = locate('@biomejs/biome', '@biomejs/biome/package.json');
+  const pkg = JSON.parse(readFileSync(metadata, 'utf8'));
+  if (!pkg.version?.startsWith('2.')) throw new Error(`Biome ${pkg.version}: this adapter requires Biome 2`);
+  if (typeof pkg.bin?.biome !== 'string') throw new Error('Missing native Biome entrypoint');
+  const command = resolve(dirname(metadata), pkg.bin.biome);
+  const flags = [mode === 'lint' ? 'lint' : 'format', '--files-ignore-unknown=true', '--no-errors-on-unmatched', '--colors=off'];
+  if (mode === 'format') flags.push('--write');
+  const invoke = batch => {
+    const result = spawnSync(process.execPath, [command, ...flags, ...batch], {stdio:'inherit'});
+    if (result.error) throw result.error;
+    if (result.status !== 0) process.exitCode = result.status ?? 1;
+  };
+  // Bound host command lines while retaining native configuration and ignores.
+  let batch = [], size = 0;
+  for (const file of files) {
+    const length = file.length * 2 + 4;
+    if (length > 16_000) throw new Error('Biome source path exceeds host argument limit');
+    if (size + length > 16_000) { invoke(batch); batch = []; size = 0; }
+    batch.push(file); size += length;
+  }
+  if (batch.length) invoke(batch);
+  console.log(`Biome ${pkg.version}: ${mode} (${files.length} source candidates)`);
+} else if (mode === 'lint') {
   const eslint = library('eslint');
   const legacy = ['.eslintrc','.eslintrc.json','.eslintrc.js','.eslintrc.cjs','.eslintrc.yml','.eslintrc.yaml'].some(n => existsSync(join(root,n))) || pkg.eslintConfig != null;
   const major = Number(eslint.ESLint.version.split('.')[0]);

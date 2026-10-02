@@ -14,7 +14,7 @@ export async function members(workspace, packageJson) {
       typeof packageJson.name !== 'string' || !nativeRequire('validate-npm-package-name')(packageJson.name).validForNewPackages)) {
     throw new Error('Publishable npm workspace root requires a valid native name/version');
   }
-  const root = realpathSync(workspace);
+  const root = realpathSync.native(workspace);
   const mapping = await nativeRequire('@npmcli/map-workspaces')({cwd: root, pkg: packageJson});
   if (mapping.size > 1024) throw new Error('npm workspace count exceeds limit');
   const result = [];
@@ -48,12 +48,12 @@ export async function members(workspace, packageJson) {
 
 export async function graph(workspace, members) {
   if (!members.length) return null;
-  // macOS /var -> /private/var (and other aliased checkout roots) must use
-  // the same canonical root as native workspace membership discovery.
-  workspace = realpathSync(workspace);
+  // Use one native canonical spelling for membership, Arborist and link identity.
+  // Windows short names and macOS /var aliases must not change ownership.
+  workspace = realpathSync.native(workspace);
   const Arborist = nativeRequire('@npmcli/arborist');
   const tree = await new Arborist({path: workspace, offline: true, ignoreScripts: true}).loadActual();
-  const paths = new Map(members.map(m => [realpathSync(join(workspace, m.path)), m.name]));
+  const paths = new Map(members.map(m => [realpathSync.native(join(workspace, m.path)), m.name]));
   const output = [];
   function edges(node) {
     const dependencies = [];
@@ -72,7 +72,7 @@ export async function graph(workspace, members) {
       if (edge.error && !edge.optional) throw new Error(`Invalid native workspace dependency ${node.name}: ${edge.name}`);
       if (!edge.to) continue;
       const destination = edge.to.isLink ? edge.to.target : edge.to;
-      const target = paths.get(realpathSync(destination.path));
+      const target = paths.get(realpathSync.native(destination.path));
       if (target) dependencies.push({name: edge.name, target, kind, spec});
     }
     return dependencies.sort((a,b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
@@ -80,7 +80,10 @@ export async function graph(workspace, members) {
   for (const member of members) {
     const link = tree.children.get(member.name);
     const node = link?.isLink ? link.target : link;
-    if (!node || !node.isWorkspace || realpathSync(node.path) !== realpathSync(join(workspace, member.path))) {
+    // Arborist's isWorkspace flag can differ when an installed link retains an
+    // aliased spelling. Native membership plus the actual link destination is
+    // the ownership evidence; a copied dependency or wrong destination fails.
+    if (!link?.isLink || !node || realpathSync.native(node.path) !== realpathSync.native(join(workspace, member.path))) {
       throw new Error(`Native npm installation did not link workspace ${member.name}`);
     }
     output.push({...member, dependencies: edges(node)});

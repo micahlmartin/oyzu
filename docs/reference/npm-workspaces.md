@@ -19,7 +19,9 @@ oyzu run format
 
 No Oyzu configuration is required. `run list` is static and does not invoke Node/npm or project scripts. Explicit execution resolves installed workspace facts with npm's bundled membership library and Arborist. Missing dependencies or native tools can therefore allow listing but prevent execution. Provision dependencies with the project's normal npm workflow, then retry.
 
-Default quality tasks additionally require ESLint/Prettier and their supporting packages. Installed project packages take precedence; a declared but missing tool fails. For a project without those tools, supply the provisioned defaults described in the [CLI reference](README.md), using `OYZU_NODE_QUALITY_HOME` for development. That directory contains the quality toolchain's `package.json` and `node_modules`. Oyzu does not fetch missing checkers.
+Installed workspace links must resolve to their declared member directories. Identity comparison uses native canonical paths so directory aliases do not change ownership. A link to a different directory or a copied package in place of a workspace link fails before member commands run; repair the native installation and retry.
+
+Default quality tasks additionally require the selected ESLint/Prettier or Biome tools and their supporting packages. Installed project packages take precedence; a declared but missing tool fails. For a project without those tools, supply the provisioned defaults described in the [Node quality reference](node-quality.md), using `OYZU_NODE_QUALITY_HOME` for development. That directory contains the quality toolchain's `package.json` and `node_modules`. Oyzu does not fetch missing checkers.
 
 ## Task selection and ownership
 
@@ -27,9 +29,9 @@ Default quality tasks additionally require ESLint/Prettier and their supporting 
 | --- | --- | --- |
 | `build` | Run it once with native npm lifecycle hooks | Run member build scripts in dependency order; report members without scripts as not requesting compilation |
 | `test` | Run it once with native npm pretest/posttest hooks | Run each member's test script or detected Node/Jest/Vitest runner; a publishable root also runs its own implicit suite |
-| `lint` | Run it once | Check root-owned source; use each member's lint script or inferred ESLint |
-| `format-check` | Run `format-check` or `format:check` once | Check root-owned source; use each member's corresponding script or inferred Prettier check |
-| `format` | Run it once on explicit request | Format root-owned source; use each member's format script or inferred Prettier formatting |
+| `lint` | Run it once | Check root-owned source; use each member's lint script or selected ESLint/Biome |
+| `format-check` | Run `format-check` or `format:check` once | Check root-owned source; use each member's corresponding script or selected Prettier/Biome check |
+| `format` | Run it once on explicit request | Format root-owned source; use each member's format script or selected Prettier/Biome formatting |
 
 Native script names remain visible in task listing, including a root `format:check` alias. When that alias owns the operation, use `oyzu run format:check`; Oyzu does not add a duplicate `format-check` task. Existing TOML task replacements take precedence over inferred tasks. See [configuration](configuration.md) for settings, profiles and task override behavior.
 
@@ -41,7 +43,7 @@ Default root checks exclude workspace members. Default member checks exclude nes
 
 Default checks are read-only. `format` writes files and is never selected as an implicit build check. A user-authored script can perform its own effects; its name does not establish that it is read-only. A failed member build stops dependent compilation. Quality failures continue through the other members to collect diagnostics, then fail the aggregate. Already executed script effects or explicit formatting writes are not rolled back.
 
-Native scripts receive forwarded arguments through npm. A composed operation containing any default quality checker rejects extra arguments before invoking member operations; define a native script or explicit argv task for custom checker options. Cyclic workspace build dependencies currently fail before member build execution. Unsupported inferred quality integrations, including Biome, fail explicitly rather than silently skipping checks. Large development plans exceeding the current 20,000-byte encoded plan bound fail with a host argument-limit error.
+Native scripts receive forwarded arguments through npm. A composed operation containing any default quality checker rejects extra arguments before invoking member operations; define a native script or explicit argv task for custom checker options. Native Biome configuration can select Biome instead of the ESLint/Prettier defaults for a member; see [Node quality](node-quality.md) for supported versions and scope. Cyclic workspace build dependencies currently fail before member build execution. Large development plans exceeding the current 20,000-byte encoded plan bound fail with a host argument-limit error.
 
 ## Captured builds and evidence
 
