@@ -1090,3 +1090,29 @@ with the two existing Windows symlink skips. New native workflow execution is
 pending; CI configuration alone does not establish platform replay support.
 No product Rust implementation changed. The maintenance reference documents
 provisioning, evidence retention, failure behavior and the offline-test distinction.
+
+## Mise integration checkpoint 93: real Go ZIP store qualification
+
+The real Go 1.24.13 Windows amd64 ZIP (87,295,983 bytes; digest recorded in the
+maintenance fixture evidence) was independently inventoried and exercised through
+verified blob caching, ZIP staging, receipt/publication, leased native version
+execution and changed-lock denial/recovery. All 15,738 payload entries matched on
+Windows. The real Node regression also passed with its original 3,016-entry manifest.
+
+The first Go attempt failed the default 200:1 per-file expansion guard: three
+upstream test files exceed it, with a maximum about 799.21:1. The OEP explicitly
+allows reviewed descriptor bounds larger than defaults. Runtime and schema now
+retain default 200:1 but allow an explicit, layout-identity-bound ratio up to 1024:1;
+the synthetic Go qualification plan requests 800:1. Entry, byte, per-file and depth
+ceilings remain unchanged. This is not production Go descriptor approval. Runtime
+and shared schema cases reject 1025:1; boundary tests cover 0, 1, 200, 800 and 1024.
+
+The shared Python ZIP oracle includes implicit directories and reproduces the
+original Node manifest exactly. Each native CI archive step now provisions and
+selects its own exact test. The full Windows locked test suite, strict all-target
+Clippy, formatting and all nine compiled CLI task scenarios passed. Linux layout
+tests, both real archive parity/publication/changed-lock cases and strict all-target
+Clippy passed with container networking disabled. Linux did not execute the Windows
+payloads. Updated native CI, Go environment/build integration, other native Go
+archives, publisher verification and production source admission remain
+outstanding. The reference and code map describe bounds, migration and test scope.

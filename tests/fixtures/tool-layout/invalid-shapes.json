@@ -83,5 +83,10 @@
     "name": "missing /executable_paths",
     "pointer": "/executable_paths",
     "remove": true
+  },
+  {
+    "name": "expansion ratio exceeds hard ceiling",
+    "pointer": "/extraction_bounds/max_expansion_ratio",
+    "value": 1025
   }
 ]

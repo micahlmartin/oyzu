@@ -37,6 +37,8 @@ pub(super) struct Bounds {
     pub max_bytes: u64,
     pub max_file_bytes: u64,
     pub max_depth: u32,
+    /// Default 200; caller-admitted, identity-bound layouts may explicitly request
+    /// up to 1024. Never infer a larger limit from incoming archive metadata.
     pub max_expansion_ratio: u32,
 }
 impl Default for Bounds {
@@ -58,7 +60,7 @@ impl Bounds {
                 && (1..=MAX_FILE).contains(&self.max_file_bytes)
                 && self.max_file_bytes <= self.max_bytes
                 && (1..=64).contains(&self.max_depth)
-                && (1..=200).contains(&self.max_expansion_ratio),
+                && (1..=1024).contains(&self.max_expansion_ratio),
             "unsupported extraction bounds"
         );
         Ok(())

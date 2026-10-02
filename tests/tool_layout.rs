@@ -431,7 +431,7 @@ fn descriptor_bindings_and_gzip_expansion_bounds_fail_before_receipt() {
         assert_eq!(fs::read_dir(fixture.candidate()).unwrap().count(), 0);
     }
     use std::io::Write;
-    for ratio in [1, 200] {
+    for ratio in [0, 1, 200, 800, 1024, 1025] {
         let mut fixture = Fixture::new();
         let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         encoder.write_all(&fixture.bytes).unwrap();
@@ -439,10 +439,10 @@ fn descriptor_bindings_and_gzip_expansion_bounds_fail_before_receipt() {
         fixture.layout["archive_kind"] = json!("tar.gz");
         fixture.layout["extraction_bounds"]["max_expansion_ratio"] = json!(ratio);
         fixture.prepare();
-        assert_eq!(fixture.stage().is_ok(), ratio == 200);
+        assert_eq!(fixture.stage().is_ok(), (200..=1024).contains(&ratio));
         assert_eq!(
             fixture.candidate().join("receipt.json").exists(),
-            ratio == 200
+            (200..=1024).contains(&ratio)
         );
     }
 }

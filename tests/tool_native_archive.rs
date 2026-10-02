@@ -8,22 +8,64 @@ use oyzu::{
 use serde_json::{json, Value};
 use std::{fs, path::PathBuf};
 
-const DIGEST: &str = "sha256:55b639295920b219bb2acbcfa00f90393a2789095b7323f79475c9f34795f217";
-const SIZE: u64 = 34906389;
 const PLATFORM: &str = "windows/amd64/msvc";
+
+struct ZipCase {
+    tool: &'static str,
+    version: &'static str,
+    digest: &'static str,
+    size: u64,
+    prefix: &'static str,
+    artifact: &'static str,
+    executable: &'static str,
+    path: &'static str,
+    ratio: u32,
+}
 
 #[test]
 #[ignore = "requires externally provisioned Node archive and independent manifest; see reference"]
 fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
-    let archive =
-        PathBuf::from(std::env::var_os("OYZU_NODE_STORE_ARCHIVE").expect("archive path required"));
+    qualify(ZipCase {
+        tool: "node",
+        version: "22.14.0",
+        digest: "sha256:55b639295920b219bb2acbcfa00f90393a2789095b7323f79475c9f34795f217",
+        size: 34906389,
+        prefix: "node-v22.14.0-win-x64",
+        artifact: "node-v22.14.0-win-x64.zip",
+        executable: "node.exe",
+        path: ".",
+        ratio: 200,
+    })
+}
+
+#[test]
+#[ignore = "requires externally provisioned Go archive and independent manifest; see reference"]
+fn real_go_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
+    qualify(ZipCase {
+        tool: "go",
+        version: "1.24.13",
+        digest: "sha256:40b16bc8f00540a2cb02dff4de72b73e966fdd8d65f95e33d8e4080b48a2459a",
+        size: 87295983,
+        prefix: "go",
+        artifact: "go1.24.13.windows-amd64.zip",
+        executable: "bin/go.exe",
+        path: "bin",
+        ratio: 800,
+    })
+}
+
+fn qualify(case: ZipCase) -> anyhow::Result<()> {
+    let prefix = format!("OYZU_{}_STORE", case.tool.to_ascii_uppercase());
+    let archive = PathBuf::from(
+        std::env::var_os(format!("{prefix}_ARCHIVE")).expect("archive path required"),
+    );
     let manifest = PathBuf::from(
-        std::env::var_os("OYZU_NODE_STORE_MANIFEST").expect("manifest path required"),
+        std::env::var_os(format!("{prefix}_MANIFEST")).expect("manifest path required"),
     );
     let expected: Value = serde_json::from_slice(&fs::read(manifest)?)?;
-    assert_eq!(expected["archive_digest"], DIGEST);
-    assert_eq!(expected["archive_size"], SIZE);
-    assert_eq!(expected["version"], "22.14.0");
+    assert_eq!(expected["archive_digest"], case.digest);
+    assert_eq!(expected["archive_size"], case.size);
+    assert_eq!(expected["version"], case.version);
     let temp = tool_store_fixture::directory()?;
     let store = temp.path().join("store");
     let staging = temp.path().join("candidates");
@@ -36,40 +78,53 @@ fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<
     let key = records::digest(
         "oyzu.tool-record.v2",
         &json!({
-            "id":"core:node", "version":"22.14.0", "backend_digest":backend, "options":{}
+            "id":format!("core:{}", case.tool), "version":case.version, "backend_digest":backend, "options":{}
         }),
     )?;
     let mut plan: Value = serde_json::from_str(include_str!("fixtures/tool-layout/plan.json"))?;
     plan["platform"] = json!(PLATFORM);
     plan["archive_kind"] = json!("zip");
-    plan["strip_prefix"] = json!("node-v22.14.0-win-x64");
-    plan["input_blob_digests"] = json!([DIGEST]);
+    plan["extraction_bounds"]["max_expansion_ratio"] = json!(case.ratio);
+    plan["strip_prefix"] = json!(case.prefix);
+    plan["input_blob_digests"] = json!([case.digest]);
     plan["required_paths"] = json!([
         {"path":"LICENSE", "kind":"file"},
-        {"path":"node.exe", "kind":"file"}
+        {"path":case.executable, "kind":"file"}
     ]);
-    plan["entrypoints"]["node"]["payload_relative_path"] = json!("node.exe");
-    plan["environment"]["PATH"]["paths"][0]["relative_path"] = json!(".");
+    plan["entrypoints"] = json!({(case.tool): {
+        "kind":"native", "payload_relative_path":case.executable,
+        "interpreter_tool_key":null, "interpreter_relative_path":null, "prefix_args":[]
+    }});
+    plan["environment"]["PATH"]["paths"][0]["relative_path"] = json!(case.path);
     let layout_digest = records::digest("oyzu.archive-layout.v1", &plan)?;
     let mut lock: toml::Value = toml::from_str(include_str!("fixtures/tool-lock/valid.toml"))?;
     lock["environment"][0]["roots"] = vec![key.clone()].into();
-    lock["environment"][0]["requests"]["core:node"] = "22.14.0".into();
+    let mut requests = toml::map::Map::new();
+    requests.insert(format!("core:{}", case.tool), case.version.into());
+    lock["environment"][0]["requests"] = toml::Value::Table(requests);
+    lock["tool"][0]["id"] = format!("core:{}", case.tool).into();
     lock["tool"][0]["key"] = key.clone().into();
-    lock["tool"][0]["version"] = "22.14.0".into();
+    lock["tool"][0]["version"] = case.version.into();
     let distribution = &mut lock["tool"][0]["distribution"][0];
     distribution["platform"] = PLATFORM.into();
-    distribution["digest"] = DIGEST.into();
-    distribution["size"] = (SIZE as i64).into();
-    distribution["artifact_id"] = "node-v22.14.0-win-x64.zip".into();
+    distribution["digest"] = case.digest.into();
+    distribution["size"] = (case.size as i64).into();
+    distribution["artifact_id"] = case.artifact.into();
+    distribution["source_id"] = format!("{}-releases", case.tool).into();
     distribution["layout_digest"] = layout_digest.clone().into();
-    distribution["verification"]["subject_digest"] = DIGEST.into();
+    distribution["verification"]["subject_digest"] = case.digest.into();
     fs::write(&lock_path, toml::to_string(&lock)?)?;
     let original_lock = fs::read(&lock_path)?;
     let inspection = tools::inspect_lock(&lock_path)?;
     let installation = &inspection.selections[0].installation_keys[&key];
     let candidate = staging.join("installs").join(&installation[7..]);
     fs::create_dir_all(&candidate)?;
-    let blob = tools::cache_tool_blob(&store, &mut fs::File::open(archive)?, DIGEST, SIZE)?;
+    let blob = tools::cache_tool_blob(
+        &store,
+        &mut fs::File::open(archive)?,
+        case.digest,
+        case.size,
+    )?;
     assert_eq!(
         tools::stage_tool_candidate(
             ToolCandidateRequest {
@@ -122,13 +177,18 @@ fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<
     let executable = store
         .join("installs")
         .join(&installation[7..])
-        .join("payload/node.exe");
+        .join("payload")
+        .join(case.executable);
     assert!(executable.is_file());
     #[cfg(windows)]
     {
         let mut command = std::process::Command::new(&executable);
         command
-            .arg("--version")
+            .arg(if case.tool == "go" {
+                "version"
+            } else {
+                "--version"
+            })
             .env_clear()
             .current_dir(temp.path());
         if let Some(root) = std::env::var_os("SystemRoot") {
@@ -136,7 +196,12 @@ fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<
         }
         let output = command.output()?;
         assert!(output.status.success());
-        assert_eq!(String::from_utf8(output.stdout)?.trim(), "v22.14.0");
+        let expected_version = if case.tool == "go" {
+            format!("go version go{} windows/amd64", case.version)
+        } else {
+            format!("v{}", case.version)
+        };
+        assert_eq!(String::from_utf8(output.stdout)?.trim(), expected_version);
     }
     // Preserve the version and bytes; change only the locked archive identity.
     let changed = format!("sha256:{}", "2".repeat(64));
@@ -158,6 +223,6 @@ fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<
         )?,
         lease.selection_digest
     );
-    eprintln!("real Node ZIP: {} entries match; publication and changed-lock denial passed; native execution={}", tree.entries.len(), cfg!(windows));
+    eprintln!("real {} ZIP: {} entries match; publication and changed-lock denial passed; native execution={}", case.tool, tree.entries.len(), cfg!(windows));
     Ok(())
 }

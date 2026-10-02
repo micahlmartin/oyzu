@@ -363,8 +363,13 @@ contained link graph must remain valid. Required paths are a sorted unique list
 of exact payload paths and `file`, `directory` or `symlink` types.
 
 `extraction_bounds` has positive integer `max_entries`, `max_bytes`,
-`max_file_bytes`, `max_depth` and `max_expansion_ratio` fields. These may tighten,
-but never raise, the existing extractor ceilings. `max_bytes` caps both total
+`max_file_bytes`, `max_depth` and `max_expansion_ratio` fields. Entry, byte and depth
+ceilings remain fixed. The default expansion ratio stays 200:1; an explicitly
+admitted layout can request up to the hard ceiling of 1024:1, as allowed by the
+OEP's descriptor-specific bounds. This ratio is part of the hashed layout identity,
+not a project option or a value inferred from an archive. Production descriptors
+need review before admitting larger bounds. Existing default-200 plans are unchanged;
+older binaries reject layouts above their supported ceiling. `max_bytes` caps both total
 payload bytes and the expanded archive stream (including archive metadata).
 All runtime fixtures exercising smaller bounds must still fail before a receipt
 is written. The schema permits the broader proposed archive vocabulary; schema
@@ -620,7 +625,7 @@ It makes no network calls and uses exclusive creation for its output manifest.
 python tooling/prepare-node-store-fixture.py --archive /fixtures/node-v22.14.0-win-x64.zip --manifest /fixtures/node-store-manifest.json
 export OYZU_NODE_STORE_ARCHIVE=/fixtures/node-v22.14.0-win-x64.zip
 export OYZU_NODE_STORE_MANIFEST=/fixtures/node-store-manifest.json
-cargo test --locked --test tool_native_archive -- --ignored --nocapture
+cargo test --locked --test tool_native_archive real_node_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
 ```
 
 In PowerShell, set those two variables with `$env:NAME = 'absolute path'`.
@@ -643,3 +648,45 @@ Admission and installer identities remain explicit test fixtures. This does not
 prove production backend planning, publisher signatures, policy authorization,
 resolver behavior, supervised exec, shims or shell activation. Full backend
 qualification still needs those boundaries and the remaining OEP matrix.
+
+
+### Real Go archive store qualification
+
+The same opt-in harness also checks the real Go 1.24.13 Windows amd64 ZIP. Its
+pinned identity comes from the independently captured official catalog and sidecar:
+87,295,983 bytes and SHA-256
+`40b16bc8f00540a2cb02dff4de72b73e966fdd8d65f95e33d8e4080b48a2459a`.
+Provision it outside the checkout from the official Go download source. No Go
+source or license files are copied into the repository; the original archive and
+its notices remain intact in the external fixture. This is a historical test
+release, not a version recommendation or approved production backend.
+
+```sh
+python tooling/prepare-go-store-fixture.py --archive /fixtures/go1.24.13.windows-amd64.zip --manifest /fixtures/go-store-manifest.json
+export OYZU_GO_STORE_ARCHIVE=/fixtures/go1.24.13.windows-amd64.zip
+export OYZU_GO_STORE_MANIFEST=/fixtures/go-store-manifest.json
+cargo test --locked --test tool_native_archive real_go_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+```
+
+PowerShell uses `$env:NAME = 'absolute path'`. Python 3.11+ and normal Rust
+prerequisites apply. The shared Python ZIP oracle validates archive identity before
+inventorying files without extraction, includes implicit parent directories and
+exclusively creates its output manifest. Node's existing manifest is unchanged by
+the shared oracle. Missing/wrong inputs or an existing manifest fail explicitly.
+
+The synthetic Go test layout explicitly requests 800:1 expansion: the original
+200:1 attempt correctly rejected three highly compressible upstream test files,
+including 65,535 bytes compressed to 82 bytes. The implementation still defaults
+to 200:1 and caps an explicit override at 1024:1, with entry, total-byte, per-file,
+path and depth guards unchanged. This synthetic layout is not production admission.
+The harness compares all 15,738 entries, publishes/verifies receipts, retains a
+lease during Windows `go version`, and checks changed-lock denial/recovery. Foreign
+hosts materialize the Windows payload without executing it. Native CI provisions
+Node and Go separately so each test requires only its own fixture inputs.
+
+Windows qualification passed for all 15,738 entries, publication, changed-lock
+denial/recovery and native version execution with the explicit 800:1 test layout.
+Linux foreign-target materialization, publication and changed-lock checks also passed
+with container networking disabled; it did not execute the Windows payload. Updated
+native CI remains pending. Passing this fixture does not establish Go build behavior, GOROOT/environment integration,
+other native targets, publisher signatures or end-to-end product installation.

@@ -149,7 +149,7 @@
         "max_expansion_ratio": {
           "type": "integer",
           "minimum": 1,
-          "maximum": 200
+          "maximum": 1024
         }
       }
     },
