@@ -218,11 +218,12 @@ pub(super) fn compile(
             // prerequisite. Its report contract follows its identity.
             let contract = operation_contracts.get(step).copied();
             let native = contract.filter(|_| task.provider == target.manager);
-            let mut bindings = super::reporting::bind(&workspace.root, &id, task, contract)?;
+            let mut bindings =
+                crate::reports::bindings::bind(&workspace.root, &id, task, contract)?;
             let mut env = intent.env.clone();
             env.extend(task.env.clone());
             if let Some(owner) = tasks::hook_owner(task).and_then(|id| workspace.tasks.get(&id)) {
-                let reports = super::reporting::bind(
+                let reports = crate::reports::bindings::bind(
                     &workspace.root,
                     &id,
                     owner,

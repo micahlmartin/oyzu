@@ -200,7 +200,8 @@
           "network": {
             "enum": [
               "none",
-              "scoped-service"
+              "scoped-service",
+              "host"
             ]
           },
           "limits": {
@@ -261,7 +262,61 @@
           "network",
           "limits"
         ],
-        "additionalProperties": false
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "network": {
+                  "const": "host"
+                }
+              },
+              "required": [
+                "network"
+              ]
+            },
+            "then": {
+              "properties": {
+                "cacheable": {
+                  "const": false
+                },
+                "extensions": {
+                  "required": [
+                    "oyzu.dev/invocation",
+                    "oyzu.dev/limits-enforced"
+                  ],
+                  "properties": {
+                    "oyzu.dev/limits-enforced": {
+                      "const": false
+                    },
+                    "oyzu.dev/invocation": {
+                      "type": "object",
+                      "properties": {
+                        "execution": {
+                          "const": "host"
+                        },
+                        "isolation": {
+                          "const": "none"
+                        },
+                        "toolIdentity": {
+                          "const": "unverified"
+                        }
+                      },
+                      "required": [
+                        "execution",
+                        "isolation",
+                        "toolIdentity"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "extensions"
+              ]
+            }
+          }
+        ]
       },
       "minItems": 0
     },

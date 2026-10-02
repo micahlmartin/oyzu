@@ -1,5 +1,5 @@
 //! Capture native report evidence before parsing it. No ecosystem dispatch or execution.
-use super::bundle::{capture_bounded_output, safe_report_parent};
+use crate::bundle_store::{capture_bounded_output, safe_report_parent};
 use crate::{reports, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
@@ -8,7 +8,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub(super) struct Locations<'a> {
+pub(crate) struct Locations<'a> {
     pub workspace: &'a Path,
     pub output: &'a Path,
     pub bundle: &'a Path,
@@ -20,7 +20,7 @@ struct Pending<'a> {
     index: usize,
 }
 
-pub(super) struct Collector<'a> {
+pub(crate) struct Collector<'a> {
     pub locations: Locations<'a>,
     pub source_digest: &'a Value,
     pending: BTreeMap<String, Vec<Pending<'a>>>,
@@ -84,7 +84,7 @@ impl<'a> Collector<'a> {
     }
 }
 
-pub(super) struct CollectedReport {
+pub(crate) struct CollectedReport {
     pub record: Value,
     pub diagnostic: Option<Value>,
 }
@@ -98,7 +98,7 @@ impl CollectedReport {
     }
 }
 
-pub(super) fn collect(
+pub(crate) fn collect(
     action: &Value,
     intent: &Value,
     source_digest: &Value,

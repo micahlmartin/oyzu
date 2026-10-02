@@ -1,3 +1,5 @@
+mod evidence;
+
 use crate::model::{Task, Workspace};
 use anyhow::{bail, Context, Result};
 use serde::Serialize;
@@ -214,26 +216,33 @@ fn execute_with_unsets(
     })
 }
 
+fn configuration<'a>(
+    workspace: &'a Workspace,
+    id: &str,
+) -> (
+    Option<&'a crate::model::Target>,
+    Option<&'a crate::config::resolve::EffectiveConfig>,
+) {
+    let target = workspace
+        .targets
+        .get(&workspace.tasks[id].target)
+        .or_else(|| {
+            (workspace.targets.len() == 1)
+                .then(|| workspace.targets.values().next())
+                .flatten()
+        });
+    let config = target
+        .and_then(|target| workspace.configuration.get(&target.name))
+        .or(workspace.root_configuration.as_ref());
+    (target, config)
+}
+
 pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Vec<Outcome>> {
     let primary = resolve(workspace, requested)?;
     let sequence = sequence(workspace, &primary)?;
-    let configuration = |id: &str| {
-        let target = workspace
-            .targets
-            .get(&workspace.tasks[id].target)
-            .or_else(|| {
-                (workspace.targets.len() == 1)
-                    .then(|| workspace.targets.values().next())
-                    .flatten()
-            });
-        let config = target
-            .and_then(|target| workspace.configuration.get(&target.name))
-            .or(workspace.root_configuration.as_ref());
-        (target, config)
-    };
     // Admit every prerequisite and hook before executing any native command.
     for id in &sequence {
-        let (target, config) = configuration(id);
+        let (target, config) = configuration(workspace, id);
         if let Some(config) = config {
             config
                 .constraints
@@ -254,9 +263,12 @@ pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Ve
             config.validate_environment(&workspace.tasks[id].env)?;
         }
     }
+    if let Some(outcomes) = evidence::run(workspace, &primary, &sequence, args)? {
+        return Ok(outcomes);
+    }
     let mut outcomes = vec![];
     for id in sequence {
-        let (_, config) = configuration(&id);
+        let (_, config) = configuration(workspace, &id);
         let removed = config
             .map(|config| config.removed.clone())
             .unwrap_or_default();

@@ -1,6 +1,6 @@
 //! Directory artifact inventories and integrity. Native output selection stays
 //! with builders; source-tree identity and bounded traversal belong to snapshot.
-use super::bundle::safe_report_parent;
+use crate::bundle_store::safe_report_parent;
 use crate::snapshot;
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};

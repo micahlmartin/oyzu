@@ -19,7 +19,7 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 | Acquisition and transport | `src/dependencies.rs`, `src/dependencies/`, `src/broker.rs`, `src/broker/` | Own prepared input lifecycle and source/credential boundaries; native lock interpretation remains in the ecosystem adapter |
 | Source and input identity | `src/snapshot.rs`, `src/snapshot/` | Own capture, projection, containment and content identity |
 | Bundle storage | `src/bundle_store.rs` | Own workspace locking, staging, destination admission, retention and finalization; callers own evidence contents and execution |
-| Reports and artifacts | `src/reports.rs`, `src/reports/`, `src/oci/`, `src/build/collection.rs`, `src/build/bundle.rs` | Parse/verify formats separately from collection; record actual outputs and failures rather than trusting an adapter's success claim |
+| Reports and artifacts | `src/reports.rs`, `src/reports/`, `src/oci/`, `src/reports/collection.rs`, `src/build/bundle.rs` | Parse/verify formats separately from collection; record actual outputs and failures rather than trusting an adapter's success claim |
 | Shared data contracts | `src/model.rs`, `src/records.rs`, `docs/contracts/` | Hold genuinely shared concepts and record encoding; keep subsystem-specific types with their owner |
 
 Discovery source capture supports bounded binary evidence as well as strict UTF-8 metadata. Format-specific inspection stays with its detector; Helm archive inspection never extracts files, while private archive expansion belongs to the Helm execution adapter.
@@ -34,7 +34,7 @@ Tool installation, environment activation, caching, agent/connectors, publishing
 
 Configuration enforcement admits both captured builds and development task sequences before effects. Effective configuration validates the final task environment after task overrides and native adapter additions, so administrative environment restrictions cannot be bypassed by another input channel. Discovery derives single-target root operations from that target's final cascade, including replacements and removals. The policy agent alone reconciles administratively changed bootstrap records: online verification uses current pins while preserving sequence high-water state, and authorization rechecks time after transport and storage.
 
-`bundle_store::Transaction` holds the workspace lock through finalization and rollback. It rechecks destination manifest identity, preserves conflicting output/history, and retains staged evidence when finalization fails. Captured builds consume this owner; future direct-test bundles must reuse it rather than duplicate storage rules. This extraction does not itself implement host test reporting.
+`bundle_store::Transaction` holds the workspace lock through finalization and rollback. It rechecks destination manifest identity, preserves conflicting output/history, and retains staged evidence when finalization fails. Captured builds and the initial direct Node test-only workflow consume this owner. `bundle_store/host` preserves native output with a separate integrity inventory, while `tasks/evidence` composes host test records through shared `reports/bindings` and `reports/collection`. Native command instrumentation remains behind `Builder::development_test`; other direct profiles remain to be integrated.
 
 `build/selection` owns requested target membership and monotonic expansion through declared artifact/target edges and admitted task prerequisites/hooks. It shares stage admission with `build/task_graph`; native preparation and image resolution remain effects coordinated by the build lifecycle. Planning consumes the captured intents once the closure is complete, while retaining the full workspace for task-name semantics. Bundle inspection checks that the manifest's selection matches its frozen plan.
 
@@ -177,6 +177,17 @@ A review should be able to identify the rule's owner, the contract crossing each
 5. Update the owning feature reference in the same PR for every behavior change, following the [documentation maintenance standard](documentation.md). Update the map/status when boundaries or measured capabilities change. In the PR, link the documentation and identify the owning subsystem, any interface change, and checks actually run. A local fix does not require a new OEP; changes to public contracts or major boundaries follow the existing proposal process.
 
 For a new subsystem, a short module-level responsibility/invariant comment, a narrow entry point and meaningful tests are enough to start. No per-function design documents, mandatory pattern catalog, line-count quotas or new architecture framework are required. Compiler visibility, review and focused conformance tests provide the first enforcement; add automated boundary checks when a recurring violation warrants them.
+
+For example, a detector module's responsibility comment could be this small:
+
+```rust
+//! Recognizes framework evidence from supplied project metadata.
+//! Exposes candidates through the discovery contract; does not select a winner.
+//! Does not launch processes or fetch dependencies. Resolution owns selection;
+//! the builder owns native commands and report declarations.
+```
+
+The comment must describe the actual implementation. At its entry point, use typed evidence and outcomes so consumers do not reconstruct meaning from strings, unrelated booleans or a bag of optional fields. Use enums for mutually exclusive states and validate invariants when constructing values. Serialized records and namespaced extension payloads can remain flexible at their owning protocol boundary; that flexibility should not become the default interface between internal subsystems. Apply this when adding or changing a boundary, without turning a local contribution into a rewrite of existing records.
 
 Keep the contributor path equally small: repository-wide rules live in `AGENTS.md`, contribution steps in `CONTRIBUTING.md`, and ownership in this map. Add a nested `AGENTS.md` only when a subsystem has real additional constraints; reference shared rules instead of copying them. Put contract obligations beside the interface so implementation changes and their documentation are reviewed together.
 

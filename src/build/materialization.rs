@@ -1,5 +1,5 @@
 //! Resolve symbolic producer outputs and copy verified bytes into private consumers.
-use super::bundle::safe_file;
+use crate::bundle_store::safe_file;
 use crate::{config::Materialize, executor::Image, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};

@@ -167,8 +167,14 @@ fn capture_tree(
         }
         let out = destination.map(|destination| destination.join(&relative));
         let metadata = fs::symlink_metadata(item.path())?;
-        if metadata.file_type().is_symlink() {
-            bail!("source symlink capture is not yet supported: {relative}");
+        let redirected = metadata.file_type().is_symlink();
+        #[cfg(windows)]
+        let redirected = {
+            use std::os::windows::fs::MetadataExt;
+            redirected || metadata.file_attributes() & 0x400 != 0
+        };
+        if redirected {
+            bail!("source symlink or reparse point capture is not supported: {relative}");
         }
         if metadata.is_dir() {
             if let Some(out) = &out {

@@ -136,6 +136,35 @@ impl Builder for Node {
         }
         Ok(quality::development(task))
     }
+    fn development_test(&self, target: &Target, task: &Task) -> Result<Option<super::TaskPlan>> {
+        let package = crate::records::read(&target.path.join("package.json"))?;
+        if task.name != "test"
+            || package.get("workspaces").is_some()
+            || target
+                .discovery
+                .get("test-framework")
+                .is_none_or(|p| p.selected() != "node-test")
+        {
+            return Ok(None);
+        }
+        let env = std::collections::BTreeMap::from([
+            (
+                "OYZU_TEST_REPORT".into(),
+                format!("/out/{}/reports/junit.xml", target.name),
+            ),
+            (
+                "OYZU_COVERAGE_REPORT".into(),
+                format!("/out/{}/reports/coverage.lcov", target.name),
+            ),
+        ]);
+        Ok(Some(reporting::test(
+            &target.name,
+            self.instrument_override(target, task, &env)
+                .unwrap_or_else(|| task.argv.clone()),
+            false,
+        )))
+    }
+
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             tools: &["node"],

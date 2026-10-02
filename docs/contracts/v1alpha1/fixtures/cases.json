@@ -184,5 +184,22 @@
     "schema": "manifest",
     "valid": false,
     "reason": "schema"
+  },
+  {
+    "file": "plan-host.valid.json",
+    "schema": "plan",
+    "valid": true
+  },
+  {
+    "file": "plan-host-cacheable.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "plan-host-undisclosed.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "schema"
   }
 ]

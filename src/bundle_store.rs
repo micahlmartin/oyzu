@@ -5,10 +5,91 @@ use crate::{records, snapshot};
 use anyhow::{bail, Context, Result};
 use std::{
     fs,
+    io::{Read, Write},
     path::{Path, PathBuf},
 };
 
+/// Retain bounded raw evidence, including bytes that a report parser may reject.
+/// Read before creating the destination so oversized inputs leave no bundle file.
+pub(crate) fn capture_bounded_output(
+    out: &Path,
+    source_relative: &str,
+    bundle: &Path,
+    relative: &str,
+    limit: u64,
+) -> Result<PathBuf> {
+    let source = safe_file(out, source_relative)?;
+    if relative.contains(['\\', ':'])
+        || relative
+            .split('/')
+            .any(|p| p.is_empty() || p == "." || p == "..")
+    {
+        bail!("invalid report destination");
+    }
+    let mut bytes = Vec::new();
+    fs::File::open(source)?
+        .take(limit + 1)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() as u64 > limit {
+        bail!("report exceeds {limit} bytes");
+    }
+    let destination = bundle.join(relative);
+    let mut output = create_output(&destination)?;
+    output.write_all(&bytes)?;
+    output.sync_all()?;
+    Ok(destination)
+}
+
+pub(crate) fn create_output(destination: &Path) -> Result<fs::File> {
+    fs::create_dir_all(destination.parent().context("missing output parent")?)?;
+    Ok(fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)?)
+}
+
+pub(crate) fn safe_file(root: &Path, relative: &str) -> Result<PathBuf> {
+    let mut path = root.to_path_buf();
+    if relative.is_empty() || relative.contains('\\') || relative.contains(':') {
+        bail!("invalid bundle path");
+    }
+    for part in relative.split('/') {
+        if part.is_empty() || part == "." || part == ".." {
+            bail!("invalid bundle path");
+        }
+        path.push(part);
+        metadata(&path)?.context("missing bundle path")?;
+    }
+    if !path.is_file() {
+        bail!("bundle output is not a regular file");
+    }
+    Ok(path)
+}
+
+pub(crate) fn safe_report_parent(root: &Path, relative: &str) -> Result<()> {
+    let mut path = root.to_path_buf();
+    let parts: Vec<_> = relative.split('/').collect();
+    for part in &parts[..parts.len().saturating_sub(1)] {
+        if part.is_empty() || *part == "." || *part == ".." || part.contains(['\\', ':']) {
+            bail!("invalid report directory");
+        }
+        path.push(part);
+        let metadata = metadata(&path)?.context("missing report directory")?;
+        if !metadata.is_dir() {
+            bail!("unsafe report directory");
+        }
+    }
+    Ok(())
+}
+
+mod host;
+
+pub(crate) fn verify_host_outputs(root: &Path, entries: &[snapshot::Entry]) -> Result<()> {
+    host::verify(root, entries)
+}
+
 pub(crate) struct Transaction {
+    host: bool,
     state: PathBuf,
     dist: PathBuf,
     previous: Option<String>,
@@ -68,6 +149,14 @@ fn identity(dist: &Path) -> Result<Option<String>> {
 
 impl Transaction {
     pub fn begin(root: &Path) -> Result<Self> {
+        Self::begin_with_mode(root, false)
+    }
+
+    pub fn begin_host(root: &Path) -> Result<Self> {
+        Self::begin_with_mode(root, true)
+    }
+
+    fn begin_with_mode(root: &Path, host: bool) -> Result<Self> {
         let state = root.join(".oyzu");
         directory(&state)?;
         let lock_path = state.join("build.lock");
@@ -83,17 +172,31 @@ impl Transaction {
         lock.try_lock()
             .context("another build holds the workspace lock")?;
         let dist = root.join("dist");
-        let previous = identity(&dist)?;
+        let previous = if host {
+            host::identity(&dist)?
+        } else {
+            identity(&dist)?
+        };
         let stage = tempfile::Builder::new()
             .prefix("bundle-")
             .tempdir_in(&state)?;
         Ok(Self {
+            host,
             state,
             dist,
             previous,
             stage,
             _lock: lock,
         })
+    }
+
+    /// Preserve native dist output alongside test evidence. Capture is complete
+    /// before records are finalized; publication still checks the captured identity.
+    pub fn preserve_host_outputs(&mut self) -> Result<Vec<snapshot::Entry>> {
+        if !self.host {
+            bail!("native output preservation requires a host test transaction");
+        }
+        host::preserve(self)
     }
 
     pub fn path(&self) -> &Path {
@@ -127,7 +230,12 @@ impl Transaction {
         }
         metadata(&self.state)?.context("bundle state directory disappeared")?;
         identity(self.stage.path())?.context("staged bundle has no finalized manifest")?;
-        if identity(&self.dist)? != self.previous {
+        let current = if self.host {
+            host::identity(&self.dist)?
+        } else {
+            identity(&self.dist)?
+        };
+        if current != self.previous {
             bail!("dist changed during the invocation; refusing to replace it");
         }
         if self.previous.is_some() {
@@ -267,8 +375,11 @@ mod tests {
     fn windows_junctions_cannot_redirect_bundle_storage() {
         let destination = tempfile::tempdir().unwrap();
         fs::write(destination.path().join("keep"), "outside").unwrap();
-        for name in [".oyzu", "dist"] {
+        for name in [".oyzu", "dist", "dist/nested"] {
             let root = tempfile::tempdir().unwrap();
+            if name == "dist/nested" {
+                fs::create_dir(root.path().join("dist")).unwrap();
+            }
             let status = std::process::Command::new("powershell.exe")
                 .args(["-NoProfile", "-NonInteractive", "-Command",
                     "$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path $env:OYZU_TEST_LINK -Target $env:OYZU_TEST_DEST | Out-Null"])
@@ -281,6 +392,7 @@ mod tests {
                 String::from_utf8_lossy(&status.stderr)
             );
             assert!(Transaction::begin(root.path()).is_err());
+            assert!(Transaction::begin_host(root.path()).is_err());
             // Remove only the link. Do not recursively delete a junction target.
             fs::remove_dir(root.path().join(name)).unwrap();
             assert_eq!(

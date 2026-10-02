@@ -108,6 +108,39 @@ pub(crate) fn validate_declarations(reports: &[Declaration]) -> Result<()> {
 
 /// No symlink traversal. Deterministic ordering and bounded discovery precede reads.
 pub(crate) fn matches(root: &Path, value: &str) -> Result<Vec<String>> {
+    select(root, value, true)
+}
+
+/// Direct host tasks must not consume reports left by an earlier invocation.
+/// Missing literal prefixes are fresh; existing links or discovery errors fail.
+pub(crate) fn ensure_fresh(root: &Path, value: &str) -> Result<()> {
+    pattern(value)?;
+    let mut path = root.to_path_buf();
+    for part in value.split('/').take_while(|p| !p.contains(['*', '?'])) {
+        path.push(part);
+        match std::fs::symlink_metadata(&path) {
+            Ok(metadata) => {
+                let redirected = metadata.file_type().is_symlink();
+                #[cfg(windows)]
+                let redirected = {
+                    use std::os::windows::fs::MetadataExt;
+                    redirected || metadata.file_attributes() & 0x400 != 0
+                };
+                if redirected {
+                    bail!("unsafe existing report path");
+                }
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(error.into()),
+        }
+    }
+    if !value.contains(['*', '?']) || !select(root, value, false)?.is_empty() {
+        bail!("declared report already exists; preserve or remove it before running tests so stale evidence cannot satisfy this invocation");
+    }
+    Ok(())
+}
+
+fn select(root: &Path, value: &str, required: bool) -> Result<Vec<String>> {
     let matcher = pattern(value)?;
     if !value.contains(['*', '?']) {
         return Ok(vec![value.into()]);
@@ -156,8 +189,28 @@ pub(crate) fn matches(root: &Path, value: &str) -> Result<Vec<String>> {
         }
     }
     found.sort();
-    if found.is_empty() {
+    if required && found.is_empty() {
         bail!("report glob matched no files: {value}");
     }
     Ok(found)
+}
+
+#[cfg(test)]
+mod freshness_tests {
+    use super::*;
+
+    #[test]
+    fn stale_literals_and_globs_fail_but_missing_prefixes_and_empty_globs_are_fresh() {
+        let root = tempfile::tempdir().unwrap();
+        for path in ["reports/test.xml", "reports/**/*.xml"] {
+            ensure_fresh(root.path(), path).unwrap();
+        }
+        std::fs::create_dir(root.path().join("reports")).unwrap();
+        ensure_fresh(root.path(), "reports/**/*.xml").unwrap();
+        std::fs::write(root.path().join("reports/test.xml"), "stale").unwrap();
+        assert!(ensure_fresh(root.path(), "reports/test.xml").is_err());
+        assert!(ensure_fresh(root.path(), "reports/**/*.xml").is_err());
+        assert!(ensure_fresh(root.path(), "../outside.xml").is_err());
+        ensure_fresh(root.path(), "reports/new.xml").unwrap();
+    }
 }

@@ -15,8 +15,9 @@ pub(crate) struct Descriptor {
     pub tools: &'static [&'static str],
 }
 
-/// Discovery and planning read captured source only. Acquisition must use the scoped
-/// broker and executor; project code never receives host credentials or network access.
+/// Discovery and captured-build planning read supplied source only. Captured
+/// acquisition uses the scoped broker/executor; development hooks explicitly
+/// operate with host tools and do not claim isolation from the host environment.
 pub(crate) trait Builder: Sync {
     fn descriptor(&self) -> Descriptor;
     fn register_settings(&self, _registry: &mut crate::config::registry::Registry) -> Result<()> {
@@ -33,6 +34,13 @@ pub(crate) trait Builder: Sync {
     /// Resolve native arguments/environment only after an explicit development task run.
     /// Static discovery and captured build planning must never call this hook.
     fn development_command(&self, _task: &Task) -> Result<Option<DevelopmentCommand>> {
+        Ok(None)
+    }
+
+    /// Report contract for explicit host test execution. None means this native
+    /// profile still lacks direct-run evidence integration. No acquisition or
+    /// sandbox claim is implied; commands use already provisioned host tools.
+    fn development_test(&self, _target: &Target, _task: &Task) -> Result<Option<TaskPlan>> {
         Ok(None)
     }
 

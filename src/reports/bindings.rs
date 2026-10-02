@@ -9,7 +9,7 @@ use serde_json::{json, Value};
 use std::{collections::BTreeMap, path::Path};
 
 #[derive(Default)]
-pub(super) struct Bindings {
+pub(crate) struct Bindings {
     pub intents: Vec<Value>,
     pub paths: BTreeMap<String, String>,
     pub inputs: BTreeMap<String, Input>,
@@ -17,7 +17,7 @@ pub(super) struct Bindings {
     pub env: BTreeMap<String, String>,
 }
 
-pub(super) fn bind(
+pub(crate) fn bind(
     root: &Path,
     target: &str,
     task: &Task,

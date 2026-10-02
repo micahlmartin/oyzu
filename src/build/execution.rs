@@ -1,6 +1,6 @@
 //! Execute a resolved plan and collect outcome records without ecosystem dispatch.
-use super::{bundle::capture_output, collection, directory, materialization};
-use crate::{builders, dependencies, executor, records, snapshot};
+use super::{bundle::capture_output, directory, materialization};
+use crate::{builders, dependencies, executor, records, reports::collection, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
