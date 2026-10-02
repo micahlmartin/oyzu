@@ -153,3 +153,44 @@ fn authored_directory_matrix_keeps_explicit_frontend_build_standalone() {
         assert!(images.targets.contains(&input.from));
     }
 }
+
+#[test]
+fn authored_named_go_outputs_inherit_platform_before_native_execution_admission() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/builds/materialize-selected-artifacts/project");
+    for platform in ["linux/amd64", "linux/arm64"] {
+        let mut workspace = discovery::discover_with_shell(&root, Some("sh")).unwrap();
+        workspace
+            .declarations
+            .targets
+            .get_mut("image")
+            .unwrap()
+            .platform = Some(platform.into());
+        let mut selected = Selection::new(&workspace, &[]).unwrap();
+        let mapping = expand(&mut workspace).unwrap();
+        selected.expand_variants(&workspace, &mapping).unwrap();
+        let inputs = &workspace.declarations.targets["image"].materialize;
+        assert_eq!(inputs.len(), 2);
+        assert_eq!(inputs[0].from, inputs[1].from);
+        let producer = &workspace.targets[&inputs[0].from];
+        assert_eq!(producer.variant["platform"], platform);
+        assert!(selected.targets.contains(&producer.name));
+        assert!(!selected.targets.contains("tools"));
+        let builder = crate::builders::get(&producer.builder).unwrap();
+        assert!(builder.variant_toolchain(producer).is_ok());
+        let worker = executor::Image {
+            reference: "fixture".into(),
+            digest: "fixture".into(),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        };
+        let admitted = builder.target_platform(Some(platform), &worker);
+        if platform == "linux/amd64" {
+            assert!(admitted.is_ok());
+        } else {
+            assert!(admitted.unwrap_err().to_string().contains(
+                "required platform linux/arm64 differs from execution platform linux/amd64"
+            ));
+        }
+    }
+}
