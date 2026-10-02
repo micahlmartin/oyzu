@@ -24,7 +24,7 @@ def read(path):
     return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
 
 
-def check_contract(name, schema_path, fixture_path, cases_path):
+def check_contract(name, schema_path, fixture_path, cases_path, valid_path=None):
     schema = read(ROOT / schema_path)
     # All references are local fragments. Never resolve remote schema resources.
     def local(value):
@@ -42,7 +42,8 @@ def check_contract(name, schema_path, fixture_path, cases_path):
     fixture = read(ROOT / fixture_path)
     validator.validate(fixture)
     cases = read(ROOT / cases_path)
-    for case in cases:
+    valid_cases = read(ROOT / valid_path) if valid_path else []
+    for case, expected in [(case, False) for case in cases] + [(case, True) for case in valid_cases]:
         changed = copy.deepcopy(fixture)
         parts = case["pointer"].split("/")[1:]
         parent = changed
@@ -52,16 +53,17 @@ def check_contract(name, schema_path, fixture_path, cases_path):
             del parent[parts[-1]]
         else:
             parent[parts[-1]] = case["value"]
-        if validator.is_valid(changed):
-            raise AssertionError("schema accepted invalid case: " + case["name"])
-    print(f"Tool {name} shape checks passed: 1 valid and {len(cases)} invalid fixtures; no backend qualification.")
+        if validator.is_valid(changed) != expected:
+            raise AssertionError("schema disagrees with case: " + case["name"])
+    print(f"Tool {name} shape checks passed: {1 + len(valid_cases)} valid and {len(cases)} invalid fixtures; no backend qualification.")
 
 
 def main():
     check_contract("layout", "docs/contracts/tools-v1/archive-layout.schema.json",
                    "tests/fixtures/tool-layout/plan.json", "tests/fixtures/tool-layout/invalid-shapes.json")
     check_contract("receipt", "docs/contracts/tools-v1/receipt.schema.json",
-                   "tests/fixtures/tool-receipt/receipt.json", "tests/fixtures/tool-receipt/invalid-shapes.json")
+                   "tests/fixtures/tool-receipt/receipt.json", "tests/fixtures/tool-receipt/invalid-shapes.json",
+                   "tests/fixtures/tool-receipt/valid-shapes.json")
 
 
 if __name__ == "__main__":

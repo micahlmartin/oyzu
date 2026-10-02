@@ -342,3 +342,32 @@ required. The full OEP implementation and licensing review remain unfinished.
 The corrected Oyzu source passed the full Windows GNU Rust 1.94 test suite,
 strict all-target Clippy, formatting and all nine real CLI task scenarios.
 Documentation structure passed for 149 Markdown files; it is not runtime proof.
+
+## Checkpoint 55: receipt schema and shared validation fixtures
+
+TM-01 now defines the draft format-1 receipt shape in
+`docs/contracts/tools-v1/receipt.schema.json`. The existing receipt verifier
+remains responsible for locked identity, fresh payload hashes, dependency
+ownership, portable paths, case collisions, byte limits, file types and executable
+permissions. The schema grants no admission or execution authority.
+
+The schema checker accepts the synthetic native receipt and typed interpreter/
+environment variants, and rejects 23 shared malformed-record cases. Rust uses
+that same receipt shape with real fixture payload hashes and rejects those same
+mutations. The initial 12 receipt integration tests passed on Windows GNU and
+Linux, including concurrent publication and termination cases; the positive
+shared-shape variants add a further runtime test. This is contract/store evidence,
+not a successful native backend installation. Worker, backend descriptor and
+selection-grant schemas and the full TM-01 exit gate remain incomplete.
+
+The branch merged main at `1b71473`, retaining the newer Rust packaging work and
+the shared Cargo-proxy correction. The only manual merge conflict was the comment
+above that same correction. Current reference documentation explains the schema
+command and the distinction between shape and content verification. The schema
+checker, all 58 example structures and documentation structure passed.
+
+The final 13 receipt integration tests passed on Windows GNU and Linux (the
+separately invoked child fixture is marked ignored in the ordinary test list).
+The merged Windows GNU Rust 1.94 full suite, strict all-target Clippy, formatting
+and all nine real CLI task scenarios passed. Native macOS and full refreshed CI
+still require confirmation against the pushed head.

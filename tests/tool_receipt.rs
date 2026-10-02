@@ -111,6 +111,24 @@ impl Fixture {
 }
 
 #[test]
+fn receipt_runtime_accepts_shared_typed_launch_and_environment_shapes() {
+    let fixture = Fixture::new();
+    let source = include_str!("fixtures/tool-receipt/valid-shapes.json").replace(
+        &format!("sha256:{}", "a".repeat(64)),
+        fixture.receipt["installation_key"].as_str().unwrap(),
+    );
+    let cases: Vec<Value> = serde_json::from_str(&source).unwrap();
+    for case in cases {
+        let mut receipt = fixture.receipt.clone();
+        *receipt
+            .pointer_mut(case["pointer"].as_str().unwrap())
+            .unwrap() = case["value"].clone();
+        fixture.save(&receipt);
+        assert!(fixture.verify().is_ok(), "{}", case["name"]);
+    }
+}
+
+#[test]
 fn receipt_runtime_rejects_shared_schema_invalid_shape_corpus() {
     let fixture = Fixture::new();
     assert!(fixture.verify().is_ok());
