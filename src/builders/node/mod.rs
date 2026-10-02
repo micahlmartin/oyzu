@@ -17,6 +17,10 @@ pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
     RuntimeFile {
+        name: "pnpm-patches.mjs",
+        contents: include_str!("runtime/pnpm-patches.mjs"),
+    },
+    RuntimeFile {
         name: "registry-archives.mjs",
         contents: include_str!("runtime/registry-archives.mjs"),
     },

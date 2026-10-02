@@ -28,6 +28,21 @@ For installation, the adapter creates a fresh private store and serves the exact
 
 Native lock/manifest checks run with `--frozen-lockfile`. The adapter checks that the lock bytes remain unchanged and requires the same pnpm/Node versions during preparation and execution. Credentials are absent from the inventory and loopback endpoint. Managed/private registry routes remain unimplemented for this profile.
 
+## Native dependency patches
+
+Checked-in `patchedDependencies` settings are supported in a single project's `pnpm-workspace.yaml` or the native `pnpm` object in `package.json`. For example:
+
+```yaml
+patchedDependencies:
+  is-number@6.0.0: patches/is-number@6.0.0.patch
+```
+
+Use native [pnpm patch](https://pnpm.io/10.x/cli/patch) and [patch-commit](https://pnpm.io/10.x/cli/patch-commit) to generate the patch, settings and updated lock; commit those inputs together. Oyzu needs no additional setting. A `pnpm-workspace.yaml` containing these settings does not itself require multiple projects. Actual workspace membership and other configuration keys still need implementation.
+
+All declared and locked patch paths must reference regular files inside the captured project. Absolute paths, parent traversal, backslashes, symbolic links, missing files and patches over 4 MiB fail admission. Native pnpm verifies lock/configuration agreement and patch hashes, selects matching dependencies and applies the patch to its private installation. Oyzu does not parse diff hunks or implement its own patch engine. Modified patch bytes with a stale lock fail before project lifecycle hooks run. Source files and the content-addressed registry archives remain unchanged.
+
+Registry inventory records continue to identify the original downloaded archives. The `oyzu.dev/pnpm.sourcePatches` extension separately records each locked patch selector, captured relative path, SHA-256 digest, size and native lock hash. The source digest binds the patch inputs, and the dependency-snapshot digest includes the patch evidence. This distinguishes source modifications from pristine upstream archive identity; it is not a complete runtime SBOM.
+
 ## Outputs and failures
 
 Successful builds produce a snapshot-versioned native `.tgz` package under `dist/`, with its embedded package version matching the artifact version. The manifest records actual artifacts and collected test/coverage reports; native logs and the dependency snapshot accompany the bundle. Failed tests retain collected reports and block packaging. `oyzu inspect dist` checks recorded content integrity, not release eligibility or producer trust.
@@ -38,6 +53,8 @@ A stale lock requires regenerating and committing the lock with the intended nat
 
 ## Compatibility and evidence
 
-This increment supports single-project public registry packages with conventional integrity-only lock resolutions. pnpm workspaces, `.npmrc`, `.pnpmfile.cjs`, package-level `pnpm` configuration, patches, overrides, explicit tarball/Git/file resolutions and private registries still require adapter work. [Yarn Classic](yarn.md) has a separate native adapter. This is an incremental implementation, not full pnpm compatibility.
+This increment supports single-project public registry packages with conventional integrity-only lock resolutions and native dependency patches. pnpm workspaces, `.npmrc`, `.pnpmfile.cjs`, configuration other than `patchedDependencies`, overrides, explicit tarball/Git/file resolutions and private registries still require adapter work. [Yarn Classic](yarn.md) has a separate native adapter. This is an incremental implementation, not full pnpm compatibility.
 
 The Windows native probe in `tooling/test-node-registry-acquisition.py --manager pnpm --native-cli <pnpm.cjs>` exercises real pnpm with a direct and transitive package, repeated fresh captures, offline replay of captured bytes, lifecycle isolation, stale locks, corrupted archives and rejected source hooks. This replaces the former `test-pnpm-acquisition.py --pnpm-cli` entry point. The native manager probe also covers version/engine rejection, JUnit/LCOV and repeatable packages. These host probes do not prove container isolation. The Linux compiled-CLI Node suite builds the registry fixture, validates reports and dependency records, repeats snapshot packages and exercises failed tests; revision-specific CI results remain in [implementation status](../implementation-status.md). Full captured-build execution on Windows/macOS is not established by native adapter tests.
+
+Add `--patches` to the acquisition probe to exercise the [native patch example](../../examples/builds/node-managers/variants/pnpm-patches/package.json), both native configuration locations, changed-patch rejection before hooks and denied patch paths. The Linux compiled-CLI suite includes that fixture's snapshot artifact, four JUnit cases, coverage, source-patch evidence, repeatability and preflight failure bundle. Consult implementation status for whether that revision has passed isolated acceptance.

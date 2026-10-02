@@ -19,10 +19,13 @@ def main():
     parser.add_argument('--manager', choices=['pnpm', 'yarn'], required=True)
     parser.add_argument('--native-cli', type=Path, required=True)
     parser.add_argument('--resolutions', action='store_true', help='Exercise the Yarn selective-resolution fixture')
+    parser.add_argument('--patches', action='store_true', help='Exercise the pnpm native patch fixture')
     args = parser.parse_args()
     manager = args.manager
     if args.resolutions and manager != 'yarn':
         parser.error('--resolutions requires --manager yarn')
+    if args.patches and manager != 'pnpm':
+        parser.error('--patches requires --manager pnpm')
     native = args.native_cli.resolve()
     env = dict(os.environ, OYZU_PNPM_YAML=str(native.parents[2] / 'yaml'),
                OYZU_YARN_LOCKFILE=str(native.parents[2] / '@yarnpkg/lockfile'))
@@ -33,6 +36,8 @@ def main():
         expected.add(('is-number', '7.0.0'))
     fixture = ('examples/builds/node-managers/variants/yarn-resolutions' if args.resolutions
                else f'tooling/fixtures/{manager}-registry')
+    if args.patches:
+        fixture = 'examples/builds/node-managers/variants/pnpm-patches'
     urls = [f'https://registry.npmjs.org/{name}/-/{name.split("/")[-1]}-{version}.tgz'
             for name, version in sorted(expected)]
     bodies = {}
@@ -110,6 +115,30 @@ def main():
                 assert lock_path.read_bytes() == original_lock
             assert captures[0] == captures[1], 'captured bytes depend on location/time'
             assert sorted(requests) == sorted(urls * 2)
+            if args.patches:
+                shutil.rmtree(project / 'node_modules')
+                (project / 'lifecycle-ran').unlink()
+                patch_file = project / 'patches/is-number@6.0.0.patch'
+                patch = patch_file.read_bytes()
+                patch_file.write_bytes(patch.replace(b'native-patch-applied', b'changed-patch'))
+                assert 'LOCKFILE_CONFIG_MISMATCH' in run('install', output, project, False).stderr
+                assert not (project / 'lifecycle-ran').exists()
+                assert len(requests) == count and tree(output) == captures[-1]
+                patch_file.write_bytes(patch)
+                # The same native settings can live in package.json. Do not add
+                # a second Oyzu configuration surface or interpret patch contents.
+                settings_file = project / 'pnpm-workspace.yaml'
+                settings = settings_file.read_bytes()
+                settings_file.unlink()
+                package['pnpm'] = {'patchedDependencies': {'is-number@6.0.0': 'patches/is-number@6.0.0.patch'}}
+                package_path.write_text(json.dumps(package))
+                run('install', output, project)
+                package['pnpm']['patchedDependencies']['is-number@6.0.0'] = '../outside.patch'
+                package_path.write_text(json.dumps(package))
+                assert 'contained in the captured project' in run('acquire', output, project, False).stderr
+                package.pop('pnpm')
+                package_path.write_text(json.dumps(package))
+                settings_file.write_bytes(settings)
             if args.resolutions:
                 # Both versions exist in the mirror. Native resolution must still
                 # reject the changed graph before running any project hooks.
@@ -158,7 +187,7 @@ def main():
                 assert 'does not yet support .yarnrc' in run('acquire', output, project, False).stderr
             assert len(requests) == count
             assert not failures, failures
-            print(f'{manager}: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed (resolutions={args.resolutions})')
+            print(f'{manager}: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed (resolutions={args.resolutions}, patches={args.patches})')
         finally:
             stop.set()
             thread.join()

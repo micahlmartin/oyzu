@@ -1,5 +1,6 @@
 """EX-019 native manager builds through the compiled CLI and isolated executor."""
 import json
+import hashlib
 import shutil
 import tarfile
 from jsonschema import Draft202012Validator
@@ -7,15 +8,17 @@ from jsonschema import Draft202012Validator
 
 def verify(root, base, invoke, validate, source_files, verified):
     schema = json.loads((root / 'docs/contracts/v1alpha1/dependencies.schema.json').read_text())
-    for manager, version, fixture, dependency_count in [
-        ('pnpm', '10.11.0', 'examples/builds/node-managers/pnpm', 0),
-        ('yarn', '1.22.22', 'examples/builds/node-managers/yarn', 0),
-        ('pnpm', '10.11.0', 'tooling/fixtures/pnpm-registry', 2),
-        ('yarn', '1.22.22', 'tooling/fixtures/yarn-registry', 3),
-        ('yarn', '1.22.22', 'examples/builds/node-managers/variants/yarn-resolutions', 4),
+    for manager, version, fixture, dependency_count, expected_tests in [
+        ('pnpm', '10.11.0', 'examples/builds/node-managers/pnpm', 0, 2),
+        ('yarn', '1.22.22', 'examples/builds/node-managers/yarn', 0, 2),
+        ('pnpm', '10.11.0', 'tooling/fixtures/pnpm-registry', 2, 3),
+        ('yarn', '1.22.22', 'tooling/fixtures/yarn-registry', 3, 4),
+        ('yarn', '1.22.22', 'examples/builds/node-managers/variants/yarn-resolutions', 4, 5),
+        ('pnpm', '10.11.0', 'examples/builds/node-managers/variants/pnpm-patches', 2, 4),
     ]:
         selective_resolution = fixture.endswith('/yarn-resolutions')
-        project = base / f'node-manager-{manager}-{dependency_count}'
+        patched = fixture.endswith('/pnpm-patches')
+        project = base / f'node-manager-{manager}-{fixture.rsplit("/", 1)[-1]}'
         shutil.copytree(root / fixture, project)
         before = source_files(project)
         tasks = invoke(project,'run','list','--json')
@@ -27,7 +30,7 @@ def verify(root, base, invoke, validate, source_files, verified):
         invoke(project,'build')
         manifest = validate(project / 'dist')
         assert manifest['status'] == 'succeeded' and source_files(project) == before
-        assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == (dependency_count + 1 if dependency_count else 2)
+        assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == expected_tests
         assert next(r for r in manifest['reports'] if r['kind'] == 'coverage')['summary']['covered'] > 0
         artifact = manifest['artifacts'][0]
         assert '-dev.g' in artifact['version']
@@ -37,6 +40,13 @@ def verify(root, base, invoke, validate, source_files, verified):
         record = json.loads((project / 'dist/dependencies/project.json').read_text())
         Draft202012Validator(schema).validate(record)
         assert record['manager']['id'] == manager and record['manager']['version'] == version
+        if patched:
+            patch = project / 'patches/is-number@6.0.0.patch'
+            evidence = record['extensions']['oyzu.dev/pnpm']['sourcePatches']
+            assert len(evidence) == 1 and evidence[0]['selector'] == 'is-number@6.0.0'
+            assert evidence[0]['path'] == 'patches/is-number@6.0.0.patch'
+            assert evidence[0]['digest'] == 'sha256:' + hashlib.sha256(patch.read_bytes()).hexdigest()
+            assert evidence[0]['size'] == patch.stat().st_size and evidence[0]['nativeHash']
         assert len(record['packages']) == dependency_count
         if dependency_count:
             expected = {('is-odd', '3.0.1'), ('is-number', '6.0.0')}
@@ -63,6 +73,15 @@ def verify(root, base, invoke, validate, source_files, verified):
             assert not stale['actions'] and not stale['artifacts']
             assert 'native dependency resolution changed' in stale['diagnostics'][0]['message']
             package_file.write_bytes(original)
+        if patched:
+            patch_file = project / 'patches/is-number@6.0.0.patch'
+            original = patch_file.read_bytes()
+            patch_file.write_bytes(original.replace(b'native-patch-applied', b'changed-patch'))
+            invoke(project, 'build', success=False)
+            stale = validate(project / 'dist')
+            assert not stale['actions'] and not stale['artifacts']
+            assert 'LOCKFILE_CONFIG_MISMATCH' in stale['diagnostics'][0]['message']
+            patch_file.write_bytes(original)
         # A failed native runner still delivers both reports and blocks packaging.
         (project / 'test/failing.test.mjs').write_text("import test from 'node:test'; test('expected failure',()=>{throw new Error('expected')});\n")
         invoke(project,'build',success=False)
@@ -75,4 +94,4 @@ def verify(root, base, invoke, validate, source_files, verified):
         conflict = validate(project / 'dist')
         assert not conflict['actions'] and not conflict['artifacts']
         assert 'conflicting' in conflict['diagnostics'][0]['message']
-        verified.append(f'EX-019 {manager} ({dependency_count} registry packages): native frozen preparation, version evidence, scripts/reports, repeatable snapshot package, failed tests and conflicting locks')
+        verified.append(f'EX-019 {fixture}: native frozen preparation, version evidence, scripts/reports, repeatable snapshot package, failed tests and conflicting locks')

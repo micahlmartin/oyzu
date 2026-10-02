@@ -12,7 +12,8 @@
     "npm",
     "pnpm",
     "yarn",
-    "variants/yarn-resolutions"
+    "variants/yarn-resolutions",
+    "variants/pnpm-patches"
   ],
   "oyzu": [
     "oyzu build"
@@ -22,6 +23,11 @@
     "Competing locks are an explicit negative case, not normal fixture state."
   ],
   "cases": [
+    {
+      "name": "pnpm-native-patches",
+      "change": "Build variants/pnpm-patches using its native settings, lock and checked-in dependency patch.",
+      "expect": "Apply the patch to the captured transitive dependency, collect four passing tests, coverage and a snapshot package. Modified patches with stale locks and patch paths outside the captured project must fail before source hooks run."
+    },
     {
       "name": "yarn-selective-resolutions",
       "change": "Build variants/yarn-resolutions using its native package.json and yarn.lock.",
@@ -76,7 +82,15 @@
     "variants/yarn-resolutions/yarn.lock",
     "variants/yarn-resolutions/build.mjs",
     "variants/yarn-resolutions/src/greeting.mjs",
-    "variants/yarn-resolutions/test/greeting.test.mjs"
+    "variants/yarn-resolutions/test/greeting.test.mjs",
+    "variants/pnpm-patches/package.json",
+    "variants/pnpm-patches/pnpm-lock.yaml",
+    "variants/pnpm-patches/pnpm-workspace.yaml",
+    "variants/pnpm-patches/patches/is-number@6.0.0.patch",
+    "variants/pnpm-patches/patches/is-number.LICENSE",
+    "variants/pnpm-patches/build.mjs",
+    "variants/pnpm-patches/src/greeting.mjs",
+    "variants/pnpm-patches/test/greeting.test.mjs"
   ],
   "hosts": {
     "intended": [

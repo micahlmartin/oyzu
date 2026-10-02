@@ -5,18 +5,20 @@ import {createServer} from 'node:http';
 import {existsSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 import {archives} from './registry-archives.mjs';
+import {validatePatches} from './pnpm-patches.mjs';
 
 const require = createRequire(import.meta.url);
 export function inputs(workspace) {
   const yaml = require(process.env.OYZU_PNPM_YAML ?? '/opt/oyzu-pnpm/node_modules/yaml');
   const lock = yaml.parse(readFileSync(join(workspace, 'pnpm-lock.yaml'), 'utf8'), {maxAliasCount: 100, uniqueKeys: true});
   const manifest = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
-  for (const name of ['.npmrc', '.pnpmfile.cjs', 'pnpm-workspace.yaml']) {
+  for (const name of ['.npmrc', '.pnpmfile.cjs']) {
     if (existsSync(join(workspace, name))) throw new Error(`pnpm capture does not yet support ${name}`);
   }
-  if (manifest.workspaces || manifest.pnpm) throw new Error('pnpm workspace/custom configuration capture is not implemented yet');
+  if (manifest.workspaces) throw new Error('pnpm workspace capture is not implemented yet');
+  validatePatches(workspace, manifest, lock, yaml);
   if (String(lock?.lockfileVersion) !== '9.0' || Object.keys(lock.importers ?? {}).join() !== '.') throw new Error('pnpm capture requires a single-project v9 lockfile');
-  for (const key of ['patchedDependencies', 'overrides', 'packageExtensionsChecksum']) {
+  for (const key of ['overrides', 'packageExtensionsChecksum']) {
     if (lock[key] != null) throw new Error(`pnpm capture does not yet support ${key}`);
   }
   for (const owner of [lock.importers['.'], ...Object.values(lock.snapshots ?? {})]) {

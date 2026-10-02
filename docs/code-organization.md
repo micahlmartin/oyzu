@@ -98,6 +98,8 @@ The pnpm and Yarn managers own registry admission and routes. `managers/registry
 
 Yarn's owned adapter also verifies native resolution against the parsed captured lock in a script-disabled private install before enabling lifecycle scripts. This admits native selective version overrides without adding a shared-engine override matcher or treating a suppressed lockfile write as evidence of unchanged dependency resolution.
 
+pnpm's `runtime/pnpm-patches.mjs` admits native patch configuration and contained source files; native pnpm owns patch selection, hash verification and application. `managers/pnpm/patches.rs` records the verified source-patch identities in the manager's dependency extension. Shared registry capture continues to inventory pristine archives and does not learn native patch semantics.
+
 Python distribution applications extend the native package plan through `builders/python/distribution_app`. The owned runtime assembles native wheel payloads and console metadata; `runtime/application.py` owns shared archive writing, archive-source testing and packaging checks for both requirements and distribution applications. Collection and task scheduling remain engine responsibilities.
 
 Docker image preparation owns native reference requirements and OCI conversion under `builders/docker/images` and its Go runtime. `executor/images` alone exports explicitly provisioned daemon images by immutable identity. The executor's typed `ImageInput` binds relative prepared stores and digests; the worker verifies private copies before mounting them as native OCI contexts. Project code never receives daemon access. Registry acquisition can feed this content contract later without moving Dockerfile parsing or source policy into the worker.

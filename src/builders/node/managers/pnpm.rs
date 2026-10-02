@@ -1,4 +1,5 @@
 use super::Manager;
+mod patches;
 use crate::{
     broker,
     builders::{BuilderPlan, CommandSpec, PlanningContext, PreparationContext},
@@ -12,8 +13,7 @@ impl Pnpm {
     fn validate(&self, root: &std::path::Path) -> Result<bool> {
         let package = records::read(&root.join("package.json"))?;
         if package.get("workspaces").is_some()
-            || package.get("pnpm").is_some()
-            || [".npmrc", ".pnpmfile.cjs", "pnpm-workspace.yaml"]
+            || [".npmrc", ".pnpmfile.cjs"]
                 .iter()
                 .any(|name| root.join(name).exists())
         {
@@ -65,7 +65,13 @@ impl Manager for Pnpm {
         } else {
             vec![]
         };
-        super::registry::prepare(context, "pnpm.mjs", "pnpm-lock.yaml", sources)
+        let root = context.target.path.clone();
+        let mut prepared =
+            super::registry::prepare(context, "pnpm.mjs", "pnpm-lock.yaml", sources)?;
+        if let Some(prepared) = &mut prepared {
+            patches::record(&root, prepared)?;
+        }
+        Ok(prepared)
     }
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()> {
         self.validate(&context.target.path)?;
