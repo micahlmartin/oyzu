@@ -48,6 +48,9 @@ pub fn resolve(reference: &str) -> Result<Image> {
 }
 
 pub(crate) fn resolve_for(reference: &str, profile: Profile) -> Result<Image> {
+    if !crate::oci::literal_reference(reference) {
+        bail!("invalid provisioned image reference");
+    }
     let result = Command::new("docker")
         .args(["image", "inspect", reference])
         .output()

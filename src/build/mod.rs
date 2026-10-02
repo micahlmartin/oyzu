@@ -125,13 +125,13 @@ pub fn run_selected_with_options(
                 let target = &workspace.targets[id];
                 let builder = builders::get(&target.builder)?;
                 if let Some(config) = workspace.configuration.get(id) {
-                    if containers::requested(
-                        workspace
-                            .declarations
-                            .targets
-                            .get(id)
-                            .and_then(|d| d.container.as_ref()),
-                    )? {
+                    if workspace
+                        .declarations
+                        .targets
+                        .get(id)
+                        .and_then(|d| d.container.as_ref())
+                        .is_some_and(crate::config::Container::enabled)
+                    {
                         crate::config::enforcement::execution_preflight(
                             config,
                             builders::get("docker/image")?.descriptor().tools,

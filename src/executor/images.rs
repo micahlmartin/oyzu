@@ -9,13 +9,7 @@ pub(crate) fn export_image(
     request: &Request<'_>,
     target: &crate::platform::Platform,
 ) -> Result<Image> {
-    if reference.is_empty()
-        || reference.len() > 512
-        || !reference.as_bytes()[0].is_ascii_alphanumeric()
-        || !reference
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"/._:@-".contains(&b))
-    {
+    if !crate::oci::literal_reference(reference) {
         bail!("invalid provisioned image reference");
     }
     if destination.exists() {

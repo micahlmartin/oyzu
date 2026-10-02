@@ -43,9 +43,32 @@ def verify(root, base, invoke, validate, source_files, verified):
     repeated = invoke(project, 'build')
     assert repeated['planDigest'] == manifest['planDigest']
     assert {a['id']: a['digest'] for a in repeated['artifacts']} == {a['id']: a['digest'] for a in manifest['artifacts']}
+    shutil.copyfile(fixture / 'variants/container-overrides.build.yaml', project / 'build.yaml')
+    customized_source = source_files(project)
+    invoke(project, 'build')
+    customized = validate(project / 'dist')
+    assert customized['status'] == 'succeeded' and source_files(project) == customized_source
+    custom_app, = [a for a in customized['artifacts'] if a['name'] == 'application']
+    custom_image, = [a for a in customized['artifacts'] if a['kind'] == 'oci-image']
+    _, custom_config, custom_contents = image_contents(project / 'dist' / custom_image['path'])
+    assert custom_config['config']['User'] == '1000:1001'
+    assert custom_config['config']['WorkingDir'] == '/srv/api'
+    assert custom_config['config']['Entrypoint'] == ['python', '/app/application.pyz']
+    assert custom_contents['app/application.pyz'] == (project / 'dist' / custom_app['path']).read_bytes()
+    captured = json.loads((project / 'dist/dependencies/api-container.json').read_text())
+    assert captured['extensions']['oyzu.dev/container']['runtime']['reference'] == 'oyzu-fixture/python-runtime:3.12'
+    customized_repeat = invoke(project, 'build')
+    assert customized_repeat['planDigest'] == customized['planDigest']
+    assert {a['id']: a['digest'] for a in customized_repeat['artifacts']} == {a['id']: a['digest'] for a in customized['artifacts']}
     (project / 'oyzu.toml').write_text('[tasks."api:pre_test"]\nargv=["sh", "-ec", "exit 27"]\n')
     invoke(project, 'build', success=False)
     failed = validate(project / 'dist')
     assert not failed['artifacts']
     assert next(a for a in failed['actions'] if a['id'] == 'api-container:build')['status'] == 'blocked'
-    verified.append('EX-012 container variant: one native application build, exact tested capsule in a versioned nonroot OCI image, captured compatible runtime, application JUnit/coverage plus image assertions, stable inputs/outputs and failed-test packaging gate; runtime smoke execution and override/matrix profiles remain pending')
+    (project / 'oyzu.toml').unlink()
+    (project / 'build.yaml').write_text('api:\n  uses: python/app\n  container: {base: alpine:3.22}\n')
+    invoke(project, 'build', success=False)
+    incompatible = validate(project / 'dist')
+    assert not incompatible['actions'] and not incompatible['artifacts']
+    assert 'provisioned container runtime does not satisfy' in incompatible['diagnostics'][0]['message']
+    verified.append('EX-012 container variants: one native application build, exact tested capsule in a versioned OCI image, captured compatible default/custom runtime, numeric user/workdir/argv overrides, application JUnit/coverage plus image assertions, stable inputs/outputs, failed-test gate and incompatible runtime rejection; runtime smoke execution and matrix profiles remain pending')

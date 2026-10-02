@@ -49,7 +49,6 @@ pub(super) fn target_order(
         }
     }
     for (id, c) in configs.iter().filter(|(id, _)| selected.contains(*id)) {
-        super::containers::requested(c.container.as_ref())?;
         if !c.matrix.is_empty() || c.bindings.is_some() {
             bail!("{id}: platform expansion and packaging options are not implemented yet");
         }
@@ -119,7 +118,7 @@ pub(super) fn plan_with_dependencies(
     if workspace.declarations.targets.values().any(|c| {
         c.container
             .as_ref()
-            .is_some_and(|v| v != &serde_yaml::Value::Bool(false))
+            .is_some_and(crate::config::Container::enabled)
     }) {
         bail!(
             "container planning requires captured runtime inputs; use the captured build lifecycle"

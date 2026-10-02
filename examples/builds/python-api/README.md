@@ -47,4 +47,4 @@ Files such as `scenario.json` and sibling expectation data belong to the example
 
 ## Detailed specification candidate
 
-[Container candidate](variants/container.build.yaml) exercises the experimental [Python container path](../../../docs/reference/python-containers.md), with native acceptance pending. It remains separate from the minimal baseline; general runtime overrides and application startup smoke tests still require implementation.
+[Container candidate](variants/container.build.yaml) exercises the experimental [Python container path](../../../docs/reference/python-containers.md), with native acceptance pending. It remains separate from the minimal baseline; application startup smoke tests and additional runtime profiles still require implementation. The [override candidate](variants/container-overrides.build.yaml) exercises the finite base/user/workdir/entrypoint options; its fixture base is explicitly provisioned by CI before Oyzu runs. Native verification of the override path is pending.

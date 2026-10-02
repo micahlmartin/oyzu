@@ -138,13 +138,16 @@
                 "type": "array",
                 "items": {
                   "type": "string",
-                  "minLength": 1
+                  "minLength": 1,
+                  "maxLength": 4096
                 },
-                "minItems": 1
+                "minItems": 1,
+                "maxItems": 64
               },
               "base": {
                 "type": "string",
-                "minLength": 1
+                "minLength": 1,
+                "maxLength": 512
               },
               "user": {
                 "type": "string",
@@ -152,7 +155,8 @@
               },
               "workdir": {
                 "type": "string",
-                "pattern": "^/"
+                "pattern": "^/",
+                "maxLength": 1024
               }
             },
             "required": [],

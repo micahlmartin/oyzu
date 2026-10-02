@@ -27,20 +27,13 @@ pub(crate) struct ImageInput {
 
 impl ImageInput {
     pub fn validate(&self) -> Result<()> {
-        let reference = |s: &str| {
-            !s.is_empty()
-                && s.len() <= 512
-                && s.as_bytes()[0].is_ascii_alphanumeric()
-                && s.bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b"/._:@-".contains(&b))
-        };
         let digest = |s: &str| {
             s.len() == 71
                 && s.starts_with("sha256:")
                 && s[7..].bytes().all(|b| b.is_ascii_hexdigit())
         };
-        if !reference(&self.reference)
-            || !reference(&self.name)
+        if !crate::oci::literal_reference(&self.reference)
+            || !crate::oci::literal_reference(&self.name)
             || !self.store.starts_with("images/base-")
             || !crate::snapshot::portable(&self.store)
             || !digest(&self.manifest)

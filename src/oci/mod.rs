@@ -1,4 +1,6 @@
 //! Verify a self-contained OCI layout tar without extracting it or using a registry.
+mod reference;
+pub(crate) use reference::literal_reference;
 mod archive;
 mod assembly;
 pub(crate) use assembly::{assemble, Input};

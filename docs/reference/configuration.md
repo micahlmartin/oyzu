@@ -151,6 +151,10 @@ Native locations follow OEP-0002: Windows known folders, macOS Application Suppo
 
 `config status` reports enrollment and cached-policy status. `config refresh` performs a headless request to the enrolled platform's public configuration-context endpoint. Signed responses use pinned Ed25519 keys, canonical JSON, identity/context binding, monotonic sequences, expiry and explicit offline permissions. Cache entries are content-addressed and flushed before an OS credential-store pointer commits them. A corrupt entry can only be repaired from a newly verified online response. Windows Credential Manager, macOS Keychain and Linux Secret Service hold integrity state. If that service is unavailable, managed execution fails; standalone use does not need it. Transport backoff never extends signed deadlines. Server denial cannot become offline permission.
 
+## Build inventory options
+
+`build.yaml` describes target intent separately from the TOML cascade. Its optional application `container` field is a boolean or a finite object with `base`, `user`, `workdir` and `entrypoint`; see [Python application containers](python-containers.md#focused-overrides) for types, defaults and current runtime support. Capture validates and freezes that object with the target inventory. `config validate` rejects malformed option values without resolving images or executing a build. The object introduces no task language or additional precedence layer. Administrative execution checks and resolved owner settings still apply to generated image actions.
+
 ## Existing settings migration and boundaries
 
 The Docker adapter registers `docker.apparmorProfile`. It replaces direct adapter reads of `OYZU_BUILDKIT_APPARMOR_PROFILE`; the legacy environment variable remains a diagnosed invocation input and faces the same policy constraints. The default still detects the host's AppArmor user-namespace restriction. Builder namespaces stay behind the crate-private Builder contract.

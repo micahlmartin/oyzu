@@ -5,14 +5,6 @@ use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{collections::BTreeMap, fs, path::Path, time::Duration};
 
-pub(super) fn requested(value: Option<&serde_yaml::Value>) -> Result<bool> {
-    match value {
-        None | Some(serde_yaml::Value::Bool(false)) => Ok(false),
-        Some(serde_yaml::Value::Bool(true)) => Ok(true),
-        Some(_) => bail!("container option objects require runtime override integration; use container: true only for a registered default profile"),
-    }
-}
-
 /// Add image assembly only after the complete native graph has been planned.
 /// Derived targets have empty source projections and consume verified artifacts.
 pub(super) fn augment(
@@ -30,15 +22,15 @@ pub(super) fn augment(
         .clone();
     for original in originals {
         let owner = original["id"].as_str().context("missing target identity")?;
-        if !requested(
-            workspace
-                .declarations
-                .targets
-                .get(owner)
-                .and_then(|d| d.container.as_ref()),
-        )? {
+        let Some(options) = workspace
+            .declarations
+            .targets
+            .get(owner)
+            .and_then(|d| d.container.as_ref())
+            .and_then(config::Container::options)
+        else {
             continue;
-        }
+        };
         let native = &workspace.targets[owner];
         if !native.variant.is_empty() {
             bail!("{owner}: application-container matrix aggregation requires runtime-profile expansion");
@@ -51,6 +43,7 @@ pub(super) fn augment(
                     native.builder
                 )
             })?;
+        let base = options.base.as_deref().unwrap_or(profile.base);
         let id = crate::names::scoped(owner, "container");
         if workspace
             .targets
@@ -67,7 +60,7 @@ pub(super) fn augment(
         config::enforcement::execution_preflight(configuration, docker.descriptor().tools)?;
         let platform = serde_json::from_value(original["platform"].clone())?;
         let worker = executor::resolve_for(docker.toolchain(native)?, docker.executor_profile())?;
-        let runtime = executor::resolve_for(profile.base, executor::Profile::Process)?;
+        let runtime = executor::resolve_for(base, executor::Profile::Process)?;
         if runtime.platform()? != platform {
             bail!("{owner}: container runtime platform differs from the tested application");
         }
@@ -121,7 +114,7 @@ pub(super) fn augment(
                 target_platform: &platform,
                 execution_name: &format!("oyzu-container-acquire-{run_id}-{id}"),
             },
-            &[profile.base.into()],
+            &[base.into()],
         )?;
         if bindings[0].config != runtime.digest {
             bail!("{owner}: runtime image changed between compatibility probe and capture");
@@ -137,18 +130,19 @@ pub(super) fn augment(
             digest: records::digest("oyzu.dependencies.v1alpha1", &record)?,
             record,
         };
+        let (uid, gid) = options.identity()?.unwrap_or((65532, 65532));
         let mode = executor::ImageRecipe {
             base: executor::ImageBase::Captured {
-                reference: profile.base.into(),
+                reference: base.into(),
             },
             copies: vec![executor::ImageCopy {
                 source: profile.payload.into(),
                 destination: format!("/app/{}", profile.payload),
             }],
-            uid: 65532,
-            gid: 65532,
-            workdir: "/app".into(),
-            entrypoint: profile.entrypoint,
+            uid,
+            gid,
+            workdir: options.workdir.unwrap_or_else(|| "/app".into()),
+            entrypoint: options.entrypoint.unwrap_or(profile.entrypoint),
         };
         let apparmor = configuration
             .get("docker.apparmorProfile")

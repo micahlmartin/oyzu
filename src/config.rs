@@ -1,6 +1,8 @@
 use anyhow::{bail, Context, Result};
 pub mod agent;
 pub mod constraints;
+mod container;
+pub use container::{Container, ContainerOptions};
 pub mod edit;
 pub(crate) mod enforcement;
 mod inventory;
@@ -32,7 +34,7 @@ pub struct TargetConfig {
     pub platform: Option<String>,
     #[serde(default)]
     pub matrix: BTreeMap<String, Vec<String>>,
-    pub container: Option<serde_yaml::Value>,
+    pub container: Option<Container>,
     pub bindings: Option<serde_yaml::Value>,
     pub dependencies: Option<String>,
 }
@@ -183,6 +185,9 @@ pub(crate) fn capture_targets(root: &Path) -> Result<(BuildInventory, Vec<source
     }
     let mut names = std::collections::BTreeSet::new();
     for (name, config) in &values {
+        if let Some(container) = &config.container {
+            container.validate()?;
+        }
         if !crate::names::valid(name) {
             bail!("invalid target name {name}");
         }
