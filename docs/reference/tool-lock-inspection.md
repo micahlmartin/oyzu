@@ -680,13 +680,20 @@ including 65,535 bytes compressed to 82 bytes. The implementation still defaults
 to 200:1 and caps an explicit override at 1024:1, with entry, total-byte, per-file,
 path and depth guards unchanged. This synthetic layout is not production admission.
 The harness compares all 15,738 entries, publishes/verifies receipts, retains a
-lease during Windows `go version`, and checks changed-lock denial/recovery. Foreign
+lease during Windows `go version`, `go env GOROOT`, compilation of a small real
+Go module using the standard library, and execution of that program. The synthetic
+layout declares GOROOT as the installation root. The build uses private caches and
+temporary directories, clears inherited settings, disables automatic toolchain and
+module downloads (`GOTOOLCHAIN=local`, `GOPROXY=off`, `GOSUMDB=off`), and disables
+cgo. These Go settings are not an OS network sandbox or product environment
+projection. The harness then checks changed-lock denial/recovery. Foreign
 hosts materialize the Windows payload without executing it. Native CI provisions
 Node and Go separately so each test requires only its own fixture inputs.
 
 Windows qualification passed for all 15,738 entries, publication, changed-lock
-denial/recovery and native version execution with the explicit 800:1 test layout.
+denial/recovery, native version execution, GOROOT lookup and compilation/execution
+of a standard-library program with the explicit 800:1 test layout.
 Linux foreign-target materialization, publication and changed-lock checks also passed
 with container networking disabled; it did not execute the Windows payload. Updated
-native CI remains pending. Passing this fixture does not establish Go build behavior, GOROOT/environment integration,
-other native targets, publisher signatures or end-to-end product installation.
+native CI remains pending. Passing this fixture does not establish product Go
+build/environment integration, other native targets, publisher signatures or end-to-end product installation.

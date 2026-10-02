@@ -1259,3 +1259,22 @@ library ignores, plus integration suites), as did strict all-target Clippy,
 formatting, all nine real CLI task scenarios and documentation checks. Native
 CI on the merged revision remains pending; prior backend evidence is not broadened
 to the newly merged behavior. No mise source admission or legal approval changed.
+
+## Mise integration checkpoint 96: published Go compiler execution
+
+The real Go ZIP qualification now declares installation-relative GOROOT in its
+synthetic layout and holds its verified installation lease through native version
+lookup, `go env GOROOT`, a real standard-library module build, and execution of
+the resulting program. On Windows, the published Go 1.24.13 compiler completed
+these steps with inherited environment cleared, private build caches and temporary
+paths, `GOTOOLCHAIN=local`, `GOENV=off`, `GOWORK=off`, `GOPROXY=off`,
+`GOSUMDB=off` and cgo disabled. All 15,738 inventory entries and the subsequent
+changed-lock denial/recovery still passed. These settings prevent Go's ordinary
+download paths; they are not OS-level network containment.
+
+The Windows locked regression suite, strict all-target Clippy, formatting and all
+nine CLI task scenarios passed. The existing native CI Go step selects this same
+test, but execution of this increment in CI remains pending. Foreign hosts still
+only materialize the Windows archive. This establishes real compiler use from a
+verified published payload, not production environment projection, builder handoff,
+source admission, publisher signatures or full OEP completion.

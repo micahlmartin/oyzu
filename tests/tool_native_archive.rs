@@ -96,6 +96,11 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
         "interpreter_tool_key":null, "interpreter_relative_path":null, "prefix_args":[]
     }});
     plan["environment"]["PATH"]["paths"][0]["relative_path"] = json!(case.path);
+    if case.tool == "go" {
+        plan["environment"]["GOROOT"] = json!({
+            "kind":"paths", "paths":[{"owner":"self", "relative_path":"."}]
+        });
+    }
     let layout_digest = records::digest("oyzu.archive-layout.v1", &plan)?;
     let mut lock: toml::Value = toml::from_str(include_str!("fixtures/tool-lock/valid.toml"))?;
     lock["environment"][0]["roots"] = vec![key.clone()].into();
@@ -202,6 +207,9 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
             format!("v{}", case.version)
         };
         assert_eq!(String::from_utf8(output.stdout)?.trim(), expected_version);
+        if case.tool == "go" {
+            qualify_go_build(&executable, temp.path())?;
+        }
     }
     // Preserve the version and bytes; change only the locked archive identity.
     let changed = format!("sha256:{}", "2".repeat(64));
@@ -224,5 +232,77 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
         lease.selection_digest
     );
     eprintln!("real {} ZIP: {} entries match; publication and changed-lock denial passed; native execution={}", case.tool, tree.entries.len(), cfg!(windows));
+    Ok(())
+}
+
+/// Exercise the published compiler and standard library, with no inherited Go
+/// settings, automatic toolchain download, module proxy or ambient compiler.
+/// The caller keeps the verified installation lease alive for this whole run.
+#[cfg(windows)]
+fn qualify_go_build(executable: &std::path::Path, scratch: &std::path::Path) -> anyhow::Result<()> {
+    let payload = executable.parent().unwrap().parent().unwrap();
+    let cache = scratch.join("go-cache");
+    let temporary = scratch.join("go-temp");
+    fs::create_dir(&cache)?;
+    fs::create_dir(&temporary)?;
+    let command = || {
+        let mut command = std::process::Command::new(executable);
+        command
+            .env_clear()
+            .current_dir(scratch)
+            .env("GOROOT", payload)
+            .env("GOCACHE", &cache)
+            .env("GOTMPDIR", &temporary)
+            .env("GOPATH", scratch.join("go-path"))
+            .env("GOMODCACHE", scratch.join("go-modules"))
+            .env("GOTOOLCHAIN", "local")
+            .env("GOENV", "off")
+            .env("GOWORK", "off")
+            .env("GOPROXY", "off")
+            .env("GOSUMDB", "off")
+            .env("CGO_ENABLED", "0");
+        if let Some(root) = std::env::var_os("SystemRoot") {
+            command.env("SystemRoot", root);
+        }
+        command
+    };
+    let output = command().args(["env", "GOROOT"]).output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::canonicalize(String::from_utf8(output.stdout)?.trim())?,
+        fs::canonicalize(payload)?
+    );
+    fs::write(
+        scratch.join("go.mod"),
+        "module example.invalid/oyzu-store-check\n\ngo 1.24.0\n",
+    )?;
+    fs::write(
+        scratch.join("main.go"),
+        "package main\nimport \"fmt\"\nfunc main() { fmt.Println(\"oyzu-go-store-ok\") }\n",
+    )?;
+    let binary = scratch.join("go-store-check.exe");
+    let output = command()
+        .args(["build", "-mod=readonly", "-trimpath", "-o"])
+        .arg(&binary)
+        .arg(".")
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = std::process::Command::new(binary)
+        .env_clear()
+        .current_dir(scratch)
+        .output()?;
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout)?.trim(), "oyzu-go-store-ok");
+    eprintln!(
+        "real Go: published GOROOT, offline module build and native program execution passed"
+    );
     Ok(())
 }
