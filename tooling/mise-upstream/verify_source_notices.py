@@ -25,6 +25,26 @@ def document(path):
     return data, json.loads(data, object_pairs_hook=unique)
 
 
+def github_repository(value):
+    """Canonicalize only known publisher GitHub repository URL spellings.
+
+    Tree URLs identify a repository, not the commit being reviewed. The separate
+    crate VCS SHA remains mandatory and determines every retrieved notice URL.
+    """
+    require(isinstance(value, str), "invalid repository metadata")
+    match = re.fullmatch(r"https://github\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)(/tree/[A-Za-z0-9_./-]+)?/?", value)
+    require(match is not None, "unsupported repository metadata")
+    owner, name, tree = match.groups()
+    if name.endswith(".git"):
+        name = name[:-4]
+    require(owner not in (".", "..") and name not in ("", ".", ".."), "unsafe repository metadata")
+    if tree:
+        parts = tree.rstrip("/").split("/")[2:]
+        require(len(parts) >= 2 and all(part not in ("", ".", "..") for part in parts),
+                "unsafe repository metadata")
+    return f"https://github.com/{owner}/{name}"
+
+
 def verify(artifacts, index_path, pointers_path):
     _, index = document(index_path)
     pointer_bytes, pointers = document(pointers_path)
@@ -34,23 +54,26 @@ def verify(artifacts, index_path, pointers_path):
     require(sha(pointer_bytes) == index["source_pointer_sha256"], "source pointer hash mismatch")
     packages = {p["id"]: p for p in pointers["packages"]}
     require(len(packages) == len(pointers["packages"]), "duplicate source package")
-    seen_sources, seen_paths = set(), set()
+    seen_sources, seen_paths, covered_packages = set(), set(), set()
     count = total = 0
     require(len(index["sources"]) <= 4096, "source count exceeded")
     for source in index["sources"]:
         repository, revision = source["repository"], source["revision"]
         match = re.fullmatch(r"https://github\.com/([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)", repository)
         require(match is not None and re.fullmatch(r"[0-9a-f]{40}", revision), "invalid source identity")
+        require(github_repository(repository) == repository, "noncanonical source identity")
         slug = match.group(1)
         require(all(part not in (".", "..") for part in slug.split("/")), "unsafe repository path")
         identity = (repository, revision)
         require(identity not in seen_sources, "duplicate source identity")
         seen_sources.add(identity)
         require(source["package_ids"] and len(set(source["package_ids"])) == len(source["package_ids"]), "invalid package references")
+        require(source["files"], "source has no retained notice files")
         for package_id in source["package_ids"]:
             package = packages[package_id]
-            require(package["repository"] == repository and package["vcs"]["git"]["sha1"] == revision,
+            require(github_repository(package["repository"]) == repository and package["vcs"]["git"]["sha1"] == revision,
                     "package/source binding mismatch")
+            covered_packages.add(package_id)
         for notice in source["files"]:
             path = notice["path"]
             parts = PurePosixPath(path).parts
@@ -77,6 +100,8 @@ def verify(artifacts, index_path, pointers_path):
             git_hash = hashlib.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
             require(git_hash == notice["git_blob_sha1"], "Git blob mismatch")
     return {"sources": len(seen_sources), "files": count, "bytes": total,
+            "packages_with_candidates": len(covered_packages),
+            "packages_without_candidates": len(packages.keys() - covered_packages),
             "verified": True, "legal_approval": False, "release_ready": False}
 
 

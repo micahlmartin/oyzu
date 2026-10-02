@@ -5,10 +5,38 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from verify_source_notices import verify
+from verify_source_notices import github_repository, verify
 
 
 class SourceNoticeTests(unittest.TestCase):
+    def test_repository_spellings_preserve_repository_and_pinned_revision(self):
+        canonical = "https://github.com/example/project"
+        for suffix in ("", "/", ".git", ".git/", "/tree/main/crates/tool", "/tree/master/tool/"):
+            self.assertEqual(github_repository(canonical + suffix), canonical)
+        for value in (canonical + "/tree/main", canonical + "/tree/main/../other",
+                      canonical + "/tree/main//tool", canonical + "?ref=other",
+                      "http://github.com/example/project", "https://github.com.evil/example/project",
+                      "https://user@github.com/example/project", "https://github.com/../project",
+                      canonical + "/issues/1", canonical + "/tree/main/%2e%2e"):
+            with self.assertRaises(ValueError):
+                github_repository(value)
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            index, pointer_path, _ = self.fixture(root)
+            pointers = json.loads(pointer_path.read_text())
+            pointers["packages"][0]["repository"] += "/tree/main/crates/tool"
+            pointer_path.write_text(json.dumps(pointers))
+            index["source_pointer_sha256"] = hashlib.sha256(pointer_path.read_bytes()).hexdigest()
+            index_path = root / "index.json"
+            index_path.write_text(json.dumps(index))
+            self.assertTrue(verify(root, index_path, pointer_path)["verified"])
+            pointers["packages"][0]["vcs"]["git"]["sha1"] = "b" * 40
+            pointer_path.write_text(json.dumps(pointers))
+            index["source_pointer_sha256"] = hashlib.sha256(pointer_path.read_bytes()).hexdigest()
+            index_path.write_text(json.dumps(index))
+            with self.assertRaisesRegex(ValueError, "binding mismatch"):
+                verify(root, index_path, pointer_path)
+
     def fixture(self, root):
         revision = "a" * 40
         repository = "https://github.com/example/project"
@@ -39,6 +67,8 @@ class SourceNoticeTests(unittest.TestCase):
             index_path.write_text(json.dumps(index))
             result = verify(root, index_path, pointers)
             self.assertEqual(result["files"], 1)
+            self.assertEqual(result["packages_with_candidates"], 1)
+            self.assertEqual(result["packages_without_candidates"], 0)
             self.assertFalse(result["legal_approval"])
             artifact.write_bytes(b"changed")
             with self.assertRaisesRegex(ValueError, "bytes mismatch"):
@@ -56,6 +86,7 @@ class SourceNoticeTests(unittest.TestCase):
                 lambda d: d.update(legal_approval=True),
                 lambda d: d.update(source_pointer_sha256="0" * 64),
                 lambda d: d["sources"][0].update(revision="b" * 40),
+                lambda d: d["sources"][0].update(files=[]),
                 lambda d: d["sources"][0]["files"][0].update(path="../LICENSE"),
                 lambda d: d["sources"][0]["files"][0].update(retained_path="../LICENSE"),
                 lambda d: d["sources"][0]["files"][0].update(git_blob_sha1="0" * 40),

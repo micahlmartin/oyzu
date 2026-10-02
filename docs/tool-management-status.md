@@ -1466,3 +1466,28 @@ process supervision and executor containment are still absent. Cancel encoding,
 code-only diagnostics and cancellation-race handling remain draft contract choices.
 Reference documentation, code ownership and OEP implementation/runtime pages now
 state these boundaries; this does not complete TM-01 or TM-05.
+
+## Checkpoint 113: expanded exact-commit supplemental notices
+
+Retained 31 additional original root notice files from 22 source commits,
+associated with 31 more entries in the missing-notice inventory. The complete
+supplemental index now contains 53 files (234,668 bytes), 36 source commits and
+76 package entries. Every added file matched the recorded commit tree's Git blob
+identity, SHA-256 and size. Original bytes remain outside the checkout; public
+immutable URLs and identities are retained in the index.
+
+The offline verifier now handles narrowly defined GitHub publisher URL variants
+(trailing slash, .git and tree/ref/path), while still requiring the exact separate
+crate VCS commit and canonical immutable notice URL. Traversal/foreign hosts,
+query strings and changed commits fail. Empty file inventories fail, and output
+now reports entries with and without supplemental candidates. All 15 maintenance
+tests and the complete real-byte verifier passed, as did documentation/diff checks.
+No Rust runtime or production dependency changed in this increment.
+
+Twenty-two entries still lack supplemental candidates: 11 root-name searches
+found none, one repository is outside the current GitHub verifier scope, one
+crate lacks a recorded VCS commit and nine entries need fork workspace review.
+This is collection evidence, not legal interpretation: original missing-notice
+counts, unreviewed dispositions and false approval/release flags are unchanged.
+The maintenance reference now documents the exact normalization and remaining
+search limitations. Production source admission still requires recorded review.

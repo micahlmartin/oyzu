@@ -512,9 +512,8 @@ redistribution duties; do not substitute an unrelated current repository license
 All dispositions remain unreviewed and approval flags remain false.
 
 The [supplemental notice index](../proposals/OEP-0003-mise-integration/supplemental-notice-evidence.json)
-records 18 original root notice files and four nested Aube notice files fetched
-at 14 exact source commits for 45
-package entries in the rage, aube, rattler and sigstore-rust repository groups.
+records 49 original root notice files and four nested Aube notice files fetched
+at 36 exact source commits for 76 of the 98 missing-notice package entries.
 Each retained file matches its commit tree's Git blob identity and its recorded
 SHA-256 and size. Original bytes remain outside the checkout; the index gives
 immutable source URLs and relative retention paths for retrieval and rechecking.
@@ -532,6 +531,16 @@ unreviewed; root LICENSE alone is not presented as complete coverage. The index
 records both the directory tree identity and each contained file identity. All source-admission and release
 approval flags remain false.
 
+Twenty-two entries still have no supplemental candidate. Root filename searches
+at the recorded commits found no matching notice file for backtrace-ext, bech32,
+cache_control, clx, cms, cookie-factory, crc-catalog, cx448, intl_pluralrules,
+io_tee and sigchld. This is a limited root-name search, not proof that their
+source trees have no licensing information. `http-serde` has a GitLab repository
+outside this verifier's current source scope; `crc24` lacks a recorded crate VCS
+commit. Nine fork workspace entries require separate workspace-source review.
+The original per-target missing-notice counts remain unchanged: supplemental
+candidates do not resolve applicability or distribution obligations.
+
 Recheck supplemental files with the separate offline verifier (Python 3.11+):
 
 ```sh
@@ -548,10 +557,20 @@ root fail. Unindexed files are ignored; this is not a complete filesystem invent
 Use trusted local retention storage: path checks are not a hostile concurrent
 filesystem sandbox.
 
+Publisher repository metadata may use a canonical GitHub URL, a trailing slash,
+a `.git` suffix, or a `tree/<ref>/<path>` URL. The verifier normalizes only those
+bounded spellings to the same owner/repository, retaining the original metadata
+in the source-pointer inventory. Queries, fragments, foreign hosts, credentials,
+encoded segments and traversal are rejected. A tree URL's branch is never used
+to select notice bytes: the separate exact crate VCS commit must still match the
+index. Canonical source records and immutable raw URLs remain mandatory.
+
 Each index is bounded to 1 MiB, each notice to 2 MiB, with at most 4,096 sources,
-20,000 files and 256 MiB of notice bytes. Success exits 0 and prints counts and
+20,000 files and 256 MiB of notice bytes. Sources without retained files fail.
+Success exits 0 and prints file/source counts, package entries with/without
+supplemental candidates and
 explicit false approval flags; malformed or inconsistent evidence exits 1 with a
 redacted error type. No file is modified, extracted or executed, and no network
 request occurs. Restore the exact retained source bytes after failure; do not
-rewrite trusted hashes to accept changed input. All 22 current files (78,323 bytes)
+rewrite trusted hashes to accept changed input. All 53 current files (234,668 bytes)
 passed this check, alongside mutation tests included in the maintenance CI suite.
