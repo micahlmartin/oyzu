@@ -1057,3 +1057,18 @@ inventory/tests and documentation checks passed. The maintenance reference and c
 map describe the independent fixture oracle and optional fork replay. Native replay,
 archive/layout qualification, licensing approval and production wiring remain
 outstanding. Fixture capture/replay does not complete TM-06 or the OEP.
+
+## Mise integration checkpoint 91: native catalog-file checks and fixture limits
+
+Run 36991065278 at fork revision `0d58ad7c135d5be63d96b356dbf4ca94708566b9`
+passed the strict library/example Clippy and twenty-two-scenario conformance steps
+on Windows, macOS and Linux. Windows/macOS jobs were still finishing post-check
+work at inspection. This supersedes checkpoint 88's pending native checks, but does
+not claim native optional real-metadata replay or full installation qualification.
+
+The capture writer now bounds serialized fixture output to the replay reader's
+32 MiB limit before creating a file. This accounts for JSON escaping expansion,
+which can exceed the limit even with an input body below 16 MiB. Regression tests
+confirm the written digest, refusal to replace an existing fixture, preservation
+of its bytes and no output for oversized serialization. All nine upstream-tooling
+tests and documentation checks passed. Product Rust sources were unchanged.

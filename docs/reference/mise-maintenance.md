@@ -191,8 +191,9 @@ original UTF-8 response bodies, byte sizes, SHA-256 values and six expected fiel
 per version/target. It accepts one to sixteen unique canonical numeric versions;
 missing, unstable, ambiguous or contradictory records fail without fallback.
 Catalog responses are bounded to 16 MiB, sidecars to 128 bytes and release file
-lists to 4,096 entries. Network reads use a 30-second socket timeout, not a global
-operation deadline. This host provisioning helper uses Python's normal HTTPS/proxy
+lists to 4,096 entries. Serialized fixture output is bounded to the replay reader's
+32 MiB limit before file creation, including JSON escaping overhead. Network reads
+use a 30-second socket timeout, not a global operation deadline. This host provisioning helper uses Python's normal HTTPS/proxy
 configuration; it is not the isolated product broker. No archive is downloaded.
 Acquisition failures create no output; a write failure removes the newly created
 partial file. Rerun with another output path after resolving the failure.
@@ -242,8 +243,11 @@ sidecar responses; no other source or cache is silently substituted.
 
 This extends the experimental metadata result shape and replaces checksum-only
 acceptance. Production Oyzu source admission, worker wiring, real archive/layout
-qualification and publisher verification remain outstanding. Native Windows/macOS
-verification of this catalog-file binding is pending. Linux Rust 1.95 strict
+qualification and publisher verification remain outstanding. At fork revision `0d58ad7c1`, all three native hosts passed strict library/example
+Clippy and the twenty-two-scenario conformance step in
+[run 36991065278](https://github.com/oyzuai/mise/actions/runs/36991065278).
+Windows/macOS jobs were still finishing post-check work when inspected; these
+results do not qualify the separate optional real-metadata replay on those hosts. Linux Rust 1.95 strict
 library/example Clippy, formatting and all twenty-two conformance scenarios passed.
 
 The fork's experimental `Session::go_archive_facts(version, target)` uses Go's

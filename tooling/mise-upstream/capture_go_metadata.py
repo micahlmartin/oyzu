@@ -88,6 +88,20 @@ def capture(versions, acquire=fetch):
                             "Capture alone does not prove the Rust adapter passes replay"]}
 
 
+def write_fixture(output_path, result):
+    """Publish an exclusively created replay-sized fixture; preserve existing files."""
+    data = (json.dumps(result, indent=2) + "\n").encode("utf-8")
+    require(len(data) <= 32 * 1024 * 1024, "serialized fixture exceeds replay byte limit")
+    output = output_path.open("xb")
+    try:
+        with output:
+            output.write(data)
+    except BaseException:
+        output_path.unlink()
+        raise
+    return digest(data)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="append", required=True)
@@ -97,15 +111,8 @@ def main():
             "retain captured metadata outside the repository")
     require(not args.output.exists(), "output already exists")
     result = capture(args.version)
-    data = (json.dumps(result, indent=2) + "\n").encode("utf-8")
-    output = args.output.open("xb")
-    try:
-        with output:
-            output.write(data)
-    except BaseException:
-        args.output.unlink()
-        raise
-    print(json.dumps({"output": str(args.output), "fixture_sha256": digest(data),
+    fixture_digest = write_fixture(args.output, result)
+    print(json.dumps({"output": str(args.output), "fixture_sha256": fixture_digest,
                       "cases": len(result["expected"]), "responses": len(result["responses"]),
                       "legal_approval": False, "release_ready": False}, indent=2))
 

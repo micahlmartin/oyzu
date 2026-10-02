@@ -1,10 +1,28 @@
 import json
+from pathlib import Path
+import tempfile
 import unittest
 
-from capture_go_metadata import CATALOG, TARGETS, capture, digest
+from capture_go_metadata import CATALOG, TARGETS, capture, digest, write_fixture
 
 
 class CaptureTests(unittest.TestCase):
+    def test_output_identity_exclusivity_and_replay_limit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary) / "fixture.json"
+            expected_digest = write_fixture(output, {"fixture": "original"})
+            original = output.read_bytes()
+            self.assertEqual(expected_digest, digest(original))
+            with self.assertRaises(FileExistsError):
+                write_fixture(output, {"fixture": "replacement"})
+            self.assertEqual(output.read_bytes(), original)
+            oversized = Path(temporary) / "oversized.json"
+            # JSON escaping can exceed the replay limit even when the captured
+            # UTF-8 body itself was within its 16 MiB input limit.
+            with self.assertRaisesRegex(ValueError, "replay byte limit"):
+                write_fixture(oversized, {"body": "\x00" * (6 * 1024 * 1024)})
+            self.assertFalse(oversized.exists())
+
     def records(self):
         return [{"version": "go1.24.13", "stable": True, "files": [
             {"filename": f"go1.24.13.{os_name}-{arch}.{extension}", "os": os_name,
