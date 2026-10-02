@@ -740,7 +740,103 @@ The older [run 36959555496](https://github.com/micahlmartin/oyzu/actions/runs/36
 
 CI now runs Biome CLI probes on all three hosts and adds Linux captured-build cases requiring a snapshot npm archive, collected JUnit/coverage, unchanged source and artifact rejection after real Biome lint/format failures. No local container engine was available, so those new isolated cases have not been locally verified. The full builder/scenario objective remains active, including member task groups, other manager workspaces, broader framework coverage and the outstanding capabilities recorded above.
 
-## Checkpoint 40: verified archive staging and fork embedding boundary
+## Checkpoint 40: Python native test collection without directory guesses
+
+Python's implicit test task is now callable and selected for builds even without conventional `tests/` or `test/` directories. Native pytest owns actual collection, so root-level tests and native `testpaths`/filename patterns can no longer be silently excluded by static discovery. A private detector records bounded pytest configuration evidence, or the profile fallback, through the existing shared resolver. It does not import configuration or test code. pip, uv and Poetry retain their native development commands, and task overrides/hooks retain their shared owner.
+
+Acquisition now prepares pinned pytest/pytest-cov defaults independently of directory layout, while respecting declared/native-lock versions. Captured test reporting continues to measure installed distribution source and retain native JUnit/Cobertura. No-tests execution preserves native exit code 5 and empty JUnit rather than manufacturing a passing suite; missing coverage remains missing. This changes projects that previously skipped tests because the conventional directories were absent. The [Python testing reference](reference/python-testing.md) documents commands, evidence, prerequisites, compatibility and remaining limits.
+
+Windows verification used Python 3.12.14, pytest 8.3.5, pytest-cov 6.0.0 and coverage 7.16.2. The compiled CLI passed static listing with an empty PATH and deliberately failing `conftest.py`, root-level tests, configured nonconventional selection with a poison test outside the selected path, assertion failure, explicit skip and native empty-suite exit. Six native reporter checks passed installed package/single-module coverage, native coverage thresholds, root/configured selection and retained zero-test JUnit. Five adapter checks passed, including reporter preparation without test directories and preservation of locked versions. Rust discovery checks cover pip/uv/Poetry task visibility and all supported pytest configuration evidence forms. Full Rust tests, Clippy, rustfmt, CLI compilation, existing task/hook scenarios, documentation and all 58 example structure checks passed.
+
+CI now provisions Python 3.12 for direct task and reporter checks on all three hosts. Separate Linux captured-build cases require successful root/configured suites, snapshot wheel/sdist artifacts, measured reports and unchanged checkout bytes; an empty-suite case must retain its zero-test report and block packaging. Those new CI checks remain pending, and no local container execution was performed. A dedicated unittest adapter, other test frameworks, complete native configuration inheritance, standalone task report bundles and the wider builder/scenario objective remain unfinished.
+
+For the previous increment, [run 36964204164](https://github.com/micahlmartin/oyzu/actions/runs/36964204164) passed all three CLI compilation jobs. Its native task jobs, BuildKit worker and Linux captured-build job were still pending/running when inspected. This is not yet cross-host or isolated-build acceptance of Biome or the Windows workspace correction; no live job was restarted.
+
+### Windows workspace dependency follow-up
+
+That run subsequently passed the BuildKit worker but failed Windows native workspace packaging at the public-root dependency case. Native membership now recognizes the root/member links, but Arborist's synthetic `file:` workspace edge still carried an alias-sensitive validation error. The graph adapter now validates the actual root dependency declaration with npm's own dependency validator and separately retains canonical link ownership checks. It does not treat a workspace link as proof that a required version constraint is satisfied. The compiled-CLI regression adds a root dependency through aliased member links and requires a mismatched root version to fail before any member command executes. It passed locally with the existing real Node/Jest/Vitest, lifecycle, override, wrong-destination and copied-link cases; Windows runner confirmation remains pending.
+
+The follow-up CLI rebuild, native workspace acquisition/replay, eight-layout snapshot packaging probe and documentation checks also passed locally. Native tests retain root dependency versions, report collection, failed gates and tamper checks; the correction does not weaken those acceptance criteria.
+
+### Python native task fixture correction
+
+[Run 36964875557](https://github.com/micahlmartin/oyzu/actions/runs/36964875557) passed all three CLI builds and the BuildKit worker check, but its task jobs failed before Node verification. The Python probe replaced a passing assertion with a failing assertion of the same byte length within one filesystem timestamp second. Native pytest reused the preceding Python bytecode and reported a pass. The fixture now changes source length as well as contents, preserving the real native failure expectation without sleeps or changes to CLI execution. The corrected compiled-CLI probe passed locally on Windows; cross-host confirmation remains pending. The run's captured-build job was confirmed running and was not restarted.
+
+## Checkpoint 41: native Helm assertion suites and snapshot baseline integrity
+
+The Helm builder now detects conventional chart `tests/*_test.yaml` suites through an owned detector and the common resolver, without launching Helm or interpreting native assertions. An implicit development test invokes native helm-unittest. Captured testing additionally retains the independent native render/schema or library-validation check and requires the plugin's own JUnit report. Shared collection owns both report identities, summaries and digests; an integration planning regression verifies that native output arguments match the named report destinations. Coverage remains explicitly inapplicable for charts rather than being fabricated as application coverage.
+
+The explicitly provisioned Linux toolchain now includes checksum-pinned helm-unittest 1.2.0 alongside Helm 3.22.0. Captured plans fix the plugin path to the toolchain-owned directory. No plugin download or install hook runs during builds. The runtime retains native assertion failures, rejects stale report reuse after launch failure, and fails the action if native unittest creates or changes snapshot baselines. Actual native testing established that a missing baseline can otherwise be generated with a passing JUnit result even without the update flag. The adapter retains that raw report while failing the action; reviewed baseline inputs pass and native snapshot mismatches fail. Direct development tasks retain native snapshot behavior.
+
+Windows native verification passed static CLI listing with an empty PATH, assertion success/failure, malformed suites, library/schema/render checks, stale-output rejection and missing/matching/mismatched snapshots. The probe also verifies native suites remain runnable when `.helmignore` excludes tests from the chart archive. Archive normalization passed. The full Rust test suite passed; after correcting the named report output path, its focused planning regression, Clippy, rustfmt and CLI rebuild passed. Native task/hook checks passed. Documentation checks and all 58 authored example structure checks passed; those checks do not establish complete scenario execution.
+
+The [Helm reference](reference/helm.md), builder code map and EX-028 variants document the new behavior and limits. Linux CI now invokes the compiled CLI from the native Helm probe and adds captured-build cases for snapshot artifacts, two retained reports, failed assertions, rejected automatic snapshot baselines and unchanged source. These new isolated cases remain pending CI execution; there is no available local container engine. Custom suite globs, subchart-only discovery, templated test charts, remote/OCI dependencies, Helm formatting and artifact bindings remain unfinished, alongside the wider builder/scenario goal. The previous captured-build job 110707164045 was confirmed running and was not restarted.
+
+### CI host/toolchain compatibility follow-up
+
+[Run 36965934641](https://github.com/micahlmartin/oyzu/actions/runs/36965934641) passed all three CLI builds, all three native task suites and the BuildKit worker check. This supplies cross-host confirmation of the Python task fixture and npm workspace follow-ups. The Linux captured-build job stopped before scenario execution: the host-built CLI required glibc 2.39, which the older Helm toolchain container does not provide. The workflow now retains the network-disabled native Helm container probe and separately runs the compiled CLI on its host with the checksum-provisioned Helm/plugin files copied from that image. No checks are removed. This routing correction still requires CI confirmation and does not establish captured Helm build acceptance.
+
+## Checkpoint 42: native Go library module artifacts
+
+Go planning now supports projects without main packages and explicit `go/library` targets. It keeps native compile, test, vet and read-only formatting gates and declares snapshot module zip/mod/info artifacts instead of rejecting the library or inventing an executable. Existing application binary output selection remains unchanged. Shared report collection still owns native Go JUnit/coverage, and final artifact collection remains gated on successful required actions.
+
+The Go-owned module packaging adapter uses checksum-locked `golang.org/x/mod` 0.25.0 for native module path/major-version rules, manifest projection, zip admissibility and h1 checksums. Preparation creates module candidates from captured source before build-generated files exist. Workspace references become matching snapshot versions, including edges observed from native imports that have no original require entry. Known contained local replacements are removed from projected go.mod files; unsupported replacement publication semantics fail explicitly. The source manifests are unchanged. Module identities, versions, files and native checksums are retained in the dependency record, and successful final artifacts have their own manifest identities and digests.
+
+Windows verification with Go 1.24.13 passed independent consumption of a `/v2` library and a two-module workspace through local file proxies with fresh module caches. The checks verified native checksums, matching go.mod/archive contents, byte repeatability, source immutability, implicit local dependency projection and invalid local replacement rejection. Native metadata/cgo/workspace acquisition and compiled CLI development checks also passed, including discovery of an edge after removing its original require entry. The full Rust suite, Clippy and CLI build passed; the additional library planning/path-admission regression and rustfmt check passed. Native adapter `go vet` passed. Documentation and all 58 authored example structure checks passed; structural checks are not full scenario acceptance.
+
+The [Go reference](reference/go.md) describes the new explicitly provisioned toolchain image, changed image prerequisites, versioned outputs, native library ownership and remaining limitations. EX-016 includes a zero-configuration library variant. CI provisions and exercises native module archive consumers on all three hosts and adds a Linux captured CLI library build requiring artifacts, reports, source immutability, repeated byte identity and failed-test rejection. These new checks remain pending CI confirmation because no local container engine is available. Private/VCS sources, cross compilation, unsupported replacement projection, publication and the remaining builder/scenario capabilities stay within the active goal.
+
+## Checkpoint 43: native Cargo binary selection and executable collection
+
+Rust preparation now retains native resolved features and an ordered binary inventory, advancing the prepared layout to version 2. Planning omits binary targets whose native `required-features` are unmet and declares enabled binaries with their package snapshot versions. The builder-owned runtime adapter consumes Cargo compiler-artifact messages, matches opaque package/target identities, verifies contained regular executable paths and stages only a complete successful result. Shared collection still owns final artifacts after all build gates. Fixed compiler-target and output-root facts cannot be redirected by task environment overrides.
+
+Windows native verification with Cargo/Rust 1.94.0 passed default-disabled and default-enabled binaries, executable byte identity and execution, fresh cache messages, source archive exclusion, missing outputs, redirected native output rejection and compiler failures. The probe exposed that Cargo does not automatically omit every arbitrary custom target directory from source packages. The captured profile uses the reserved `.oyzu-build/target` location; the probe now exercises that actual profile and explicitly verifies its private files are absent from native package contents. Exhaustive custom include/exclude behavior is not established by this check.
+
+The full Rust suite passed, followed by the updated focused Rust planner regressions, Clippy, rustfmt, CLI compilation and native task/hook scenarios. Documentation checks and all 58 example structure checks passed. The new [Rust reference](reference/rust.md), builder map and EX-021 variants document native artifact identities, task behavior, image prerequisites, report collection and remaining limitations. Python 3 is now an explicitly provisioned part of the Rust toolchain image for the owned adapter; it is not installed during project builds.
+
+CI adds the native Cargo artifact probe on all three hosts and compiled-CLI Linux feature-gate scenarios requiring snapshot artifacts, runnable delivered binaries, JUnit/coverage, unchanged source and no stale artifacts after a compiler failure. These new isolated cases remain pending CI; no local container engine is available. Registry/Git dependency acquisition, complete feature/profile/platform matrices, doctests, publication and the wider builder/scenario goal remain unfinished.
+
+At this checkpoint, [run 36967080170](https://github.com/micahlmartin/oyzu/actions/runs/36967080170) passed all three CLI builds, all three native task suites and the BuildKit worker contract. Its Linux toolchain/probe provisioning also passed, confirming the earlier Helm host-runtime routing fix. Its compiled-CLI captured-source scenario step was confirmed in progress, so no full captured-build result is claimed and the job was not restarted.
+
+## Checkpoint 44: captured crates.io dependencies for offline Cargo builds
+
+The Rust-owned acquisition adapter now admits locked crates.io sources, captures exact native index entries and crate archives through the existing scoped host transport, and verifies index/archive SHA-256 values against Cargo.lock. It writes Cargo's documented local-registry format instead of reimplementing resolution or unpacking archives on the host. Native offline Cargo owns lock validation, extraction, feature resolution, compilation and package verification. Unsupported private/alternate registry or Git sources fail before acquisition requests; this standalone public source profile does not yet implement enterprise connector routing.
+
+Prepared layout version 3 records archive identities, digests and sizes. Workspace snapshot projection and output selection exclude registry dependencies, which retain their locked versions as inputs. The captured registry is mounted read-only for native preparation and execution. A shared Rust command wrapper installs source configuration in the private Cargo home so nested native subcommands inherit it. A Windows native probe demonstrated that a top-level Cargo --config argument alone did not propagate to Clippy; the private-home approach passed. Cargo home and offline mode join the fixed compiler-target/output-root plan facts.
+
+Windows verification passed native Cargo tests, Clippy and verified packaging against an acquired fixture registry with a fresh home, unchanged source lock bytes and rejection of modified archive bytes from a second fresh cache. Acquisition checks reject unsupported source routes and mismatched index/archive checksums. A separate public itoa 1.0.15 probe confirmed Cargo's native local-registry resolution and original registry identity; Cargo generated the checked-in example lock. The full Rust suite passed, followed by focused checks for the revised command setup, Clippy, rustfmt, CLI compilation and native task/hook scenarios. Documentation and all 58 example structure checks passed; these structural checks do not establish captured-build acceptance.
+
+EX-021 now has a zero-Oyzu-configuration registry variant. Its Linux compiled-CLI scenario requires acquired package identity, two workspace snapshot artifacts, a runnable executable, JUnit, measured application coverage, all build gates, source immutability, repeated artifact bytes and failure after a lock checksum change. This new isolated scenario remains pending CI because no local container engine is available. The [Rust reference](reference/rust.md) documents native input ownership, prerequisites, recovery and limitations. Private registry/Git sources, credentials, persistent acquisition reuse, full matrices, doctests, publishing and the rest of the builder/scenario goal remain unfinished.
+
+[Run 36967979318](https://github.com/micahlmartin/oyzu/actions/runs/36967979318), for the preceding artifact-selection increment, passed all three CLI builds (including the native Cargo artifact probe), Linux/macOS task suites and the BuildKit worker contract when checked. Windows task execution and Linux captured builds were still running. The earlier captured-build job 110714107163 was also confirmed in progress; neither live job was restarted or treated as successful.
+
+## Checkpoint 45: native Dockerfile lint and formatting gates
+
+Docker discovery now declares Hadolint lint, read-only dockerfmt checks and an explicit mutating format task through owned detectors and the existing task contract. Lint and format-check participate in captured builds; explicit formatting does not. Native configuration remains owned by those tools. A missing target-local EditorConfig selects a final-newline default, while a present file lets native configuration determine formatting. Checker configuration is retained in the checking workspace even when Docker ignore rules exclude it from the image context.
+
+The explicitly provisioned Docker toolchain now includes checksum-pinned Hadolint 2.15.1 and Go-module-locked dockerfmt 0.5.4, preserving upstream notices. Dependency preparation requires their binaries and records reported versions, advancing the Docker prepared layout to version 2. Existing custom images need rebuilding. The [Docker quality reference](reference/docker-quality.md) documents commands, native configuration, migration, platform scope and limits.
+
+Windows verification passed the full Rust suite, Clippy, rustfmt, CLI compilation and native task/hook scenarios. The native Docker quality probe passed static task visibility without tools, real lint and formatting failures, source immutability during checks (including a forwarded write flag), explicit formatting, native suppression and EditorConfig behavior, malformed configuration, missing tools and task replacement. Explicit Hadolint provisioning and Go module verification also passed. These host checks require no Docker daemon and do not establish isolated image-build acceptance.
+
+CI now runs the compiled CLI Docker quality probe on Windows, macOS and Linux. EX-026's captured suite additionally requires quality gates to succeed, failures to block artifacts, unchanged captured source and ignored checker configuration to remain effective without entering image layers. Those new isolated assertions await CI; no local container engine is available. Dockerfile-free packaging, external base/dependency acquisition, platform matrices, Helm bindings and the remaining builder/scenario capabilities are still unfinished.
+
+At this checkpoint, [run 36968767210](https://github.com/micahlmartin/oyzu/actions/runs/36968767210) for the preceding Cargo acquisition increment passed all three CLI builds, all three task suites and the BuildKit worker contract. Its compiled-CLI Linux captured-source build step was confirmed in progress; it was neither restarted nor counted as passing.
+
+## Checkpoint 46: implicit native tests in unpacked Helm subcharts
+
+Helm's existing framework detector now inspects conventional suites in nested unpacked `charts/<name>/` directories, so a parent without tests still selects native unittest when a child has tests. Discovery remains static and retains the suite paths/content identities through the common resolver. It follows only chart directories with regular metadata, rejects links on traversed paths, bounds the whole traversal to 4096 entries and 128 suites, and limits nesting to 16 subchart levels. Native Helm owns parsing and execution; the shared planner and report collector retain the existing independent validation and unittest report obligations.
+
+EX-028 includes a zero-configuration subchart-only fixture. Windows verification with provisioned Helm 3.22.0 and unittest 1.2.0 passed static CLI task listing with an empty PATH, successful and failed subchart assertions through the compiled CLI, and native JUnit retention through the runtime adapter. Existing root-suite, rendering, schema, library, malformed-suite, stale-report and snapshot-baseline probes also passed. Rust checks cover recursive evidence, repeated discovery, changed suite identity, missing chart metadata, aggregate suite limits and depth limits; the link rejection regression additionally runs on Unix hosts. The full local Rust suite, Clippy, rustfmt, CLI build and native task/hook scenarios passed.
+
+The Linux captured suite now requires two snapshot artifacts, retained subchart contents, independent JUnit summaries, unchanged source and rejection of artifacts after a child assertion fails. These isolated assertions await CI; host probes do not prove them. The [Helm reference](reference/helm.md) and builder map document the extension and bounds. Suites inside packaged chart archives, unprepared sibling dependencies, custom suite globs and templated test charts remain unfinished, as do remote/OCI acquisition, image bindings, formatting and the broader builder/scenario goal.
+
+## Checkpoint 47: provision the complete pinned native checker assets
+
+[Run 36969943540](https://github.com/micahlmartin/oyzu/actions/runs/36969943540) passed all three CLI builds, then its macOS native Docker quality job failed during Hadolint provisioning. The script's 64 MiB read limit truncated the pinned ARM64 asset (102616248 bytes); the Windows asset (85316096 bytes) also exceeds that limit. The earlier local probe had reused an already verified Windows executable, so it did not exercise a fresh download. No checksum pin was changed.
+
+The explicitly invoked provisioner now admits downloads up to 128 MiB and reports oversize separately from digest mismatch. Fresh downloads of both complete assets passed their original pinned SHA-256 checks locally. This verifies acquisition of the pinned macOS bytes, not macOS execution; native execution still needs CI confirmation. The [Docker quality reference](reference/docker-quality.md) records the provisioning limit. Other jobs in that run were still active when the failure was investigated and were not restarted.
+
+## Checkpoint 48: verified archive staging and fork embedding boundary
 
 OEP-0003 TM-04 now includes tar/gzip materialization into empty caller-owned
 staging. Locked archive size/SHA-256 are verified into an unnamed private file
@@ -784,7 +880,7 @@ native npm workspace acquisition with an invalid root dependency on
 do not establish that the whole draft PR is green. Full OEP-0003 implementation,
 licensing approval and end-to-end qualification remain outstanding.
 
-## Checkpoint 41: locked selection receipt/content matching
+## Checkpoint 49: locked selection receipt/content matching
 
 TM-04 now validates closed format-1 receipts against every installation in a
 selected format-2 closure and freshly hashes all payloads through native held
@@ -815,7 +911,7 @@ Windows and macOS had passed the library Clippy step and were running the
 conformance step when inspected. Those pending results are not inferred passes.
 The compliance review gate still awaits the owner's recorded decision.
 
-## Checkpoint 42: atomic installation publication and cooperative leases
+## Checkpoint 50: atomic installation publication and cooperative leases
 
 TM-04 now publishes verified candidate installations through native no-replace
 directory moves, after validating the entire selected closure. Permanent,
@@ -849,7 +945,7 @@ names only. A macOS-specific exception is being validated. Windows remained
 pending when inspected. These results do not establish native qualification or
 licensing approval; @micahlmartin owns both technical and licensing decisions.
 
-## Checkpoint 43: verified blob cache and direct extraction handoff
+## Checkpoint 51: verified blob cache and direct extraction handoff
 
 TM-04 now streams exact locked bytes into a private snapshot, atomically publishes
 content-addressed blobs without replacement, and fully rehashes cache hits. A
@@ -884,7 +980,7 @@ documented macOS failure. Candidate `e896fe0f9` contains the narrow macOS fix;
 has passed Linux while Windows/macOS remain running. The source-integration and
 release gates remain open; the full OEP is not implemented.
 
-## Checkpoint 44: data-only layout finalization and candidate receipts
+## Checkpoint 52: data-only layout finalization and candidate receipts
 
 TM-01/04/05 now have an initial finite archive-layout record, its draft format-1
 JSON Schema and a data-only staging finalizer. The finalizer binds the complete
@@ -924,3 +1020,4 @@ Linux in [run 36969203910](https://github.com/oyzuai/mise/actions/runs/369692039
 This resolves the macOS runtime-variable failure. It qualifies only that current
 library boundary, including the fixture-backed real Node catalog parser; it does
 not qualify native installations, distribution licensing or a release.
+

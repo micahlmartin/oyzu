@@ -21,6 +21,8 @@ No Oyzu configuration is required. `run list` is static and does not invoke Node
 
 Installed workspace links must resolve to their declared member directories. Identity comparison uses native canonical paths so directory aliases do not change ownership. A link to a different directory or a copied package in place of a workspace link fails before member commands run; repair the native installation and retry.
 
+A root package's declared workspace dependency is validated against its actual version/specification using npm's native validator. Arborist's synthetic membership edge describes a local path and is not a substitute for that dependency constraint. Invalid required declarations fail before member execution even when a workspace link exists; optional dependency handling retains native edge semantics.
+
 Default quality tasks additionally require the selected ESLint/Prettier or Biome tools and their supporting packages. Installed project packages take precedence; a declared but missing tool fails. For a project without those tools, supply the provisioned defaults described in the [Node quality reference](node-quality.md), using `OYZU_NODE_QUALITY_HOME` for development. That directory contains the quality toolchain's `package.json` and `node_modules`. Oyzu does not fetch missing checkers.
 
 ## Task selection and ownership

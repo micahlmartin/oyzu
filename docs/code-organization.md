@@ -77,6 +77,12 @@ Reusable operations take their necessary inputs explicitly. Avoid hidden depende
 
 The internal builder development-task hook may resolve a typed command (arguments and required environment) after an explicit `oyzu run` request. Static discovery never calls it. Native invocation context stays with the builder; the shared task runner launches the resulting command. Captured builds use prepared facts instead. `BuilderPlan.fixed_env` declares captured toolchain facts and input locations that effective task environments must preserve; the shared planner checks these after applying overrides.
 
+### Boundaries across implementation languages
+
+Embedded runtime adapters follow the same ownership rules as Rust modules. Keep a Python, JavaScript, Go or shell adapter beside the ecosystem or subsystem it serves. Native package-manager semantics belong there; configuration precedence, hook scheduling and policy decisions retain their existing owners. Moving a rule into a subprocess does not create a new owner for it.
+
+Treat exchanged arguments, environment and structured output as an internal contract. Document required fields, path roots, permitted effects and failure behavior; validate returned data at the receiving boundary. Use the existing typed Rust representation and record encoding where applicable. Do not invent an RPC framework or duplicate a schema merely to connect two internal components. When a contract changes, update producer, consumer and a meaningful integration check together.
+
 ## Reuse without coupling unrelated behavior
 
 Before extracting shared code, ask whether its callers have the same semantics and should change together. Shared capture/cleanup lifecycle belongs in acquisition infrastructure. npm, pnpm and Yarn lock interpretation belongs to their respective managers, even when portions look similar. Small local duplication is preferable to a shared function with a growing list of ecosystem flags.

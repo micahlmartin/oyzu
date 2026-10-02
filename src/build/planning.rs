@@ -474,6 +474,63 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn helm_native_suite_output_matches_named_report_collection() {
+        let root = tempfile::tempdir().unwrap();
+        let fixture =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/builds/helm-chart/project");
+        let input = root.path().join("input");
+        snapshot::capture(&fixture, &input).unwrap();
+        fs::create_dir(input.join("chart/tests")).unwrap();
+        fs::write(
+            input.join("chart/tests/example_test.yaml"),
+            "suite: example\n",
+        )
+        .unwrap();
+        let capture = root.path().join("source");
+        let source = snapshot::capture(&input, &capture).unwrap();
+        let workspace = crate::discovery::discover(&capture).unwrap();
+        let image = executor::Image {
+            reference: "helm:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        };
+        let dependency = dependencies::Prepared {
+            root: capture,
+            digest: format!("sha256:{}", "2".repeat(64)),
+            record: json!({}),
+        };
+        let plan = plan_with_dependencies(
+            &workspace,
+            &source,
+            &BTreeMap::from([("project".into(), image)]),
+            &BTreeMap::from([("project".into(), dependency)]),
+        )
+        .unwrap();
+        let test = plan["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["id"] == "project:test")
+            .unwrap();
+        let paths = &test["extensions"]["oyzu.dev/report-paths"];
+        for id in ["project:test", "project:test:unittest"] {
+            let destination = format!("/out/{}", paths[id].as_str().unwrap());
+            assert!(test["argv"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(destination)));
+            assert_eq!(test["extensions"]["oyzu.dev/report-sources"][id], "file");
+        }
+        assert_eq!(test["reports"].as_array().unwrap().len(), 2);
+        assert!(test["reports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r["required"] == true));
+    }
+
+    #[test]
     fn npm_workspace_plans_keep_each_artifact_and_required_report_under_override() {
         for (custom, format_stage, public_root) in [
             (false, "format-check", false),
@@ -628,6 +685,8 @@ mod tests {
                 "project:pre_test",
                 "project:test",
                 "project:post_test",
+                "project:lint",
+                "project:format-check",
                 "project:package"
             ]
         );

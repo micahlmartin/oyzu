@@ -1,7 +1,7 @@
 //! Portable facts from native Go metadata; no manifest syntax interpretation.
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Deserialize, Serialize)]
 pub(super) struct Metadata {
@@ -17,6 +17,8 @@ pub(super) struct Metadata {
     pub compiler_target: Option<String>,
     #[serde(default)]
     pub dependencies: Vec<Dependency>,
+    #[serde(default, rename = "moduleDependencies")]
+    pub module_dependencies: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Deserialize, Serialize)]

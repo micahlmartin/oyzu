@@ -26,6 +26,7 @@ type nativePackage struct {
 	Standard                               bool
 	CgoFiles                               []string
 	Module                                 *module
+	Imports, TestImports, XTestImports     []string
 }
 type binary struct {
 	Name      string `json:"name"`
@@ -33,16 +34,17 @@ type binary struct {
 	Directory string `json:"directory"`
 }
 type inventory struct {
-	Version        string       `json:"version"`
-	OS             string       `json:"os"`
-	Arch           string       `json:"arch"`
-	Patterns       []string     `json:"patterns"`
-	Modules        []string     `json:"modules"`
-	Binaries       []binary     `json:"binaries"`
-	Cgo            bool         `json:"cgo"`
-	Compiler       string       `json:"compiler,omitempty"`
-	CompilerTarget string       `json:"compilerTarget,omitempty"`
-	Dependencies   []dependency `json:"dependencies"`
+	Version            string              `json:"version"`
+	OS                 string              `json:"os"`
+	Arch               string              `json:"arch"`
+	Patterns           []string            `json:"patterns"`
+	Modules            []string            `json:"modules"`
+	Binaries           []binary            `json:"binaries"`
+	Cgo                bool                `json:"cgo"`
+	Compiler           string              `json:"compiler,omitempty"`
+	CompilerTarget     string              `json:"compilerTarget,omitempty"`
+	Dependencies       []dependency        `json:"dependencies"`
+	ModuleDependencies map[string][]string `json:"moduleDependencies"`
 }
 
 func run(dir, program string, args ...string) ([]byte, error) {
@@ -202,6 +204,7 @@ func capture(root string, acquire *acquisitionOptions) (inventory, error) {
 	}
 	decoder = json.NewDecoder(bytes.NewReader(out))
 	external := map[string]module{}
+	packages := map[string]nativePackage{}
 	for {
 		var p nativePackage
 		if err = decoder.Decode(&p); err == io.EOF {
@@ -210,6 +213,7 @@ func capture(root string, acquire *acquisitionOptions) (inventory, error) {
 			return v, err
 		}
 		if !p.Standard {
+			packages[p.ImportPath] = p
 			if _, err = contained(root, root, p.Dir); err != nil {
 				if session == nil || p.Module == nil {
 					return v, err
@@ -230,6 +234,31 @@ func capture(root string, acquire *acquisitionOptions) (inventory, error) {
 		if len(p.CgoFiles) > 0 {
 			v.Cgo = true
 		}
+	}
+	v.ModuleDependencies = map[string][]string{}
+	for _, name := range localModules {
+		dependencies := map[string]bool{}
+		for _, p := range packages {
+			if p.Module == nil || p.Module.Path != name {
+				continue
+			}
+			for _, imp := range append(append(p.Imports, p.TestImports...), p.XTestImports...) {
+				dependency, exists := packages[imp]
+				if !exists || dependency.Module == nil || dependency.Module.Path == name {
+					continue
+				}
+				for _, local := range localModules {
+					if dependency.Module.Path == local {
+						dependencies[local] = true
+					}
+				}
+			}
+		}
+		v.ModuleDependencies[name] = []string{}
+		for dependency := range dependencies {
+			v.ModuleDependencies[name] = append(v.ModuleDependencies[name], dependency)
+		}
+		sort.Strings(v.ModuleDependencies[name])
 	}
 	if session != nil {
 		v.Dependencies, err = session.finish(root, external)

@@ -62,14 +62,21 @@ export async function graph(workspace, members) {
       // Membership is already captured above; only declared dependency edges
       // belong in the portable graph used for ordering/version projection.
       let kind = edge.type, spec = edge.spec;
+      let invalid = edge.error;
+      let optional = edge.optional;
       if (kind === 'workspace') {
         const declaration = [['optionalDependencies','optional'], ['dependencies','prod'], ['devDependencies','dev'], ['peerDependencies','peer']]
           .find(([field]) => Object.hasOwn(node.package[field] ?? {}, edge.name));
         if (!declaration) continue;
         kind = declaration[1];
+        optional = kind === 'optional';
         spec = node.package[declaration[0]][edge.name];
+        // The synthetic edge validates an absolute file: membership path, not
+        // this declaration. Ask npm to validate the actual dependency spec;
+        // native canonical link ownership is independently checked below.
+        invalid = !edge.to || !nativeRequire('@npmcli/arborist/lib/dep-valid.js')(edge.to, spec, null, node);
       }
-      if (edge.error && !edge.optional) throw new Error(`Invalid native workspace dependency ${node.name}: ${edge.name}`);
+      if (invalid && !optional) throw new Error(`Invalid native workspace dependency ${node.name}: ${edge.name}`);
       if (!edge.to) continue;
       const destination = edge.to.isLink ? edge.to.target : edge.to;
       const target = paths.get(realpathSync.native(destination.path));

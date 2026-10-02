@@ -27,12 +27,22 @@ pub(super) fn environment() -> BTreeMap<String, String> {
 pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Option<Prepared>> {
     let tree = crate::dependencies::preparation::capture(
         &context, super::RUNTIME,
-        &["sh".into(), "-ec".into(), "CGO_ENABLED=0 GOWORK=off GO111MODULE=off GOFLAGS=-p=2 go build -trimpath -buildvcs=false -o /tmp/oyzu-go-metadata /oyzu/go-metadata.go /oyzu/go-acquisition.go /oyzu/broker-transport.go\n/tmp/oyzu-go-metadata /out/metadata.json /out/modules /broker".into()],
+        &["sh".into(), "-ec".into(), "CGO_ENABLED=0 GOWORK=off GO111MODULE=off GOFLAGS=-p=2 go build -trimpath -buildvcs=false -o /tmp/oyzu-go-metadata /oyzu/go-metadata.go /oyzu/go-acquisition.go /oyzu/broker-transport.go\n/tmp/oyzu-go-metadata /out/metadata.json /out/modules /broker\noyzu-go-modulezip /out/metadata.json \"$1\" \"$2\" /out/module-artifacts".into(),
+          "oyzu-go-prepare".into(), crate::builders::semver_snapshot_digest(context.target, context.source_digest), context.target.builder.clone()],
         &environment(), vec![broker::Source::new("go-public", "https://proxy.golang.org/", None)?],
     )?;
     let metadata: Metadata =
         serde_json::from_slice(&fs::read(context.destination.join("metadata.json"))?)?;
     metadata.validate()?;
+    let module_artifacts = if context.target.builder == "go/library" || metadata.binaries.is_empty()
+    {
+        serde_json::to_value(super::packaging::read(
+            context.destination,
+            &metadata.modules,
+        )?)?
+    } else {
+        json!([])
+    };
     if metadata.os != context.image.os || metadata.arch != context.image.arch {
         bail!("native Go platform does not match the resolved toolchain image");
     }
@@ -68,11 +78,11 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Option<Prepared
         }
     }
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
-        "adapter":{"id":"go/native","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"2"},
+        "adapter":{"id":"go/native","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"3"},
         "manager":{"id":"go","version":metadata.version,"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":locks,"targetPlatform":platform,
         "packages":packages,"preparedTree":tree.digest,
-        "extensions":{"oyzu.dev/go-metadata":metadata,"oyzu.dev/go-acquisition":{
+        "extensions":{"oyzu.dev/go-metadata":metadata,"oyzu.dev/go-module-artifacts":module_artifacts,"oyzu.dev/go-acquisition":{
             "inventory":"used-module-archives","dependencyEdges":"not-modeled","checksumVerification":"native-go.sum","sourceProfile":"public-proxy-only"}}});
     Ok(Some(Prepared {
         root: context.destination.into(),

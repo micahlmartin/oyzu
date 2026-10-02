@@ -41,6 +41,13 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     if let Some(ignore_file) = &metadata.context.ignore_file {
         selected.push(ignore_file.clone());
     }
+    // A COPY ignore rule must not remove the native checker's configuration.
+    // These stay outside BuildKit's context_files when the native ignore excludes them.
+    for file in super::quality::CONTROL_FILES {
+        if context.target.path.join(file).is_file() {
+            selected.push((*file).into());
+        }
+    }
     selected.sort();
     selected.dedup();
     plan.source_files = Some(selected);

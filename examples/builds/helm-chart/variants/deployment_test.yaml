@@ -1,0 +1,11 @@
+suite: deployment contract
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: preserves the Deployment and replica count
+    asserts:
+      - isKind:
+          of: Deployment
+      - equal:
+          path: spec.replicas
+          value: 1

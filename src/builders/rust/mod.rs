@@ -1,4 +1,5 @@
 use crate::builders::task::insert;
+mod acquisition;
 mod metadata;
 mod planning;
 mod preparation;
@@ -23,10 +24,16 @@ impl Builder for Rust {
     }
 
     fn runtime_files(&self) -> &'static [RuntimeFile] {
-        &[RuntimeFile {
-            name: "rust-test.sh",
-            contents: include_str!("runtime/test.sh"),
-        }]
+        &[
+            RuntimeFile {
+                name: "rust-test.sh",
+                contents: include_str!("runtime/test.sh"),
+            },
+            RuntimeFile {
+                name: "rust-build.py",
+                contents: include_str!("runtime/build.py"),
+            },
+        ]
     }
 
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {

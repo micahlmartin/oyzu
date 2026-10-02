@@ -59,6 +59,8 @@ jobs:
           '
       - name: Compile release CLI
         run: cargo build --locked --release
+      - name: Native Cargo artifact message contract
+        run: python tooling/test-rust-artifacts.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oyzu-${{ matrix.os }}
@@ -80,6 +82,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: '1.24.13'
@@ -88,6 +93,51 @@ jobs:
         with:
           name: oyzu-${{ matrix.os }}
           path: cli
+      - name: Native Go module archive consumption
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then ADAPTER="$GITHUB_WORKSPACE/.ci-go-modulezip.exe"; else ADAPTER="$GITHUB_WORKSPACE/.ci-go-modulezip"; fi
+          cd src/builders/go/runtime/modulezip
+          go mod download
+          go mod verify
+          test -z "$(gofmt -l . ../metadata.go)"
+          go vet ./...
+          go build -mod=readonly -trimpath -o "$ADAPTER" .
+          cd "$GITHUB_WORKSPACE"
+          python tooling/test-go-modulezip.py --adapter "$ADAPTER"
+      - name: Native Dockerfile quality tasks
+        shell: bash
+        run: |
+          python tooling/provision-hadolint.py --destination .ci-docker-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            FORMATTER="$GITHUB_WORKSPACE/.ci-docker-quality/dockerfmt.exe"
+            CLI=cli/oyzu.exe
+          else
+            FORMATTER="$GITHUB_WORKSPACE/.ci-docker-quality/dockerfmt"
+            CLI=cli/oyzu
+            chmod +x "$CLI"
+          fi
+          cd tooling/images/docker-quality
+          go mod download
+          go mod verify
+          CGO_ENABLED=0 GOPROXY=off GOSUMDB=off go build -mod=readonly -trimpath -o "$FORMATTER" github.com/reteps/dockerfmt
+          cd "$GITHUB_WORKSPACE"
+          python tooling/test-docker-quality.py --cli "$CLI" --tools .ci-docker-quality
+      - name: Native Python test discovery and reporting
+        shell: bash
+        run: |
+          python -m venv .ci-task-python
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            PYTHON=.ci-task-python/Scripts/python.exe
+            CLI=cli/oyzu.exe
+          else
+            PYTHON=.ci-task-python/bin/python
+            CLI=cli/oyzu
+            chmod +x "$CLI"
+          fi
+          "$PYTHON" -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
+          "$PYTHON" tooling/test-python-tasks.py --cli "$CLI"
+          "$PYTHON" tooling/test-python-reporting.py
       - name: Execute compiled CLI against real task scenarios
         shell: bash
         run: |
@@ -178,6 +228,7 @@ jobs:
           docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
           docker pull golang:1.24-bookworm
           docker pull python:3.12-slim-bookworm
+          docker build --tag oyzu-toolchain/go:1.24-mod0.25.0 --file tooling/images/go.Dockerfile .
           docker pull python:3.12-bookworm
           docker run --rm --mount type=bind,source="$PWD",target=/repository --workdir /repository python:3.12-bookworm python -m pip download --only-binary=:all: --dest .ci-python-legacy-wheels setuptools==80.9.0 wheel==0.45.1 build==1.2.2.post1 packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 ruff==0.11.13
           docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim
@@ -206,6 +257,14 @@ jobs:
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository python:3.12-bookworm python tooling/test-python-legacy.py --wheels .ci-python-legacy-wheels
           .ci-python/bin/python tooling/test-helm-archive.py
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/helm:3.22.0 tooling/test-helm-reporting.py
+          HELM_CONTAINER=$(docker create oyzu-toolchain/helm:3.22.0)
+          trap 'docker rm -f "$HELM_CONTAINER" >/dev/null' EXIT
+          mkdir -p .ci-helm .ci-helm-plugins
+          docker cp "$HELM_CONTAINER:/usr/local/bin/helm" .ci-helm/helm
+          docker cp "$HELM_CONTAINER:/opt/oyzu-helm-plugins/." .ci-helm-plugins/
+          docker rm "$HELM_CONTAINER"
+          trap - EXIT
+          HELM_PLUGINS="$PWD/.ci-helm-plugins" .ci-python/bin/python tooling/test-helm-reporting.py --helm "$PWD/.ci-helm/helm" --cli cli/oyzu
           .ci-python/bin/python tooling/test-ant-adapter.py
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/ant:1.10.18-jdk17 tooling/test-ant-reporting.py --java-home /opt/java/openjdk --ant-home /opt/ant --jacoco-home /opt/jacoco
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/maven:3.9.11-jdk17 tooling/test-maven-metadata.py --maven-home /opt/maven --java-home /opt/java/openjdk

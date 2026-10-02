@@ -284,8 +284,17 @@ mod tests {
             sequence_for_build(&workspace, "project:test", &native).unwrap(),
             ["project:pre_test", "project:test", "project:post_test"]
         );
-        assert!(sequence_for_build(&workspace, "project:lint", &native).is_err());
+        assert_eq!(
+            sequence_for_build(&workspace, "project:lint", &native).unwrap(),
+            ["project:lint"]
+        );
         let mut workspace = workspace;
+        workspace
+            .tasks
+            .get_mut("project:lint")
+            .unwrap()
+            .availability = Some("test profile has no linter".into());
+        assert!(sequence_for_build(&workspace, "project:lint", &native).is_err());
         workspace
             .tasks
             .get_mut("project:pre_test")

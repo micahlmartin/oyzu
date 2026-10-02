@@ -20,15 +20,25 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
     )
     .unwrap();
     fs::write(root.path().join("greeting.txt"), "hello\n").unwrap();
+    fs::write(root.path().join(".hadolint.yaml"), "ignored: [DL3000]\n").unwrap();
+    fs::write(
+        root.path().join(".editorconfig"),
+        "root = true\n[Dockerfile]\ninsert_final_newline = false\n",
+    )
+    .unwrap();
     fs::write(
         root.path().join(".dockerignore"),
-        "Dockerfile\n.dockerignore\n",
+        "Dockerfile\n.dockerignore\n.hadolint.yaml\n.editorconfig\n",
     )
     .unwrap();
     let capture = tempfile::tempdir().unwrap();
     let source = snapshot::capture(root.path(), &capture.path().join("source")).unwrap();
     let workspace = discovery::discover(&capture.path().join("source")).unwrap();
     let target = &workspace.targets["project"];
+    assert_eq!(target.discovery["linter"].selected(), "hadolint");
+    assert_eq!(target.discovery["formatter"].selected(), "dockerfmt");
+    assert!(target.tasks["lint"].build_stage && target.tasks["format-check"].build_stage);
+    assert!(target.tasks["format"].mutates_source && !target.tasks["format"].build_stage);
     assert!(Docker
         .plan(PlanningContext {
             target,
@@ -54,7 +64,13 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
     // Control files stay reserved for admission, even when excluded from COPY.
     assert_eq!(
         plan.source_files.as_ref().unwrap(),
-        &[".dockerignore", "Dockerfile", "greeting.txt"]
+        &[
+            ".dockerignore",
+            ".editorconfig",
+            ".hadolint.yaml",
+            "Dockerfile",
+            "greeting.txt"
+        ]
     );
     let crate::executor::Mode::Buildkit { context_files, .. } = &plan.tasks["build"].execution
     else {

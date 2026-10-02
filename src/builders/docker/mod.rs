@@ -4,6 +4,7 @@ use crate::builders::task::unavailable;
 mod metadata;
 mod planning;
 mod preparation;
+mod quality;
 #[cfg(test)]
 mod tests;
 use crate::builders::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext};
@@ -51,12 +52,7 @@ impl Builder for Docker {
         target.manager = "docker".into();
         insert(target, "build", &["docker", "build", "."], true);
         unavailable(target, "test", "Default OCI validation runs during oyzu build; direct image test bundles are not implemented yet");
-        unavailable(target, "lint", "No Dockerfile linter is configured");
-        unavailable(
-            target,
-            "format-check",
-            "No read-only Dockerfile formatter is configured",
-        );
+        quality::discover(target)?;
 
         Ok(())
     }

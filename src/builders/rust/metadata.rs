@@ -8,6 +8,19 @@ pub(super) struct Metadata {
     pub packages: Vec<Package>,
     pub workspace_members: Vec<String>,
     pub workspace_root: String,
+    #[serde(default)]
+    pub resolve: Option<Resolution>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub(super) struct Resolution {
+    pub nodes: Vec<Node>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub(super) struct Node {
+    pub id: String,
+    pub features: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -33,6 +46,8 @@ pub(super) struct Target {
     pub name: String,
     pub kind: Vec<String>,
     pub src_path: String,
+    #[serde(default, rename = "required-features")]
+    pub required_features: Vec<String>,
 }
 
 pub(super) fn relative(path: &str) -> Result<&str> {
@@ -51,21 +66,71 @@ pub(super) fn relative(path: &str) -> Result<&str> {
 }
 
 impl Metadata {
+    /// Cargo's resolved package features determine which binary targets exist.
+    pub fn binaries(&self) -> Result<Vec<(&Package, &Target)>> {
+        let mut selected = Vec::new();
+        for package in &self.packages {
+            if !self.workspace_members.contains(&package.id) {
+                continue;
+            }
+            for target in &package.targets {
+                if !target.kind.iter().any(|kind| kind == "bin") {
+                    continue;
+                }
+                if !target.required_features.is_empty() {
+                    let node = self
+                        .resolve
+                        .as_ref()
+                        .and_then(|r| r.nodes.iter().find(|n| n.id == package.id))
+                        .context("Cargo feature-gated binary requires resolved native features")?;
+                    if !target
+                        .required_features
+                        .iter()
+                        .all(|feature| node.features.contains(feature))
+                    {
+                        continue;
+                    }
+                }
+                selected.push((package, target));
+            }
+        }
+        Ok(selected)
+    }
+
     pub fn validate(&self) -> Result<()> {
         if self.workspace_root != "/workspace" || self.packages.is_empty() {
             bail!("Cargo workspace must be rooted in the captured target");
         }
         for package in &self.packages {
-            if package.source.is_some() || !self.workspace_members.contains(&package.id) {
-                bail!("Cargo external dependency acquisition is not implemented yet");
+            if let Some(source) = &package.source {
+                if source != super::acquisition::CRATES_IO
+                    || self.workspace_members.contains(&package.id)
+                    || !package
+                        .manifest_path
+                        .starts_with("/tmp/oyzu-cargo/registry/src/")
+                    || package
+                        .manifest_path
+                        .split('/')
+                        .any(|part| matches!(part, "." | ".."))
+                    || package.manifest_path.contains('\\')
+                {
+                    bail!("Cargo registry package is outside the prepared native source cache");
+                }
+                continue;
+            }
+            if !self.workspace_members.contains(&package.id) {
+                bail!("Cargo local dependency must belong to the captured workspace");
             }
             relative(&package.manifest_path)?;
             for dependency in &package.dependencies {
-                if dependency.source.is_some() {
-                    bail!(
-                        "Cargo registry/Git dependency acquisition is not implemented yet: {}",
-                        dependency.name
-                    );
+                if let Some(source) = &dependency.source {
+                    if source != super::acquisition::CRATES_IO || dependency.path.is_some() {
+                        bail!(
+                            "Cargo source acquisition is not implemented for {}",
+                            dependency.name
+                        );
+                    }
+                    continue;
                 }
                 let path = dependency
                     .path
@@ -99,6 +164,7 @@ impl Metadata {
         let versions: BTreeMap<_, _> = self
             .packages
             .iter()
+            .filter(|p| self.workspace_members.contains(&p.id))
             .map(|p| {
                 (
                     p.name.clone(),
@@ -112,6 +178,9 @@ impl Metadata {
             .collect();
         let mut manifests = vec!["Cargo.toml".to_owned()];
         for package in &self.packages {
+            if !self.workspace_members.contains(&package.id) {
+                continue;
+            }
             manifests.push(relative(&package.manifest_path)?.into());
         }
         manifests.sort();

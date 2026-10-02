@@ -53,6 +53,12 @@ def main():
         shutil.copytree(ROOT/'examples/builds/go-workspace-cgo/project', project)
         first = capture(project)
         assert first['modules'] == ['cmd', 'math']
+        assert first['moduleDependencies']['example.com/oyzu/command'] == ['example.com/oyzu/math']
+        command_manifest = project/'cmd/go.mod'
+        original_manifest = command_manifest.read_text()
+        command_manifest.write_text(original_manifest.replace('require example.com/oyzu/math v0.0.0',''))
+        assert capture(project)['moduleDependencies'] == first['moduleDependencies']
+        command_manifest.write_text(original_manifest)
         assert first['patterns'] == ['./cmd/...', './math/...']
         assert [b['name'] for b in first['binaries']] == ['command']
         assert first['cgo'] and first['compiler'] and first['compilerTarget']

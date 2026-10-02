@@ -29,6 +29,7 @@ src/
     python/
       mod.rs                  # Descriptor and interface implementation
       discovery.rs            # pip / uv / Poetry inference
+      detection/testing.rs    # Native pytest evidence and profile fallback
       acquisition.rs          # Native locks and scoped wheel acquisition
       planning.rs             # Python commands and artifact/report intent
       runtime/adapter.py      # Embedded native Python adapter
@@ -39,15 +40,19 @@ src/
       metadata.rs             # Typed portable native facts and validation
       preparation.rs          # Shared isolated capture, toolchain and compiler evidence
       planning.rs             # Workspace checks and named snapshot binary artifacts
+      packaging.rs            # Native module artifact record admission
       runtime/metadata.go     # Native Go manifest/package inspection without running project code
       runtime/acquisition.go  # Native Go proxy protocol, checksum admission and module cache capture
+      runtime/modulezip/      # Pinned x/mod integration for source archive projection and checksums
     rust/
       mod.rs                  # Cargo descriptor, discovery and interface implementation
-      metadata.rs             # Typed native workspace metadata and version projection
-      preparation.rs          # Offline lock validation and captured manifest overlay
-      planning.rs             # Binary, native checks and JUnit intent
+      acquisition.rs          # Locked crates.io archive/index capture through scoped transport
+      metadata.rs             # Native workspace/features, binary selection and version projection
+      preparation.rs          # Offline lock validation, manifest overlay and binary inventory
+      planning.rs             # Snapshot artifacts, fixed target facts, native checks and reports
       reporting.rs            # Private nextest settings and exact report destinations
       runtime/test.sh         # Native coverage/test reporting with failure preservation
+      runtime/build.py        # Native compiler-message binding and contained executable staging
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
       maven/metadata.rs       # Typed native reactor metadata and output validation
@@ -69,15 +74,18 @@ src/
         AntCoverage.java      # Application class ownership and JaCoCo reporting
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
     docker/                   # Container builder
+      quality.rs              # Native linter/formatter detector evidence and task defaults
       metadata.rs             # Typed native facts and captured-input admission
       preparation.rs          # Offline native metadata and worker-profile capture
       planning.rs             # Snapshot OCI output and typed BuildKit action intent
       runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
+      detection.rs            # Bounded root/unpacked-subchart suite evidence and validation fallback
       metadata.rs             # Chart discovery and contained local dependency order
       preparation.rs          # Native lock handling and captured chart closure
       planning.rs             # Packaging, linting and rendering commands
       runtime/archive.py      # Normalize native archive transport timestamps
+      runtime/testing.py      # Native validation/unittest reports and baseline integrity
   build/
     mod.rs                    # Capture, preparation, execution and finalization lifecycle
     planning.rs               # Common hook expansion and execution-plan serialization
@@ -118,7 +126,7 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 
 `BuilderPlan`, `CommandSpec`, `TaskPlan`, `ArtifactSpec` and `ReportSpec` are Rust structures. A builder does not assemble arbitrary build-plan JSON. The common planner expands hooks, preserves TOML replacements, assigns action identities, binds source/dependency/toolchain identities and serializes the versioned plan. Report formats and input conversions are explicit types.
 
-`BuilderPlan.coverage` can declare typed application-source coverage applicability independently of report files. The shared planner serializes this fact into the target's `oyzu.dev/coverage-applicability` extension, which is retained in the manifest. Missing declarations do not mean inapplicable. Helm declares chart packaging inapplicable and produces native validation JUnit through its owned `runtime/testing.py` adapter; chart assertions are never converted to an application coverage percentage.
+`BuilderPlan.coverage` can declare typed application-source coverage applicability independently of report files. The shared planner serializes this fact into the target's `oyzu.dev/coverage-applicability` extension, which is retained in the manifest. Missing declarations do not mean inapplicable. Helm declares chart packaging inapplicable and produces native validation JUnit through its owned `runtime/testing.py` adapter; chart assertions are never converted to an application coverage percentage. Helm's private `detection.rs` implements conventional native-suite evidence and validation fallback through the common detector resolver. Planning adds a separate required unittest JUnit report when selected. The owned runtime invokes the native plugin and checks snapshot baseline integrity; the shared engine still owns hooks, scheduling and report collection. See the [Helm reference](reference/helm.md).
 
 Command replacement and evidence requirements have separate ownership. A TOML override cannot remove the builder's required reports. The optional override adapter may instrument an exact known native command; the shared planner does not parse ecosystem commands or shell programs. Unknown replacements retain their arguments and receive `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` destinations when those kinds have one concrete destination. Native stdout conversion applies only to native or recognized commands; arbitrary replacement output is not assumed to use the native event protocol. The shared reporting binder resolves custom declarations against captured task cwd and retains requirements for undeclared kinds. Hooks inherit the operation's report destinations. The Node adapter receives resolved destinations and owns conversion to reporter arguments.
 
@@ -137,6 +145,8 @@ Go preparation uses a private native module cache and a loopback GOPROXY adapter
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 
 Native runtime code belongs to its ecosystem. The embedded Python adapter exists to invoke native package tooling and inspect native metadata inside the isolated toolchain environment. It does not own scheduling, policy decisions or bundle finalization. Further Python growth should split manager and operation modules inside `builders/python`, not add unrelated ecosystems to a global helpers directory.
+
+Python test discovery records native pytest configuration or the profile fallback through `detection/testing.rs`. It does not guess collection results from directory names. The native runner owns actual selection and no-tests outcomes; acquisition prepares reporter inputs independently of directory layout. Report parsing and action/artifact failure propagation remain shared engine responsibilities. The [Python testing reference](reference/python-testing.md) distinguishes direct task behavior from captured-build evidence.
 
 Python requirements-only application planning lives in `application.rs`, with archive assembly and artifact-source test execution in `runtime/application.py`. Package/application plans reuse `quality.rs` for native Ruff tasks, the acquisition adapter for prepared environments, and `runtime/reporting.py` for native pytest/coverage integration. The prepared dependency record's `oyzu.dev/python-runtime` extension identifies runtime roots; application packaging consumes their captured closure. Distribution metadata is never synthesized to fit a requirements application into the package builder. Archive collection, required reports and action ordering remain shared engine responsibilities.
 

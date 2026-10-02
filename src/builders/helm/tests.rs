@@ -139,3 +139,118 @@ fn library_charts_package_and_lint_without_attempting_installable_rendering() {
     assert!(plan.tasks.contains_key("lint"));
     assert_eq!(plan.package.argv[0], "cp");
 }
+
+#[test]
+fn native_unittest_suites_select_the_plugin_and_preserve_both_report_obligations() {
+    let root = tempfile::tempdir().unwrap();
+    chart(root.path(), "chart", "");
+    fs::create_dir(root.path().join("chart/tests")).unwrap();
+    // Native parsing belongs to execution, not static evidence capture.
+    fs::write(
+        root.path().join("chart/tests/deployment_test.yaml"),
+        "suite: [",
+    )
+    .unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let snapshot = snapshot::capture(root.path(), &source.path().join("captured")).unwrap();
+    let workspace = discovery::discover(&source.path().join("captured")).unwrap();
+    let target = &workspace.targets["project"];
+    assert_eq!(
+        target.discovery["test-framework"].selected(),
+        "helm-unittest"
+    );
+    assert_eq!(
+        target.tasks["test"].argv,
+        ["helm", "unittest", "--strict", "chart"]
+    );
+    let prepared = Prepared {
+        root: root.path().into(),
+        digest: snapshot.digest.clone(),
+        record: json!({}),
+    };
+    let plan = planning::plan(PlanningContext {
+        target,
+        source: &snapshot,
+        dependencies: Some(&prepared),
+    })
+    .unwrap();
+    plan.validate().unwrap();
+    assert_eq!(plan.tasks["test"].reports.len(), 2);
+    assert!(plan.tasks["test"]
+        .argv
+        .contains(&"--unittest-report".into()));
+    assert_eq!(plan.fixed_env["HELM_PLUGINS"], "/opt/oyzu-helm-plugins");
+    assert!(plan
+        .package
+        .argv
+        .contains(&"/out/project/artifacts/rendered.yaml".into()));
+}
+
+#[test]
+fn subchart_only_suites_are_static_bounded_and_preserve_nested_evidence() {
+    let root = tempfile::tempdir().unwrap();
+    chart(root.path(), ".", "");
+    chart(root.path(), "charts/child/charts/grandchild", "");
+    chart(root.path(), "charts/child", "");
+    let relative = "charts/child/charts/grandchild/tests/example_test.yaml";
+    let suite = root.path().join(relative);
+    fs::create_dir_all(suite.parent().unwrap()).unwrap();
+    fs::write(&suite, "suite: [").unwrap();
+    let first = detection::detect(root.path()).unwrap();
+    assert_eq!(first.selected(), "helm-unittest");
+    assert_eq!(first, detection::detect(root.path()).unwrap());
+    assert!(serde_json::to_string(&first).unwrap().contains(relative));
+    fs::write(&suite, "suite: changed").unwrap();
+    assert_ne!(first, detection::detect(root.path()).unwrap());
+    fs::remove_file(root.path().join("charts/child/Chart.yaml")).unwrap();
+    assert_eq!(
+        detection::detect(root.path()).unwrap().selected(),
+        "helm-validation"
+    );
+
+    chart(root.path(), "charts/child", "");
+    for index in 0..128 {
+        fs::write(
+            suite
+                .parent()
+                .unwrap()
+                .join(format!("extra{index}_test.yaml")),
+            "",
+        )
+        .unwrap();
+    }
+    assert!(detection::detect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("suite count"));
+}
+
+#[test]
+fn deeply_nested_subchart_discovery_is_bounded() {
+    let root = tempfile::tempdir().unwrap();
+    chart(root.path(), ".", "");
+    let mut relative = String::new();
+    for _ in 0..17 {
+        relative.push_str("charts/a/");
+        chart(root.path(), &relative, "");
+    }
+    assert!(detection::detect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("depth"));
+}
+
+#[cfg(unix)]
+#[test]
+fn subchart_discovery_does_not_follow_symbolic_links() {
+    let root = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    chart(root.path(), ".", "");
+    chart(outside.path(), ".", "");
+    fs::create_dir(root.path().join("charts")).unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.path().join("charts/external")).unwrap();
+    assert!(detection::detect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("symlink"));
+}

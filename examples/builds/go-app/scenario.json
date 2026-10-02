@@ -23,6 +23,11 @@
       "name": "multiple-main-packages",
       "change": "Add a second command directory.",
       "expect": "Discover distinct commands or explain artifact ambiguity."
+    },
+    {
+      "name": "library-module",
+      "change": "Build variants/library as a standalone project without a main package.",
+      "expect": "Compile, test, vet and check formatting; produce native snapshot module zip/mod/info files and measured JUnit/coverage without a fictional executable."
     }
   ],
   "nativeChecks": [
@@ -40,7 +45,10 @@
   "requiredFiles": [
     "project/go.mod",
     "project/main.go",
-    "project/main_test.go"
+    "project/main_test.go",
+    "variants/library/go.mod",
+    "variants/library/math.go",
+    "variants/library/math_test.go"
   ],
   "hosts": {
     "intended": [

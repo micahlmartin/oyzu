@@ -35,9 +35,13 @@ def verify(root, base, invoke, validate, source_files, verified):
     tasks = invoke(project, 'run', 'list', '--json')
     assert tasks['project:build']['build_stage']
     assert tasks['project:test']['availability']
+    assert tasks['project:lint']['build_stage'] and not tasks['project:lint']['availability']
+    assert tasks['project:format-check']['build_stage'] and not tasks['project:format-check']['availability']
     invoke(project, 'build')
     manifest = validate(project / 'dist')
     assert manifest['status'] == 'succeeded' and source_files(project) == before
+    for stage in ['lint', 'format-check']:
+        assert next(a for a in manifest['actions'] if a['id']==f'project:{stage}')['status']=='succeeded'
     assert any(r['target']=='project' and r['kind']=='test' and r['summary']['passed']==2 for r in manifest['reports'])
     assert manifest['targets'][0]['extensions']['oyzu.dev/coverage-applicability']['status']=='inapplicable'
     tested = next(a for a in manifest['actions'] if a['id']=='project:test')
@@ -57,6 +61,35 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert repeated['planDigest'] == manifest['planDigest']
     assert repeated['artifacts'][0]['ociDigest'] == digest
     assert repeated['artifacts'][0]['digest'] == artifact['digest']
+    good = (project/'Dockerfile').read_text()
+    original_ignore = (project/'.dockerignore').read_text()
+    (project/'Dockerfile').write_text('FROM scratch\nCOPY    greeting.txt     /greeting.txt\n')
+    unformatted = source_files(project)
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts'] and source_files(project)==unformatted
+    assert next(a for a in failed['actions'] if a['id']=='project:format-check')['status']=='failed'
+    (project/'Dockerfile').write_text('FROM scratch\nWORKDIR relative\nCOPY greeting.txt /greeting.txt\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    assert next(a for a in failed['actions'] if a['id']=='project:lint')['status']=='failed'
+    # Quality control files remain available to checks without entering COPY.
+    (project/'.hadolint.yaml').write_text('ignored: [DL3000]\n')
+    (project/'.editorconfig').write_text('root = true\n[Dockerfile]\ninsert_final_newline = false\n')
+    (project/'.dockerignore').write_text('.hadolint.yaml\n.editorconfig\n')
+    (project/'Dockerfile').write_text('FROM scratch\nWORKDIR relative\nCOPY . /context/')
+    before = source_files(project)
+    invoke(project, 'build')
+    configured = validate(project/'dist')
+    assert before==source_files(project)
+    _, _, configured_files = image_contents(project/'dist'/configured['artifacts'][0]['path'])
+    assert not any(name.endswith(('.hadolint.yaml','.editorconfig')) for name in configured_files)
+    for name in ['.hadolint.yaml','.editorconfig']:
+        (project/name).unlink()
+    (project/'.dockerignore').write_text(original_ignore)
+    (project/'Dockerfile').write_text(good)
+    verified.append('Dockerfile native lint/read-only formatting gates block artifacts; ignored native quality configuration remains available without entering the image')
     (project/'oyzu.toml').write_text('[tasks."project:pre_test"]\nargv=["sh","-ec","printf corrupt > /out/project/container/image.tar"]\n')
     invoke(project, 'build', success=False)
     failed = validate(project/'dist')

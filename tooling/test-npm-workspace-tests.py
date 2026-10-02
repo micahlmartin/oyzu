@@ -23,7 +23,7 @@ def main():
         log = base/'executions.jsonl'
         env = {**os.environ, 'OYZU_WORKSPACE_TEST_LOG':str(log)}
         manifest = project/'package.json'
-        package = {'name':'workspace-tests','version':'1.0.0','workspaces':['packages/*','packages/node/nested']}
+        package = {'name':'workspace-tests','version':'1.0.0','workspaces':['packages/*','packages/node/nested'],'dependencies':{'node':'1.0.0'}}
         manifest.write_text(json.dumps(package))
         marker = "require('node:fs').appendFileSync(process.env.OYZU_WORKSPACE_TEST_LOG,JSON.stringify(process.argv.slice(2))+'\\n');\n"
         (project/'marker.cjs').write_text(marker)
@@ -75,6 +75,13 @@ def main():
         result = entries()
         assert sorted(x[0] for x in result) == sorted(['root','node','jest','vitest','pretest','test','posttest']), result
         assert result.index(['pretest']) < result.index(['test']) < result.index(['posttest'])
+        # Synthetic workspace membership must not erase a declared version rule.
+        package['dependencies']['node'] = '2.0.0'
+        manifest.write_text(json.dumps(package))
+        assert 'Invalid native workspace dependency' in run('run','test',success=False).stderr
+        assert not log.exists(), 'invalid root dependency reached member commands'
+        package['dependencies']['node'] = '1.0.0'
+        manifest.write_text(json.dumps(package))
         # A real member assertion failure must fail the aggregate, but later suites still run.
         failed = project/'packages/node/failure.test.cjs'
         failed.write_text("require('node:test').test('fails',()=>{throw Error('expected member failure')});\n")
