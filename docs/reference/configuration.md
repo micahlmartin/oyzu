@@ -129,7 +129,7 @@ The following keys are administrative-only and cannot appear in ordinary files o
 | `config.allowedProfiles` | Set of names, including `@none`; absent | Restricts selection when supplied |
 | `tools.allowed` | Set of canonical tool IDs; absent | Restricts tool eligibility |
 | `tools.catalogs` | Ordered string array; `["public"]` | Catalog preference; unavailable protected bindings block execution |
-| `registries.routes` | Route array; `[]` | Each entry has `protocol`, `scope`, `connectorId`; protocols are `npm`, `pypi`, `maven`, `cargo`, `go`, `oci`, `tools`; opt-in standalone Node installation supports explicit [host tool bindings](tool-management-development.md#standalone-proxy-acquisition); other connector execution remains deferred |
+| `registries.routes` | Route array; `[]` | Each entry has `protocol`, `scope`, `connectorId`; protocols are `npm`, `pypi`, `maven`, `cargo`, `go`, `oci`, `tools`; opt-in standalone Node/Go installation supports explicit [host tool bindings](tool-management-development.md#standalone-proxy-acquisition); real Node proxy acceptance passed, Go proxy acceptance remains pending; other connector execution remains deferred |
 
 ## Files and persistent state
 

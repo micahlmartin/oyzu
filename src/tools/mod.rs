@@ -7,6 +7,8 @@ mod acquisition;
 mod backend;
 #[cfg(feature = "mise-integration")]
 pub mod development;
+#[cfg(feature = "mise-integration")]
+mod development_backend;
 mod edit;
 mod grant;
 #[cfg(feature = "mise-integration")]

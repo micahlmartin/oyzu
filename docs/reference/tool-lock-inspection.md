@@ -124,17 +124,20 @@ reopened source path. Unix writes use descriptor-relative no-follow operations;
 Windows holds ancestor directories against replacement and creates new files
 without following reparse points. Existing staging content is rejected.
 
-The initial implementation accepts regular files, directories and bounded GNU
-long-name/link extensions in tar or gzip-compressed tar. Symlinks are delayed
+The tar implementation accepts regular files, directories, bounded GNU
+long-name/link extensions and local PAX `path`/`linkpath` records in tar or
+gzip-compressed tar. The PAX names use the same containment/conflict validation
+as ordinary names; this supports non-ASCII filenames in official Go archives.
+Other PAX fields and global PAX records remain unsupported. Symlinks are delayed
 until all file writes finish, then checked against the complete payload graph.
-Windows symlink materialization, hardlinks, PAX, sparse entries, ZIP and other
+Windows symlink materialization, hardlinks, sparse entries, ZIP and other
 formats remain unsupported and fail; backend admission must account for these
 limits. Ownership, set-ID and archive directory permissions are not imported:
 directories are private and traversable, files are private with Unix executable
 bits retained. A reviewed layout plan is still required for final permissions.
 
 Bounds include 200,000 raw and expanded entries, 8 GiB input/expanded bytes,
-1 GiB per file, depth 64, 16 KiB GNU extension bodies and a 200:1 gzip expansion
+1 GiB per file, depth 64, 16 KiB GNU/PAX extension bodies and a 200:1 gzip expansion
 ratio. The decoder is drained after tar's end marker so gzip trailers and trailing
 expanded data are checked. Paths reject traversal, absolute names, case aliases,
 Windows devices/ADS and conflicting parent types. The returned tree observation

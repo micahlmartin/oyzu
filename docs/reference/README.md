@@ -43,4 +43,4 @@ Build output is `dist/manifest.json`, `plan.json`, `envelope.json`, native logs 
 
 Configuration commands, profile selection, administrative constraints, editing and their current limits are described in the [experimental configuration reference](configuration.md).
 
-The opt-in [Node tool-management development integration](tool-management-development.md) documents the initial real install/exec path and its functional acceptance status.
+The opt-in [core tool-management development integration](tool-management-development.md) documents the Node/Go install/exec paths and their functional acceptance status.

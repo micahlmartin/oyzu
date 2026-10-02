@@ -1,7 +1,7 @@
-//! Opt-in standalone Node integration. Oyzu owns configuration, locks and storage;
+//! Opt-in standalone core tool integration. Oyzu owns configuration, locks and storage;
 //! a fresh same-image child owns mise globals. Initial development transport uses
 //! child stdio; authenticated worker IPC and process hardening are future work.
-use super::acquisition::NodeAcquisition;
+use super::{acquisition::Acquisition, development_backend::Tool};
 use super::{lock, ToolCandidateRequest, ToolLaunch};
 use crate::{config, records};
 use anyhow::{ensure, Context, Result};
@@ -70,6 +70,7 @@ enum WorkerRequest {
 
 #[derive(Serialize, Deserialize)]
 struct Request {
+    tool: Tool,
     request: String,
     exact: Option<String>,
     target: String,
@@ -81,13 +82,15 @@ struct Archive {
     archive_url: String,
     archive_kind: String,
     strip_prefix: String,
-    node_relative_path: String,
+    #[serde(alias = "node_relative_path", alias = "go_relative_path")]
+    executable_relative_path: String,
     bin_relative_path: String,
 }
 #[derive(Serialize, Deserialize)]
 struct Metadata {
     archive: Archive,
     declared_sha256: Option<String>,
+    declared_size: Option<u64>,
     aliases: BTreeMap<String, String>,
 }
 
@@ -148,7 +151,7 @@ pub fn worker() -> Result<i32> {
     let session = mise::embedding::Session::initialize(mise::embedding::Options {
         state: state.path().canonicalize()?,
         frontend: std::env::current_exe()?,
-        tools: ["node".to_owned()].into(),
+        tools: ["node".to_owned(), "go".to_owned()].into(),
         transport: Some(transport),
     })
     .map_err(|error| anyhow::anyhow!("{error:#}"))?;
@@ -223,29 +226,60 @@ pub fn worker() -> Result<i32> {
         .tool_aliases()
         .map_err(|error| anyhow::anyhow!("{error:#}"))?;
     let result = if let Some(version) = request.exact {
-        let archive = session
-            .node_archive_facts(&version, &request.target)
-            .map_err(|error| anyhow::anyhow!("{error:#}"))?;
+        let archive = match request.tool {
+            Tool::Node => serde_json::to_value(
+                session
+                    .node_archive_facts(&version, &request.target)
+                    .map_err(|error| anyhow::anyhow!("{error:#}"))?,
+            )?,
+            Tool::Go => serde_json::to_value(
+                session
+                    .go_archive_facts(&version, &request.target)
+                    .map_err(|error| anyhow::anyhow!("{error:#}"))?,
+            )?,
+        };
         Metadata {
-            archive: serde_json::from_value(serde_json::to_value(archive)?)?,
+            archive: serde_json::from_value(archive)?,
             declared_sha256: None,
+            declared_size: None,
             aliases,
         }
     } else {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()?;
-        let metadata = runtime
-            .block_on(async {
-                let version = session.resolve_node_version(&request.request, &[]).await?;
-                session
-                    .node_archive_metadata(&version, &request.target)
-                    .await
-            })
-            .map_err(|error| anyhow::anyhow!("{error:#}"))?;
+        let metadata: serde_json::Value = runtime.block_on(async {
+            match request.tool {
+                Tool::Node => {
+                    let version = session
+                        .resolve_node_version(&request.request, &[])
+                        .await
+                        .map_err(|error| anyhow::anyhow!("{error:#}"))?;
+                    Ok::<_, anyhow::Error>(serde_json::to_value(
+                        session
+                            .node_archive_metadata(&version, &request.target)
+                            .await
+                            .map_err(|error| anyhow::anyhow!("{error:#}"))?,
+                    )?)
+                }
+                Tool::Go => {
+                    let version = session
+                        .resolve_go_version(&request.request, &[])
+                        .await
+                        .map_err(|error| anyhow::anyhow!("{error:#}"))?;
+                    Ok(serde_json::to_value(
+                        session
+                            .go_archive_metadata(&version.version, &request.target)
+                            .await
+                            .map_err(|error| anyhow::anyhow!("{error:#}"))?,
+                    )?)
+                }
+            }
+        })?;
         Metadata {
-            archive: serde_json::from_value(serde_json::to_value(metadata.archive)?)?,
-            declared_sha256: Some(metadata.declared_sha256),
+            archive: serde_json::from_value(metadata["archive"].clone())?,
+            declared_sha256: metadata["declared_sha256"].as_str().map(str::to_owned),
+            declared_size: metadata["declared_size"].as_u64(),
             aliases,
         }
     };
@@ -253,9 +287,10 @@ pub fn worker() -> Result<i32> {
     Ok(0)
 }
 
-fn metadata(request: &Request, acquisition: Option<&mut NodeAcquisition>) -> Result<Metadata> {
+fn metadata(request: &Request, acquisition: Option<&mut Acquisition>) -> Result<Metadata> {
     worker_call(
         &WorkerRequest::Metadata(Request {
+            tool: request.tool,
             request: request.request.clone(),
             exact: request.exact.clone(),
             target: request.target.clone(),
@@ -266,7 +301,7 @@ fn metadata(request: &Request, acquisition: Option<&mut NodeAcquisition>) -> Res
 
 fn worker_call<T: serde::de::DeserializeOwned>(
     request: &WorkerRequest,
-    mut acquisition: Option<&mut NodeAcquisition>,
+    mut acquisition: Option<&mut Acquisition>,
 ) -> Result<T> {
     let home = tempfile::tempdir()?;
     let mut command = Command::new(std::env::current_exe()?);
@@ -328,12 +363,18 @@ fn configuration(
 ) -> Result<(
     config::session::Session,
     config::resolve::EffectiveConfig,
+    Tool,
     String,
 )> {
     let session = config::session::Session::open(directory, options)?;
     let effective = session.resolve(directory, false)?;
-    config::enforcement::tool_eligibility(&effective, &["node"])?;
-    NodeAcquisition::new(&effective, None)?;
+    let tool = if effective.get("tools.node").is_some() {
+        Tool::Node
+    } else {
+        Tool::Go
+    };
+    config::enforcement::tool_eligibility(&effective, &[tool.name()])?;
+    Acquisition::new(&effective, None, tool)?;
     ensure!(
         effective.management.is_none(),
         "managed tool integration is not available in this standalone development proof"
@@ -346,27 +387,27 @@ fn configuration(
                 && !matches!(key.as_str(), "tools.allowed" | "tools.catalogs"))
             .count()
             == 1,
-        "development install currently requires exactly tools.node"
+        "development install currently requires exactly one Node or Go request"
     );
     let request = effective
-        .get("tools.node")
+        .get(&format!("tools.{}", tool.name()))
         .and_then(|value| value.as_str())
-        .context("configure [tools] node in Oyzu TOML")?
+        .context("configure [tools] node or go in Oyzu TOML")?
         .to_owned();
-    Ok((session, effective, request))
+    Ok((session, effective, tool, request))
 }
 
-fn plan(archive: &Archive, digest: &str, backend: &str) -> serde_json::Value {
+fn plan(tool: Tool, archive: &Archive, digest: &str, backend: &str) -> serde_json::Value {
     json!({"format":1,"backend_digest":backend,"platform":archive.target,
         "input_blob_digests":[digest],"archive_kind":archive.archive_kind,"strip_prefix":archive.strip_prefix,"payload_subtree":".",
-        "required_paths":[{"path":archive.node_relative_path,"kind":"file"}],
-        "entrypoints":{"node":{"kind":"native","payload_relative_path":archive.node_relative_path,"interpreter_tool_key":null,"interpreter_relative_path":null,"prefix_args":[]}},
+        "required_paths":[{"path":archive.executable_relative_path,"kind":"file"}],
+        "entrypoints":{tool.name():{"kind":"native","payload_relative_path":archive.executable_relative_path,"interpreter_tool_key":null,"interpreter_relative_path":null,"prefix_args":[]}},
         "environment":{"PATH":{"kind":"paths","paths":[{"owner":"self","relative_path":archive.bin_relative_path}]}},
         "extraction_bounds":{"max_entries":200000,"max_bytes":8589934592u64,"max_file_bytes":1073741824,"max_depth":64,"max_expansion_ratio":200},
-        "executable_paths":if cfg!(windows) { Vec::<String>::new() } else { vec![archive.node_relative_path.clone()] }})
+        "executable_paths":if cfg!(windows) { Vec::<String>::new() } else { vec![archive.executable_relative_path.clone()] }})
 }
 
-/// Resolve and install a standalone Node selection, or reuse an exact existing lock.
+/// Resolve and install a standalone core tool selection, or reuse an exact existing lock.
 pub fn install(
     directory: &Path,
     options: &config::session::Options,
@@ -380,20 +421,20 @@ pub fn install(
         update.is_none() || !(frozen || offline),
         "update conflicts with frozen/offline installation"
     );
+    let directory = directory.canonicalize()?;
+    let (session, effective, tool, request) = configuration(&directory, options)?;
     if let Some(tools) = update {
         ensure!(
             tools
                 .iter()
-                .all(|tool| matches!(tool.as_str(), "node" | "core:node")),
-            "initial update supports node or core:node"
+                .all(|name| name == tool.name() || name == tool.id()),
+            "update must name the configured tool or its canonical ID"
         );
     }
-    let directory = directory.canonicalize()?;
-    let (session, effective, request) = configuration(&directory, options)?;
-    let mut acquisition = NodeAcquisition::new(&effective, bindings)?;
+    let mut acquisition = Acquisition::new(&effective, bindings, tool)?;
     ensure!(
         directory == session.root,
-        "initial Node install supports the workspace root scope"
+        "initial tool install supports the workspace root scope"
     );
     let lock_path = session.root.join("oyzu.lock");
     ensure!(
@@ -411,8 +452,8 @@ pub fn install(
     };
     if let Some(lock) = &captured {
         ensure!(
-            lock.tool.len() == 1 && lock.tool[0].id == "core:node",
-            "existing lock is outside the initial Node integration scope"
+            lock.tool.len() == 1 && lock.tool[0].id == tool.id(),
+            "existing lock is outside the single-tool integration scope"
         );
         if update.is_some() {
             ensure!(lock.environment.len() == 1 && lock.environment[0].scope == "." && lock.environment[0].profile == effective.profile.as_deref().unwrap_or("default"), "initial update requires a single matching root/profile; other selections are preserved by refusing this unsupported update");
@@ -422,6 +463,7 @@ pub fn install(
     let previous = captured.as_ref().filter(|_| update.is_none());
     let metadata = metadata(
         &Request {
+            tool,
             request,
             exact: previous.as_ref().map(|lock| lock.tool[0].version.clone()),
             target: platform()?.into(),
@@ -456,7 +498,11 @@ pub fn install(
                 platform()?,
                 &backend,
             )?;
-            println!("Already installed node {}", metadata.archive.version);
+            println!(
+                "Already installed {} {}",
+                tool.name(),
+                metadata.archive.version
+            );
             super::shims::prepare(store, false)?;
             return Ok(0);
         }
@@ -472,9 +518,9 @@ pub fn install(
         None => metadata
             .declared_sha256
             .clone()
-            .context("Node checksum missing")?,
+            .context("tool checksum missing")?,
     };
-    let layout = plan(&metadata.archive, &digest, &backend);
+    let layout = plan(tool, &metadata.archive, &digest, &backend);
     let layout_digest = records::digest("oyzu.archive-layout.v1", &layout)?;
     std::fs::create_dir_all(store)?;
     let cached = if let Some(lock) = &previous {
@@ -495,13 +541,19 @@ pub fn install(
     let acquired = if cached.is_none() {
         ensure!(
             !offline,
-            "locked Node archive is not cached; run oyzu install online to acquire it"
+            "locked tool archive is not cached; run oyzu install online to acquire it"
         );
         let response = acquisition.fetch(&metadata.archive.archive_url)?;
         ensure!(
             response.status == 200,
-            "Node archive acquisition returned {}",
+            "tool archive acquisition returned {}",
             response.status
+        );
+        ensure!(
+            metadata
+                .declared_size
+                .is_none_or(|size| size == response.body.len() as u64),
+            "archive length differs from catalog"
         );
         response.body
     } else {
@@ -509,7 +561,7 @@ pub fn install(
     };
     let key = records::digest(
         "oyzu.tool-record.v2",
-        &json!({"id":"core:node","version":metadata.archive.version,"backend_digest":backend,"options":{}}),
+        &json!({"id":tool.id(),"version":metadata.archive.version,"backend_digest":backend,"options":{}}),
     )?;
     let bytes = if previous.is_some() {
         super::read_record(&lock_path, lock::MAX_BYTES)?
@@ -526,7 +578,7 @@ pub fn install(
             }],
             tool: vec![lock::Tool {
                 key: key.clone(),
-                id: "core:node".into(),
+                id: tool.id().into(),
                 version: metadata.archive.version.clone(),
                 backend_digest: backend.clone(),
                 options: BTreeMap::new(),
@@ -534,13 +586,13 @@ pub fn install(
                     platform: platform()?.into(),
                     digest: digest.clone(),
                     size: acquired.len() as u64,
-                    source_id: "node-releases".into(),
+                    source_id: tool.source().into(),
                     artifact_id: metadata
                         .archive
                         .archive_url
                         .rsplit('/')
                         .next()
-                        .context("Node artifact filename missing")?
+                        .context("tool artifact filename missing")?
                         .into(),
                     layout_digest: layout_digest.clone(),
                     dependencies: vec![],
@@ -566,7 +618,7 @@ pub fn install(
             .as_ref()
             .map(|lock| lock.tool[0].version.as_str())
             .unwrap_or("(unlocked)");
-        println!("node: {before} -> {}", metadata.archive.version);
+        println!("{}: {before} -> {}", tool.name(), metadata.archive.version);
     }
     let parsed = lock::parse(&bytes)?;
     let distribution = &parsed.tool[0].distribution[0];
@@ -619,12 +671,13 @@ pub fn install(
     if let Some(proposal) = proposal {
         proposal.commit()?;
     }
-    println!("Installed node {}", metadata.archive.version);
+    println!("Installed {} {}", tool.name(), metadata.archive.version);
     super::shims::prepare(store, false)?;
     Ok(0)
 }
 
 pub(super) struct InstalledCommand {
+    tool: Tool,
     lease: super::InstallationLease,
     pub(super) executable: PathBuf,
     bin: PathBuf,
@@ -639,15 +692,16 @@ pub(super) fn installed_command(
     store: &Path,
 ) -> Result<InstalledCommand> {
     let directory = directory.canonicalize()?;
-    let (session, effective, request) = configuration(&directory, options)?;
+    let (session, effective, tool, request) = configuration(&directory, options)?;
     let lock_path = session.root.join("oyzu.lock");
     let document = lock::parse(&super::read_record(&lock_path, lock::MAX_BYTES)?)?;
     ensure!(
-        document.tool.len() == 1 && document.tool[0].id == "core:node",
-        "initial exec supports a Node-only lock"
+        document.tool.len() == 1 && document.tool[0].id == tool.id(),
+        "exec requires a matching single-tool lock"
     );
     let metadata = metadata(
         &Request {
+            tool,
             request,
             exact: Some(document.tool[0].version.clone()),
             target: platform()?.into(),
@@ -673,21 +727,25 @@ pub(super) fn installed_command(
         platform()?,
         &identity()?,
     )?;
-    let selected = lease.command("node")?;
+    let selected = lease.command(tool.name())?;
     let ToolLaunch::Native {
         payload_relative_path,
         prefix_args,
     } = selected.launch
     else {
-        anyhow::bail!("Node requires a native launch descriptor")
+        anyhow::bail!("core tool requires a native launch descriptor")
     };
-    ensure!(prefix_args.is_empty(), "unexpected Node prefix arguments");
+    ensure!(
+        prefix_args.is_empty(),
+        "unexpected core tool prefix arguments"
+    );
     let payload = std::path::absolute(store)?
         .join("installs")
         .join(&selected.installation_key[7..])
         .join("payload");
     let executable = payload.join(payload_relative_path);
     Ok(InstalledCommand {
+        tool,
         lease,
         executable,
         bin: payload.join(&metadata.archive.bin_relative_path),
@@ -702,13 +760,16 @@ pub fn which(
     store: &Path,
     name: &str,
 ) -> Result<i32> {
-    ensure!(name == "node", "initial which command must be node");
     let selected = installed_command(directory, options, store)?;
+    ensure!(
+        name == selected.tool.name(),
+        "command is not in the selected closure"
+    );
     println!("{}", selected.executable.display());
     Ok(0)
 }
 
-/// Execute a selected Node command or an explicitly requested executable path
+/// Execute a selected core tool command or an explicitly requested executable path
 /// with the frozen environment and lease. Bare unknown commands never use PATH.
 pub fn exec(
     directory: &Path,
@@ -718,7 +779,7 @@ pub fn exec(
 ) -> Result<i32> {
     let requested = arguments.first().context("exec requires a command")?;
     let selected = installed_command(directory, options, store)?;
-    let executable = if requested == "node" {
+    let executable = if requested == selected.tool.name() {
         selected.executable.clone()
     } else {
         let path = Path::new(requested);
@@ -776,6 +837,9 @@ pub(super) fn compose_environment(
         paths.insert(0, selected.bin.clone());
     }
     environment.insert("PATH".into(), std::env::join_paths(paths)?);
+    selected
+        .tool
+        .apply_environment(&selected.bin, &mut environment)?;
     Ok(environment)
 }
 
@@ -827,11 +891,15 @@ pub fn environment(
             println!(
                 "{}",
                 serde_json::to_string_pretty(
-                    &json!({"tool":"core:node", "executable":selected.executable, "environment":values})
+                    &json!({"tool":selected.tool.id(), "executable":selected.executable, "environment":values})
                 )?
             );
         } else {
-            println!("node: {}", selected.executable.display());
+            println!(
+                "{}: {}",
+                selected.tool.name(),
+                selected.executable.display()
+            );
             for (name, value) in values {
                 println!("{name}={value}");
             }

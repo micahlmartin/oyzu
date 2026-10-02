@@ -63,7 +63,7 @@ enum Commands {
         #[arg(long, value_parser = ["bash", "zsh", "pwsh"])]
         shell: Option<String>,
     },
-    /// Install the configured Node tool (opt-in development integration).
+    /// Install the configured Node or Go tool (opt-in development integration).
     #[cfg(feature = "mise-integration")]
     Install {
         /// Require an existing matching lock without resolving new versions.
@@ -72,7 +72,7 @@ enum Commands {
         /// Use only existing locks, installations and cached archives.
         #[arg(long)]
         offline: bool,
-        /// Resolve configured requirements again (currently node/core:node).
+        /// Resolve configured requirements again (configured Node or Go tool).
         #[arg(long, num_args = 0.., conflicts_with_all = ["frozen", "offline"])]
         update: Option<Vec<String>>,
         /// Host-owned connector endpoints and authorization environment references.

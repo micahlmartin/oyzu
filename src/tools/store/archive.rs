@@ -214,7 +214,8 @@ fn extract(
     let mut bytes = 0u64;
     let mut entries = 0usize;
     // Raw iteration avoids unbounded allocation of GNU/PAX extension bodies by
-    // tar's convenience iterator. Only bounded GNU name/link records are admitted.
+    // tar's convenience iterator. Admit bounded GNU and local PAX name/link
+    // records; Go's official archives use PAX for non-ASCII filenames.
     for entry in archive.entries()?.raw(true) {
         let mut entry = entry?;
         entries += 1;
@@ -223,6 +224,25 @@ fn extract(
             "archive entry limit exceeded"
         );
         let kind = entry.header().entry_type();
+        if kind.is_pax_local_extensions() {
+            ensure!(entry.size() <= 16 * 1024, "archive extension exceeds limit");
+            let mut fields = 0;
+            for extension in entry.pax_extensions()?.context("missing PAX extension")? {
+                let extension = extension?;
+                fields += 1;
+                let slot = match extension.key()? {
+                    "path" => &mut long_name,
+                    "linkpath" => &mut long_link,
+                    _ => anyhow::bail!("PAX extension field is not admitted"),
+                };
+                ensure!(
+                    slot.replace(extension.value()?.to_owned()).is_none(),
+                    "duplicate archive extension"
+                );
+            }
+            ensure!(fields > 0, "empty PAX extension");
+            continue;
+        }
         if kind.is_gnu_longname() || kind.is_gnu_longlink() {
             ensure!(entry.size() <= 16 * 1024, "archive extension exceeds limit");
             let mut value = String::new();

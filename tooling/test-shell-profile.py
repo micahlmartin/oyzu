@@ -26,7 +26,7 @@ def main():
 
         run(["install"])
         for shell in args.shell:
-            profile = root / f"profile with spaces.{shell}"
+            profile = root / f"profile with spaces.{ 'ps1' if shell == 'pwsh' else shell }"
             original = b"# User profile without a final newline"
             profile.write_bytes(original)
             command = ["shell", "install", shell, "--profile-path", str(profile)]

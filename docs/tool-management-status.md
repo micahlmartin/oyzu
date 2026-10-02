@@ -2696,3 +2696,36 @@ Bash/Zsh environment and native-shim activation, as well as the previously recor
 Windows acceptance. These results do not cover the later proxy/profile/exec changes.
 
 Nine real Windows task scenarios and documentation/diff checks also passed.
+
+## Checkpoint 169: real Go installation and compiler execution (2026-10-02)
+
+The maintained fork's existing Go catalog/version/archive APIs now feed the same
+standalone install, lock, lease, exec, which, environment and shim flow as Node.
+The backend adapter owns Go's GOROOT and default local toolchain mode. Acquisition
+maps Go catalog and archive keys through the host broker, including explicit
+administrative connector bindings; corporate Go proxy qualification is pending.
+No upstream pin, executable or license choice changed.
+
+Linux Go 1.24.13 was acquired from actual public metadata/artifact sources,
+installed and reused frozen. Which/exec, GOROOT, local toolchain mode, compilation
+and execution of a real standard-library program, literal arguments/TOML env and
+Bash native shim activation passed with unchanged lock bytes. Official Go tar
+entries required local PAX filename support; the same existing path validation
+applies and unsupported/global fields remain rejected. Existing archive rejection
+checks pass, including empty PAX records.
+
+Node explicit-exec and the full Bash native-shim scenario still passed with
+networking disabled. The Windows default locked suite (two test threads), strict
+clippy, formatting and nine task scenarios passed; targeted archive checks passed
+after the PAX change. Final feature-enabled Linux build/clippy/formatting passed.
+
+The earlier profile CI run 37053758584 exposed a PowerShell fixture extension
+error: .pwsh was classified as Application, while .ps1 is ExternalScript. The
+runner now uses .ps1; native PowerShell profile acceptance remains pending and no
+product success is inferred from the classification probe alone. Native Go tests
+are now included in the existing three-host acceptance workflow.
+
+The final Go replay moved installations aside and restored them from cached bytes
+with container networking disabled. Which/exec, GOROOT, local toolchain and actual
+compilation/execution passed again; lock bytes stayed unchanged. Documentation
+and diff checks passed. Full OEP-0003 scope remains active, with hardening deferred.

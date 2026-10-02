@@ -33,7 +33,7 @@ fn digest(path: &Path) -> Result<String> {
     Ok(format!("{:x}", hash.finalize()))
 }
 
-/// Retain the actual frontend image as a native Node shim. This runs during
+/// Retain the actual frontend image as native Node/Go shims. This runs during
 /// install/activation, never during a prompt hook. A shared store is explicit;
 /// dynamic mode uses the invocation directory's store on every subsequent call.
 pub(super) fn prepare(store: &Path, dynamic: bool) -> Result<PathBuf> {
@@ -44,28 +44,34 @@ pub(super) fn prepare(store: &Path, dynamic: bool) -> Result<PathBuf> {
         .join(&release)
         .join(if dynamic { "cwd" } else { "shared" });
     std::fs::create_dir_all(&directory)?;
-    let image = directory.join(if cfg!(windows) { "node.exe" } else { "node" });
-    if !image.exists() && std::fs::hard_link(&frontend, &image).is_err() {
-        std::fs::copy(&frontend, &image)?;
-    }
-    ensure!(
-        digest(&image)? == release,
-        "shim image differs from its frontend release"
-    );
-    let manifest = Manifest {
-        format: 1,
-        release_digest: release,
-        command: "node".into(),
-        store: if dynamic {
-            None
+    for name in ["node", "go"] {
+        let image = directory.join(if cfg!(windows) {
+            format!("{name}.exe")
         } else {
-            Some(std::path::absolute(store)?)
-        },
-    };
-    std::fs::write(
-        directory.join("oyzu-shim.json"),
-        serde_json::to_vec(&manifest)?,
-    )?;
+            name.into()
+        });
+        if !image.exists() && std::fs::hard_link(&frontend, &image).is_err() {
+            std::fs::copy(&frontend, &image)?;
+        }
+        ensure!(
+            digest(&image)? == release,
+            "shim image differs from its frontend release"
+        );
+        let manifest = Manifest {
+            format: 1,
+            release_digest: release.clone(),
+            command: name.into(),
+            store: if dynamic {
+                None
+            } else {
+                Some(std::path::absolute(store)?)
+            },
+        };
+        std::fs::write(
+            directory.join(format!("{name}.oyzu-shim.json")),
+            serde_json::to_vec(&manifest)?,
+        )?;
+    }
     Ok(directory)
 }
 
@@ -73,19 +79,23 @@ pub(super) fn prepare(store: &Path, dynamic: bool) -> Result<PathBuf> {
 /// image digest must agree. Does not consult PATH or acquire missing tools.
 pub fn dispatch() -> Result<Option<i32>> {
     let image = std::env::current_exe()?;
-    if image.file_stem().and_then(|name| name.to_str()) != Some("node") {
+    let name = image
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("");
+    if !matches!(name, "node" | "go") {
         return Ok(None);
     }
     let manifest: Manifest = serde_json::from_slice(&super::read_record(
         &image
             .parent()
             .context("shim has no directory")?
-            .join("oyzu-shim.json"),
+            .join(format!("{name}.oyzu-shim.json")),
         16384,
     )?)?;
     ensure!(
         manifest.format == 1
-            && manifest.command == "node"
+            && manifest.command == name
             && manifest.release_digest == digest(&image)?,
         "invalid native shim identity"
     );
@@ -94,7 +104,7 @@ pub fn dispatch() -> Result<Option<i32>> {
         .store
         .unwrap_or_else(|| directory.join(".oyzu/tools"));
     let options: Options = super::shell::active_options()?.unwrap_or_default();
-    let arguments: Vec<OsString> = std::iter::once(OsString::from("node"))
+    let arguments: Vec<OsString> = std::iter::once(OsString::from(name))
         .chain(std::env::args_os().skip(1))
         .collect();
     super::development::exec(&directory, &options, &store, &arguments).map(Some)

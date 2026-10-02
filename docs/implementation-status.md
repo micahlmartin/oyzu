@@ -51,6 +51,16 @@ networking disabled ran a real interpreter, selected locked Node in its child,
 preserved literal arguments/cwd/environment and exit status, resolved a relative
 path against `-C`, and left the lock unchanged. Windows/macOS acceptance for this
 extension is pending; managed execution and process supervision remain open.
+The same opt-in flow now installs a single Go tool through the maintained fork's
+official catalog/checksum adapter. Linux Go 1.24.13 acquisition, frozen reuse,
+which/exec, GOROOT/local toolchain configuration, real program compilation and
+Bash native shim activation passed. Official Go tar files required bounded local
+PAX filename support in the existing extractor. Node explicit exec and Bash
+activation replay still pass. Native Windows/macOS Go qualification, mixed-tool
+projects and native module constraints remain unfinished.
+The Go installation was also moved aside and restored from cached bytes with
+container networking disabled; actual compilation/execution and unchanged locks
+passed again.
 
 ## Builder objective
 

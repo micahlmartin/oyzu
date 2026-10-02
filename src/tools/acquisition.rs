@@ -1,6 +1,7 @@
 //! Standalone tool-route binding. Administrative configuration selects opaque connector
 //! IDs; explicitly supplied host TOML resolves endpoints and credential references.
 //! Only this host adapter owns credentials. Managed agent bindings are separate.
+use super::development_backend::Tool;
 use crate::{broker, config::resolve::EffectiveConfig};
 use anyhow::{ensure, Context, Result};
 use serde::Deserialize;
@@ -24,14 +25,19 @@ struct Binding {
     authorization_env: Option<String>,
 }
 
-pub(super) struct NodeAcquisition {
+pub(super) struct Acquisition {
+    tool: Tool,
     connector: Option<String>,
     bindings: Option<PathBuf>,
     transport: Option<(String, broker::Fetcher)>,
 }
 
-impl NodeAcquisition {
-    pub(super) fn new(config: &EffectiveConfig, bindings: Option<&Path>) -> Result<Self> {
+impl Acquisition {
+    pub(super) fn new(
+        config: &EffectiveConfig,
+        bindings: Option<&Path>,
+        tool: Tool,
+    ) -> Result<Self> {
         ensure!(
             config
                 .get("tools.catalogs")
@@ -47,15 +53,16 @@ impl NodeAcquisition {
             .collect();
         let exact: Vec<_> = routes
             .iter()
-            .filter(|route| matches!(route["scope"].as_str(), Some("node" | "core:node")))
+            .filter(|route| route["scope"] == tool.name() || route["scope"] == tool.id())
             .collect();
-        ensure!(exact.len() <= 1, "ambiguous Node connector routes");
+        ensure!(exact.len() <= 1, "ambiguous tool connector routes");
         let route = exact
             .first()
             .copied()
             .copied()
             .or_else(|| routes.iter().find(|route| route["scope"] == "*").copied());
         Ok(Self {
+            tool,
             connector: route.map(|route| route["connectorId"].as_str().unwrap().to_owned()),
             bindings: bindings.map(Path::to_path_buf),
             transport: None,
@@ -68,25 +75,32 @@ impl NodeAcquisition {
         let url = reqwest::Url::parse(upstream)?;
         ensure!(
             url.scheme() == "https"
-                && url.host_str() == Some("nodejs.org")
                 && url.port_or_known_default() == Some(443)
                 && url.username().is_empty()
                 && url.password().is_none()
-                && url.query().is_none()
                 && url.fragment().is_none(),
-            "TOOL_ROUTE_UNSUPPORTED: unrecognized Node resource"
+            "TOOL_ROUTE_UNSUPPORTED: unrecognized tool resource"
         );
-        let resource = url
-            .path()
-            .strip_prefix("/dist/")
-            .context("TOOL_ROUTE_UNSUPPORTED: unrecognized Node resource path")?;
+        let resource = match self.tool {
+            Tool::Node if url.host_str() == Some("nodejs.org") && url.query().is_none() => {
+                url.path().strip_prefix("/dist/")
+            }
+            Tool::Go if upstream == "https://go.dev/dl/?mode=json&include=all" => {
+                Some("index.json")
+            }
+            Tool::Go if url.host_str() == Some("dl.google.com") && url.query().is_none() => {
+                url.path().strip_prefix("/go/")
+            }
+            _ => None,
+        }
+        .context("TOOL_ROUTE_UNSUPPORTED: unrecognized tool resource path")?;
         ensure!(
             !resource.is_empty() && !resource.contains('%') && !resource.contains('\\'),
-            "TOOL_ROUTE_UNSUPPORTED: unsupported Node resource encoding"
+            "TOOL_ROUTE_UNSUPPORTED: unsupported tool resource encoding"
         );
         if self.transport.is_none() {
             let (base, authorization) = if let Some(connector) = &self.connector {
-                let path = self.bindings.as_ref().context("configured Node route requires --connector-bindings; public fallback is disabled")?;
+                let path = self.bindings.as_ref().context("configured tool route requires --connector-bindings; public fallback is disabled")?;
                 let bytes = super::read_record(path, 1024 * 1024)?;
                 let bindings: Bindings = toml::from_str(std::str::from_utf8(&bytes)?)
                     .context("invalid host connector bindings")?;
@@ -95,7 +109,7 @@ impl NodeAcquisition {
                     "unsupported host connector binding format"
                 );
                 let binding = bindings.connectors.get(connector).context(
-                    "configured Node connector has no host binding; public fallback is disabled",
+                    "configured tool connector has no host binding; public fallback is disabled",
                 )?;
                 let authorization = binding
                     .authorization_env
@@ -107,13 +121,32 @@ impl NodeAcquisition {
                     .transpose()?;
                 (binding.base_url.clone(), authorization)
             } else {
-                (PUBLIC.into(), None)
+                (
+                    match self.tool {
+                        Tool::Node => PUBLIC,
+                        Tool::Go => "https://dl.google.com/go/",
+                    }
+                    .into(),
+                    None,
+                )
             };
-            let source = broker::Source::new("node-releases", &base, authorization)?;
-            self.transport = Some((base, broker::Fetcher::new(vec![source])?));
+            let source = broker::Source::new(self.tool.source(), &base, authorization)?;
+            let mut sources = vec![source];
+            if self.connector.is_none() && self.tool == Tool::Go {
+                sources.push(broker::Source::new(
+                    "go-catalog",
+                    "https://go.dev/dl/",
+                    None,
+                )?);
+            }
+            self.transport = Some((base, broker::Fetcher::new(sources)?));
         }
         let (base, fetcher) = self.transport.as_mut().unwrap();
-        let target = reqwest::Url::parse(base)?.join(resource)?;
+        let target = if self.connector.is_some() {
+            reqwest::Url::parse(base)?.join(resource)?
+        } else {
+            url
+        };
         fetcher.fetch(target.as_str())
     }
 }

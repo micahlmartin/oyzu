@@ -14,6 +14,7 @@ on:
       - 'tooling/test-tool-activation.py'
       - 'tooling/test-tool-proxy.py'
       - 'tooling/test-tool-exec.py'
+      - 'tooling/test-tool-go.py'
       - 'tooling/test-shell-profile.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
@@ -95,7 +96,17 @@ jobs:
       - name: Install and remove PowerShell profiles
         if: runner.os == 'Windows'
         run: python tooling/test-shell-profile.py --cli ${{ matrix.executable }} --shell pwsh
-      - name: Check feature-enabled code
+      - name: Real Go installation and compiler execution
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance"
+      - name: Restore Go from cached archive
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance" --offline-check --restore-cached
+      - name: Go shell shim on Unix
+        if: runner.os != 'Windows'
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance" --offline-check --shell bash
+      - name: Go shell shim on Windows
+        if: runner.os == 'Windows'
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance" --offline-check --shell pwsh
+      - name: Check feature-enabled code after acceptance
         run: cargo clippy --locked --features mise-integration --all-targets -- -D warnings
       - name: Formatting
         run: cargo fmt --all -- --check

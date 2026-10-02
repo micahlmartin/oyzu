@@ -1,6 +1,6 @@
-# Node tool-management development integration
+# Core tool-management development integration
 
-This opt-in implementation connects standalone Node installation and execution
+This opt-in implementation connects standalone Node and Go installation and execution
 through Oyzu configuration, the maintained mise Rust library, format-2 locks and
 Oyzu's installation store. It is under active functional acceptance testing;
 it is not a distribution-qualified release. The maintainer authorized development
@@ -44,7 +44,8 @@ oyzu exec -- node -e 'console.log(process.env.APP_MODE)'
 
 The shell quoting in the last example is suitable for Bash and PowerShell.
 `-C DIRECTORY`, explicit root and profile selection use the existing configuration
-resolver. Initial installation supports the workspace root and exactly `tools.node`.
+resolver. Initial installation supports the workspace root and exactly one tool
+(`tools.node` for this flow, or `tools.go` as described below).
 The Node selector is interpreted by mise against the actual Node catalog. Existing
 locks retain the exact version unless an update is explicitly requested.
 
@@ -139,6 +140,80 @@ python tooling/test-tool-exec.py --cli PATH_TO_FEATURE_ENABLED_OYZU --workspace 
 
 Linux amd64 passed this scenario with container networking disabled on 2026-10-02.
 Native Windows/macOS explicit-path execution acceptance remains pending in CI.
+
+## Go installation and execution
+
+Use a separate single-tool project with:
+
+```toml
+[tools]
+go = "1.24.13"
+```
+
+```sh
+oyzu install
+oyzu which go
+oyzu exec -- go version
+oyzu exec -- go run ./main.go
+oyzu install --frozen --offline
+```
+
+Mise supplies version selection and target archive facts. Its official Go catalog
+adapter checks the release filename, catalog size/hash and checksum sidecar through
+Oyzu's host transport. Oyzu verifies the acquired bytes, publishes the installation
+and retains the existing format-2 lock and frozen reuse/restoration contracts.
+The lock records `go-releases` and digest-only verification, not publisher signatures.
+No Go executable is needed to install the prebuilt release.
+
+`exec` and shell activation prepend the selected installation's `bin` directory,
+set `GOROOT` to its payload and default `GOTOOLCHAIN` to `local` so normal execution
+uses the locked compiler without automatic toolchain acquisition. An explicit TOML
+environment setting can override `GOTOOLCHAIN` in this standalone development mode.
+Ordinary Go module/package acquisition remains native Go behavior; selecting a
+compiler is not yet managed module routing or hermetic build integration.
+
+`install --update go`, `--update core:go` and bare `--update` explicitly resolve
+the configured Go request again. Stale ordinary requests fail and frozen/offline
+commands do not resolve new versions. Node and Go projects can share an explicit
+store, but a project declaring both is not supported yet. Native `go.mod` constraint
+discovery, multi-tool locks, `gofmt` launch descriptors and builder handoff remain
+unfinished. Supported target tuples remain Linux amd64 GNU, Windows amd64 and
+macOS arm64; native qualification is recorded separately below.
+
+Activation prepares native `node` and `go` shims, each with its own manifest. A shim
+resolves the currently configured tool and refuses a command absent from that
+selection. Existing retained frontend/shim versions are unchanged; deactivate and
+reactivate to use the new frontend. `env --json` identifies the selected canonical
+tool and continues to redact values.
+
+Go accepts administrative `tools` routes scoped to `go`, `core:go` or `*`, with the
+same explicit host binding file as Node. A Go proxy base must serve `index.json`
+containing the official all-release Go catalog, plus archive filenames and their
+`.sha256` sidecars at that base. Without a configured route, the host fetches
+`https://go.dev/dl/?mode=json&include=all` and `https://dl.google.com/go/` artifacts.
+There is no public fallback from a configured route. Real corporate Go proxy
+acceptance remains pending; managed mode is still unavailable.
+
+The real Go runner installs 1.24.13, checks frozen selection and GOROOT, and compiles
+and runs a program using only the standard library, with literal arguments and
+TOML environment. It can also exercise a native shell shim:
+
+```sh
+python tooling/test-tool-go.py --cli PATH_TO_FEATURE_ENABLED_OYZU --workspace PATH --shell bash
+```
+
+Retain the workspace and rerun with `--offline-check --restore-cached` under
+externally disabled networking to move installations aside and restore from cached
+archives. Use restoration once per workspace; the previous tree is preserved at
+`installs-before-restore`. The script's offline option does not itself disable
+networking. Use `--shell pwsh` on Windows or `--shell zsh` where available.
+
+Linux amd64 passed real acquisition, frozen reuse, version/GOROOT checks, actual
+compiler execution and Bash shim activation on 2026-10-02. Windows/macOS Go
+acceptance remains pending in CI. This does not qualify mixed Node/Go projects,
+native module constraints or corporate Go proxy behavior.
+The same Linux workspace then passed restoration from cached bytes and real
+compiler execution with container networking disabled, preserving lock bytes.
 
 ## Standalone proxy acquisition
 
