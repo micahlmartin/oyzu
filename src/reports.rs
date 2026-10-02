@@ -1,3 +1,4 @@
+pub(crate) mod assertions;
 mod contract;
 use anyhow::{bail, Result};
 pub(crate) use contract::{matches, validate_declarations, Input, Root};
@@ -182,6 +183,11 @@ fn escape(value: &str) -> String {
 pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
     let text = read_report(path)?;
     let (mut total, mut covered) = (0u64, 0u64);
+    let mut metric = if format == "go-cover" {
+        "statements"
+    } else {
+        "lines"
+    };
     match format {
         "jacoco" => {
             // JaCoCo's static external DTD is inert; never resolve entities or
@@ -202,12 +208,23 @@ pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
             if !root.has_tag_name("report") {
                 bail!("invalid JaCoCo report root");
             }
-            let counters: Vec<_> = root
+            let mut counters: Vec<_> = root
                 .children()
                 .filter(|n| n.has_tag_name("counter") && n.attribute("type") == Some("LINE"))
                 .collect();
+            if counters.is_empty() {
+                // Native bytecode coverage remains meaningful without line debug
+                // metadata. Preserve its unit; never manufacture source lines.
+                metric = "instructions";
+                counters = root
+                    .children()
+                    .filter(|n| {
+                        n.has_tag_name("counter") && n.attribute("type") == Some("INSTRUCTION")
+                    })
+                    .collect();
+            }
             if counters.len() != 1 {
-                bail!("JaCoCo report requires one aggregate line counter");
+                bail!("JaCoCo report requires one aggregate {metric} counter");
             }
             let counter = counters[0];
             covered = counter
@@ -270,7 +287,5 @@ pub fn coverage_summary(path: &Path, format: &str) -> Result<Value> {
         }
         _ => bail!("unsupported coverage format {format}"),
     }
-    Ok(
-        json!({"covered":covered,"total":total,"metric":if format=="go-cover" {"statements"} else {"lines"}}),
-    )
+    Ok(json!({"covered":covered,"total":total,"metric":metric}))
 }

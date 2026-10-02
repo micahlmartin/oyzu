@@ -1,4 +1,11 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="brand/assets/oyzu-full-logo-reverse.svg">
+  <img src="brand/assets/oyzu-full-logo-color.svg" alt="Oyzu" width="240">
+</picture>
+
 # Oyzu design library
+
+**An opinionated, batteries-included developer platform.** One coherent workflow for tools, environments, tasks, builds, and evidence, with useful defaults and minimal project configuration.
 
 This library consolidates the product direction discussed through 2026-10-01. **Visions and OEPs remain drafts; implementation is in progress.** Measured capabilities are recorded in [implementation status](implementation-status.md). Agreed product constraints are distinguished from proposed implementation choices in the [decision register](decisions.md).
 
@@ -9,6 +16,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Goal | Documents |
 | --- | --- |
 | Understand the product and component boundaries | [Vision index](vision/README.md), [architecture](architecture.md) |
+| Present Oyzu consistently | [Brand guide and assets](brand/README.md) |
 | Design tools, environment, shell switching, and tasks | OEP-0002 through OEP-0005 and OEP-0008 in the [proposal index](proposals/README.md) |
 | Implement mise-backed tool management | [OEP-0003](proposals/OEP-0003-mise-integration/README.md): runtime, lock/store, acquisition/authorization and ordered acceptance work packages |
 | Design discovery, execution, caching, and artifacts | OEP-0006, OEP-0007, OEP-0011 through OEP-0014 |
@@ -18,6 +26,8 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Check decisions requiring review | [Decision register](decisions.md) |
 | Find implemented behavior | [Reference status](reference/README.md) and [implementation status](implementation-status.md) |
 | Extend an ecosystem adapter | [Builder code organization](builder-code-organization.md) |
+| Contribute code or introduce a subsystem | [Code map and engineering guide](code-organization.md), [contribution workflow](../CONTRIBUTING.md), [agent instructions](../AGENTS.md) |
+| Document new functionality and keep current behavior accurate | [Documentation maintenance standard](documentation.md), [current reference index](reference/README.md) |
 
 ## Document authority
 

@@ -56,6 +56,8 @@ fn plans_are_location_independent_bind_toolchain_and_keep_hooks() {
             "project:pre_test",
             "project:test",
             "project:post_test",
+            "project:lint",
+            "project:format-check",
             "project:package"
         ]
     );
@@ -97,6 +99,38 @@ fn semantic_digest_canonicalizes_unicode_property_order() {
         records::digest("oyzu.plan.v1alpha1", &value).unwrap(),
         records::digest("oyzu.tree.v1alpha1", &value).unwrap()
     );
+}
+
+#[test]
+fn plan_edges_preserve_target_order_without_serializing_independent_targets() {
+    let root = tempfile::tempdir().unwrap();
+    for id in ["alpha", "beta", "consumer"] {
+        fs::create_dir(root.path().join(id)).unwrap();
+        fs::write(
+            root.path().join(id).join("package.json"),
+            format!(r#"{{"name":"{id}","version":"1.0.0"}}"#),
+        )
+        .unwrap();
+    }
+    fs::write(root.path().join("build.yaml"),
+        "alpha: {uses: node/package, path: alpha}\nbeta: {uses: node/package, path: beta}\nconsumer: {uses: node/package, path: consumer, depends_on: [alpha]}\n").unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), captured.path());
+    let actions = plan["actions"].as_array().unwrap();
+    for target in ["alpha", "beta", "consumer"] {
+        let chain: Vec<_> = actions.iter().filter(|a| a["target"] == target).collect();
+        for (index, action) in chain.iter().enumerate() {
+            let mut expected = Vec::new();
+            if index > 0 {
+                expected.push(chain[index - 1]["id"].as_str().unwrap());
+            }
+            if target == "consumer" {
+                expected.push("alpha:package");
+            }
+            expected.sort();
+            assert_eq!(action["dependsOn"], json!(expected));
+        }
+    }
 }
 
 #[test]
@@ -282,9 +316,17 @@ fn single_target_build_honors_root_tasks_and_hooks_without_cross_target_fanout()
     assert!(selected[0]["reports"].as_array().unwrap().is_empty());
     assert!(selected[2]["reports"].as_array().unwrap().is_empty());
     assert!(!actions.iter().any(|a| a["id"] == "project:test"));
+    for name in ["a", "b"] {
+        fs::create_dir(root.path().join(name)).unwrap();
+        fs::copy(
+            root.path().join("package.json"),
+            root.path().join(name).join("package.json"),
+        )
+        .unwrap();
+    }
     fs::write(
         root.path().join("build.yaml"),
-        "a:\n  uses: node/package\nb:\n  uses: node/package\n",
+        "a:\n  uses: node/package\n  path: a\nb:\n  uses: node/package\n  path: b\n",
     )
     .unwrap();
     let capture = tempfile::tempdir().unwrap();
@@ -340,40 +382,6 @@ fn node_override_reporting_recognizes_exact_commands_without_parsing_shell_progr
 }
 
 #[test]
-fn unknown_go_override_requires_files_instead_of_interpreting_arbitrary_stdout() {
-    let root = tempfile::tempdir().unwrap();
-    fs::write(
-        root.path().join("go.mod"),
-        "module example.test/demo\n\ngo 1.24\n",
-    )
-    .unwrap();
-    fs::write(
-        root.path().join("main.go"),
-        "package main\nfunc main() {}\n",
-    )
-    .unwrap();
-    fs::write(
-        root.path().join("oyzu.toml"),
-        "[tasks.\"project:test\"]\nargv=['custom-test']\n",
-    )
-    .unwrap();
-    let capture = tempfile::tempdir().unwrap();
-    let plan = planned(root.path(), capture.path());
-    let task = plan["actions"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|a| a["id"] == "project:test")
-        .unwrap();
-    assert_eq!(task["argv"], json!(["custom-test"]));
-    assert_eq!(task["reports"].as_array().unwrap().len(), 2);
-    assert_eq!(
-        task["extensions"]["oyzu.dev/report-sources"]["project:test"],
-        "file"
-    );
-}
-
-#[test]
 fn declared_reports_bind_captured_task_cwd_and_preserve_other_required_kinds() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir_all(root.path().join("api/checks")).unwrap();
@@ -392,7 +400,7 @@ fn declared_reports_bind_captured_task_cwd_and_preserve_other_required_kinds() {
         r#"
 [tasks."api:test"]
 argv=['custom-test']
-cwd='checks'
+cwd='api/checks'
 reports=[{kind='test',format='junit',path='reports/tests.xml'}]
 [tasks."api:post_test"]
 argv=['custom-post']

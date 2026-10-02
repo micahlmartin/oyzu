@@ -1,0 +1,8 @@
+{
+  "name": "oyzu-vitest-contract",
+  "version": "1.2.0",
+  "type": "module",
+  "files": ["src"],
+  "scripts": {"build": "node --check src/greeting.js", "lint": "node --check src/greeting.js"},
+  "devDependencies": {"vitest": "5.0.3", "@vitest/coverage-v8": "5.0.3"}
+}

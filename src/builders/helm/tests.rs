@@ -96,9 +96,16 @@ fn packaging_plans_snapshots_and_retains_native_checks() {
     assert!(plan.tasks["lint"].argv.contains(&"--with-subcharts".into()));
     assert!(plan.tasks["test"]
         .argv
-        .last()
-        .unwrap()
-        .contains("helm template"));
+        .contains(&"/oyzu/helm-test.py".into()));
+    assert_eq!(plan.tasks["test"].reports.len(), 1);
+    assert_eq!(
+        plan.tasks["test"].reports[0].format,
+        crate::reports::Format::Junit
+    );
+    assert_eq!(
+        serde_json::to_value(&plan.coverage).unwrap()["status"],
+        "inapplicable"
+    );
     assert!(plan.tasks["build"]
         .argv
         .iter()
@@ -113,7 +120,7 @@ fn library_charts_package_and_lint_without_attempting_installable_rendering() {
     let source = tempfile::tempdir().unwrap();
     let snapshot = snapshot::capture(root.path(), &source.path().join("captured")).unwrap();
     let workspace = discovery::discover(&source.path().join("captured")).unwrap();
-    assert!(!workspace.tasks.contains_key("project:test"));
+    assert_eq!(workspace.tasks["project:test"].argv[1], "lint");
     let prepared = Prepared {
         root: root.path().into(),
         digest: snapshot.digest.clone(),
@@ -127,7 +134,8 @@ fn library_charts_package_and_lint_without_attempting_installable_rendering() {
     .unwrap();
     assert_eq!(plan.artifacts.len(), 1);
     assert_eq!(plan.artifacts[0].name, "chart");
-    assert!(!plan.tasks.contains_key("test"));
+    assert!(plan.tasks["test"].argv.contains(&"library".into()));
+    assert_eq!(plan.tasks["test"].reports.len(), 1);
     assert!(plan.tasks.contains_key("lint"));
     assert_eq!(plan.package.argv[0], "cp");
 }

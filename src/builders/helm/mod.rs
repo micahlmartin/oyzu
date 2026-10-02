@@ -16,12 +16,21 @@ use std::path::Path;
 pub(super) struct Helm;
 
 pub(super) const IMAGE: &str = "oyzu-toolchain/helm:3.22.0";
-pub(super) const RUNTIME: &[RuntimeFile] = &[RuntimeFile {
-    name: "helm-archive.py",
-    contents: include_str!("runtime/archive.py"),
-}];
+pub(super) const RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "helm-archive.py",
+        contents: include_str!("runtime/archive.py"),
+    },
+    RuntimeFile {
+        name: "helm-test.py",
+        contents: include_str!("runtime/testing.py"),
+    },
+];
 
 impl Builder for Helm {
+    fn acquisition_requires_network(&self) -> bool {
+        false
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok(IMAGE)
     }
@@ -37,6 +46,7 @@ impl Builder for Helm {
 
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["helm"],
             ids: &["helm/chart"],
         }
     }
@@ -63,6 +73,13 @@ impl Builder for Helm {
                 target,
                 "test",
                 &["helm", "template", "oyzu-check", chart],
+                true,
+            );
+        } else {
+            insert(
+                target,
+                "test",
+                &["helm", "lint", chart, "--strict", "--with-subcharts"],
                 true,
             );
         }

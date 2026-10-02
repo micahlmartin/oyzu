@@ -1,33 +1,21 @@
-import {spawnSync} from 'node:child_process';
 import {mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {dirname, join} from 'node:path';
+import {join} from 'node:path';
 import {fetch} from './broker_transport.mjs';
 import {readLock, verify} from './npm_lock.mjs';
-
-function npm(args, workspace, cache) {
-  // npm.cmd cannot be spawned directly on Windows. Invoke its installed JS entry
-  // point with Node there, without a shell or interpolated command string.
-  const command = process.platform === 'win32' ? process.execPath : 'npm';
-  const prefix = process.platform === 'win32'
-    ? [join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js')] : [];
-  const result = spawnSync(command, [...prefix, ...args, '--offline', '--audit=false', '--fund=false',
-    '--update-notifier=false', '--engine-strict=true', '--force=false', '--cache', cache, '--userconfig', join(cache, 'user.npmrc'),
-    '--globalconfig', join(cache, 'global.npmrc')], {
-    cwd: workspace, encoding: 'utf8', timeout: 240_000, maxBuffer: 8 * 1024 * 1024,
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) throw new Error(`npm ${args[0]} failed (${result.status}):\n${result.stdout}\n${result.stderr}`);
-  return result.stdout;
-}
+import {npm} from './npm-native.mjs';
+import {members, graph} from './npm-workspaces.mjs';
 
 const [mode, root = mode === 'acquire' ? '/out' : '/dependencies', workspace = '/workspace', broker = '/broker'] = process.argv.slice(2);
 if (!['acquire', 'install'].includes(mode)) throw new Error('expected npm acquire or install');
-const lock = readLock(workspace);
+const packageJson = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
+const workspaceMembers = await members(workspace, packageJson);
+const lock = readLock(workspace, workspaceMembers);
+const controls = ['package.json', ...(lock.filename ? [lock.filename] : []), ...workspaceMembers.map(m => `${m.path}/package.json`)]
+  .map(path => [path, readFileSync(join(workspace, path))]);
 const cache = mkdtempSync(join(tmpdir(), 'oyzu-npm-'));
 try {
   const version = npm(['--version'], workspace, cache).trim();
-  const packageJson = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
   if (packageJson.packageManager != null && packageJson.packageManager !== `npm@${version}`) {
     throw new Error(`declared packageManager ${packageJson.packageManager} does not match provisioned npm@${version}; select a matching provisioned toolchain image`);
   }
@@ -62,7 +50,11 @@ try {
   const install = lock.filename ? ['ci'] : ['install', '--package-lock=false'];
   npm([...install, `--ignore-scripts=${mode === 'acquire'}`, '--include=dev', '--include=optional', '--include=peer'], workspace, cache);
   if (mode === 'acquire') {
-    writeFileSync(join(root, 'inventory.json'), JSON.stringify({version, nodeVersion: process.versions.node, lockfile: lock.filename, packages}, null, 2) + '\n');
+    for (const [path, before] of controls) {
+      if (!readFileSync(join(workspace, path)).equals(before)) throw new Error(`npm acquisition changed source metadata: ${path}`);
+    }
+    const workspaces = await graph(workspace, workspaceMembers);
+    writeFileSync(join(root, 'inventory.json'), JSON.stringify({version, nodeVersion: process.versions.node, lockfile: lock.filename, packages, workspaces}, null, 2) + '\n');
   }
 } finally {
   rmSync(cache, {recursive: true, force: true});

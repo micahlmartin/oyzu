@@ -1,3 +1,8 @@
 package main
-import ("fmt"; "example.com/oyzu/math")
-func main() { fmt.Println(math.Add(2,3)) }
+
+import (
+	"example.com/oyzu/math"
+	"fmt"
+)
+
+func main() { fmt.Println(math.Add(2, 3)) }

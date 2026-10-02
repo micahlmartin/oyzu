@@ -1,3 +1,4 @@
+mod configuration;
 use crate::builders::task::insert;
 use crate::builders::task::unavailable;
 mod metadata;
@@ -13,6 +14,12 @@ use std::path::Path;
 pub(super) struct Docker;
 
 impl Builder for Docker {
+    fn register_settings(&self, registry: &mut crate::config::registry::Registry) -> Result<()> {
+        configuration::register(registry)
+    }
+    fn acquisition_requires_network(&self) -> bool {
+        false
+    }
     fn executor_profile(&self) -> crate::executor::Profile {
         crate::executor::Profile::RootlessBuildkit
     }
@@ -30,6 +37,7 @@ impl Builder for Docker {
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["docker"],
             ids: &["docker/image"],
         }
     }
@@ -42,7 +50,7 @@ impl Builder for Docker {
     fn discover(&self, target: &mut Target) -> Result<()> {
         target.manager = "docker".into();
         insert(target, "build", &["docker", "build", "."], true);
-        unavailable(target, "test", "No image smoke-test contract is configured");
+        unavailable(target, "test", "Default OCI validation runs during oyzu build; direct image test bundles are not implemented yet");
         unavailable(target, "lint", "No Dockerfile linter is configured");
         unavailable(
             target,

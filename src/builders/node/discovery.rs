@@ -6,6 +6,10 @@ use serde_json::Value;
 pub(super) fn discover(target: &mut Target) -> Result<()> {
     let profile = super::detection::detect(&target.path)?;
     let framework = profile.framework.selected().to_string();
+    target.discovery.insert("linter".into(), profile.linter);
+    target
+        .discovery
+        .insert("formatter".into(), profile.formatter);
     target
         .discovery
         .insert("test-framework".into(), profile.framework);
@@ -46,8 +50,28 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             insert(target, "test", &["node", "--test"], true);
         } else if framework == "jest" {
             insert(target, "test", super::jest::DEFAULT, true);
+        } else if framework == "vitest" {
+            insert(target, "test", super::vitest::DEFAULT, true);
         } else {
             super::super::unavailable(target, "test", &format!("Detected {framework}; its implicit runner/report integration is not implemented yet"));
+        }
+    }
+    super::quality::discover(target);
+    if manager == "npm" && value.get("workspaces").is_some() {
+        for operation in ["build", "test", "lint", "format-check", "format"] {
+            let scripts = &value["scripts"];
+            if scripts.get(operation).is_some()
+                || (operation == "format-check" && scripts.get("format:check").is_some())
+            {
+                continue;
+            }
+            insert(
+                target,
+                operation,
+                &["npm", "run", operation, "--workspaces"],
+                operation != "format",
+            );
+            target.tasks.get_mut(operation).unwrap().mutates_source = operation == "format";
         }
     }
     Ok(())

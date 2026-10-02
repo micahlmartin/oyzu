@@ -37,6 +37,26 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
       - name: Unit and discovery integration tests
         run: cargo test --locked
+      - name: Native policy integrity store
+        if: runner.os == 'Windows' || runner.os == 'macOS'
+        run: cargo test --locked config::policy_runtime::tests::native_integrity_store_roundtrip -- --ignored --exact
+      - name: Provision Linux policy integrity store fixture
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y dbus gnome-keyring
+          mkdir -p "$RUNNER_TEMP/oyzu-keyring-data" "$RUNNER_TEMP/oyzu-keyring-runtime"
+          chmod 700 "$RUNNER_TEMP/oyzu-keyring-data" "$RUNNER_TEMP/oyzu-keyring-runtime"
+      - name: Native Linux policy integrity store
+        if: runner.os == 'Linux'
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/oyzu-keyring-data
+          XDG_RUNTIME_DIR: ${{ runner.temp }}/oyzu-keyring-runtime
+        run: |
+          dbus-run-session -- bash -euc '
+            printf %s oyzu-disposable-ci-keyring | gnome-keyring-daemon --daemonize --unlock --components=secrets
+            cargo test --locked config::policy_runtime::tests::native_integrity_store_roundtrip -- --ignored --exact
+          '
       - name: Compile release CLI
         run: cargo build --locked --release
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -60,6 +80,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: '1.24.13'
+          cache: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: oyzu-${{ matrix.os }}
@@ -70,16 +94,30 @@ jobs:
           node --test tooling/test-node-lock.mjs
           node --test tooling/test-jest-results.mjs
           python tooling/test-node-acquisition.py
+          python tooling/test-npm-workspaces.py
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
+          python tooling/test-npm-workspace-build.py
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
-          python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
+          python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js --tar-stream tooling/images/node-yarn/node_modules/tar-stream
+          python tooling/test-node-archive.py --tar-stream tooling/images/node-yarn/node_modules/tar-stream
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/jest
           python tooling/test-jest-reporting.py --jest-cli tooling/fixtures/jest/node_modules/jest/bin/jest.js
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/vitest
+          python tooling/test-vitest-reporting.py --node-modules tooling/fixtures/vitest/node_modules
           if [ "$RUNNER_OS" = "Windows" ]; then
+            python tooling/test-go-metadata.py --cli cli/oyzu.exe
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
+            python tooling/test-npm-workspace-tasks.py --cli cli/oyzu.exe
+            python tooling/test-npm-workspace-tests.py --cli cli/oyzu.exe
+            python tooling/test-node-quality.py --cli cli/oyzu.exe
           else
             chmod +x cli/oyzu
+            python3 tooling/test-go-metadata.py --cli cli/oyzu
             python3 tooling/test-task-scenarios.py --cli cli/oyzu
+            python3 tooling/test-npm-workspace-tasks.py --cli cli/oyzu
+            python3 tooling/test-npm-workspace-tests.py --cli cli/oyzu
+            python3 tooling/test-node-quality.py --cli cli/oyzu
           fi
 
   container-worker-contract:
@@ -131,11 +169,15 @@ jobs:
       - name: Provision native toolchain images and contract validator
         run: |
           docker pull node:22-bookworm-slim
+          docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
           docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
           docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
           docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
           docker pull golang:1.24-bookworm
           docker pull python:3.12-slim-bookworm
+          docker pull python:3.12-bookworm
+          docker run --rm --mount type=bind,source="$PWD",target=/repository --workdir /repository python:3.12-bookworm python -m pip download --only-binary=:all: --dest .ci-python-legacy-wheels setuptools==80.9.0 wheel==0.45.1 build==1.2.2.post1 packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 ruff==0.11.13
           docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim
           docker build --tag oyzu-toolchain/poetry:2.5.1-python3.12 --file tooling/images/python-poetry.Dockerfile tooling/images
           docker build --tag oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1 --file tooling/images/rust.Dockerfile tooling/images
@@ -148,6 +190,8 @@ jobs:
           python3 -m venv .ci-python
           .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
           .ci-python/bin/python -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
+          .ci-python/bin/python -m pip download --only-binary=:all: --dest .ci-python-app-wheels packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2 ruff==0.11.13
+          .ci-python/bin/python -m pip download --only-binary=:all: --dest .ci-python-quality-wheels black==25.1.0 flake8==7.3.0 ruff==0.11.13
       - name: Build and verify native snapshot artifacts through the compiled CLI
         env:
           OYZU_BUILDKIT_APPARMOR_PROFILE: oyzu-buildkit
@@ -155,8 +199,13 @@ jobs:
           chmod +x cli/oyzu
           .ci-python/bin/python tooling/test-python-adapter.py
           .ci-python/bin/python tooling/test-python-reporting.py
+          .ci-python/bin/python tooling/test-python-application.py --wheels .ci-python-app-wheels
+          .ci-python/bin/python tooling/test-python-quality.py --wheels .ci-python-quality-wheels
+          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository python:3.12-bookworm python tooling/test-python-legacy.py --wheels .ci-python-legacy-wheels
           .ci-python/bin/python tooling/test-helm-archive.py
+          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/helm:3.22.0 tooling/test-helm-reporting.py
           .ci-python/bin/python tooling/test-ant-adapter.py
+          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/ant:1.10.18-jdk17 tooling/test-ant-reporting.py --java-home /opt/java/openjdk --ant-home /opt/ant --jacoco-home /opt/jacoco
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/maven:3.9.11-jdk17 tooling/test-maven-metadata.py --maven-home /opt/maven --java-home /opt/java/openjdk
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/gradle:8.14.3-jdk17 tooling/test-gradle-metadata.py --gradle-home /opt/gradle-8.14.3 --java-home /opt/java/openjdk
           .ci-python/bin/python tooling/test-build-scenarios.py --cli cli/oyzu --evidence-dir build-evidence

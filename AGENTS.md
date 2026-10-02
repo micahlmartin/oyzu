@@ -3,6 +3,27 @@
 ## Scope
 This is the public Oyzu repository. It must be buildable and usable without private repository access or a platform account.
 
+## Development model
+
+Oyzu is a 100% AI-built project. All first-party implementation code, tests and scripts, including fixes and refactors, are AI-generated. People define requirements, guide agents, review results and approve changes; handcrafted code patches are not our contribution workflow. Dependencies and upstream code retain their actual authorship and licenses. Follow [CONTRIBUTING.md](CONTRIBUTING.md); AI generation never replaces verification or maintainer accountability.
+
+## Architecture rules
+
+Before implementation, identify the owning subsystem, the existing contract to reuse or extend, and the behavior that will verify the change. Keep this explanation proportional to the task; a local fix needs no separate design document. Use the [structure decision guide](docs/code-organization.md#choose-the-smallest-structure) when deciding whether to add a module, trait or crate.
+
+- Organize by subsystem responsibility: configuration, discovery, builders, tasks, planning, execution, acquisition and evidence. Read the [code map](docs/code-organization.md) before choosing a home for new behavior.
+- Give each behavior and invariant one owner. Keep CLI/UI transport and presentation thin; reusable operations must not depend on argument parsers or UI state. Avoid dependency cycles and reaching into another subsystem's private implementation.
+- Shared orchestration consumes subsystem contracts, not concrete adapters. Register implementations at composition points. Pass only the context an operation needs; do not introduce a universal application context or service locator to bypass boundaries.
+- Use small traits at actual extension or substitution boundaries, such as builders, detectors and native managers. Prefer concrete functions/types elsewhere and enums for closed choices. Do not create speculative plugin APIs, generic frameworks or a trait for every struct.
+- Keep required contracts cohesive. Represent optional capabilities explicitly; do not force unrelated methods onto every implementation or disguise unsupported operations as successful no-ops. Distinguish unsupported, not applicable and failed outcomes where callers need different behavior.
+- Document a shared interface's input/output invariants, permitted effects and failure behavior beside its definition. Adding an implementation should normally change its owned module, registration and tests; new ecosystem-specific branches in shared orchestration require reconsidering the boundary.
+- Keep modules/items private by default; expose the narrowest useful interface with `pub(super)` or `pub(crate)` where possible. Pass typed inputs/results across boundaries; keep format-specific parsing/serialization at their owning boundary.
+- Return `Result` for expected input, native-tool and I/O failures; preserve causes and let the application boundary choose presentation and exit status. Keep dependency additions purposeful: reuse existing libraries where appropriate and check license, supported Rust version and target-platform compatibility.
+- Keep code DRY by sharing behavior with the same semantics. Search for an existing owner before adding a parallel implementation. Do not merge similar-looking ecosystem code whose native rules differ, or add global `helpers`, `utils` or catch-all `core` modules.
+- Separate observation, resolution/planning and side effects. Detectors return evidence; resolvers make deterministic choices; adapters declare intent; execution/acquisition owners perform effects. Keep process, network and filesystem capabilities explicit.
+- Split growing modules by responsibility, with related tests and runtime assets beside their owner. Split crates only for demonstrated reuse, dependency isolation or independent distribution; no empty scaffolding or arbitrary file-size limits.
+- For a changed boundary, document its responsibility and invariants and update the code map. Verify meaningful behavior, failure paths and applicable platforms; shared contracts need conformance coverage across implementations. Refactor touched code incrementally without unrelated rewrites.
+
 ## Working rules
 - Preserve existing user changes and inspect the worktree before editing.
 - Do not publish private platform details, credentials, or customer information.
@@ -15,7 +36,15 @@ This is the public Oyzu repository. It must be buildable and usable without priv
 - Add verification appropriate to the change; never claim unperformed checks passed.
 - Keep ecosystem behavior under `src/builders/<ecosystem>` behind the crate-private `Builder` contract. Split growing adapters by responsibility and native manager; keep orchestration, sandbox enforcement and bundle collection in shared engine modules. Avoid global helpers directories, manager switches in the engine, and speculative public plugin APIs. See docs/builder-code-organization.md.
 
-## Current state
+## Documentation is part of completion
+
+- Every addition, behavior change, deprecation or removal must update its corresponding detailed documentation in the same PR. Read and follow [the documentation maintenance standard](docs/documentation.md). Do not call functionality complete while its documentation is missing or stale.
+- Maintain current user-facing behavior in `docs/reference/`, linked from its index. Update existing pages in place; a checkpoint in `docs/implementation-status.md`, code comments, a PR description or a draft OEP alone does not satisfy this requirement.
+- Cover purpose, prerequisites, supported platforms/versions, usage examples, inputs/defaults/precedence, outputs, errors/recovery, security and offline behavior where applicable, compatibility/migration, limitations and verification evidence. Scale detail to the behavior; do not invent support or pad irrelevant sections.
+- Update implementation status for measured capability changes and the code map/interface documentation for changed boundaries. Keep intended, experimental, verified and deferred behavior explicit. Public docs must not reveal private platform implementation or credentials.
+- Before finishing, review docs against the implementation, run `node tooling/check-docs.mjs` and `git diff --check`, and identify the changed documentation in the PR. For an internal-only change with no documentation impact, record the concrete reason in the PR; do not use that exception for observable behavior changes.
+
+## Current implementation
 Draft visions and OEPs are indexed in docs/README.md. Implementation is now authorized and in progress. The Rust CLI sources are in src/ with tests in tests/. Track measured capabilities and remaining work in docs/implementation-status.md; do not mark full build scenarios passing based only on discovery or development task execution.
 
 Run `cargo test --locked`, `cargo clippy --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check` for Rust changes. Run `python tooling/test-task-scenarios.py --cli <compiled-oyzu-path>` for real CLI task behavior. Tool installation is excluded from the current implementation goal; use explicitly provisioned native tools.

@@ -1,7 +1,7 @@
 use crate::{
     builders::{
-        semver_snapshot, ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext,
-        TaskPlan,
+        semver_snapshot, ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec,
+        CoverageApplicability, PlanningContext, ReportFormat, ReportSpec, TaskPlan,
     },
     executor::Mode,
 };
@@ -44,9 +44,12 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     selected.sort();
     selected.dedup();
     plan.source_files = Some(selected);
+    plan.coverage = Some(CoverageApplicability::Inapplicable {
+        reason: "OCI packaging assertions do not measure application-source coverage; packaged producer coverage remains separate evidence.".into(),
+    });
     let mut build = TaskPlan::command(&["buildctl", "build"]);
     build.execution = Mode::Buildkit {
-        output,
+        output: output.clone(),
         image_name: format!("oyzu/{}:{version}", id.to_ascii_lowercase()),
         context_files: metadata.context.files,
         apparmor_profile: data["apparmorProfile"]
@@ -59,6 +62,19 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             .into(),
     };
     plan.tasks.insert("build".into(), build);
+    let mut test = TaskPlan::command(&[]);
+    test.execution = Mode::OciValidation {
+        input: output,
+        report: format!("{id}/reports/junit.xml"),
+    };
+    test.reports.push(ReportSpec {
+        format: ReportFormat::Junit,
+        filename: "junit.xml",
+        source: crate::reports::ReportSource::File,
+        name: None,
+        input: None,
+    });
+    plan.tasks.insert("test".into(), test);
     plan.artifacts.push(ArtifactSpec {
         kind: ArtifactKind::OciImage,
         name: "image".into(),

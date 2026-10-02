@@ -30,7 +30,7 @@ def project():
     return tomllib.loads(path.read_text()) if path.exists() else {}
 
 
-def requirement_lines():
+def requirement_lines(locked=()):
     """Keep native requirement constraints/hashes; disallow source-route overrides."""
     data = project()
     from pip._vendor.packaging.requirements import Requirement
@@ -41,25 +41,22 @@ def requirement_lines():
         if parsed.url:
             raise ValueError('Direct URL requirements need an approved source adapter')
         inputs.append(value)
-        purposes[re.sub(r'[-_.]+','-',parsed.name).lower()] = purpose
+        name = re.sub(r'[-_.]+','-',parsed.name).lower()
+        if purpose == 'runtime' or purposes.get(name) != 'runtime':
+            purposes[name] = purpose
     for item in data.get('project',{}).get('dependencies',[]):
         add(item,'runtime')
-    for item in data.get('build-system',{}).get('requires',['setuptools==80.9.0','wheel==0.45.1']):
+    package_project = Path('pyproject.toml').exists() or Path('setup.py').exists() or Path('setup.cfg').exists()
+    for item in data.get('build-system',{}).get('requires',['setuptools==80.9.0','wheel==0.45.1'] if package_project else []):
         add(item,'build')
     # Build frontends and conventional pytest integrations are builder inputs.
     for item in data.get('dependency-groups',{}).get('dev',[]):
         if not isinstance(item,str):
             raise ValueError('Included dependency groups are not supported yet')
         add(item,'test')
-    defaults=['build==1.2.2.post1','wheel==0.45.1']
+    defaults=['build==1.2.2.post1','wheel==0.45.1'] if package_project else []
     if Path('tests').is_dir() or Path('test').is_dir():
         defaults += ['pytest==8.3.5','pytest-cov==6.0.0']
-    for item in defaults:
-        name=Requirement(item).name
-        if name not in purposes:
-            add(item,'test' if name.startswith('pytest') else 'build')
-    if 'ruff' in data.get('tool',{}):
-        add('ruff==0.11.13','test')
     requirements = Path('requirements.txt')
     if requirements.exists():
         text = requirements.read_text().replace('\\\n',' ')
@@ -72,6 +69,18 @@ def requirement_lines():
             declaration = line.split(' --hash=',1)[0]
             add(declaration,'runtime')
         # Native pip independently validates source-owned hashes in a second pass.
+    locked_names = {re.sub(r'[-_.]+', '-', Requirement(item).name).lower() for item in locked}
+    for item in defaults:
+        name = re.sub(r'[-_.]+', '-', Requirement(item).name).lower()
+        if name not in purposes and name not in locked_names:
+            add(item, 'test' if name.startswith('pytest') else 'build')
+    quality = {'ruff': '0.11.13', 'black': '25.1.0', 'flake8': '7.3.0'}
+    selected = {os.environ.get('OYZU_PYTHON_LINTER', 'ruff'), os.environ.get('OYZU_PYTHON_FORMATTER', 'ruff')}
+    if not selected <= quality.keys():
+        raise ValueError('Unsupported Python quality tool selection')
+    for name in sorted(selected):
+        if name not in purposes and name not in locked_names:
+            add(name + '==' + quality[name], 'test')
     return inputs, purposes
 
 
@@ -161,14 +170,13 @@ def locked_export(manager, destination):
 
 
 def acquire():
-    requirements,purposes=requirement_lines()
     manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
     constraint_args=[]
+    constraints=[]
     export=Path('/out')/(manager+'-export.txt')
     if manager in {'uv','poetry'}:
         locked_export(manager,export)
         from pip._vendor.packaging.requirements import Requirement
-        constraints=[]
         for line in export.read_text().replace('\\\n',' ').splitlines():
             line=line.strip()
             if not line or line.startswith('#'):
@@ -178,10 +186,11 @@ def acquire():
             if parsed.url or parsed.extras:
                 raise ValueError('Unsupported locked source form')
             constraints.append(declaration)
-            # Include native groups, including legacy Poetry requirements, as roots.
-            requirements.append(declaration)
         Path('/out/constraints.txt').write_text('\n'.join(constraints)+'\n')
         constraint_args=['-c','/out/constraints.txt']
+    requirements,purposes=requirement_lines(constraints)
+    # Include native groups, including legacy Poetry requirements, as roots.
+    requirements.extend(constraints)
     server=ThreadingHTTPServer(('127.0.0.1',0),Bridge)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     index='http://127.0.0.1:'+str(server.server_port)+'/index/'
@@ -219,7 +228,7 @@ def wheel_metadata(path):
     return info
 
 
-def inventory(purposes, roots):
+def inventory(purposes, roots, destination=Path('/out')):
     import pip
     from pip._vendor.packaging.requirements import Requirement
     from pip._vendor.packaging.markers import default_environment
@@ -230,7 +239,7 @@ def inventory(purposes, roots):
     for value in roots:
         item=Requirement(value)
         extras.setdefault(canonicalize_name(item.name),set()).update(item.extras)
-    for path in sorted(Path('/out/wheels').glob('*.whl')):
+    for path in sorted((destination/'wheels').glob('*.whl')):
         info=wheel_metadata(path)
         name=canonicalize_name(info['Name'])
         if name in packages:
@@ -266,11 +275,19 @@ def inventory(purposes, roots):
         manager_version=version('poetry')
     else:
         manager_version=pip.__version__
-    Path('/out/packages.json').write_text(json.dumps({'packages':list(packages.values()),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
+    runtime_roots = set()
+    for value in roots:
+        item = Requirement(value)
+        name = canonicalize_name(item.name)
+        if purposes.get(name) == 'runtime' and (item.marker is None or item.marker.evaluate()):
+            runtime_roots.add(packages[name]['id'])
+    (destination/'packages.json').write_text(json.dumps({'packages':list(packages.values()),'runtimeRoots':sorted(runtime_roots),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
 
 
 def prepare():
-    import venv
+    if Path('setup.py').is_file() and not Path('pyproject.toml').exists():
+        prepare_environment()
+        return
     data=project()
     if not data.get('project',{}).get('version') or not data['project'].get('name'):
         raise ValueError('Static PEP 621 name/version required for this Python build profile')
@@ -282,14 +299,24 @@ def prepare():
     if count!=1:
         raise ValueError('Cannot project snapshot version')
     Path('pyproject.toml').write_text(text[:section.start(1)]+content+text[section.end(1):])
+    prepare_environment()
+
+
+def prepare_environment(dependencies=Path('/dependencies')):
+    import venv
     venv.EnvBuilder(with_pip=False).create('.oyzu-build/venv')
-    wheels=sorted(str(p) for p in Path('/dependencies/wheels').glob('*.whl'))
+    # Ruff's native hierarchical config excludes engine state without replacing
+    # any project-owned include/exclude rules or changing the source checkout.
+    Path('.oyzu-build/ruff.toml').write_text('exclude = ["*"]\n', encoding='utf-8')
+    wheels=sorted(str(p) for p in (dependencies/'wheels').glob('*.whl'))
     run([sys.executable,'-I','-m','pip','--isolated','--python','.oyzu-build/venv','install','--no-index','--no-deps',*wheels])
 
 
 def build():
     python='.oyzu-build/venv/bin/python'
-    if os.environ.get('OYZU_PYTHON_MANAGER')=='uv':
+    if Path('setup.py').is_file() and not Path('pyproject.toml').exists():
+        run([python,'-I','/oyzu/python-legacy.py','build','/dependencies/legacy.json'])
+    elif os.environ.get('OYZU_PYTHON_MANAGER')=='uv':
         run(['uv','build','--offline','--no-python-downloads','--no-managed-python','--python',python,'--no-build-isolation','--no-create-gitignore','--out-dir','.oyzu-build/dist'])
     else:
         run([python,'-I','-m','build','--no-isolation','--outdir','.oyzu-build/dist'])
@@ -337,5 +364,8 @@ if __name__=='__main__':
         build()
     elif sys.argv[1]=='package':
         package()
+    elif sys.argv[1]=='legacy-metadata':
+        prepare_environment()
+        run(['.oyzu-build/venv/bin/python','-I','/oyzu/python-legacy.py','metadata','/out/legacy.json'])
     else:
         raise SystemExit('Unknown adapter operation')

@@ -1,8 +1,10 @@
 """Adapter boundary regressions; full native builds run in test-build-scenarios.py."""
 import importlib.util
+import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 import warnings
 import zipfile
 
@@ -13,6 +15,36 @@ spec.loader.exec_module(adapter)
 
 
 class WheelMetadataTests(unittest.TestCase):
+    def test_quality_defaults_preserve_declared_and_locked_versions(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {'OYZU_PYTHON_LINTER':'flake8', 'OYZU_PYTHON_FORMATTER':'black'}):
+            root = Path(temporary)
+            (root/'requirements.txt').write_text('black==24.10.0\n')
+            try:
+                os.chdir(root)
+                requirements, _ = adapter.requirement_lines(['flake8==7.2.0'])
+                self.assertEqual(requirements, ['black==24.10.0'])
+                requirements, _ = adapter.requirement_lines()
+                self.assertIn('flake8==7.3.0', requirements)
+                self.assertNotIn('black==25.1.0', requirements)
+                os.environ['OYZU_PYTHON_LINTER'] = 'unrecognized'
+                with self.assertRaises(ValueError):
+                    adapter.requirement_lines()
+            finally:
+                os.chdir(previous)
+
+    def test_runtime_role_survives_shared_build_and_test_requirements(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'pyproject.toml').write_text('[project]\ndependencies=["packaging==24.2"]\n[build-system]\nrequires=["packaging==24.2"]\n[dependency-groups]\ndev=["packaging==24.2"]\n')
+            try:
+                os.chdir(root)
+                _, purposes = adapter.requirement_lines()
+            finally:
+                os.chdir(previous)
+            self.assertEqual(purposes['packaging'], 'runtime')
+
     def read(self, entries):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'demo_pkg-1.0-py3-none-any.whl'

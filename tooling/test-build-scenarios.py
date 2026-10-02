@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, docker, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, rust
+from build_scenarios import ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_workspaces, python_application, python_legacy, python_quality, rust, vitest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -77,7 +77,7 @@ def main():
         print(f"[{root.name}] oyzu {' '.join(command)}", flush=True)
         result = subprocess.run([str(cli), "-C", str(root), *command], capture_output=True, text=True, timeout=900)
         print(f"[{root.name}] exit {result.returncode} after {time.monotonic()-started:.1f}s", flush=True)
-        if evidence and command == ('build',):
+        if evidence and command and command[0]=='build' and '--plan' not in command:
             invocation += 1
             destination = evidence / f'{invocation:02d}-{root.name}'
             destination.mkdir()
@@ -98,9 +98,13 @@ def main():
     with tempfile.TemporaryDirectory(prefix="oyzu-build-check-") as temporary:
         base = Path(temporary)
         node.verify_overrides(ROOT,base,invoke,validate,source_files,verified)
+        concurrency.verify(ROOT,base,invoke,validate,source_files,verified)
         node_preflight.verify(ROOT,base,invoke,validate,source_files,verified)
         node_managers.verify(ROOT,base,invoke,validate,source_files,verified)
+        node_workspaces.verify(ROOT,base,invoke,validate,source_files,verified)
         jest.verify(ROOT,base,invoke,validate,source_files,verified)
+        vitest.verify(ROOT,base,invoke,validate,source_files,verified)
+        go.verify(ROOT,base,invoke,validate,source_files,verified)
         materialization.verify(ROOT,base,invoke,validate,source_files,verified)
         docker.verify(ROOT,base,invoke,validate,source_files,verified)
         maven.verify(ROOT,base,invoke,validate,source_files,verified)
@@ -108,6 +112,9 @@ def main():
         ant.verify(ROOT,base,invoke,validate,source_files,verified)
         helm.verify(ROOT,base,invoke,validate,source_files,verified)
         rust.verify(ROOT,base,invoke,validate,source_files,verified)
+        python_application.verify(ROOT,base,invoke,validate,source_files,verified)
+        python_legacy.verify(ROOT,base,invoke,validate,source_files,verified)
+        python_quality.verify(ROOT,base,invoke,validate,source_files,verified)
         for example in ["node-package", "go-app"]:
             project = base / example
             shutil.copytree(ROOT / "examples/builds" / example / "project", project)
@@ -210,12 +217,14 @@ await new Promise((resolve,reject)=>{const s=net.connect({host:'1.1.1.1',port:44
         (python_project / "tests/test_dependencies.py").write_text('''import os
 import socket
 import packaging
+
+
 def test_acquired_dependency_and_offline_boundary():
     assert packaging.__version__ == "24.2"
     assert not os.path.exists("/broker")
     assert "OYZU_HOST_SECRET" not in os.environ
     try:
-        connection=socket.create_connection(("1.1.1.1",443),timeout=1)
+        connection = socket.create_connection(("1.1.1.1", 443), timeout=1)
     except OSError:
         return
     connection.close()
@@ -225,6 +234,8 @@ def test_acquired_dependency_and_offline_boundary():
         invoke(python_project,"build")
         python_manifest=validate(python_project / "dist")
         assert source_files(python_project)==python_before
+        for task in ['lint', 'format-check']:
+            assert next(a for a in python_manifest['actions'] if a['id']==f'api:{task}')['status']=='succeeded'
         invoke(python_project,"inspect","dist")
         assert {a["name"] for a in python_manifest["artifacts"]}=={"wheel","sdist"}
         for artifact in python_manifest["artifacts"]:
@@ -269,6 +280,8 @@ def test_acquired_dependency_and_offline_boundary():
         invoke(uv_project,"build")
         uv_manifest=validate(uv_project / "dist")
         assert source_files(uv_project)==uv_before
+        for task in ['lint', 'format-check']:
+            assert next(a for a in uv_manifest['actions'] if a['id']==f'project:{task}')['status']=='succeeded'
         uv_dependencies=json.loads((uv_project / "dist/dependencies/project.json").read_text())
         Draft202012Validator(schema).validate(uv_dependencies)
         assert uv_dependencies['manager']['id']=='uv'
@@ -290,6 +303,8 @@ def test_acquired_dependency_and_offline_boundary():
         invoke(poetry_project,'build')
         poetry_manifest=validate(poetry_project/'dist')
         assert source_files(poetry_project)==poetry_before
+        for task in ['lint', 'format-check']:
+            assert next(a for a in poetry_manifest['actions'] if a['id']==f'project:{task}')['status']=='succeeded'
         poetry_dependencies=json.loads((poetry_project/'dist/dependencies/project.json').read_text())
         Draft202012Validator(schema).validate(poetry_dependencies)
         assert poetry_dependencies['manager']['id']=='poetry'

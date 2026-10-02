@@ -2,6 +2,7 @@
 import shutil
 import json
 from jsonschema import Draft202012Validator
+from .node_fixtures import format_sources
 
 
 def verify_overrides(root, base, invoke, validate, source_files, verified):
@@ -31,6 +32,7 @@ process.exitCode=result.status ?? 1;
 """)
     config = project / "oyzu.toml"
     config.write_text(config.read_text().replace('run = "node --test"', 'argv = ["node", "custom-tests.mjs"]'))
+    format_sources(root, project/'api/custom-tests.mjs')
     before = source_files(project)
     invoke(project, "build")
     manifest = validate(project / "dist")
@@ -74,6 +76,7 @@ test('execution has no broker or external network', async () => {
   }));
 });
 """)
+    format_sources(root, project/'test/isolation.test.mjs')
     before = source_files(project)
     first_plan = invoke(project, 'build', '--plan')
     assert first_plan == invoke(project, 'build', '--plan'), 'capture destabilized identical plans'
@@ -148,7 +151,7 @@ def verify_defaults(root, base, invoke, validate, source_files, verified):
     assert all('/test/' not in p and '/tests/' not in p and '.test.' not in p for p in sources)
     invoke(project, 'inspect', 'dist')
     # A known configuration wins over an unused dependency convention, but an
-    # unimplemented integration must not silently run a different framework.
+    # framework without a captured dependency must not silently run another runner.
     (project / 'vitest.config.ts').write_text("throw new Error('discovery must not execute this config');\n")
     invoke(project, 'build', success=False)
     unsupported = validate(project / 'dist')
@@ -177,7 +180,7 @@ def verify_defaults(root, base, invoke, validate, source_files, verified):
     assert all(r['status'] == 'invalid' for r in missing['reports'])
     action = next(a for a in missing['actions'] if a['id'] == 'project:test')
     assert action['status'] == 'failed'
-    verified.append('Node framework detectors: no-config native tests, JUnit/application coverage, real empty reports, failed tests, unsupported framework admission and custom-script evidence obligations')
+    verified.append('Node framework detectors: no-config native tests, JUnit/application coverage, real empty reports, failed tests, uncaptured framework admission and custom-script evidence obligations')
 
 
 def verify_declared_reports(root, base, invoke, validate, source_files, verified):
@@ -215,6 +218,7 @@ def verify_declared_reports(root, base, invoke, validate, source_files, verified
     finalizer = project / "api/finalize.mjs"
     finalizer.write_text("import {renameSync} from 'node:fs';\nrenameSync(process.env.OYZU_TEST_REPORT+'.pending',process.env.OYZU_TEST_REPORT);\n")
     config.write_text(declaration + '\n[tasks."api:post_test"]\nargv=["node","finalize.mjs"]\n')
+    format_sources(root, runner, finalizer)
     before = source_files(project)
     invoke(project, "build")
     manifest = validate(project / "dist")
@@ -244,6 +248,7 @@ for(const [file,report] of cases){
   if(result.status!==0) process.exitCode=result.status ?? 1;
 }
 """)
+    format_sources(root, runner, finalizer)
     before = source_files(project)
     invoke(project, "build")
     manifest = validate(project / "dist")

@@ -36,9 +36,12 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | DEC-028 | Platform matrix variants receive matching artifacts at identical logical paths in separate contexts; target test evidence remains explicit | OEP-0014 |
 | DEC-029 | Every builder exposes an implicit test command, detects the existing framework or selects a documented standard default, and automatically collects JUnit and applicable code coverage in dist with manifest references; ordinary projects need no reporting configuration | OEP-0014 / OEP-0012 |
 | DEC-030 | Discovery uses registered specialized detectors behind an interface; detectors report evidence and a deterministic resolver composes compatible findings, resolves exclusive roles and explains ambiguity without registration-order precedence | OEP-0006 |
-| DEC-031 | Oyzu TOML and `oyzu.lock` remain authoritative when reusing mise; no parallel mise project configuration or lockfile, and no ambient mise override of Oyzu selection | OEP-0003 / OEP-0004 |
+| DEC-031 | Oyzu is an opinionated, batteries-included developer platform: integrate the developer workflow with documented defaults and minimal configuration; distinguish this product vision from delivered capabilities. Positioning reaffirmed by maintainer direction on 2026-10-01; technical designs remain drafts | VIS-001 |
+| DEC-032 | Oyzu TOML and `oyzu.lock` remain authoritative when reusing mise; no parallel mise project configuration or lockfile, and no ambient mise override of Oyzu selection | OEP-0003 / OEP-0004 |
 
 ## Proposed choices needing review or experiments
+
+Maintainer direction for the OEP-0002 configuration delivery defers login/authentication design to OEP-0016. Complete the shared configuration engine and document deferred integrations without claiming full OEP conformance. Standalone configuration requires no login; protected enrollment and fail-closed managed enforcement remain unchanged. Browser, device-code, token and workload login flows are discussion proposals, not selected contracts. The [delivery follow-up gates](implementation-status.md#oep-0002-delivery-scope-and-follow-up-gates) preserve both authentication-dependent and independent remaining work.
 
 | ID | Decision | Current proposal and next evidence |
 | --- | --- | --- |
@@ -80,3 +83,5 @@ The [build implementation map](build-implementation.md) proposes concrete v1alph
 Private dependency builds must keep upstream credentials out of project/dependency execution and exported outputs across all supported managers (OEP-0017). New Dockerfile context bindings and convenience fields remain draft UX choices. Public licensing remains unresolved. Mise import boundaries and backend admission now have explicit proposed resolutions in OEP-0003; they are not agreed decisions or completed production qualification.
 
 The [proposal index](proposals/README.md) resolves OEP IDs. Detailed open decisions inside each OEP remain part of its review; this register highlights choices spanning components.
+
+OEP-0002 implementation now has an [experimental configuration reference](reference/configuration.md) and an acceptance-mapped checkpoint in [implementation status](implementation-status.md). Its cascade, constraint algebra, pinned-signature verification and 24-hour upper bound are implemented without changing the design's draft status. Native OS permission/keychain and real platform interoperability remain release gates. Docker's registered `docker.apparmorProfile` preserves the existing host default; the legacy environment override is a constrained migration input rather than a separate bypass.

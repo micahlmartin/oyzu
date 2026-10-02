@@ -1,1 +1,1 @@
-exports.greeting = name => `Hello, ${name}!`;
+exports.greeting = (name) => `Hello, ${name}!`;

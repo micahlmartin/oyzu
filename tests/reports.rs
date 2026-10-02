@@ -156,3 +156,48 @@ fn jacoco_uses_native_aggregate_lines_without_double_counting_nested_counters() 
         assert!(oyzu::reports::coverage_summary(&path, "jacoco").is_err());
     }
 }
+
+#[test]
+fn jacoco_without_line_debug_data_preserves_bytecode_measurements() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("jacoco.xml");
+    // Native JaCoCo output retained from Linux CI run 36953677315.
+    std::fs::write(&path, include_str!("fixtures/reports/ant-no-lines.xml")).unwrap();
+    assert_eq!(
+        oyzu::reports::coverage_summary(&path, "jacoco").unwrap(),
+        json!({"covered":2,"total":5,"metric":"instructions"})
+    );
+    let instruction = "<counter type='INSTRUCTION' missed='3' covered='7'/>";
+    let line = "<counter type='LINE' missed='1' covered='2'/>";
+    let document = format!("<report><package>{instruction}</package>{instruction}</report>");
+    std::fs::write(&path, &document).unwrap();
+    assert_eq!(
+        oyzu::reports::coverage_summary(&path, "jacoco").unwrap(),
+        json!({"covered":7,"total":10,"metric":"instructions"})
+    );
+    std::fs::write(&path, format!("<report>{instruction}{line}</report>")).unwrap();
+    assert_eq!(
+        oyzu::reports::coverage_summary(&path, "jacoco").unwrap(),
+        json!({"covered":2,"total":3,"metric":"lines"})
+    );
+    std::fs::write(
+        &path,
+        "<report><counter type='INSTRUCTION' missed='0' covered='0'/></report>",
+    )
+    .unwrap();
+    assert_eq!(
+        oyzu::reports::coverage_summary(&path, "jacoco").unwrap(),
+        json!({"covered":0,"total":0,"metric":"instructions"})
+    );
+    for invalid in [
+        format!("<report><package>{instruction}</package></report>"),
+        format!("<report>{instruction}{instruction}</report>"),
+        format!("<report>{instruction}{line}{line}</report>"),
+        format!("<report>{instruction}<counter type='LINE' missed='x' covered='2'/></report>"),
+        document.replace("covered='7'", "covered='-7'"),
+        document.replace("missed='3'", "missed='18446744073709551615'"),
+    ] {
+        std::fs::write(&path, invalid).unwrap();
+        assert!(oyzu::reports::coverage_summary(&path, "jacoco").is_err());
+    }
+}

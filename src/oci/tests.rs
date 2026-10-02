@@ -132,6 +132,77 @@ fn verifies_image_and_complete_platform_index_without_extracting_files() {
 }
 
 #[test]
+fn runtime_configuration_types_preserve_optional_nulls_and_extensions() {
+    validate_runtime(&json!({"Entrypoint":null,"Cmd":["hello"],"Env":["NAME=value"],"Labels":{"example":"value"},"vendor":42})).unwrap();
+    for value in [
+        json!([]),
+        json!({"Entrypoint":"/server"}),
+        json!({"Env":[42]}),
+        json!({"User":1}),
+        json!({"Labels":{"bad":false}}),
+    ] {
+        assert!(validate_runtime(&value).is_err());
+    }
+}
+
+#[test]
+fn engine_image_assertions_record_integrity_platform_failures_and_refuse_stale_reports() {
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("image.tar");
+    let mut files = BTreeMap::new();
+    let root = image(&mut files, "amd64", true, false);
+    layout(&mut files, &root);
+    archive(&files, &path, false);
+    let verify = |arch: &str, report: &str| {
+        let image = crate::executor::Image {
+            reference: "fixture".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: arch.into(),
+        };
+        let mode = crate::executor::Mode::OciValidation {
+            input: "image.tar".into(),
+            report: report.into(),
+        };
+        let argv = mode.argv(&format!("linux/{arch}")).unwrap();
+        crate::executor::execute_mode(
+            crate::executor::Request {
+                image: &image,
+                workspace: temp.path(),
+                output: temp.path(),
+                cwd: "/workspace",
+                argv: &argv,
+                env: &BTreeMap::new(),
+                stdout: &temp.path().join("stdout"),
+                stderr: &temp.path().join("stderr"),
+                timeout: std::time::Duration::from_secs(10),
+                name: "validation-fixture",
+            },
+            &[],
+            &mode,
+            &[],
+        )
+    };
+    assert_eq!(verify("amd64", "passed.xml").unwrap().code, 0);
+    assert_eq!(
+        crate::reports::junit_summary(&temp.path().join("passed.xml")).unwrap()["passed"],
+        2
+    );
+    assert_eq!(verify("arm64", "platform.xml").unwrap().code, 1);
+    assert_eq!(
+        crate::reports::junit_summary(&temp.path().join("platform.xml")).unwrap()["failed"],
+        1
+    );
+    assert!(verify("amd64", "passed.xml").is_err());
+    assert!(verify("amd64", "../escape.xml").is_err());
+    fs::write(&path, b"corrupt archive").unwrap();
+    assert_eq!(verify("amd64", "failed.xml").unwrap().code, 1);
+    let summary = crate::reports::junit_summary(&temp.path().join("failed.xml")).unwrap();
+    assert_eq!(summary["failed"], 1);
+    assert_eq!(summary["skipped"], 1);
+}
+
+#[test]
 fn rejects_tampered_blobs_sizes_layers_and_platform_claims() {
     let temp = tempfile::tempdir().unwrap();
     let path = temp.path().join("image.tar");

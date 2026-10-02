@@ -3,7 +3,7 @@
 use super::super::{strings, ReportFormat, ReportSpec, TaskPlan};
 use crate::{model::Task, reports::ReportSource};
 
-fn arguments(test: &str, coverage: &str) -> Vec<String> {
+pub(super) fn arguments(test: &str, coverage: &str) -> Vec<String> {
     strings(&[
         "--experimental-test-coverage",
         "--test-coverage-exclude=**/test/**",

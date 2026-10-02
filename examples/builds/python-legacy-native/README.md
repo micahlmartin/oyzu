@@ -26,6 +26,7 @@ With the named toolchains already installed, run:
 
 ```text
 # From project
+python -m pip install .
 python -m unittest discover -s tests
 ```
 
@@ -39,6 +40,6 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 
 Acceptance criteria: EXEC-01, EXEC-02. See the [design catalog](../../../docs/examples.md) and [scenario input](scenario.json).
 
-- Native smoke tests cover the Python reference function only. Compiled extension verification requires a C toolchain and tests/native_check.py after building.
+- Tests cover both the Python reference function and the installed compiled extension. Native installation requires a C toolchain and Python headers; `tests/native_check.py` is also available as a direct installed-extension smoke check. The Oyzu build is responsible for declaring these toolchain requirements and performing isolated compilation.
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.

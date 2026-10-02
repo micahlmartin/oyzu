@@ -1,6 +1,7 @@
 """Verified Go artifact consumption and separate mutable target workspaces."""
 import json
 import shutil
+from .node_fixtures import format_sources
 
 
 def verify(root, base, invoke, validate, source_files, verified):
@@ -32,6 +33,7 @@ test('consume the tested binary without sharing producer writes', () => {
   writeFileSync('bin/server', 'consumer-owned mutation');
 });
 ''')
+    format_sources(root, project/'consumer/materialization.test.mjs')
     before = source_files(project)
     invoke(project, 'build')
     manifest = validate(project / 'dist')

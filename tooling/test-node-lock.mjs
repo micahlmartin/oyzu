@@ -35,3 +35,25 @@ test('npm lock admission refuses uncaptured input kinds and integrity downgrade'
     assert.equal(readLock(root).packages[0].version, '2.0.0');
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
+
+test('npm workspace links must resolve to native members and local registry trees remain captured', () => {
+  const root = mkdtempSync(join(tmpdir(), 'oyzu-npm-workspace-lock-'));
+  try {
+    const member = {name:'@demo/shared', path:'packages/shared', version:'1.0.0'};
+    const registry = {version:'1.0.0', resolved:'https://registry.npmjs.org/example/-/example-1.0.0.tgz', integrity:'sha512-'+'A'.repeat(86)+'=='};
+    const packages = {'':{}, 'packages/shared':{name:member.name,version:member.version},
+      'node_modules/@demo/shared':{link:true,resolved:'packages/shared'},
+      'packages/shared/node_modules/example':registry};
+    const write = () => writeFileSync(join(root,'package-lock.json'),JSON.stringify({lockfileVersion:3,packages}));
+    write();
+    assert.equal(readLock(root,[member]).packages[0].path,'packages/shared/node_modules/example');
+    assert.throws(()=>readLock(root));
+    packages['node_modules/@demo/shared'].resolved='../outside';
+    write();
+    assert.throws(()=>readLock(root,[member]),/not a captured native workspace/);
+    packages['node_modules/@demo/shared'].resolved='packages/shared';
+    packages['packages/shared'].version='2.0.0';
+    write();
+    assert.throws(()=>readLock(root,[member]),/missing or stale/);
+  } finally { rmSync(root,{recursive:true,force:true}); }
+});

@@ -1,4 +1,7 @@
+mod development;
+mod metadata;
 mod planning;
+mod preparation;
 use crate::builders::task::insert;
 use crate::builders::{Builder, Descriptor};
 use crate::model::Target;
@@ -7,7 +10,38 @@ use std::path::Path;
 
 pub(super) struct Go;
 
+static RUNTIME: &[super::RuntimeFile] = &[
+    super::RuntimeFile {
+        name: "go-metadata.go",
+        contents: include_str!("runtime/metadata.go"),
+    },
+    super::RuntimeFile {
+        name: "go-acquisition.go",
+        contents: include_str!("runtime/acquisition.go"),
+    },
+    super::RuntimeFile {
+        name: "broker-transport.go",
+        contents: include_str!("../../broker/runtime/transport.go"),
+    },
+];
+
 impl Builder for Go {
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<super::DevelopmentCommand>> {
+        development::command(task)
+    }
+    fn prepare(
+        &self,
+        context: super::PreparationContext<'_>,
+    ) -> Result<Option<crate::dependencies::Prepared>> {
+        preparation::prepare(context)
+    }
+
+    fn runtime_files(&self) -> &'static [super::RuntimeFile] {
+        RUNTIME
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("golang:1.24-bookworm")
     }
@@ -16,6 +50,7 @@ impl Builder for Go {
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["go"],
             ids: &["go/app", "go/library"],
         }
     }

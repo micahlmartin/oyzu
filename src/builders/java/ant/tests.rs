@@ -28,6 +28,8 @@ fn native_ant_outputs_are_contained_and_packaging_is_deterministic() {
     );
     assert_eq!(plan.tasks["build"].argv.last().unwrap(), "compile");
     assert_eq!(plan.tasks["archive"].argv.last().unwrap(), "jar");
+    assert_eq!(plan.tasks["test"].reports.len(), 2);
+    assert_eq!(plan.tasks["test"].reports[1].format.name(), "jacoco");
     assert!(!plan.tasks.contains_key("lint"));
     for path in [
         "/outside.jar",
@@ -42,5 +44,41 @@ fn native_ant_outputs_are_contained_and_packaging_is_deterministic() {
         )
         .unwrap();
         assert!(metadata::read(&root.path().join("metadata.xml")).is_err());
+    }
+}
+
+#[test]
+fn native_ant_override_reporting_requires_one_literal_target() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("build.xml"),
+        "<project><target name='test'/></project>",
+    )
+    .unwrap();
+    let workspace = discovery::discover(root.path()).unwrap();
+    let mut task = workspace.tasks["project:test"].clone();
+    let env = std::collections::BTreeMap::from([
+        ("OYZU_TEST_REPORT".into(), "/out/junit.xml".into()),
+        ("OYZU_COVERAGE_REPORT".into(), "/out/jacoco.xml".into()),
+        ("OYZU_VERSION".into(), "1.0.0-dev.g0123456789ab".into()),
+    ]);
+    for argv in [
+        vec!["ant", "verify-contract"],
+        vec!["sh", "-c", "ant verify-contract"],
+    ] {
+        task.argv = argv.into_iter().map(str::to_string).collect();
+        let command = reporting::instrument(&task, &env).unwrap();
+        assert_eq!(command.last().unwrap(), "verify-contract");
+        assert!(command.contains(&"/out/jacoco.xml".into()));
+    }
+    for body in [
+        "ant test && echo done",
+        "ant $TARGET",
+        "ant -version",
+        "ant test other",
+        "ant $(echo test)",
+    ] {
+        task.argv = vec!["sh".into(), "-c".into(), body.into()];
+        assert!(reporting::instrument(&task, &env).is_none());
     }
 }

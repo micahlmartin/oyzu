@@ -17,6 +17,11 @@ The intended Oyzu interface is:
 oyzu build
 ```
 
+`oyzu run list` also exposes an implicit `build` task. After installing the project's native dependencies, `oyzu run build` invokes declared member build scripts in dependency order when no root build script exists. Members without a build script are reported as having no requested compilation. This development task does not package snapshot artifacts; `oyzu build` owns the captured build and dist bundle.
+
+Local `lint` and `format-check` also compose native member scripts with inferred defaults; a scripted member does not suppress an unscripted sibling's checks. Defaults inspect root-owned source and exclude member/nested-member directories owned by other checks. Explicit root scripts take precedence. `oyzu run format` permits formatting writes, while captured builds request read-only formatting validation. Native quality tools must already be provisioned.
+
+Without a root test script, `oyzu run test` composes member scripts and detected Node/Jest/Vitest runners. Implicit suites exclude nested members; an explicit script retains its native scope. Native assertion failures fail the aggregate while later suites still run. Development tests currently provide native console output; `oyzu build` owns collected JUnit/coverage and versioned artifacts. See the [implemented reference](../../../docs/reference/npm-workspaces.md) for prerequisites and limits.
 
 No build YAML is required for this scenario. Configuration, where present, demonstrates only the feature under discussion.
 
@@ -36,6 +41,7 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 
 ## Failure and variation cases
 
+- **publishable-root:** Remove `private: true` from the root package and add conventional root source and tests. Expected: a third snapshot package, separate root JUnit/coverage, no duplicate member tests, no engine state in archives, and a failed root test blocking artifacts. No Oyzu configuration or root test script is needed. The native probe and compiled-CLI scenario suite construct this variation from the checked-in project.
 - **duplicate-execution:** Select both workspace root and package targets. Expected: Do not run the same native workspace task twice.
 
 ## Contract and limitations

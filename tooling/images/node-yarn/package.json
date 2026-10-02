@@ -1,1 +1,1 @@
-{"name":"oyzu-yarn-toolchain","private":true,"version":"1.0.0","dependencies":{"yarn":"1.22.22"}}
+{"name":"oyzu-yarn-toolchain","private":true,"version":"1.0.0","dependencies":{"yarn":"1.22.22","tar-stream":"3.2.1"}}

@@ -7,6 +7,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let id = &target.name;
     let package = records::read(&target.path.join("package.json"))?;
     let manager = super::managers::get(&target.manager)?;
+    if package.get("workspaces").is_some() {
+        return manager.workspace_plan(context);
+    }
     let version = semver_snapshot(target, context.source);
     let name = package["name"]
         .as_str()
@@ -33,7 +36,15 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         .context("missing resolved Node test framework")?
         .selected();
     let script = package["scripts"]["test"].as_str();
-    if !["node-test", "jest"].contains(&framework) && script.is_none() {
+    if framework == "vitest"
+        && script.is_none_or(super::vitest::recognized)
+        && !["dependencies", "devDependencies", "optionalDependencies"]
+            .iter()
+            .any(|field| package[*field].get("vitest").is_some())
+    {
+        bail!("{id}: vitest requires a declared and captured native framework dependency");
+    }
+    if !["node-test", "jest", "vitest"].contains(&framework) && script.is_none() {
         bail!("{id}: {framework} test/report integration is not implemented yet; refusing to omit its test operation");
     }
     let command = if framework == "jest" && script.is_none_or(super::jest::recognized) {
@@ -41,6 +52,12 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             manager.script("test", true)
         } else {
             super::super::strings(super::jest::DEFAULT)
+        })
+    } else if framework == "vitest" && script.is_none_or(super::vitest::recognized) {
+        super::vitest::wrap(if script.is_some() {
+            manager.script("test", true)
+        } else {
+            super::super::strings(super::vitest::DEFAULT)
         })
     } else if script.is_some() {
         manager.script("test", script == Some("node --test"))
@@ -58,5 +75,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         filename,
         media_type: "application/gzip",
     });
+    super::quality::plan(target, &mut plan)?;
     Ok(plan)
 }
