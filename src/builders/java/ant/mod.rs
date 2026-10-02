@@ -34,6 +34,14 @@ const RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/AntCoverage.java"),
     },
     RuntimeFile {
+        name: "AntJUnit.java",
+        contents: include_str!("runtime/AntJUnit.java"),
+    },
+    RuntimeFile {
+        name: "AntReports.java",
+        contents: include_str!("runtime/AntReports.java"),
+    },
+    RuntimeFile {
         name: "ant-test.sh",
         contents: include_str!("runtime/testing.sh"),
     },
