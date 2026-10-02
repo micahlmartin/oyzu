@@ -697,3 +697,36 @@ Separately, previously running captured-source CI job `110739178439` in run
 a missing child dependency. Earlier passing native build/task checks do not turn
 that captured-source run into passing end-to-end evidence. The failure remains
 to be resolved and reverified.
+
+## Checkpoint 73: real Node ZIP store parity
+
+An opt-in production-store integration fixture now uses the original Node
+22.14.0 Windows x64 archive, pinned at 34,906,389 bytes and SHA-256
+`55b639295920b219bb2acbcfa00f90393a2789095b7323f79475c9f34795f217`.
+The digest was checked against the official release's HTTPS checksum list;
+publisher signatures are not claimed. An offline Python preparation script
+uses its independent ZIP implementation to inventory all 3016 stripped entries.
+The Rust store must reproduce every entry kind, file size and digest before
+publishing and verifying the selection. The original LICENSE is retained in
+the payload and participates in content identity.
+
+The Windows GNU run passed real Node execution (`v22.14.0`) from the committed
+payload while holding its lease. Changing only the archive digest denied both
+cached verification and lease acquisition; restoring the lock recovered the
+selection. Linux passed the same foreign-target materialization/publication and
+changed-lock checks in Docker with `--network none`, without attempting Windows
+execution; strict all-target Clippy passed. The fixture is now explicitly wired
+into all three native CI builds; those results remain pending.
+
+Windows full locked tests, strict all-target Clippy, formatting and nine real
+CLI task scenarios passed. Documentation structure and workflow YAML parsing
+passed. A malformed fixture was rejected without creating a manifest.
+
+This supplies real archive and store evidence for TM-04/MISE-07/13, not full
+acceptance of those IDs. Backend and installer admission identities are synthetic
+test records. Native metadata/layout parity against the maintained fork,
+publisher verification, production resolution/authorization, supervised launch
+and the remaining platforms/backends still require implementation and evidence.
+See [the reference](reference/tool-lock-inspection.md) for exact provisioning and
+execution commands. Normal tests report this externally provisioned case as
+ignored, never passed without its inputs.

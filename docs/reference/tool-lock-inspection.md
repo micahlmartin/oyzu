@@ -478,3 +478,41 @@ name budget now includes original names retained for duplicate detection, even
 when stripping skips a prefix ancestor, as well as expanded destination names
 and link targets. Archives that previously escaped this accounting can fail
 earlier; no receipt is written on failure. TAR and ZIP use this same path owner.
+
+### Real Node archive store qualification
+
+The opt-in `tool_native_archive` integration test uses the real Node 22.14.0
+Windows x64 ZIP. This fixed historical release is a reproducible fixture, not a
+recommendation for project versions. Provision its archive outside the checkout
+from [the official release](https://nodejs.org/dist/v22.14.0/). The preparation
+script checks the pinned size and SHA-256 from that release's HTTPS checksum
+list, then independently inventories every file through Python's ZIP decoder.
+It makes no network calls and uses exclusive creation for its output manifest.
+
+```sh
+python tooling/prepare-node-store-fixture.py --archive /fixtures/node-v22.14.0-win-x64.zip --manifest /fixtures/node-store-manifest.json
+export OYZU_NODE_STORE_ARCHIVE=/fixtures/node-v22.14.0-win-x64.zip
+export OYZU_NODE_STORE_MANIFEST=/fixtures/node-store-manifest.json
+cargo test --locked --test tool_native_archive -- --ignored --nocapture
+```
+
+In PowerShell, set those two variables with `$env:NAME = 'absolute path'`.
+Python 3.11+ and the normal Rust prerequisites are required. Missing inputs,
+wrong digests, archive discrepancies or a preexisting manifest fail explicitly;
+choose a new manifest path to repeat preparation. Normal `cargo test` lists
+the test as ignored rather than treating missing fixtures as a pass. CI explicitly
+provisions the pinned archive and runs the test on Windows, macOS and Linux.
+
+The test compares all 3016 stripped entries, file lengths and hashes with the
+independent inventory, publishes a locked receipt and revalidates committed
+content. Changing only the locked archive digest must deny cached verification
+and lease acquisition; restoring the lock must recover the original selection.
+On Windows it also runs the committed `node.exe --version` with a cleared
+environment while retaining the store lease. Other hosts verify foreign-target
+materialization without trying to execute a Windows binary. All test stores are
+temporary; source archives and project configuration are unchanged.
+
+Admission and installer identities remain explicit test fixtures. This does not
+prove production backend planning, publisher signatures, policy authorization,
+resolver behavior, supervised exec, shims or shell activation. Full backend
+qualification still needs those boundaries and the remaining OEP matrix.
