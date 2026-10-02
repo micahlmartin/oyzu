@@ -30,7 +30,6 @@ const {chromium}=require('playwright');
   return max>src.top-10||getComputedStyle(s).flexDirection!=='column'?[{slide:i+1,overlap:max-src.top}]:[];
  }));
  await page.pdf({path:path.join(__dirname,'oyzu-investor-deck.pdf'),printBackground:true,preferCSSPageSize:true});
- await page.pdf({path:path.join(__dirname,'oyzu-investor-deck-main.pdf'),printBackground:true,preferCSSPageSize:true,pageRanges:'1-20'});
  await page.emulateMedia({media:'screen'});await page.setViewportSize({width:390,height:844});
  let mobile=[];for(let i=0;i<count;i++){await page.evaluate(n=>show(n),i);if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))mobile.push(i+1)}
  console.log(JSON.stringify({count,errors,images,navigation,layout,print,mobile}));await browser.close();
