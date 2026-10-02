@@ -746,3 +746,14 @@ integrity. Those acquisition and verification obligations remain with Oyzu. At f
 library/example Clippy and all 28 embedding harness scenarios pass, including
 valid, duplicate and missing checksum cases. Native results remain pending.
 This API is not exposed by the production CLI.
+
+Add `--with-checksums` to the Python capture command to retain release checksum
+manifests alongside the original catalogs. This optional mode independently selects
+Python 3.12.13's newest dated install-only-stripped artifact for each target,
+requires its unique declared SHA-256, and stores original checksum bytes as base64
+with size/hash and artifact identity. Shared release manifests are fetched once.
+Checksum input uses the transport's existing 16 MiB read cap and is then rejected
+above 8 MiB; parsing rejects invalid UTF-8, malformed digests, duplicates, more
+than 4,096 entries and absent selected files. Capture remains all-or-nothing.
+The default catalog-only fixture stays compatible. These unsigned declarations
+are retained test inputs, not publisher verification or installation approval.

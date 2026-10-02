@@ -2103,3 +2103,18 @@ limits; documentation and diff checks pass.
 No artifact bytes, publisher attestation or installation are verified by these
 metadata scenarios. Version discovery, production worker/broker integration and
 shipping approval remain outstanding. Full OEP-0003 remains in progress.
+
+## Checkpoint 145: retained real Python checksum inputs
+
+Extended the independent capture helper with optional --with-checksums. It retains
+exact catalog and checksum bytes for a fixed Python 3.12.13 replay family, selects
+the newest dated stripped artifact, and verifies unique checksum membership for
+all three targets. Twenty-three maintenance tests pass, including duplicate,
+missing, malformed, invalid-UTF-8 and oversized checksum failures.
+
+A live 2026-10-02 capture retained a 201,388-byte external fixture with SHA-256
+708c94ca489b5a248b178f658a171e6a7890657a05bffc8e224a6806bbcb44ec.
+All selected artifacts were release 20260807 and had one matching checksum.
+This establishes retained inputs, not public Rust API replay or artifact integrity.
+The reference documents limits and reproduction. Documentation and diff checks
+pass; full OEP-0003 remains active.
