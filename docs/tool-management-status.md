@@ -1812,3 +1812,19 @@ restrictions, descendant cleanup or same-binary dispatch. The existing executor
 supervisor controls Docker containers and cannot be reused directly as the native
 tool-worker supervisor. Publication still needs confirmed worker shutdown and
 independent result validation; this increment does not complete TM-05 or OEP-0003.
+
+## Checkpoint 127: native supervisor implementation constraints
+
+Inspected existing executor shutdown: it is Docker-specific and does not supply
+native tool-worker process ownership. Checked stable Rust's Windows process API:
+spawn_with_attributes remains nightly-only, so the restricted-handle-list adapter
+must use native Windows bindings without changing the compiler channel or falling
+back to broad inheritance. The runtime companion now records this constraint,
+subsystem ownership and source-linked synchronous-I/O cancellation limitations.
+
+The draft also specifies native spawn failure, unrelated inherited handle,
+incomplete-frame exit, unread-response, cancellation/success race, descendant
+handle retention and concurrent-worker cleanup cases. These extend the process
+acceptance details; they are not passing test claims or accepted design status.
+Documentation/diff checks pass. No production behavior changed this turn.
+Native spawning, deadlines and process shutdown remain unimplemented.

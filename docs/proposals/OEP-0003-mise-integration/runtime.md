@@ -106,6 +106,46 @@ The native allocation foundation creates non-inheritable Unix socketpair or
 Windows anonymous-pipe endpoints. Process creation and explicit restricted
 inheritance remain unimplemented; allocation alone is not worker isolation.
 
+### Native supervisor implementation constraints
+
+The existing `src/executor/worker.rs` lifecycle owns Docker containers. Native
+tool-worker creation and termination belong under `src/tools/worker/`; do not
+reuse Docker cleanup as evidence that a native process or its descendants exited.
+The framing layer continues to own byte limits and terminal protocol state.
+The supervisor owns process lifetime, trusted image selection, restricted handle
+inheritance and elapsed-time enforcement. These responsibilities do not move into
+individual language backends.
+
+Stable Rust does not expose the Windows process attribute-list spawn API:
+[`CommandExt::spawn_with_attributes`](https://doc.rust-lang.org/std/os/windows/process/trait.CommandExt.html#tymethod.spawn_with_attributes)
+is nightly-only. The Windows adapter must use the existing Windows bindings for
+native process creation with an explicit handle list, with owned handles and
+cleanup on every failure path. Do not switch the application to nightly, inherit
+all process handles, or repurpose stdin/stdout as a workaround. Unix must likewise
+pass only the intended control descriptors and preserve close-on-exec on all
+unrelated descriptors. Tool and diagnostic streams remain separate.
+
+An atomic framing abort does not cancel an OS syscall. Windows anonymous pipes
+use synchronous I/O; Microsoft's [cancellation guidance](https://learn.microsoft.com/en-us/windows/win32/fileio/canceling-pending-i-o-operations)
+requires synchronization with the actual pending operation and warns that a
+cancellation request does not prove completion. Any cancellation adapter must
+avoid cancelling an unrelated call on a reused thread. In both platform adapters,
+the supervisor must observe I/O/process completion before releasing operation
+resources or accepting a result. Detached blocked threads are not successful
+shutdown.
+
+The native transport regressions establish that closing every peer endpoint
+handle releases an incomplete frame read and a backpressured write on tested
+Windows/Linux hosts. Process termination alone is not proof of that condition:
+an accidentally inherited descendant handle can keep the transport open. Native
+spawn acceptance must therefore cover an unrelated inheritable handle, child
+exit while a frame is incomplete, an unread response stream, cancellation racing
+success, a descendant retaining a control handle, and cleanup after spawn failure.
+For each case, verify bounded supervisor return, confirmed process cleanup, no
+publication after cancellation, and no effect on a concurrent independent worker.
+These are required implementation tests, not claims that process supervision is
+already implemented or that the draft has received maintainer acceptance.
+
 Envelope fields are `protocol = "oyzu.tool-worker/1"`, `request_id` (UUID),
 `operation` (`resolve`, `prepare`, `environment`, `executable`),
 `context_digest`, `backend_release_digest`, `target_platform`, `capabilities`
