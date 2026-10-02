@@ -816,3 +816,25 @@ The merged tree passed Windows GNU full locked tests, strict all-target Clippy,
 formatting and nine real CLI task scenarios. Linux request/selection tests and
 strict all-target Clippy passed again after integration. Complete native CI and
 the eight captured suites at this merged revision remain pending.
+
+## Checkpoint 78: admitted names from the fork registry
+
+The candidate fork exposes `Session::tool_aliases`, using its revision-baked
+registry to map short names, registered aliases and canonical core IDs onto only
+the session's admitted backends. Canonical rebinding, ambiguous names and removal
+of an admitted core backend fail closed. Embedded settings disable floating
+registry updates and preserve that setting after reload. No dependency, lockfile,
+registry data or upstream notice changed.
+
+The ninth fresh-process conformance scenario covers Node, Go, Java and Python,
+exclusion of unadmitted tools and reload stability; empty admission is checked
+in the existing denied-tool scenario. This advances the TM-02/03 candidate
+boundary, not production catalog loading. Oyzu still needs reviewed source
+admission and worker wiring before using this map for actual resolution.
+
+Fork revision `f4d245e888c31414037ca8fe15d1ea634eb6320a` passed Linux Rust 1.95
+strict library/example Clippy and all nine isolated conformance scenarios.
+Formatting passed. Compliance regression checks passed (20 tests, one Windows
+symlink skip), and inventory consistency passed with all 1,109 lock records still
+unreviewed. Native macOS and Windows confirmation for this revision is pending.
+No separate mise executable was built or invoked.

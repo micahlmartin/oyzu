@@ -33,6 +33,12 @@ Catalog loading, native constraint discovery, version resolution and transaction
 lock editing remain unimplemented. No worker or
 execution path is enabled by this boundary alone.
 
+The candidate fork additionally exposes `Session::tool_aliases`, projecting its
+revision-baked registry onto session-admitted core backends. Floating registry
+updates are disabled in embedded settings. This supplies a future source for the
+trusted alias map without introducing a second registry; the production consumer
+still has no imported mise dependency or worker connection to this interface.
+
 ## Dependency order and deliverables
 
 Each package is a reviewable change with an executable acceptance result. Do not
