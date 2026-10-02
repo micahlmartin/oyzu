@@ -59,6 +59,9 @@ def check_contract(name, schema_path, fixture_path, cases_path, valid_path=None)
 
 
 def main():
+    check_contract("backend descriptor", "docs/contracts/tools-v1/backend-descriptor.schema.json",
+                   "tests/fixtures/tool-backend/descriptor.json", "tests/fixtures/tool-backend/invalid-shapes.json",
+                   "tests/fixtures/tool-backend/valid-shapes.json")
     check_contract("layout", "docs/contracts/tools-v1/archive-layout.schema.json",
                    "tests/fixtures/tool-layout/plan.json", "tests/fixtures/tool-layout/invalid-shapes.json")
     check_contract("receipt", "docs/contracts/tools-v1/receipt.schema.json",

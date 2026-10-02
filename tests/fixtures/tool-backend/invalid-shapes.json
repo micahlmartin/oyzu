@@ -1,0 +1,72 @@
+[
+  {
+    "name": "unrecognized descriptor field",
+    "pointer": "/command",
+    "value": "run"
+  },
+  {
+    "name": "floating source ref",
+    "pointer": "/source_pin",
+    "value": "main"
+  },
+  {
+    "name": "uppercase source identity",
+    "pointer": "/source_pin",
+    "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  },
+  {
+    "name": "unqualified patch digest",
+    "pointer": "/patch_set_digest",
+    "value": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  {
+    "name": "zero ABI",
+    "pointer": "/embedding_abi",
+    "value": 0
+  },
+  {
+    "name": "fractional adapter revision",
+    "pointer": "/adapter_revision",
+    "value": 1.5
+  },
+  {
+    "name": "unsafe canonical integer",
+    "pointer": "/adapter_revision",
+    "value": 9007199254740992
+  },
+  {
+    "name": "omitted registry identity",
+    "pointer": "/registry_digest",
+    "remove": true
+  },
+  {
+    "name": "omitted plugin identity",
+    "pointer": "/plugin_digest",
+    "remove": true
+  },
+  {
+    "name": "invalid registry identity",
+    "pointer": "/registry_digest",
+    "value": "latest"
+  },
+  {
+    "name": "missing verifier",
+    "pointer": "/verifier_digest",
+    "remove": true
+  },
+  {
+    "name": "duplicate features",
+    "pointer": "/features",
+    "value": [
+      "rustls",
+      "rustls"
+    ]
+  },
+  {
+    "name": "nonstring feature",
+    "pointer": "/features",
+    "value": [
+      true
+    ]
+  }
+]

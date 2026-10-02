@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Validate shared layout and receipt shape fixtures
+      - name: Validate backend, layout and receipt shape fixtures
         run: |
           python3 -m venv .ci-tool-contracts
           .ci-tool-contracts/bin/python -m pip install -r tooling/design-requirements.txt

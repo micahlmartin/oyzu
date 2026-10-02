@@ -558,3 +558,14 @@ predates the subsequent unreadable-directory and exact-provisioning fixes.
 Executable-layout revision `1aae272` passes all three native CLI build jobs in
 run `36975364359`; Linux CLI task and isolated BuildKit checks also pass. Other
 scenario jobs were still running when recorded. Full OEP acceptance remains open.
+
+## Checkpoint 65: backend descriptor shape contract
+
+TM-01 adds the closed backend descriptor JSON Schema using the identity fields
+already specified by the OEP. Required nullable identities, exact source pins,
+digest shapes, positive safe revision integers and unique string features are
+checked. The existing offline contract runner and CI include four valid and
+thirteen invalid descriptor fixtures. All descriptor/layout/receipt shape checks
+pass, as do documentation structure checks. Runtime descriptor parsing, sorted
+feature semantics, canonical identity vectors and compiled backend admission
+remain outstanding; this is not production source integration or TM-01 completion.

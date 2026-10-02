@@ -1,0 +1,13 @@
+{
+  "source_pin": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "patch_set_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "embedding_abi": 1,
+  "adapter_revision": 1,
+  "registry_digest": null,
+  "plugin_digest": null,
+  "verifier_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "features": [
+    "rustls",
+    "vfox/vendored-lua"
+  ]
+}

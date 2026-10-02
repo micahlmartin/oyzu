@@ -385,3 +385,22 @@ Failure can leave an incomplete candidate; callers must not adopt it. Receipt
 creation does not itself verify publisher signatures or attestations: callers
 must establish that evidence before invoking this boundary. Recovery, production
 worker wiring, compiled descriptors and native backend parity are still required.
+
+## Backend descriptor contract fixtures
+
+The draft [backend descriptor schema](../contracts/tools-v1/backend-descriptor.schema.json)
+encodes the OEP's closed identity record: exact source commit, patch-register
+digest, embedding ABI and adapter revision, nullable registry/plugin digests,
+verifier digest and unique string features. Nullable fields are required even
+when null. Positive revision integers stay within the canonical JSON safe range.
+The synthetic fixtures are not compiled backend descriptors or approved pins.
+
+Run `python tooling/check-tool-contracts.py` with
+`tooling/design-requirements.txt` installed to check descriptor, layout and receipt
+shapes offline. The checker rejects duplicate JSON keys and nonlocal schema
+references. Descriptor fixtures cover four valid shapes and thirteen rejected
+shapes, including floating refs, omitted identities, open records and unsafe
+integers. Schema checks do not establish sorted feature order, provenance,
+canonical descriptor hashing, compatibility or admission. Rust descriptor parsing
+and schema/runtime agreement are still unimplemented; the CLI does not consume
+this record yet. No stable project configuration syntax is introduced.
