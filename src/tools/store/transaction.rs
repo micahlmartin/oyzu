@@ -1,6 +1,7 @@
 //! Cooperative store transactions. Policy/layout admission precedes this layer.
 use super::{
     access::{Directory, Kind},
+    lease::Journal,
     receipt,
 };
 use crate::tools::lock::Lock;
@@ -18,8 +19,18 @@ use std::{
 /// This does not grant authorization and is not a same-user tamper boundary.
 pub struct InstallationLease {
     pub selection_digest: String,
+    // Field drop order matters: remove the journal while kernel leases remain.
+    journal: Journal,
     _leases: Vec<File>,
     _root: Directory,
+}
+
+impl InstallationLease {
+    /// Diagnostic journal identity, not an authorization token. Abnormal process
+    /// exit may leave this record after its kernel locks have been released.
+    pub fn lease_id(&self) -> &str {
+        self.journal.id()
+    }
 }
 
 pub(in crate::tools) fn transact(
@@ -103,9 +114,11 @@ pub(in crate::tools) fn transact(
         acquire(&file, deadline, true)?;
         leases.push(file);
     }
+    let journal = Journal::create(&root, &digest, &keys)?;
     drop(held);
     Ok(InstallationLease {
         selection_digest: digest,
+        journal,
         _leases: leases,
         _root: root,
     })

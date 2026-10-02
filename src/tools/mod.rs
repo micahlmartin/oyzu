@@ -171,6 +171,9 @@ pub fn verify_installation_selection(
 /// backend and authorization. Staging has installs/<key-hex>/{receipt.json,payload}.
 /// No existing installation is overwritten. A partial publication failure leaves
 /// only individually committed, unreferenced entries; it never edits the lock.
+/// A flushed process-lease journal is required before success. Normal drop removes
+/// it before releasing OS leases; crashes or cleanup failure leave stale evidence
+/// for recovery, never proof that a process remains alive.
 pub fn lease_installation_selection(
     lock_path: &Path,
     store: &Path,

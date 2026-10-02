@@ -1,3 +1,5 @@
+mod tool_store_fixture;
+
 use oyzu::tools::{cache_tool_blob, materialize_tool_blob};
 use sha2::{Digest, Sha256};
 use std::{
@@ -21,7 +23,7 @@ impl Read for NeverRead {
 
 #[test]
 fn publishes_exact_bytes_and_cache_hit_never_acquires_again() {
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let bytes = b"verified archive bytes";
     let digest = digest(bytes);
     let mut blob = cache_tool_blob(
@@ -60,7 +62,7 @@ fn publishes_exact_bytes_and_cache_hit_never_acquires_again() {
 
 #[test]
 fn corruption_and_external_links_fail_without_fallback() {
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let bytes = b"good";
     let digest = digest(bytes);
     let mut blob = cache_tool_blob(temporary.path(), &mut &bytes[..], &digest, 4).unwrap();
@@ -80,7 +82,7 @@ fn corruption_and_external_links_fail_without_fallback() {
 
 #[test]
 fn rejects_size_digest_and_reader_failure_without_publishing() {
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let expected = digest(b"good");
     for bytes in [b"bad!".as_slice(), b"goo", b"good!"] {
         assert!(cache_tool_blob(temporary.path(), &mut &bytes[..], &expected, 4).is_err());
@@ -102,7 +104,7 @@ fn rejects_size_digest_and_reader_failure_without_publishing() {
 
 #[test]
 fn bounds_stream_consumption_and_handles_interrupted_short_reads() {
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let expected = digest(b"good");
     let mut infinite = io::repeat(b'g');
     assert!(cache_tool_blob(temporary.path(), &mut infinite, &expected, 4).is_err());
@@ -141,7 +143,7 @@ fn bounds_stream_consumption_and_handles_interrupted_short_reads() {
 
 #[test]
 fn materializes_private_snapshot_after_cache_tampering() {
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let mut archive = tar::Builder::new(Vec::new());
     let mut header = tar::Header::new_gnu();
     header.set_mode(0o755);
@@ -183,7 +185,7 @@ fn publication_collision_preserves_destination_and_removes_own_temporary() {
             self.bytes.read(output)
         }
     }
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let expected = digest(b"good");
     let target = location(temporary.path(), &expected);
     let mut source = Race {
@@ -259,7 +261,7 @@ fn killed_stream_owner_publishes_nothing_and_releases_blob_lock() {
             let _ = self.0.wait();
         }
     }
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let ready = temporary.path().join("ready");
     let mut child = KillOnDrop(
         Command::new(std::env::current_exe().unwrap())
@@ -294,7 +296,7 @@ fn killed_stream_owner_publishes_nothing_and_releases_blob_lock() {
 
 #[test]
 fn separate_processes_converge_on_one_verified_blob() {
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let mut children = Vec::new();
     for _ in 0..2 {
         children.push(
@@ -335,7 +337,7 @@ fn separate_processes_converge_on_one_verified_blob() {
 #[test]
 fn rejects_redirected_cache_roots_and_blob_symlinks() {
     use std::os::unix::fs::symlink;
-    let temporary = tempfile::tempdir().unwrap();
+    let temporary = tool_store_fixture::directory().unwrap();
     let root = temporary.path().canonicalize().unwrap();
     let outside = root.join("outside");
     fs::create_dir(&outside).unwrap();

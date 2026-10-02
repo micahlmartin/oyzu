@@ -4,6 +4,7 @@ mod access;
 mod archive;
 mod blob;
 mod layout;
+mod lease;
 mod receipt;
 mod transaction;
 mod tree;

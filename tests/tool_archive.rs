@@ -1,3 +1,5 @@
+mod tool_store_fixture;
+
 use sha2::{Digest, Sha256};
 use std::{fs, io::Write};
 
@@ -20,7 +22,7 @@ fn tar(entries: &[(&str, &[u8], u8, Option<&str>)]) -> Vec<u8> {
 }
 
 fn materialize(bytes: &[u8], gzip: bool) -> anyhow::Result<oyzu::tools::TreeInspection> {
-    let directory = tempfile::tempdir()?;
+    let directory = tool_store_fixture::directory()?;
     let source = directory.path().join("source");
     let staging = directory.path().join("stage");
     fs::write(&source, bytes)?;
@@ -36,7 +38,7 @@ fn materialize(bytes: &[u8], gzip: bool) -> anyhow::Result<oyzu::tools::TreeInsp
 
 #[test]
 fn verifies_exact_bytes_before_materializing_and_never_overwrites() {
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tool_store_fixture::directory().unwrap();
     let source = directory.path().join("source");
     let stage = directory.path().join("stage");
     fs::create_dir(&stage).unwrap();
@@ -159,7 +161,7 @@ fn bounds_gnu_extension_bodies_before_allocating_them() {
 #[test]
 fn rejects_fifo_and_symlink_sources_without_following_or_waiting() {
     use std::{ffi::CString, os::unix::fs::symlink};
-    let directory = tempfile::tempdir().unwrap();
+    let directory = tool_store_fixture::directory().unwrap();
     let stage = directory.path().join("stage");
     fs::create_dir(&stage).unwrap();
     let fifo = directory.path().join("fifo");

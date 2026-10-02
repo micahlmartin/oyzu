@@ -230,7 +230,27 @@ deadline. Lock files are never removed/replaced during ordinary operation.
 Prune must acquire mutation first, then try an exclusive lease; this protocol
 has not yet been connected to a prune command. Process exit releases kernel locks.
 
-This is a cooperative-store foundation. Durable lease/session JSON records,
+Before returning a lease, the store atomically publishes a flushed format-1
+`leases/<lease-id>.json` record while holding its mutation and shared lease locks.
+The closed writer records `format`, `lease_id`, `owner_pid`,
+`created_unix_nanos` (decimal string), `selection_digest` and sorted unique
+`installation_keys`. `InstallationLease::lease_id()` exposes the diagnostic ID.
+IDs use PID, timestamp and a process-local counter, with exclusive creation and
+no-replace publication; they are not secrets or authorization tokens. Records
+contain no workspace paths, environment values or credentials.
+
+Ordinary lease destruction removes its own record before releasing kernel locks.
+Cleanup errors conservatively leave a stale record; destruction cannot report
+them to the caller. Forced termination can also leave a final record, and a crash
+during writing can leave a `.pending` file. Neither PID/timestamp nor a record's
+presence establishes liveness: recovery must use OS locks and the relevant
+reference/owner checks, never PID alone. Records are not yet automatically reaped.
+A journal creation/publication failure rejects selection and releases locks;
+already committed installations remain valid but unreferenced. Unknown or
+redirected lease directories fail without following links or replacing content.
+The parent and file flush behavior has the same platform limits as publication.
+
+This is a cooperative-store foundation. Persistent shell-session references,
 operation owner/start-time journals, workspace reference tracking, crash recovery,
 quarantine, prune, shell-session retention and supervised child-tree lifetime
 integration remain outstanding. A lease alone neither prevents same-user file

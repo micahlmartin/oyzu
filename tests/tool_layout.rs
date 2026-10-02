@@ -1,3 +1,5 @@
+mod tool_store_fixture;
+
 use oyzu::tools::{self, ToolCandidateRequest};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -38,7 +40,7 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tool_store_fixture::directory().unwrap();
         let store = temp.path().join("store");
         let staging = temp.path().join("candidates");
         let lock = temp.path().join("oyzu.lock");

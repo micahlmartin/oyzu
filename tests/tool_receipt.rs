@@ -1,3 +1,5 @@
+mod tool_store_fixture;
+
 use serde_json::{json, Value};
 use std::{fs, path::PathBuf};
 
@@ -32,7 +34,7 @@ impl Fixture {
         )
     }
     fn new() -> Self {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = tool_store_fixture::directory().unwrap();
         let store = temp.path().join("store");
         let lock = temp.path().join("oyzu.lock");
         let platform = if cfg!(windows) {
@@ -339,6 +341,24 @@ fn publishes_whole_directory_then_retains_os_lease_without_changing_lock() {
     let staging = fixture.stage();
     assert!(fixture.lease(None).is_err());
     let lease = fixture.lease(Some(&staging)).unwrap();
+    let journal = fixture
+        .store
+        .join("leases")
+        .join(format!("{}.json", lease.lease_id()));
+    let record: Value = serde_json::from_slice(&fs::read(&journal).unwrap()).unwrap();
+    assert_eq!(record["format"], 1);
+    assert_eq!(record["lease_id"], lease.lease_id());
+    assert_eq!(record["owner_pid"], std::process::id());
+    assert_eq!(record["selection_digest"], lease.selection_digest);
+    assert_eq!(
+        record["installation_keys"],
+        json!([fixture.receipt["installation_key"]])
+    );
+    assert!(record["created_unix_nanos"]
+        .as_str()
+        .unwrap()
+        .parse::<u128>()
+        .is_ok());
     assert_eq!(lease.selection_digest, fixture.verify().unwrap());
     assert_eq!(fs::read(&fixture.lock).unwrap(), original);
     let key = fixture.receipt["installation_key"]
@@ -357,12 +377,22 @@ fn publishes_whole_directory_then_retains_os_lease_without_changing_lock() {
         Err(std::fs::TryLockError::WouldBlock)
     ));
     let second = fixture.lease(None).unwrap();
+    assert_ne!(lease.lease_id(), second.lease_id());
+    assert_eq!(
+        fs::read_dir(fixture.store.join("leases")).unwrap().count(),
+        2
+    );
     drop(lease);
+    assert!(!journal.exists());
     assert!(matches!(
         guard.try_lock(),
         Err(std::fs::TryLockError::WouldBlock)
     ));
     drop(second);
+    assert_eq!(
+        fs::read_dir(fixture.store.join("leases")).unwrap().count(),
+        0
+    );
     guard.try_lock().unwrap();
 }
 
@@ -392,6 +422,44 @@ fn invalid_staging_never_publishes_and_corrupt_committed_content_is_not_replaced
         fs::read(fixture.install.join("payload/bin/node")).unwrap(),
         b"bad committed"
     );
+}
+
+#[test]
+fn unavailable_journal_fails_selection_and_releases_kernel_locks() {
+    let fixture = Fixture::new();
+    fs::write(fixture.store.join("leases"), b"occupied, never replace").unwrap();
+    assert!(fixture.lease(None).is_err());
+    assert_eq!(
+        fs::read(fixture.store.join("leases")).unwrap(),
+        b"occupied, never replace"
+    );
+    let key = fixture.receipt["installation_key"].as_str().unwrap();
+    for suffix in ["", ".lease"] {
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(
+                fixture
+                    .store
+                    .join("locks")
+                    .join(format!("{}{suffix}", &key[7..])),
+            )
+            .unwrap();
+        file.try_lock().unwrap();
+    }
+    assert!(fixture.verify().is_ok());
+}
+
+#[cfg(unix)]
+#[test]
+fn lease_journal_never_follows_redirected_directory() {
+    use std::os::unix::fs::symlink;
+    let fixture = Fixture::new();
+    let outside = fixture._temp.path().join("outside-journal");
+    fs::create_dir(&outside).unwrap();
+    symlink(&outside, fixture.store.join("leases")).unwrap();
+    assert!(fixture.lease(None).is_err());
+    assert_eq!(fs::read_dir(outside).unwrap().count(), 0);
 }
 
 #[test]
@@ -517,6 +585,17 @@ fn terminated_owner_releases_kernel_lease_and_retains_valid_commit() {
     child.wait().unwrap();
     assert!(blocked);
     guard.try_lock().unwrap();
+    let journals: Vec<_> = fs::read_dir(fixture.store.join("leases"))
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+    assert_eq!(journals.len(), 1);
+    let stale: Value = serde_json::from_slice(&fs::read(&journals[0]).unwrap()).unwrap();
+    assert_eq!(stale["owner_pid"], child.id());
+    assert_eq!(
+        stale["installation_keys"],
+        json!([fixture.receipt["installation_key"]])
+    );
     assert!(fixture.verify().is_ok());
 }
 

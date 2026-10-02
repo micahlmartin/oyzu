@@ -371,3 +371,33 @@ separately invoked child fixture is marked ignored in the ordinary test list).
 The merged Windows GNU Rust 1.94 full suite, strict all-target Clippy, formatting
 and all nine real CLI task scenarios passed. Native macOS and full refreshed CI
 still require confirmation against the pushed head.
+
+## Checkpoint 56: durable process-lease observations
+
+TM-04 now publishes a flushed, no-replace `leases/<id>.json` record before
+returning a verified selection lease. It records the selection digest, sorted
+installation keys, owner PID, timestamp and diagnostic ID. Normal destruction
+removes only that record before releasing kernel leases. Forced termination
+leaves stale evidence while the OS releases its locks. Neither PID nor journal
+presence is a liveness or authorization check. Failed journal publication denies
+selection without overwriting committed content. No new dependency is introduced.
+
+Windows GNU passed 14 receipt/publication tests; Linux passed 15, including a
+redirected journal-directory rejection. Tests inspect exact record contents,
+overlapping independent lease IDs, ordinary cleanup, failed-record lock release
+and a real killed child with a retained record. Linux strict all-target Clippy
+also passed. Recovery/reaping, staging owner/start-time records, workspace and
+shell-session references, prune and supervised child-tree integration remain
+unfinished; this is not the complete MISE-05 fault-injection gate.
+
+Native macOS job `110730105897` in run `36972783742` exposed more fixture parents
+under the `/var` alias in archive integration tests. The four store integration
+suites now share a physical temporary-root fixture, resolving only the trusted
+parent before creating test content. Production no-follow checks and explicit
+hostile links are unchanged. Final Linux archive/blob/layout/receipt suites pass
+(6/9/8/15 tests); final Windows counterparts pass (4/8/7/14). Native macOS must
+requalify this correction against the next pushed head.
+
+The full Windows GNU Rust 1.94 suite, strict all-target Clippy, formatting and
+all nine compiled CLI task scenarios passed. Documentation checks passed;
+these results do not establish backend installation or release approval.
