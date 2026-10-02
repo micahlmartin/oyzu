@@ -49,7 +49,7 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1 --file tooling/images/rust.Dockerfile tooling/images
   fi
   if selected helm; then
-    docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile tooling/images
+    docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile .
   fi
   if selected java; then
     docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile .

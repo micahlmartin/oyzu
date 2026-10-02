@@ -13,10 +13,23 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert plan == invoke(project, 'build', '--plan'), 'Helm plans are not repeatable'
     invoke(project, 'build')
     manifest = validate(project/'dist')
+    assert next(a for a in manifest['actions'] if a['id']=='project:format-check')['status']=='succeeded'
     assert any(r['kind']=='test' and r['summary']['passed']==1 for r in manifest['reports'])
     assert not any(r['kind']=='coverage' for r in manifest['reports'])
     assert manifest['targets'][0]['extensions']['oyzu.dev/coverage-applicability']['status']=='inapplicable'
     assert source_files(project) == before
+    values = project/'chart/values.yaml'
+    original_values = values.read_bytes()
+    values.write_bytes(original_values.replace(b'replicaCount: 1', b'replicaCount:    1'))
+    assert values.read_bytes() != original_values, 'Formatting failure fixture did not change'
+    unformatted = source_files(project)
+    invoke(project, 'build', success=False)
+    failed_format = validate(project/'dist')
+    assert not failed_format['artifacts'] and source_files(project) == unformatted
+    assert next(a for a in failed_format['actions'] if a['id']=='project:format-check')['status']=='failed'
+    values.write_bytes(original_values)
+    invoke(project, 'build')
+    manifest = validate(project/'dist')
     invoke(project, 'inspect', 'dist')
     artifact = next(a for a in manifest['artifacts'] if a['name']=='chart')
     assert '-dev.g' in artifact['version']
@@ -33,11 +46,12 @@ def verify(root, base, invoke, validate, source_files, verified):
     document = list(yaml.safe_load_all((project/'dist'/rendered['path']).read_text()))
     assert document[0]['kind'] == 'Deployment'
     assert document[0]['spec']['replicas'] == 1
-    for task in ['build', 'test', 'lint', 'package']:
+    for task in ['build', 'test', 'lint', 'format-check', 'package']:
         assert next(a for a in manifest['actions'] if a['id']==f'project:{task}')['status']=='succeeded'
     rebuilt = invoke(project, 'build')
     assert {a['name']:a['digest'] for a in rebuilt['artifacts']} == {a['name']:a['digest'] for a in manifest['artifacts']}
     verified.append('Helm: inferred nested chart, native local dependency closure, snapshot chart/rendered artifacts, lint/schema validation and repeatable output')
+    verified.append('Helm YAML: implicit read-only native formatting gate, artifact rejection for unformatted values and unchanged checkout')
 
     # Source-owned locks are honored, and stale locks fail before packaging.
     (project/'chart/Chart.lock').write_bytes(lock_bytes)

@@ -87,6 +87,8 @@ src/
       planning.rs             # Snapshot OCI output and typed BuildKit action intent
       runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
+      quality.rs              # Implicit native YAML formatter tasks and host command adaptation
+      runtime/quality.py      # Bounded chart YAML selection and native read-only/mutating formatting
       archives.rs             # Bounded static archive-member observations; no extraction
       runtime/charts.py       # Private chart expansion and native assertion execution
       detection.rs            # Bounded root/unpacked-subchart suite evidence and validation fallback

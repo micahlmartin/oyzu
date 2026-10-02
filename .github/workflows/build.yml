@@ -150,6 +150,19 @@ jobs:
           CGO_ENABLED=0 GOPROXY=off GOSUMDB=off go build -mod=readonly -trimpath -o "$FORMATTER" github.com/reteps/dockerfmt
           cd "$GITHUB_WORKSPACE"
           python tooling/test-docker-quality.py --cli "$CLI" --tools .ci-docker-quality
+      - name: Native Helm YAML quality tasks
+        shell: bash
+        run: |
+          python tooling/provision-yamlfmt.py --destination .ci-helm-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            CLI=cli/oyzu.exe
+            FORMATTER=.ci-helm-quality/yamlfmt.exe
+          else
+            CLI=cli/oyzu
+            FORMATTER=.ci-helm-quality/yamlfmt
+            chmod +x "$CLI"
+          fi
+          python tooling/test-helm-quality.py --cli "$CLI" --yamlfmt "$FORMATTER"
       - name: Native Python test discovery and reporting
         shell: bash
         run: |
