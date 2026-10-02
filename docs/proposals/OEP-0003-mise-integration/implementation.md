@@ -30,6 +30,9 @@ schema; operation-specific payload schemas remain outstanding.
 
 TM-05 has an initial bounded duplex JSON framing codec, with one shared 32 MiB
 budget including prefixes, 8 MiB frame bodies and terminal failure handling.
+Separate sender/receiver halves now share atomic budget/failure state, allowing
+cancellation writes while a response read is pending. Abort does not interrupt
+an underlying syscall; OS deadlines/shutdown remain a supervisor obligation.
 An initial supervisor-side exchange validates closed outer requests, binds one
 terminal response to its request/context and discards success after cancellation.
 Payloads remain explicitly untrusted. It does not yet implement operation-specific

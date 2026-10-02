@@ -1516,3 +1516,31 @@ or authorize a process. The returned borrow is tied to the held lease; launch
 consumers still need current content/authority checks, path resolution and process
 supervision. No CLI which/exec, shims or production backend admission is enabled.
 The reference and code map document this TM-07 foundation and its limits.
+
+## Checkpoint 115: concurrent worker framing and shared byte reservations
+
+Worker framing now supports separately owned reader/writer halves sharing one
+atomic control-byte budget and terminal state. A blocked response read holds no
+lock needed by cancellation writes. Failure or explicit abort in either half
+prevents subsequent successful operations in both, including an in-flight read
+that later completes. The sequential channel API remains available. Framing now
+lives in worker/framing.rs; exchange identity/lifecycle remains separate.
+
+Review found and fixed a prefix-budget edge case: receive reserves its four-byte
+prefix before transport access, then reserves the body before allocation/read.
+Send reserves its entire frame before writing. Concurrent operations cannot
+consume more control bytes than reserved; failure does not refund reservations.
+
+The final Windows full locked suite passed, alongside 12 focused worker tests,
+strict all-target Clippy, formatting and all nine CLI scenarios. Linux passed
+13 focused tests and strict all-target Clippy with networking disabled. Tests
+cover cancellation writes during pending reads, shared abort, simultaneous budget
+exhaustion and rejection before prefix read. Linux additionally exercised a real
+close-on-exec Unix socketpair. Documentation/diff checks passed; native macOS
+verification remains pending.
+
+No supervisor/process channel is enabled. Generic Read/Write remains blocking;
+abort cannot interrupt a syscall or retract in-flight bytes. Actual OS deadlines,
+transport shutdown, inherited descriptor/Windows handle restrictions, worker
+payload admission, backend dispatch and executor containment remain unfinished.
+The reference documents these caller obligations; this does not complete TM-05.

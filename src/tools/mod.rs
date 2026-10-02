@@ -14,7 +14,10 @@ pub use backend::{inspect as inspect_backend, BackendInspection};
 pub use edit::{ToolLockChange, ToolLockChangeKind, ToolLockEdit, ToolLockProposal};
 pub use requests::{project_tool_requests, ToolRequestIdentity};
 pub use selection::{select_for_tool_requests, select_locked_environment};
-pub use worker::{ToolWorkerChannel, ToolWorkerExchange, ToolWorkerOperation, ToolWorkerOutcome};
+pub use worker::{
+    split_tool_worker_channel, ToolWorkerChannel, ToolWorkerExchange, ToolWorkerOperation,
+    ToolWorkerOutcome, ToolWorkerReceiver, ToolWorkerSender,
+};
 mod store;
 pub use store::InstallationLease;
 pub use store::LeaseRecovery;

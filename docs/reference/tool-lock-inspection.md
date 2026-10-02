@@ -882,6 +882,27 @@ enforce deadlines/cancellation independently. A blocking `Read` or `Write` is
 not made interruptible by this codec. This is an unstable internal interface,
 not a public worker/plugin compatibility promise.
 
+The sequential `ToolWorkerChannel` is suitable only when no read/write overlap
+is needed. For cancellation while waiting on a response, use
+`split_tool_worker_channel(read_handle, write_handle)` to obtain a
+`ToolWorkerReceiver` and `ToolWorkerSender`. Supply already established halves of
+the same trusted channel; this function neither creates nor duplicates handles.
+Each half can be owned by a separate thread. There is one shared atomic byte
+budget and failure state, and no synchronization lock spans transport I/O.
+The sender can therefore transmit a cancel while the receiver is blocked.
+The receiver reserves prefix bytes before reading them and body bytes before
+allocation/read; the sender reserves its complete frame before writing. In-flight
+reservations count against the same limit and are not refunded after failure.
+
+Failure in either half prevents subsequent successful operations in both.
+`abort()` on either half marks the shared state closed, and an in-flight read
+that later completes cannot return a successful frame. It does not interrupt the
+underlying syscall or retract bytes already written. The supervisor must still
+apply OS deadlines and explicitly shut down/cancel the underlying transport on
+timeout; dropping or invalidating a framing object is not process cancellation.
+Neither half is cloneable, so callers cannot accidentally interleave multiple
+framed writers through this API.
+
 Construct one channel per operation with `ToolWorkerChannel::new(transport)`.
 `send(json_bytes)` validates one UTF-8 JSON object, writes a four-byte big-endian
 length and the original bytes, then flushes. `receive()` reads exactly one frame
@@ -905,6 +926,11 @@ OS channel creation, handshake/operation deadlines, embedded backend dispatch an
 executor containment are also absent. Tests exercise fragmented reads/writes,
 exact frame bounds, combined budgets, invalid/truncated JSON and terminal errors;
 they do not qualify a running worker or complete TM-05.
+
+Concurrent tests additionally hold a receive pending while sending cancellation,
+then check shared abort and budget exhaustion. A Unix-only test exchanges control
+frames over a real close-on-exec socketpair. It does not launch a process, verify
+inherited descriptor restrictions or establish Windows handle-list support.
 
 ### Worker exchange correlation
 
