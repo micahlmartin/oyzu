@@ -16,6 +16,8 @@ For a new subsystem, link its module-level responsibility comment and code-map e
 
 For a shared contract change, identify the affected implementations and consumers and how their common obligations were verified. Check the [extension decision guide](../docs/code-organization.md#placing-a-new-extension) when deciding where new behavior belongs.
 
+For shared-code extraction, name the common invariant and its owner, confirm affected callers use it, and remove superseded copies. Keep native differences in their adapters; see [reuse guidance](../docs/code-organization.md#extracting-shared-behavior).
+
 ## Validation
 
 Describe checks performed and relevant results.

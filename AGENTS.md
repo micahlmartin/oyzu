@@ -13,6 +13,8 @@ Before implementation, identify the owning subsystem, the existing contract to r
 
 Use the [extension decision guide](docs/code-organization.md#placing-a-new-extension) when adding a framework, manager or subsystem. When changing a shared contract, inspect all implementations and callers, update affected consumers together, and verify the shared obligations. A default trait method must represent valid common behavior; it must not conceal an unsupported capability.
 
+When extracting shared behavior, name the invariant and its owner, migrate the affected callers, and remove the superseded implementations. Keep ecosystem-specific interpretation outside that shared operation. Follow the [reuse guidance](docs/code-organization.md#extracting-shared-behavior) without introducing speculative extension points.
+
 Test boundaries through their supported entry points and observable guarantees. Keep tests of private algorithms with their owner; do not widen production visibility just for tests or couple consumer tests to an adapter's private layout. Share contract checks where implementations make the same promises, while retaining native integration checks for ecosystem behavior.
 
 1. **Organize around responsibilities.** Configuration, discovery, builders, tasks, planning, execution, acquisition and evidence each own their rules. Keep CLI/UI entry points thin and dependency direction explicit. Consumers use subsystem contracts; registration/composition points select concrete adapters. Avoid dependency cycles and access to another subsystem's private implementation.

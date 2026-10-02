@@ -52,6 +52,14 @@ Existing broad public modules, dynamic records and partially combined responsibi
 
 Do not put code in a shared module merely because two functions look alike. For example, configuration precedence should have one authoritative implementation, while npm and Poetry retain their own lockfile semantics. Conversely, adding a new test framework should not create another hook scheduler or report collector. Reuse the existing owners of those behaviors.
 
+### Extracting shared behavior
+
+DRY applies to knowledge and rules, not just repeated syntax. Before extracting shared code, identify the invariant both callers need, the subsystem responsible for enforcing it, and the differences that must remain native. Put the operation with that owner and migrate affected callers together; leaving parallel implementations preserves the original maintenance problem.
+
+For example, two test frameworks may both emit JUnit. Their adapters own invocation and native report locations; the report subsystem owns common parsing and validation. Share the parser without making it select frameworks or launch tests. Conversely, similarly shaped npm and Poetry lock entries do not justify one universal lockfile interpreter.
+
+Give the shared operation the smallest typed input that expresses its job. A pure function often suffices; introduce a trait only when callers need interchangeable implementations. Keep configuration flags and callbacks out unless they represent a concrete supported variation. Verify the invariant at its owner and check affected integrations through their supported entry points, including relevant failures. Remove obsolete copies and documentation within the change.
+
 ### Dependency direction
 
 Entry points call application operations. Operations coordinate subsystem contracts; concrete adapters implement those contracts and are selected at composition/registration points. Contract definitions must not depend on their implementations. Shared scheduling, task hooks and report collection must not import ecosystem-specific behavior. An ecosystem may reuse another subsystem's public internal API, but never its private implementation.
@@ -165,6 +173,7 @@ These sources inform our engineering choices; their contribution policies are no
 
 - [rust-analyzer architecture](https://rust-analyzer.github.io/book/contributing/architecture.html) documents a code map, explicit API boundaries and architectural invariants. Oyzu adopts that clarity about ownership and permitted dependencies, without reproducing its crate count.
 - [uv's contribution guide](https://docs.astral.sh/uv/reference/contributing/#crate-structure) makes its crate dependency hierarchy inspectable. Oyzu likewise makes ownership and dependency direction visible in this map, starting with modules rather than adopting another project's crate layout.
+- [The Rust compiler's source guide](https://rustc-dev-guide.rust-lang.org/compiler-src.html) explains both the build-time benefits of crate boundaries and the cost of scattering related functionality. Oyzu should extract crates for a demonstrated boundary or dependency need while keeping related behavior discoverable together.
 - [Cargo's library architecture](https://doc.rust-lang.org/stable/nightly-rustc/src/cargo/lib.rs.html) separates command wrappers from reusable operations. Oyzu keeps presentation at its entry points so operations can serve CLI, CI and later agent/UI consumers.
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/future-proofing.html) and [rust-analyzer's style guide](https://rust-analyzer.github.io/book/contributing/style.html) inform narrow visibility, invariant-preserving types and deliberate API commitments. Traits serve actual boundaries rather than becoming a universal abstraction layer.
 - [Bazel rules](https://bazel.build/extending/rules) distinguish analysis, declared actions and execution. Oyzu applies that separation to builder intent and shared execution while keeping project configuration minimal.
