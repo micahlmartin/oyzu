@@ -5,6 +5,7 @@ mod packaging;
 mod planning;
 mod preparation;
 mod reporting;
+mod testing;
 #[cfg(test)]
 mod tests;
 
@@ -38,6 +39,13 @@ impl crate::dependencies::context::Provider for Rust {
 }
 
 impl Builder for Rust {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        testing::development(target, task)
+    }
     fn dependency_providers(
         &self,
     ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
@@ -51,8 +59,8 @@ impl Builder for Rust {
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         &[
             RuntimeFile {
-                name: "rust-test.sh",
-                contents: include_str!("runtime/test.sh"),
+                name: "rust-test.py",
+                contents: include_str!("runtime/test.py"),
             },
             RuntimeFile {
                 name: "rust-build.py",

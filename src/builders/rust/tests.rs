@@ -242,7 +242,10 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
         plan.tasks["test"].reports[2].name.as_deref(),
         Some("doctest")
     );
-    assert_eq!(plan.tasks["test"].argv.last().unwrap(), "core");
+    assert_eq!(
+        serde_json::from_str::<Vec<String>>(plan.tasks["test"].argv.last().unwrap()).unwrap(),
+        ["core"]
+    );
     assert!(plan.tasks["test"]
         .argv
         .contains(&"/out/project/reports/doctest/doctest.xml".into()));

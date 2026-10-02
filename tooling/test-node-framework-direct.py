@@ -25,7 +25,9 @@ def main():
             fixture = ROOT/'tooling/fixtures'/framework
             assert (fixture/'node_modules').is_dir(), f'Provision dependencies in {fixture} first'
             project = Path(directory)/framework
-            shutil.copytree(fixture, project)
+            # npm's Unix .bin entries are links into their package. Dereferencing
+            # them relocates ESM launchers and breaks their relative imports.
+            shutil.copytree(fixture, project, symlinks=True)
             package_path = project/'package.json'
             package = json.loads(package_path.read_text(encoding='utf-8'))
             package['scripts'].pop('test', None)

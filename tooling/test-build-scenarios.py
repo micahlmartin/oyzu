@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import traceback
 
 from jsonschema import Draft202012Validator, FormatChecker
 from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, mocha, node, node_application, node_managers, node_matrix, node_preflight, node_quality, node_workspaces, python_application, python_container, python_legacy, python_quality, python_testing, rust, vitest
@@ -91,6 +92,8 @@ CASES = (
     ('core', 'materialization', materialization.verify),
     ('docker', 'docker', docker.verify),
     ('dependencies', 'docker-dependencies', docker_dependencies.verify),
+    ('dependencies', 'docker-uv-context', docker_dependencies.verify_uv),
+    ('dependencies', 'docker-poetry-context', docker_dependencies.verify_poetry),
     ('dependencies', 'docker-npm-context', docker_npm_context.verify),
     ('dependencies', 'docker-yarn-context', docker_yarn_context.verify),
     ('dependencies', 'docker-pnpm-context', docker_pnpm_context.verify),
@@ -161,21 +164,31 @@ def main():
 
     selected = select_cases(args.suite)
     summary = {'suite': args.suite, 'status': 'failed', 'selectedChecks': [name for name, _ in selected],
-               'completedChecks': [], 'verified': verified,
+               'completedChecks': [], 'failedChecks': [], 'verified': verified,
                'scope': 'implemented captured-build checks only; full authored scenario catalog remains pending'}
     try:
         with tempfile.TemporaryDirectory(prefix="oyzu-build-check-") as temporary:
             base = Path(temporary)
             for name, check in selected:
                 summary['activeCheck'] = name
-                check(ROOT, base, invoke, validate, source_files, verified)
-                summary['completedChecks'].append(name)
+                try:
+                    check(ROOT, base, invoke, validate, source_files, verified)
+                except Exception as error:
+                    # Each registered group owns its fixture directories. Keep
+                    # failures visible without hiding unrelated native results.
+                    summary['failedChecks'].append({'name': name, 'error': str(error),
+                                                   'traceback': traceback.format_exc()})
+                    traceback.print_exc()
+                else:
+                    summary['completedChecks'].append(name)
             summary.pop('activeCheck', None)
-            summary['status'] = 'succeeded'
+            summary['status'] = 'failed' if summary['failedChecks'] else 'succeeded'
     finally:
         if evidence:
             (evidence/'summary.json').write_text(json.dumps(summary,indent=2))
         print(json.dumps(summary,indent=2))
+    if summary['failedChecks']:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

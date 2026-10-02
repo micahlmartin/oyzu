@@ -65,49 +65,56 @@ CMD ["python", "-c", "import six; print(six.__version__)"]
     assert not offline['artifacts']
     assert next(a for a in offline['actions'] if a['id'] == 'image:build')['status'] == 'failed'
     verified.append('Docker dependency context: native pip resolves in the exact Python 3.13 base, installs offline from captured wheels, retains package/runtime evidence and OCI/JUnit/quality results, repeats identities, requires explicit selection for ambiguous ecosystems, and blocks build-time network fetches; private-source and other-manager EX-058 requirements remain pending')
-    locked_profiles(base, invoke, validate, source_files, verified)
 
 
-def locked_profiles(base, invoke, validate, source_files, verified):
-    for manager, image in IMAGES.items():
-        project = base / f'docker-{manager}-context'
-        create(project, manager)
-        # Fixture setup obtains real native lock hashes before Oyzu captures the
-        # project. It is not a network fallback during an Oyzu build.
-        command = lock_command(manager, '/usr/local/bin/python')
-        result = subprocess.run(['docker', 'run', '--rm', '--pull=never', '--mount', f'type=bind,source={project},target=/workspace', '--workdir', '/workspace', '--entrypoint', command[0], image, *command[1:]], capture_output=True, text=True, timeout=300)
-        assert result.returncode == 0, (result.stdout, result.stderr)
-        (project / 'build.yaml').write_text('image:\n  uses: docker/image\n')
-        installer = 'uv pip install --python /usr/local/bin/python --no-cache' if manager == 'uv' else 'pip install --no-cache-dir --no-compile'
-        (project / 'Dockerfile').write_text(f'''FROM {image}
+def verify_uv(root, base, invoke, validate, source_files, verified):
+    locked_profile('uv', base, invoke, validate, source_files, verified)
+
+
+def verify_poetry(root, base, invoke, validate, source_files, verified):
+    locked_profile('poetry', base, invoke, validate, source_files, verified)
+
+
+def locked_profile(manager, base, invoke, validate, source_files, verified):
+    image = IMAGES[manager]
+    project = base / f'docker-{manager}-context'
+    create(project, manager)
+    # Fixture setup obtains real native lock hashes before Oyzu captures the
+    # project. It is not a network fallback during an Oyzu build.
+    command = lock_command(manager, '/usr/local/bin/python')
+    result = subprocess.run(['docker', 'run', '--rm', '--pull=never', '--mount', f'type=bind,source={project},target=/workspace', '--workdir', '/workspace', '--entrypoint', command[0], image, *command[1:]], capture_output=True, text=True, timeout=300)
+    assert result.returncode == 0, (result.stdout, result.stderr)
+    (project / 'build.yaml').write_text('image:\n  uses: docker/image\n')
+    installer = 'uv pip install --python /usr/local/bin/python --no-cache' if manager == 'uv' else 'pip install --no-cache-dir --no-compile'
+    (project / 'Dockerfile').write_text(f'''FROM {image}
 WORKDIR /app
 RUN --mount=type=bind,from=dependencies,target=/dependencies \\
     {installer} --target /app/site --no-deps --require-hashes --no-index --find-links=/dependencies -r /dependencies/requirements.txt
 RUN PYTHONPATH=/app/site python -B -S -c "import six; assert six.__version__ == '1.17.0'; assert six.__file__.startswith('/app/site/')"
 CMD ["python", "-S", "/app/site/six.py"]
 ''')
-        before = source_files(project)
-        invoke(project, 'build')
-        manifest = validate(project / 'dist')
-        assert manifest['status'] == 'succeeded' and source_files(project) == before
-        artifact, = manifest['artifacts']
-        assert '-dev.g' in artifact['version']
-        _, _, contents = image_contents(project / 'dist' / artifact['path'])
-        assert b'__version__ = "1.17.0"' in contents['app/site/six.py']
-        dependency = json.loads((project / 'dist/dependencies/image.json').read_text())
-        context = dependency['extensions']['oyzu.dev/docker']['dependencyContext']
-        assert context['provider'] == 'python/' + manager
-        assert context['snapshot']['manager']['id'] == manager
-        assert context['snapshot']['manager']['version'] == {'uv':'0.12.21', 'poetry':'2.5.1'}[manager]
-        assert [(p['name'], p['version']) for p in dependency['packages']] == [('six', '1.17.0')]
-        assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == 2
-        repeated = invoke(project, 'build')
-        assert repeated['planDigest'] == manifest['planDigest']
-        assert repeated['artifacts'][0]['digest'] == artifact['digest']
-        lock = project / ('uv.lock' if manager == 'uv' else 'poetry.lock')
-        lock.write_text(re.sub(r'sha256:[a-f0-9]{64}', 'sha256:' + '0' * 64, lock.read_text()))
-        invoke(project, 'build', success=False)
-        rejected = validate(project / 'dist')
-        assert not rejected['actions'] and not rejected['artifacts']
-        assert 'hash' in json.dumps(rejected['diagnostics']).lower()
-        verified.append(f'Docker {manager} dependency context: native locked runtime closure excludes development groups, offline hashed installation/import in a private target, snapshot OCI/JUnit/quality results, repeatability, unchanged source locks and rejected lock hashes; private registries remain pending')
+    before = source_files(project)
+    invoke(project, 'build')
+    manifest = validate(project / 'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    artifact, = manifest['artifacts']
+    assert '-dev.g' in artifact['version']
+    _, _, contents = image_contents(project / 'dist' / artifact['path'])
+    assert b'__version__ = "1.17.0"' in contents['app/site/six.py']
+    dependency = json.loads((project / 'dist/dependencies/image.json').read_text())
+    context = dependency['extensions']['oyzu.dev/docker']['dependencyContext']
+    assert context['provider'] == 'python/' + manager
+    assert context['snapshot']['manager']['id'] == manager
+    assert context['snapshot']['manager']['version'] == {'uv':'0.12.21', 'poetry':'2.5.1'}[manager]
+    assert [(p['name'], p['version']) for p in dependency['packages']] == [('six', '1.17.0')]
+    assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == 2
+    repeated = invoke(project, 'build')
+    assert repeated['planDigest'] == manifest['planDigest']
+    assert repeated['artifacts'][0]['digest'] == artifact['digest']
+    lock = project / ('uv.lock' if manager == 'uv' else 'poetry.lock')
+    lock.write_text(re.sub(r'sha256:[a-f0-9]{64}', 'sha256:' + '0' * 64, lock.read_text()))
+    invoke(project, 'build', success=False)
+    rejected = validate(project / 'dist')
+    assert not rejected['actions'] and not rejected['artifacts']
+    assert 'hash' in json.dumps(rejected['diagnostics']).lower()
+    verified.append(f'Docker {manager} dependency context: native locked runtime closure excludes development groups, offline hashed installation/import in a private target, snapshot OCI/JUnit/quality results, repeatability, unchanged source locks and rejected lock hashes; private registries remain pending')

@@ -61,7 +61,8 @@ src/
       planning.rs             # Snapshot artifacts, fixed target facts, native checks and reports
       packaging.rs            # Native path-dependency ordering for mixed registry workspaces
       reporting.rs            # Private nextest settings and exact report destinations
-      runtime/test.sh         # Independent nextest, coverage and doctest failure preservation
+      testing.rs              # Shared captured/host test selection and report obligations
+      runtime/test.py         # Cross-platform nextest, coverage and doctest failure preservation
       runtime/doctest.py      # Stable Cargo invocations with explicitly scoped JUnit
       runtime/build.py        # Native compiler-message binding and contained executable staging
       runtime/package.py      # Verified native archives/indexes in a private registry overlay

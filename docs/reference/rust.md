@@ -15,7 +15,7 @@ oyzu build
 oyzu inspect dist
 ```
 
-Development tasks use already provisioned Cargo, rustfmt and Clippy on the host. Static task listing reads native manifests without executing Cargo. Implicit tasks include install (`cargo fetch --locked`), workspace build/test, Clippy, formatting, formatting checks and archive. `oyzu run format` modifies source; captured builds use read-only `format-check`. Direct task execution uses native host state and does not currently collect a `dist/` report bundle. Native Cargo workspace ownership is distinct from separate Oyzu target groups.
+Development tasks use already provisioned Cargo, rustfmt and Clippy on the host. Static task listing reads native manifests without executing Cargo. Implicit tasks include install (`cargo fetch --locked`), workspace build/test, Clippy, formatting, formatting checks and archive. `oyzu run format` modifies source; captured builds use read-only `format-check`. Direct test execution now uses native host state and the shared test-only `dist/` report collector; its full native acceptance is pending on the CI toolchains described below. Native Cargo workspace ownership is distinct from separate Oyzu target groups.
 
 Captured builds require Docker and this explicitly provisioned Linux amd64 image:
 
@@ -58,6 +58,20 @@ The additional required `doctest.xml` report has one case per Cargo invocation, 
 Doctest failures block artifact collection even if nextest and coverage generation succeed. Inspect the named report and native diagnostics to repair the example, compilation or provisioned rustdoc/linker environment, then rebuild. Task replacement retains this additional report obligation. The existing coverage report measures nextest execution only: doctest coverage and individual doctest JUnit cases remain unfinished, as do every custom nextest configuration and broader framework support.
 
 Compilation, tests, lint, formatting and archive verification are required gates. Their failures block final artifacts. Native logs and available reports explain the failed stage. Repair the native input and rerun; an earlier successful bundle is retained under `.oyzu/history`, not reused as this build's successful output.
+
+## Direct test evidence
+
+`oyzu run test` is now connected to nextest JUnit, native LLVM Cobertura coverage and Cargo doctest invocation reports, followed by `oyzu inspect dist`. This integration is implemented but its full native acceptance is pending. The local Windows GNU Rust 1.94.0 compiler lacks `profiler_builtins`, so the first native end-to-end probe failed compilation under coverage instrumentation. That failure is not a passing Rust reporting result. CI runs the real app/workspace probes with provisioned reporting tools on Windows MSVC, Linux and macOS.
+
+Provision Python 3.11+, Rust/Cargo with its `llvm-tools-preview` component and compiler profiler runtime, cargo-nextest 0.9.146 and cargo-llvm-cov 0.9.1. Windows uses an MSVC compiler and its native linker/SDK for coverage; the local GNU compiler is not supported by this flow. Dependencies must already be installed for locked offline Cargo resolution. Tools are not installed by the product. Missing LLVM tools fail before llvm-cov can request a download; explicit `LLVM_COV`/`LLVM_PROFDATA` paths can identify provisioned binaries.
+
+After shared task admission, Cargo's native `metadata --no-deps --locked --offline` supplies workspace membership and doctest-enabled packages. Static `run list` never invokes Cargo. The exact implicit `cargo test --locked --workspace` command receives automatic instrumentation. Arbitrary task replacements retain their bodies and required JUnit/coverage/doctest obligations; they do not waive evidence collection. No Oyzu build/test configuration is needed for the default flow.
+
+A temporary nextest profile inherits the project's `default` configuration and supplies fresh JUnit output; the native `.config/nextest.toml` is not edited. This uses nextest's [native profile inheritance](https://www.nexte.st/docs/configuration/). Project coverage/reporting state is not reused: compilation and coverage use private temporary target directories. Native nextest may retain its ordinary store output on the host. Extra command arguments go to the nextest invocation; doctest selection remains the metadata-selected workspace packages. Alternate nextest profiles, arbitrary Cargo test argument compatibility and filtered doctest selection are not implemented by this initial direct adapter.
+
+The cross-platform Python runtime is shared by captured and direct execution. It runs nextest, attempts coverage generation independently of a failed test, and runs the existing stable Cargo doctest adapter. Any failed phase fails the task. Doctest reports count package invocations, not individual examples, and doctest execution is not included in nextest coverage. Custom native settings, build scripts and proc macros retain their normal execution semantics. Direct reports disclose host execution and unverified tool identity; Cargo's offline flags are not a host network sandbox. See [direct test bundle boundaries](direct-tests.md).
+
+`python tooling/test-rust-direct.py --cli <compiled-path>` uses EX-021 and EX-022: implicit task listing, default-profile settings, native JUnit/Cobertura, successful and failed tests, independent doctest failure, unchanged source/configuration and bundle inspection. It requires `tooling/design-requirements.txt` for report-contract validation. CI explicitly provisions the pinned reporters with `tooling/provision-rust-reporting.py` after downloading the compiled CLI. New CI results remain pending; this wiring is not acceptance evidence.
 
 ## Artifact selection and collection
 

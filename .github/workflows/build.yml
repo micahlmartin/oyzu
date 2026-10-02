@@ -111,6 +111,17 @@ jobs:
           go build -mod=readonly -trimpath -o "$ADAPTER" .
           cd "$GITHUB_WORKSPACE"
           python tooling/test-go-modulezip.py --adapter "$ADAPTER"
+      - name: Native Rust direct test bundles
+        shell: bash
+        env:
+          RUSTUP_TOOLCHAIN: '1.94.0'
+        run: |
+          rustup toolchain install 1.94.0 --profile minimal --component llvm-tools-preview
+          python tooling/provision-rust-reporting.py --destination .ci-rust-reporting
+          python -m pip install -r tooling/design-requirements.txt
+          export PATH="$GITHUB_WORKSPACE/.ci-rust-reporting:$PATH"
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-rust-direct.py --cli "$CLI"
       - name: Native Docker metadata and OCI image inputs
         shell: bash
         run: |
