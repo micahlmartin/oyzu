@@ -495,3 +495,21 @@ Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and nine
 real CLI task scenarios passed. Linux passed all nine layout tests and strict
 all-target Clippy. Documentation structure passed. Native macOS confirmation
 is pending; this does not complete TM-04 or any backend acceptance row.
+
+## Checkpoint 61: native Go conformance and retained review evidence
+
+Fork `8240083a4` passes library/example Clippy and all seven fresh-process
+conformance scenarios on Windows, macOS and Linux in run `36974808824`. This
+qualifies the data-only Go facts boundary, not artifact verification/installation.
+Root `b63f9f7` passes all three native CLI build jobs in run `36975072550`,
+including the macOS lease-release regression; downstream scenarios are still
+running. Neither result covers the newer executable-layout revision.
+
+Fork `f7d5bb906` adds per-target offline graph/notice collection after explicit
+locked metadata provisioning, with 30-day CI artifacts and collector-change
+triggers. The workflow now checks formatting of the Go backend file as well.
+All 19 compliance regressions ran locally (one Windows symlink skip), the notice
+inventory remains consistent, and workflow YAML parses with three explicit
+targets. The first report-producing CI run remains pending. Local Linux evidence
+contains 955 unreviewed packages; the cross-target collection stopped at missing
+macOS cache metadata. It does not establish three-target evidence or approval.

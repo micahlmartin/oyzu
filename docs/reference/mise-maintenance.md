@@ -125,3 +125,14 @@ an import, select legal terms or clear a distribution. All rows remain unreviewe
 Cargo metadata may unify development features and does not prove which native or
 generated code ships. The actual compiled graph, notice packaging and applicable
 source-delivery obligations remain separate release evidence.
+
+### Retained candidate graph evidence
+
+Fork `f7d5bb906` adds target-specific collection to the native embedding workflow.
+After library checks, it provisions locked metadata inputs with `cargo fetch`,
+then runs the offline collector for the matching Linux GNU, Darwin ARM64 or
+Windows MSVC target. Reports are retained for 30 days as
+`cargo-evidence-<target>-<commit>` artifacts. Preserve reviewed evidence outside
+expiring CI storage before release review. A missing report fails the job; an
+upload does not approve licenses, establish a shipping graph or fulfill source
+delivery obligations. The workflow's first report-producing run is pending.
