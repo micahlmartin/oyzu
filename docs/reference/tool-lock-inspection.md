@@ -13,7 +13,10 @@ oyzu tools inspect-lock tests/fixtures/tool-lock/valid.toml
 
 The second example uses synthetic identity data, not an installable artifact.
 The command requires a regular UTF-8 TOML file and reads at most 8 MiB plus one
-byte to detect overflow. It does not read project configuration or mise files,
+byte to detect overflow. All tool-record readers verify the opened object is a
+regular file; Unix uses nonblocking open so a FIFO is rejected without waiting
+for a writer. Explicit symlinks to regular metadata files remain supported; this
+is not the installation store's no-follow containment boundary. It does not read project configuration or mise files,
 use ambient mise settings, make network requests, or modify the lock. Profiles
 and other configuration options do not filter inspection: the whole document
 is validated. Scope paths are checked lexically; filesystem containment and

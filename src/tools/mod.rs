@@ -12,7 +12,7 @@ pub use store::{TreeEntry, TreeInspection};
 
 use anyhow::{ensure, Context, Result};
 use serde::Serialize;
-use std::{fs::File, io::Read, path::Path};
+use std::{fs::OpenOptions, io::Read, path::Path};
 
 /// Reap only final process-lease records whose journal, mutation and installation
 /// lease locks are all available. Never deletes installations or lock files.
@@ -44,10 +44,7 @@ pub fn stage_tool_candidate(
     plan: &[u8],
     blob: VerifiedBlob,
 ) -> Result<String> {
-    let mut bytes = Vec::new();
-    File::open(request.lock_path)?
-        .take(lock::MAX_BYTES as u64 + 1)
-        .read_to_end(&mut bytes)?;
+    let bytes = read_record(request.lock_path, lock::MAX_BYTES)?;
     let lock = lock::parse(&bytes)?;
     store::stage(request, plan, blob, &lock)
 }
@@ -99,14 +96,7 @@ pub struct LockedSelection {
 /// mutation. This checks structure and content identities, not source trust,
 /// current configuration compatibility, installed content or authorization.
 pub fn inspect_lock(path: &Path) -> Result<LockInspection> {
-    let file = File::open(path).with_context(|| format!("open {}", path.display()))?;
-    ensure!(
-        file.metadata()?.is_file(),
-        "tool lock must be a regular file"
-    );
-    let mut bytes = Vec::new();
-    file.take(lock::MAX_BYTES as u64 + 1)
-        .read_to_end(&mut bytes)?;
+    let bytes = read_record(path, lock::MAX_BYTES)?;
     let document = lock::parse(&bytes)?;
     Ok(LockInspection {
         format: document.format,
@@ -163,10 +153,7 @@ pub fn verify_installation_selection(
     platform: &str,
     installer: &str,
 ) -> Result<String> {
-    let mut bytes = Vec::new();
-    File::open(lock_path)?
-        .take(lock::MAX_BYTES as u64 + 1)
-        .read_to_end(&mut bytes)?;
+    let bytes = read_record(lock_path, lock::MAX_BYTES)?;
     let lock = lock::parse(&bytes)?;
     store::verify(
         &lock,
@@ -195,10 +182,7 @@ pub fn lease_installation_selection(
     platform: &str,
     installer: &str,
 ) -> Result<InstallationLease> {
-    let mut bytes = Vec::new();
-    File::open(lock_path)?
-        .take(lock::MAX_BYTES as u64 + 1)
-        .read_to_end(&mut bytes)?;
+    let bytes = read_record(lock_path, lock::MAX_BYTES)?;
     let lock = lock::parse(&bytes)?;
     let staging = staging.map(std::path::absolute).transpose()?;
     store::transact(
@@ -210,4 +194,28 @@ pub fn lease_installation_selection(
         platform,
         installer,
     )
+}
+
+/// Bounded tool metadata input, not the store's anchored content access. Unix
+/// nonblocking open lets us reject FIFOs before reading, including replacements
+/// between a caller's path check and open. Regular-file symlinks remain supported.
+fn read_record(path: &Path, limit: usize) -> Result<Vec<u8>> {
+    let mut options = OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NONBLOCK);
+    }
+    let file = options
+        .open(path)
+        .with_context(|| format!("open {}", path.display()))?;
+    ensure!(
+        file.metadata()?.is_file(),
+        "tool record must be a regular file"
+    );
+    let mut bytes = Vec::new();
+    file.take(limit as u64 + 1).read_to_end(&mut bytes)?;
+    ensure!(bytes.len() <= limit, "tool record exceeds byte limit");
+    Ok(bytes)
 }

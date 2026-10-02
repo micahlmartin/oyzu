@@ -36,3 +36,39 @@ fn descriptor_cli_is_read_only_and_ignores_ambient_configuration() {
     assert_eq!(run().status.code(), Some(2));
     assert_eq!(fs::read(&path).unwrap(), b"{\"source_pin\":\"main\"}");
 }
+
+#[cfg(unix)]
+#[test]
+fn tool_inspection_rejects_fifo_inputs_without_waiting_for_a_writer() {
+    use std::{
+        ffi::CString,
+        os::unix::ffi::OsStrExt,
+        time::{Duration, Instant},
+    };
+    let temp = tempfile::tempdir().unwrap();
+    let path = temp.path().join("record");
+    let name = CString::new(path.as_os_str().as_bytes()).unwrap();
+    assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+    for command in ["inspect-backend", "inspect-lock"] {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_oyzu"))
+            .args(["tools", command])
+            .arg(&path)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert_eq!(status.code(), Some(2));
+                break;
+            }
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("{command} blocked on a FIFO");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+}

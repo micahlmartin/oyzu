@@ -602,3 +602,18 @@ license approval or a complete shipping graph.
 Root run `36975364359` passes all three native CLI task scenario jobs in addition
 to its builds and isolated BuildKit check. Captured-source Linux builds remain
 in progress and are not counted as passed.
+
+## Checkpoint 68: nonblocking rejection of Unix special record inputs
+
+The shared tool-record reader now owns bounded regular-file reads for descriptor
+inspection, lock inspection, candidate staging, selection verification and lease
+publication. Unix opens with O_NONBLOCK before checking the opened file type, so
+a FIFO cannot hang validation before the regular-file check. A real CLI regression
+creates a FIFO without a writer and requires both inspectors to reject it within
+a bounded deadline, killing/reaping the child if the regression returns. Ordinary
+regular-file symlinks remain supported; store containment rules are unchanged.
+
+Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and nine
+real CLI task scenarios passed. Linux FIFO/descriptor and lock CLI regressions,
+nine layout tests, 16 receipt/recovery tests and strict all-target Clippy passed.
+Documentation structure passed; native macOS verification remains pending.

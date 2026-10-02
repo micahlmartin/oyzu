@@ -1,7 +1,7 @@
 //! Backend identity inspection, independent of source admission or execution.
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
-use std::{fs::File, io::Read, path::Path};
+use std::path::Path;
 
 const MAX_BYTES: usize = 2 * 1024 * 1024;
 const MAX_INTEGER: u64 = 9_007_199_254_740_991;
@@ -29,13 +29,7 @@ pub struct BackendInspection {
 /// Read at most 2 MiB plus an overflow probe; never resolve source references,
 /// load configuration, mutate input or grant backend admission.
 pub fn inspect(path: &Path) -> Result<BackendInspection> {
-    let file = File::open(path)?;
-    ensure!(
-        file.metadata()?.is_file(),
-        "backend descriptor must be a regular file"
-    );
-    let mut bytes = Vec::new();
-    file.take(MAX_BYTES as u64 + 1).read_to_end(&mut bytes)?;
+    let bytes = super::read_record(path, MAX_BYTES)?;
     parse(&bytes)
 }
 
