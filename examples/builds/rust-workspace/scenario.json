@@ -24,6 +24,11 @@
       "name": "generated-input-change",
       "change": "Edit core/message.txt.",
       "expect": "Regenerate the constant and invalidate downstream consumers."
+    },
+    {
+      "name": "doctest-failure",
+      "change": "Remove the negation from the greeting documentation assertion in core/src/lib.rs.",
+      "expect": "Native doctests fail while ordinary unit tests pass; retain a separate invocation-scoped JUnit failure and collect no artifacts."
     }
   ],
   "nativeChecks": [

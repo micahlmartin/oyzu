@@ -1,4 +1,9 @@
 include!(concat!(env!("OUT_DIR"), "/message.rs"));
+/// Returns the configured greeting.
+///
+/// ```
+/// assert!(!example_core::greeting().is_empty());
+/// ```
 pub fn greeting() -> String {
     if cfg!(feature = "shout") {
         MESSAGE.to_uppercase()

@@ -51,7 +51,8 @@ src/
       preparation.rs          # Offline lock validation, manifest overlay and binary inventory
       planning.rs             # Snapshot artifacts, fixed target facts, native checks and reports
       reporting.rs            # Private nextest settings and exact report destinations
-      runtime/test.sh         # Native coverage/test reporting with failure preservation
+      runtime/test.sh         # Independent nextest, coverage and doctest failure preservation
+      runtime/doctest.py      # Stable Cargo invocations with explicitly scoped JUnit
       runtime/build.py        # Native compiler-message binding and contained executable staging
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters

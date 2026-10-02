@@ -186,6 +186,29 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
     assert!(plan.tasks["build"]
         .argv
         .contains(&"--message-format=json-render-diagnostics".into()));
+    assert_eq!(plan.tasks["test"].reports.len(), 2);
+    native.packages[1].targets[0].kind = vec!["lib".into()];
+    native.packages[1].targets[0].doctest = true;
+    fs::write(
+        prepared.root.join("metadata.json"),
+        serde_json::to_vec(&native).unwrap(),
+    )
+    .unwrap();
+    let plan = super::planning::plan(PlanningContext {
+        target: &workspace.targets["project"],
+        source: &source,
+        dependencies: Some(&prepared),
+    })
+    .unwrap();
+    assert_eq!(plan.tasks["test"].reports.len(), 3);
+    assert_eq!(
+        plan.tasks["test"].reports[2].name.as_deref(),
+        Some("doctest")
+    );
+    assert_eq!(plan.tasks["test"].argv.last().unwrap(), "core");
+    assert!(plan.tasks["test"]
+        .argv
+        .contains(&"/out/project/reports/doctest/doctest.xml".into()));
 }
 
 #[test]

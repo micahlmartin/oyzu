@@ -131,7 +131,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let platform = json!({"os":context.image.os,"arch":context.image.arch,"abi":host});
     let record = json!({
         "schemaVersion":"v1alpha1", "kind":"dependency-snapshot",
-        "adapter":{"id":"rust/cargo-workspace", "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":"3"},
+        "adapter":{"id":"rust/cargo-workspace", "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":"4"},
         "manager":{"id":"cargo","version":manager_version,"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&root.join("Cargo.lock"))?],
         "targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,

@@ -46,6 +46,8 @@ pub(super) struct Target {
     pub name: String,
     pub kind: Vec<String>,
     pub src_path: String,
+    #[serde(default)]
+    pub doctest: bool,
     #[serde(default, rename = "required-features")]
     pub required_features: Vec<String>,
 }
