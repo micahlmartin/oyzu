@@ -85,3 +85,40 @@ impl Runtime for Native {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Opt in on a provisioned host: ordinary unit tests must not require an
+    // unlocked credential store or mutate a developer's native keychain.
+    #[test]
+    #[ignore = "requires an available native OS credential store"]
+    fn native_integrity_store_roundtrip() {
+        let unique = tempfile::tempdir().unwrap();
+        let id = crate::records::digest(
+            "oyzu.policy-store-test.v1",
+            &serde_json::json!(unique.path()),
+        )
+        .unwrap();
+        struct Cleanup(keyring::Entry);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = self.0.delete_credential();
+            }
+        }
+        let cleanup = Cleanup(entry(&id).unwrap());
+        let first = Native::new().unwrap();
+        assert_eq!(first.state(&id).unwrap(), None);
+        let original = br#"{"sequence":1,"denied":false}"#;
+        first.save(&id, original).unwrap();
+        // New runtime and keyring handles must observe persisted bytes.
+        let reopened = Native::new().unwrap();
+        assert_eq!(reopened.state(&id).unwrap().as_deref(), Some(&original[..]));
+        let replacement = br#"{"sequence":2,"denied":true}"#;
+        reopened.save(&id, replacement).unwrap();
+        assert_eq!(first.state(&id).unwrap().as_deref(), Some(&replacement[..]));
+        cleanup.0.delete_credential().unwrap();
+        assert_eq!(first.state(&id).unwrap(), None);
+    }
+}
