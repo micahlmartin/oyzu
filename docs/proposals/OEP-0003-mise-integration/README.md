@@ -2,7 +2,7 @@
 id: OEP-0003
 title: In-process mise integration
 status: draft
-implementation: not-started
+implementation: in-progress
 updated: 2026-10-01
 authors: [micahlmartin]
 reviewers: []
@@ -20,6 +20,9 @@ tracking-issue: null
 Version switching, PATH restoration, shell activation, and backend compatibility are difficult to reimplement correctly. Oyzu should reuse mise-derived Rust functionality in-process. Invoking or shipping a separate mise executable is explicitly prohibited.
 
 ## Proposed integration boundary
+
+The authorized [reuse experiment](experiment.md) records hypotheses and execution
+criteria. Its results do not mark this draft accepted.
 
 Preserve tool resolution, installation state, activation, shims, and task/environment behavior as a coherent subsystem where feasible. Place an Oyzu-owned facade around these operations. Introduce acquisition and management interfaces without rewriting mature platform behavior unnecessarily.
 

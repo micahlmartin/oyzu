@@ -1,5 +1,18 @@
 # Builder implementation status
 
+## Separate mise reuse experiment
+
+The authorized [mise experiment](proposals/OEP-0003-mise-integration/experiment.md)
+investigates tool management separately from the builder objective below.
+Its harness is outside the production Rust crate. The unmodified pinned mise
+library compiles on Linux, but the compile-only external configuration probe
+fails because its discovery-free constructor is private. The completed patched
+experiment passes 31 Linux and 28 native Windows cases with real Node tools,
+Oyzu-owned TOML/locks, shell lifecycle, exec, shims and a synthetic proxy route.
+It recommends a small maintained fork, with macOS, broader backends and production
+broker/enforcement integration still unqualified. No installation, shell or
+managed backend capability is claimed for the shipped Oyzu CLI.
+
 The active objective is the complete builder system, all applicable sample scenarios passing through real Oyzu behavior, snapshot artifacts, and CI that builds the CLI before running scenario verification. Tool installation is excluded. The checkpoints below do not redefine completion around a subset.
 
 DEC-029 makes implicit testing, detected-framework/default selection and automatic JUnit plus applicable coverage collection a requirement for every builder. The [testing contract](proposals/OEP-0014-builders-and-examples/testing.md) also requires test-only dist bundles for direct test invocation and honest packaging coverage applicability/producer references. Existing partial profiles do not yet fulfill the universal contract: Docker default assertions, complete Helm/Ant reporting, all runner fallbacks, direct-run collection and explicit applicability/selection records still require implementation and native acceptance checks. Previously unavailable tests/reporting remain gaps to close, not exceptions to the product requirement.
