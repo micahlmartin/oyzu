@@ -283,6 +283,7 @@ fn secure_directory(path: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    mod processes;
     use super::super::policy_runtime::{Refresh, Runtime};
     use super::*;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};

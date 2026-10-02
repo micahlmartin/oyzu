@@ -463,3 +463,5 @@ This is forked native Ant JUnit integration, not all Java frameworks. In-process
 Integration references: [Ant JUnit task](https://ant.apache.org/manual/Tasks/junit.html) and [native JUnitTask extension API](https://ant.apache.org/manual/api/org/apache/tools/ant/taskdefs/optional/junit/JUnitTask.html).
 
 Concurrent policy acquisition is exercised with eight simultaneous callers sharing the real cache directory and file lock. Exactly one transport refresh commits the snapshot; the other callers independently verify and reuse that committed snapshot. This verifies thread contention on separate file handles, not cross-process credential-store or crash behavior (CFG-11).
+
+A separate-process fixture now starts four test-binary processes together against the real agent cache/refresh lock. Its test integrity store deliberately pauses halfway through writes; callers must never read that partial state, and exactly one transport refresh occurs. This tests process locking and verified cache reuse with a substituted store, not native credential-store crash durability.
