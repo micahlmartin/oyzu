@@ -1,4 +1,5 @@
 //! Captured-source build lifecycle (OEP-0006/0007/0012).
+mod affected;
 mod bundle;
 mod containers;
 mod directory;
@@ -71,6 +72,29 @@ pub fn run_selected_with_options(
     options: &crate::config::session::Options,
     requested: &[String],
 ) -> Result<Value> {
+    run_selection(root, images, plan_only, options, requested, None)
+}
+
+/// Compare captured source with a local Git baseline, select impacted owners and
+/// their dependency closure. Missing baseline/scope conservatively selects all.
+pub fn run_affected_with_options(
+    root: &Path,
+    images: &[String],
+    plan_only: bool,
+    options: &crate::config::session::Options,
+    baseline: &str,
+) -> Result<Value> {
+    run_selection(root, images, plan_only, options, &[], Some(baseline))
+}
+
+fn run_selection(
+    root: &Path,
+    images: &[String],
+    plan_only: bool,
+    options: &crate::config::session::Options,
+    requested: &[String],
+    affected: Option<&str>,
+) -> Result<Value> {
     let root = crate::config::session::workspace_root(root, options.root.as_deref())?;
     // Capture and validate all administrative policy before any build side effects.
     let session = crate::config::session::Session::open(&root, options)?;
@@ -97,6 +121,9 @@ pub fn run_selected_with_options(
         workspace.invocation_configuration()?;
         let mut selection = selection::Selection::new(&workspace, requested)?;
         let source = snapshot::capture(&root, &source_path)?;
+        if let Some(reference) = affected {
+            selection = selection::Selection::affected(&workspace, &source, reference)?;
+        }
         planning::verify_inventory_source(&workspace, &source)?;
         let variants = variants::expand(&mut workspace)?;
         selection.expand_variants(&workspace, &variants)?;

@@ -9,10 +9,12 @@
     "CACHE-02"
   ],
   "projects": [
-    "project"
+    "project",
+    "variants/targets"
   ],
   "oyzu": [
-    "oyzu build"
+    "oyzu build",
+    "oyzu build --affected HEAD"
   ],
   "expected": [
     "A shared input change affects API and web; an API-only change leaves web unaffected.",
@@ -28,6 +30,11 @@
       "name": "api-change",
       "change": "Edit api/index.mjs.",
       "expect": "API changes; unrelated web action remains reusable."
+    },
+    {
+      "name": "declared-targets",
+      "change": "From variants/targets, commit a local Git baseline, then edit api/src/greeting.mjs or shared/src/greeting.mjs.",
+      "expect": "API-only selects api and its shared prerequisite; shared change selects shared, api and web; unused stays excluded. No changes yields an empty inspected bundle."
     }
   ],
   "nativeChecks": [
@@ -47,7 +54,28 @@
     "project/package.json",
     "project/shared/message.mjs",
     "project/web/index.mjs",
-    "project/web/index.test.mjs"
+    "project/web/index.test.mjs",
+    "variants/targets/api/build.mjs",
+    "variants/targets/api/package-lock.json",
+    "variants/targets/api/package.json",
+    "variants/targets/api/src/greeting.mjs",
+    "variants/targets/api/test/greeting.test.mjs",
+    "variants/targets/build.yaml",
+    "variants/targets/shared/build.mjs",
+    "variants/targets/shared/package-lock.json",
+    "variants/targets/shared/package.json",
+    "variants/targets/shared/src/greeting.mjs",
+    "variants/targets/shared/test/greeting.test.mjs",
+    "variants/targets/unused/build.mjs",
+    "variants/targets/unused/package-lock.json",
+    "variants/targets/unused/package.json",
+    "variants/targets/unused/src/greeting.mjs",
+    "variants/targets/unused/test/greeting.test.mjs",
+    "variants/targets/web/build.mjs",
+    "variants/targets/web/package-lock.json",
+    "variants/targets/web/package.json",
+    "variants/targets/web/src/greeting.mjs",
+    "variants/targets/web/test/greeting.test.mjs"
   ],
   "hosts": {
     "intended": [
@@ -58,6 +86,7 @@
     "verified": []
   },
   "limitations": [
-    "Oyzu CLI/build/agent integration is pending; native checks do not prove policy, sandbox, cache, reporting, or release behavior."
+    "Original single-project action-cache reuse remains pending. The declared-target variation has local no-change CLI proof and registered selective captured-build checks; those CI results remain pending.",
+    "Native workspace member-level impact and policy-aware affected selection remain unfinished."
   ]
 }

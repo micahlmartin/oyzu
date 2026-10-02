@@ -43,6 +43,9 @@ enum Commands {
     Build {
         /// Target IDs; omitted means all targets. Required dependencies are included.
         targets: Vec<String>,
+        /// Build targets affected since a local Git ref, including dependents.
+        #[arg(long, conflicts_with = "targets")]
+        affected: Option<String>,
         /// Emit the resolved deterministic plan without executing it.
         #[arg(long)]
         plan: bool,
@@ -95,9 +98,13 @@ fn run() -> Result<i32> {
             plan,
             image,
             targets,
+            affected,
         } => {
-            let result =
-                build::run_selected_with_options(&directory, image, *plan, &options, targets)?;
+            let result = if let Some(reference) = affected {
+                build::run_affected_with_options(&directory, image, *plan, &options, reference)?
+            } else {
+                build::run_selected_with_options(&directory, image, *plan, &options, targets)?
+            };
             println!("{}", serde_json::to_string_pretty(&result)?);
             return Ok(if *plan || result["status"] == "succeeded" {
                 0

@@ -24,7 +24,7 @@ from build_scenarios import docker_go_context
 from build_scenarios import docker_rust_context
 from build_scenarios import mixed_monorepo
 from build_scenarios import generated_source, service_test
-from build_scenarios import yarn_workspaces, pnpm_workspaces
+from build_scenarios import yarn_workspaces, pnpm_workspaces, affected
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -76,6 +76,7 @@ SUITES = ('core', 'dependencies', 'node', 'python', 'go', 'rust', 'java', 'helm'
 # of these checks; it cannot replace native outcomes or scenario expectations.
 CASES = (
     ('core', 'mixed-monorepo', mixed_monorepo.verify),
+    ('node', 'affected-targets', affected.verify),
     ('node', 'generated-source', generated_source.verify),
     ('node', 'service-test', service_test.verify),
     ('node', 'node-overrides', node.verify_overrides),

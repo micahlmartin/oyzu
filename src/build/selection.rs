@@ -13,6 +13,7 @@ pub(super) struct Selection {
     explicit: bool,
     declared_platforms: BTreeSet<String>,
     variants: super::variants::Mapping,
+    affected: Option<Value>,
 }
 
 impl Selection {
@@ -32,6 +33,31 @@ impl Selection {
         } else {
             requested.iter().cloned().collect()
         };
+        Self::initialize(workspace, requested, all, explicit, None)
+    }
+
+    pub fn affected(
+        workspace: &Workspace,
+        source: &crate::snapshot::Snapshot,
+        reference: &str,
+    ) -> Result<Self> {
+        let impact = super::affected::resolve(workspace, source, reference)?;
+        Self::initialize(
+            workspace,
+            impact.targets,
+            workspace.targets.keys().cloned().collect(),
+            false,
+            Some(impact.evidence),
+        )
+    }
+
+    fn initialize(
+        workspace: &Workspace,
+        requested: BTreeSet<String>,
+        all: BTreeSet<String>,
+        explicit: bool,
+        affected: Option<Value>,
+    ) -> Result<Self> {
         let mut selection = Self {
             targets: requested.clone(),
             requested,
@@ -45,6 +71,7 @@ impl Selection {
                 .map(|(id, _)| id.clone())
                 .collect(),
             variants: BTreeMap::new(),
+            affected,
         };
         selection.expand_declared(workspace)?;
         Ok(selection)
@@ -147,6 +174,10 @@ impl Selection {
     pub fn record(&self) -> Value {
         let mut record = json!({"mode":if self.explicit {"explicit"} else {"all"},"requested":self.requested,
             "selected":self.targets,"excluded":self.all.difference(&self.targets).map(|id| json!({"target":id,"reason":"outside-selection"})).collect::<Vec<_>>()});
+        if let Some(evidence) = &self.affected {
+            record["mode"] = json!("affected");
+            record["affected"] = evidence.clone();
+        }
         if !self.variants.is_empty() {
             record["variants"] = json!(self.variants);
         }

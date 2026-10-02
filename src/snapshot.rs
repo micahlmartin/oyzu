@@ -29,23 +29,27 @@ pub struct Snapshot {
 }
 
 fn included(entry: &DirEntry) -> bool {
-    entry.depth() == 0
-        || !matches!(
-            entry.file_name().to_str(),
-            Some(
-                ".git"
-                    | ".oyzu"
-                    | ".oyzu-config-edit.lock"
-                    | "node_modules"
-                    | "dist"
-                    | "target"
-                    | ".venv"
-                    | "__pycache__"
-                    | ".pytest_cache"
-                    | ".gradle"
-                    | ".events"
-            )
+    entry.depth() == 0 || entry.file_name().to_str().is_none_or(source_path_included)
+}
+
+/// Use the same source exclusions for captured files and baseline inventories.
+pub(crate) fn source_path_included(path: &str) -> bool {
+    path.split('/').all(|part| {
+        !matches!(
+            part,
+            ".git"
+                | ".oyzu"
+                | ".oyzu-config-edit.lock"
+                | "node_modules"
+                | "dist"
+                | "target"
+                | ".venv"
+                | "__pycache__"
+                | ".pytest_cache"
+                | ".gradle"
+                | ".events"
         )
+    })
 }
 
 pub(crate) fn portable(value: &str) -> bool {

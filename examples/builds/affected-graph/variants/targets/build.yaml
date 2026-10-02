@@ -1,0 +1,4 @@
+shared: {uses: node/package, path: shared}
+api: {uses: node/package, path: api, depends_on: [shared]}
+web: {uses: node/package, path: web, depends_on: [shared]}
+unused: {uses: node/package, path: unused}

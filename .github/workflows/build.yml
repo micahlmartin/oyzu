@@ -237,6 +237,7 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/mocha
           if [ "$RUNNER_OS" = "Windows" ]; then FRAMEWORK_CLI=cli/oyzu.exe; else FRAMEWORK_CLI=cli/oyzu; fi
           python -m pip install -r tooling/design-requirements.txt
+          python tooling/test-affected-selection.py --cli "$FRAMEWORK_CLI"
           python tooling/test-node-framework-direct.py --cli "$FRAMEWORK_CLI"
           python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI"
           python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI" --manager pnpm
