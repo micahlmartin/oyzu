@@ -1005,3 +1005,22 @@ on Windows with the two existing symlink skips. Artifact-file parity, publisher
 verification, native directives and production worker integration remain missing.
 The earlier Go checksum increment passed all three native hosts in run 36988631019;
 that evidence does not qualify this catalog correction.
+
+## Mise integration checkpoint 88: Go target records bound to catalog evidence
+
+The candidate fork's Go target metadata now requires the official stable release
+and exact upstream-derived archive filename, matching file OS/architecture/version,
+archive kind, positive declared size and valid hash. It then requires the checksum
+sidecar to agree with that catalog hash. Results include size and catalog digest;
+missing or contradictory catalog records fail before sidecar access. This replaces
+the prior checksum-only metadata acceptance without enabling archive acquisition.
+
+The Go embedding adapter owns decoding and matching; upstream URL/layout rules stay
+in the parent backend. Canonical stable releases reject duplicate/invalid filenames
+and more than 4,096 file records. Conformance now exercises all target fields, absent
+release/target, hash disagreement, malformed sidecars and duplicate/excessive file
+lists. Linux Rust 1.95 strict library/example Clippy, formatting and all twenty-two
+fresh-process conformance scenarios passed. Windows compliance tests pass with two existing
+symlink skips and unchanged inventory; documentation checks pass. Native execution,
+real archive qualification, source approval and production integration remain
+outstanding, so TM-03/TM-06 and the overall OEP remain incomplete.

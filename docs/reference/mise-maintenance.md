@@ -151,7 +151,9 @@ by `>=1.24` and `<1.24.14`. These are conformance values, not live recommendatio
 Catalog input must be valid UTF-8 and is limited to 16 MiB before JSON decoding, 100,000 release records and
 128 bytes per version. The transport owns streaming byte limits and deadlines.
 Missing or mistyped `version`/`stable` fields and duplicate release identities fail.
-Additional official catalog fields are ignored by version selection. Unstable
+The adapter also decodes file records for target matching; other additional
+official catalog fields are ignored. Missing file lists permit version selection
+but cannot satisfy target metadata. Unstable
 releases and versions outside the canonical three-component stable archive contract
 are excluded; older spellings are never converted into guessed artifact versions.
 
@@ -163,32 +165,44 @@ Offline reuse within one worker can use its parsed snapshot. A new worker requir
 a supplied transport serving retained metadata; this adapter has no disk cache. The returned digest always identifies the actual text
 selected from, including on cache hits.
 
-This experimental API does not discover `go.mod`/`go.work` directives, validate
-catalog file records against archive selection, prove target availability or verify
-publishers. Production worker wiring and catalog-to-archive qualification remain
+This version-selection API alone does not discover `go.mod`/`go.work` directives,
+prove target availability or verify publishers. Target metadata performs the file
+matching described below. Production worker wiring and real archive qualification remain
 outstanding. All twenty Linux Rust 1.95 conformance scenarios passed, including
 seven Go catalog cases. Native Windows/macOS verification of this correction is pending.
 
 ### Target metadata
 
-The fork also exposes async `session.go_archive_metadata("1.24.13", target)`.
-It requires Go session admission and an exact canonical stable version before
-fetching the existing target-specific `.sha256` URL through the supplied transport.
-Targets remain Linux amd64 GNU, Darwin arm64 and Windows amd64 MSVC. It returns
-the same `GoArchiveFacts` plus `declared_sha256` with a `sha256:` prefix and
-lowercase hexadecimal digits. No archive bytes are downloaded or executed.
+The fork exposes async `session.go_archive_metadata("1.24.13", target)`.
+It requires Go session admission, an exact canonical stable version and one of the
+initial Linux amd64 GNU, Darwin arm64 or Windows amd64 MSVC targets before metadata
+access. The official catalog snapshot must contain that stable release and the
+exact archive filename computed by upstream Go artifact selection. Its file record
+must match the target OS/architecture, `go`-prefixed version and `archive` kind,
+with a positive byte size and a valid SHA-256. The method then fetches the existing
+`.sha256` sidecar and requires case-insensitive equality with the catalog digest.
 
-The response must be at most 128 UTF-8 bytes and, after trimming surrounding
-whitespace, exactly 64 ASCII hexadecimal characters. Empty, malformed, multiple
-or oversized digests fail. A transport error propagates without public-network
-fallback; offline use requires a supplied transport serving retained metadata.
-The transport owns streaming bounds and timeouts before text decoding; this
-post-decoding check is not a streaming resource limit. No metadata cache is added.
-Declared hashes do not establish catalog membership, artifact size/content,
-publisher authentication or installation authority. This experimental API remains
-in the fork; the production Oyzu dependency and worker connection remain pending.
-Linux Rust 1.95 library/example Clippy and all thirteen fresh-process conformance
-scenarios passed for this increment; native Windows/macOS verification is pending.
+Output contains `GoArchiveFacts`, lowercase `declared_sha256` with a `sha256:`
+prefix, `declared_size` and the same `catalog_sha256` used for version selection.
+These are declared metadata, not proof of acquired bytes or publisher authenticity.
+No archive is downloaded or executed. Missing releases/targets, contradictory
+record fields, malformed hashes and zero sizes fail before sidecar acquisition;
+sidecar disagreement also fails without fallback.
+
+Each canonical stable release is limited to 4,096 file records with unique,
+nonempty filenames of at most 512 bytes. The catalog snapshot is cached only for
+this worker process. Sidecar responses remain uncached, limited to 128 UTF-8 bytes
+and exactly 64 ASCII hexadecimal characters after surrounding whitespace is
+trimmed. Empty, malformed, multiple or oversized digests fail. The transport owns
+streaming bounds and timeouts before buffering/decoding; these checks are not a
+streaming resource limit. Offline operation requires supplied retained catalog and
+sidecar responses; no other source or cache is silently substituted.
+
+This extends the experimental metadata result shape and replaces checksum-only
+acceptance. Production Oyzu source admission, worker wiring, real archive/layout
+qualification and publisher verification remain outstanding. Native Windows/macOS
+verification of this catalog-file binding is pending. Linux Rust 1.95 strict
+library/example Clippy, formatting and all twenty-two conformance scenarios passed.
 
 The fork's experimental `Session::go_archive_facts(version, target)` uses Go's
 upstream artifact/mirror calculation and shared archive-root constant. Like Node,

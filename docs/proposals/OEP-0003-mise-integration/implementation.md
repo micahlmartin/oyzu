@@ -53,6 +53,8 @@ or proof of acquired artifact bytes/size.
 
 Go target metadata now has a candidate declared-checksum operation over the
 existing upstream target URL, with strict digest syntax and session admission.
+It now binds target filename/OS/architecture/version/kind and positive declared size
+to the official catalog, and requires its hash to agree with the checksum sidecar.
 Go additionally resolves supplied constraints against the bounded official release
 JSON catalog, returns its exact metadata digest and reuses the upstream comparator
 and shared Node/Go selection rules without Git execution. Native directive discovery, publisher verification and production worker
