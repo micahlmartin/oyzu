@@ -2251,3 +2251,20 @@ Production same-binary creation, image validation, explicit control-handle lists
 combined process/I/O cleanup, deadline scheduling, Unix process lifecycle and
 backend dispatch remain unfinished. This component is not a sandbox, shipping
 approval, or completion of OEP-0003.
+
+## Checkpoint 153: Windows MSVC worker job verification
+
+Native run 37032992735 at d9c18de48bedcad8036ea9ac4434cb7c582ad53b now
+reports successful locked unit/integration tests, strict all-target Clippy and
+formatting on Windows MSVC. The normal library suite includes the four Windows
+job tests added in checkpoint 152; their parent tests explicitly invoke the
+ignored subprocess fixture. This supersedes the pending Windows MSVC observation
+in checkpoint 152 and the corresponding reference paragraph.
+
+Those same steps passed on Linux and macOS, where the Windows job module/tests
+are excluded by cfg. No Unix process-lifecycle support is inferred. The workflow
+is still running its remaining archive/release/build/task work; full workflow
+success is not claimed. This checkpoint changes verification evidence only.
+Native production spawn, image and channel admission, explicit inheritance,
+combined process/I/O cleanup and the remaining OEP-0003 implementation stay open.
+Documentation structure and diff checks pass.

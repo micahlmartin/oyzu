@@ -1150,7 +1150,12 @@ Run `cargo test --locked --lib tools::worker::windows_job`. The ignored child
 fixture is invoked by those tests; it is not a product worker entry point.
 All four lifecycle tests pass on Windows GNU with Rust 1.94, as do the full
 locked suite, strict all-target Clippy, formatting and real CLI task scenarios.
-Native Windows MSVC CI verification of this increment remains pending.
+At commit `d9c18de`, the locked unit/integration tests, strict Clippy and formatting
+also passed on native Windows MSVC in
+[CI run 37032992735](https://github.com/micahlmartin/oyzu/actions/runs/37032992735).
+The same checks passed on Linux and macOS; the Windows-only job tests do not run
+on those hosts. The complete workflow was still running when these completed
+steps were recorded; downstream build/task acceptance is not inferred from them.
 
 This is the Windows lifecycle component, not a complete native spawn adapter.
 Production same-binary creation, image verification, explicit inherited handle
