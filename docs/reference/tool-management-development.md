@@ -48,6 +48,25 @@ resolver. Initial installation supports Node, Go or both at the workspace root.
 The Node selector is interpreted by mise against the actual Node catalog. Existing
 locks retain the exact version unless an update is explicitly requested.
 
+Tool names are resolved through the maintained fork's pinned registry. For the
+currently admitted backends, `node` and `"core:node"` identify the same tool, as
+do `go` and `"core:go"`. Quote canonical TOML keys containing a colon. Changing
+only between these names preserves the normalized request identity and existing
+lock; it does not require installation or relocking. Defining both names for one
+tool fails with `TOOL_ALIAS_AMBIGUOUS`, even if their versions agree. Unknown
+registry names fail with `TOOL_ALIAS_UNSUPPORTED`. This does not enable additional
+backends or make alias names executable commands: use `node` and `go` for exec.
+Selective updates accept the same registry names. Administrative `tools.allowed`
+values are compared through that same alias map; this setting remains admin-only.
+The real acceptance runner is
+`python tooling/test-tool-aliases.py --cli PATH --workspace NODE_ACCEPTANCE_PATH`;
+it reuses the two-version Node workspace above without changing its projects.
+Add `--update` for online canonical-name resolution. On a disposable root Linux
+host only, `--disposable-linux-host` temporarily creates an administrative policy
+to check both allowed-name spellings and denial; it refuses an existing policy
+and removes its own file afterwards. Linux offline replay with networking disabled
+and the separate online update passed on 2026-10-02. Native CI remains pending.
+
 After editing the Node requirement in TOML, run:
 
 ```sh
@@ -169,6 +188,11 @@ Oyzu's host transport. Oyzu verifies the acquired bytes, publishes the installat
 and retains the existing format-2 lock and frozen reuse/restoration contracts.
 The lock records `go-releases` and digest-only verification, not publisher signatures.
 No Go executable is needed to install the prebuilt release.
+The Windows Go ZIP adapter uses the 800:1 per-file expansion allowance already
+exercised by real Go archive qualification; its highly compressible compiler test
+fixtures exceed the Node adapter's 200:1 allowance. Other archive limits are
+unchanged. A lock authored with the earlier Windows Go layout needs an explicit
+`install --update go`; frozen commands never silently change its layout identity.
 
 `exec` and shell activation prepend the selected installation's `bin` directory,
 set `GOROOT` to its payload and default `GOTOOLCHAIN` to `local` so normal execution
@@ -595,7 +619,7 @@ acceptance passed at `e335d70` in run `37051685318`.
 
 The complete Linux mixed runner also passed from a fresh project on 2026-10-02: initial installation, Node-only update preserving the exact Go record, rejection of a changed unselected requirement, frozen reuse and cross-tool execution. This extends the offline replay evidence above; native mixed CI remains pending.
 
-Remaining functional work includes other tools, aliases/native constraints,
+Remaining functional work includes other tools, native constraints,
 scoped/profile/multi-platform updates, managed connector grants and selection, npm
 entrypoints, full shim/shell lifecycle qualification and build handoff.
 Managed configuration is explicitly rejected by this standalone proof. Child

@@ -12,6 +12,15 @@ pub(super) enum Tool {
 }
 
 impl Tool {
+    // Official Go ZIPs contain highly compressible compiler test fixtures.
+    // Keep the same bound exercised by real Go archive qualification.
+    pub(super) fn expansion_ratio(self, archive_kind: &str) -> u32 {
+        if self == Self::Go && archive_kind == "zip" {
+            800
+        } else {
+            200
+        }
+    }
     /// Add backend-owned development environment from its verified bin location.
     /// Go binds its runtime root; a configured toolchain mode overrides the default.
     pub(super) fn apply_environment(

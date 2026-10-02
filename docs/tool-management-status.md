@@ -2778,3 +2778,36 @@ Windows locked tests with two test threads, strict all-target Clippy, formatting
 and all nine real task scenarios passed. Documentation and diff checks passed.
 This fixes a demonstrated end-to-end usability failure; the full OEP scope
 remains active and hardening remains deferred.
+
+## Checkpoint 172 - registry names and Windows Go layout (2026-10-02)
+
+Development configuration now uses the existing normalized request projector with
+mise's pinned alias map before selecting backend adapters. Install and frozen
+lookup share that projection. Canonical keys and short names produce the same
+lock identity; selected updates accept registry names. Shared configuration
+eligibility compares allowed and configured names through the supplied admitted
+map, while other consumers retain literal behavior without a map.
+
+The real Node runner test-tool-aliases.py passed with networking disabled:
+canonical configuration reused the short-name lock and installed executable,
+short/canonical administrative allowed values agreed, duplicate names and denied
+tools failed, and lock bytes stayed unchanged. A separate online canonical-name
+update passed. The first test setup incorrectly put admin-only tools.allowed in
+project TOML; it was corrected to use an explicit disposable-host admin policy.
+The three-host workflow now includes canonical-name update acceptance.
+
+Windows Go installation in run 37056475928 failed because product layout used
+Node's 200:1 expansion limit. The official Go 1.24.13 Windows archive, SHA-256
+40b16bc8f00540a2cb02dff4de72b73e966fdd8d65f95e33d8e4080b48a2459a,
+contains src/compress/flate/testdata/huffman-null-max.in at 799.207:1. The backend
+now supplies the existing real Go ZIP qualification's 800:1 bound, retaining 200
+for other admitted archives. Native product replay of the fix remains pending;
+archive inspection alone is not claimed as installation success.
+
+Feature-enabled Linux build, strict all-target Clippy and formatting passed.
+The full default regression run is recorded after completion below. Full OEP
+functional scope remains active; hardening stays deferred.
+
+The final default Windows locked test suite passed with two test threads, followed
+by strict all-target Clippy, formatting and all nine real task scenarios.
+Documentation and diff checks passed. Native product CI remains pending.

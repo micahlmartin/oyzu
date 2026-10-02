@@ -9,9 +9,30 @@ pub(crate) fn execution_preflight(config: &EffectiveConfig, tools: &[&str]) -> R
 
 /// Enforce configured tool eligibility independently of acquisition transport.
 pub(crate) fn tool_eligibility(config: &EffectiveConfig, tools: &[&str]) -> Result<()> {
+    tool_eligibility_with_aliases(config, tools, &Default::default())
+}
+
+/// Apply the same eligibility policy after resolving both requests and allowed
+/// names through a caller-supplied, admitted registry. Unknown names stay literal.
+pub(crate) fn tool_eligibility_with_aliases(
+    config: &EffectiveConfig,
+    tools: &[&str],
+    aliases: &std::collections::BTreeMap<String, String>,
+) -> Result<()> {
+    let canonical = |name: &str| {
+        aliases
+            .get(name)
+            .cloned()
+            .unwrap_or_else(|| name.to_owned())
+    };
     if let Some(allowed) = config.get("tools.allowed").and_then(Value::as_array) {
+        let allowed: Vec<_> = allowed
+            .iter()
+            .filter_map(Value::as_str)
+            .map(canonical)
+            .collect();
         for tool in tools {
-            if !allowed.iter().any(|value| value.as_str() == Some(tool)) {
+            if !allowed.contains(&canonical(tool)) {
                 bail!("CONFIG_OVERRIDE_DENIED: native tool {tool} is not eligible");
             }
         }
@@ -21,7 +42,7 @@ pub(crate) fn tool_eligibility(config: &EffectiveConfig, tools: &[&str]) -> Resu
             .filter_map(|key| key.strip_prefix("tools."))
             .filter(|key| !matches!(*key, "allowed" | "catalogs"))
         {
-            if !allowed.iter().any(|value| value.as_str() == Some(key)) {
+            if !allowed.contains(&canonical(key)) {
                 bail!("CONFIG_OVERRIDE_DENIED: configured tool {key} is not eligible");
             }
         }

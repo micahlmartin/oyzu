@@ -5,6 +5,7 @@ on:
     branches: [main, codex/mise-qualification]
     paths:
       - 'src/tools/**'
+      - 'src/config/enforcement.rs'
       - 'src/main.rs'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -16,6 +17,7 @@ on:
       - 'tooling/test-tool-exec.py'
       - 'tooling/test-tool-go.py'
       - 'tooling/test-tool-mixed.py'
+      - 'tooling/test-tool-aliases.py'
       - 'tooling/test-shell-profile.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
@@ -61,6 +63,8 @@ jobs:
         run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
       - name: Explicit executable development commands
         run: python tooling/test-tool-exec.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
+      - name: Canonical tool names and updates
+        run: python tooling/test-tool-aliases.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --update
       - name: Explicit Node version updates
         timeout-minutes: 15
         run: python tooling/test-tool-updates.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"

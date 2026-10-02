@@ -75,6 +75,14 @@ passed with networking disabled, as did mixed Bash activation and the existing
 two-project Node regression flow. Multi-tool JSON inspection retains redaction
 and preserves the singular fields for single-tool projects. Full native CI for
 this extension remains pending.
+Pinned registry names now feed the shared request projector for install and
+frozen commands. Canonical Node/Go keys and short names share lock identity;
+administrative eligibility and selected updates use the same alias map. Real
+Linux Node replay with networking disabled and an online canonical-name update
+passed, including duplicate rejection, policy denial and unchanged lock bytes.
+The Windows Go CI failure was traced to a 799:1 compiler fixture in the official
+ZIP; the product now uses the previously qualified Go 800:1 expansion allowance.
+Native verification of that correction remains pending.
 
 ## Builder objective
 

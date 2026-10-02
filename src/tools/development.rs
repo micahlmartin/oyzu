@@ -364,6 +364,8 @@ struct Configuration {
     session: config::session::Session,
     effective: config::resolve::EffectiveConfig,
     tools: Vec<(Tool, String)>,
+    requests: super::ToolRequestIdentity,
+    aliases: BTreeMap<String, String>,
 }
 
 fn configuration(directory: &Path, options: &config::session::Options) -> Result<Configuration> {
@@ -373,33 +375,27 @@ fn configuration(directory: &Path, options: &config::session::Options) -> Result
         effective.management.is_none(),
         "managed tool integration is not available in this standalone development proof"
     );
+    let aliases: BTreeMap<String, String> = worker_call(&WorkerRequest::Aliases, None)?;
+    let requests = super::project_tool_requests(&effective, &aliases, &BTreeMap::new(), &[])?;
     let mut configured = Vec::new();
-    for (key, value) in effective.values() {
-        let Some(name) = key.strip_prefix("tools.") else {
-            continue;
-        };
-        let tool = match name {
-            "allowed" | "catalogs" => continue,
-            "node" => Tool::Node,
-            "go" => Tool::Go,
-            _ => anyhow::bail!("development integration supports tools.node and tools.go"),
+    for (id, request) in requests.requests() {
+        let tool = match id.as_str() {
+            "core:node" => Tool::Node,
+            "core:go" => Tool::Go,
+            _ => anyhow::bail!("development integration supports Node and Go"),
         };
         Acquisition::new(&effective, None, tool)?;
-        configured.push((
-            tool,
-            value
-                .as_str()
-                .context("tool request must be a string")?
-                .to_owned(),
-        ));
+        configured.push((tool, request.clone()));
     }
     ensure!(!configured.is_empty(), "configure Node or Go in Oyzu TOML");
-    let names: Vec<_> = configured.iter().map(|(tool, _)| tool.name()).collect();
-    config::enforcement::tool_eligibility(&effective, &names)?;
+    let names: Vec<_> = configured.iter().map(|(tool, _)| tool.id()).collect();
+    config::enforcement::tool_eligibility_with_aliases(&effective, &names, &aliases)?;
     Ok(Configuration {
         session,
         effective,
         tools: configured,
+        requests,
+        aliases,
     })
 }
 
@@ -409,7 +405,7 @@ fn plan(tool: Tool, archive: &Archive, digest: &str, backend: &str) -> serde_jso
         "required_paths":[{"path":archive.executable_relative_path,"kind":"file"}],
         "entrypoints":{tool.name():{"kind":"native","payload_relative_path":archive.executable_relative_path,"interpreter_tool_key":null,"interpreter_relative_path":null,"prefix_args":[]}},
         "environment":{"PATH":{"kind":"paths","paths":[{"owner":"self","relative_path":archive.bin_relative_path}]}},
-        "extraction_bounds":{"max_entries":200000,"max_bytes":8589934592u64,"max_file_bytes":1073741824,"max_depth":64,"max_expansion_ratio":200},
+        "extraction_bounds":{"max_entries":200000,"max_bytes":8589934592u64,"max_file_bytes":1073741824,"max_depth":64,"max_expansion_ratio":tool.expansion_ratio(&archive.archive_kind)},
         "executable_paths":if cfg!(windows) { Vec::<String>::new() } else { vec![archive.executable_relative_path.clone()] }})
 }
 
@@ -434,9 +430,9 @@ pub(super) fn installed_environment(
         session,
         effective,
         tools: configured,
+        requests,
+        ..
     } = configuration(&directory, options)?;
-    let aliases: BTreeMap<String, String> = worker_call(&WorkerRequest::Aliases, None)?;
-    let requests = super::project_tool_requests(&effective, &aliases, &BTreeMap::new(), &[])?;
     let profile = effective.profile.as_deref().unwrap_or("default");
     let selection = super::select_for_tool_requests(
         &session.root,

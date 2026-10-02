@@ -32,6 +32,8 @@ pub fn install(
         session,
         effective,
         tools: configured,
+        requests,
+        aliases,
     } = configuration(&directory, options)?;
     ensure!(
         directory == session.root,
@@ -40,9 +42,6 @@ pub fn install(
     let profile = effective.profile.as_deref().unwrap_or("default");
     let host = platform()?;
     let backend = identity()?;
-    let aliases: BTreeMap<String, String> = worker_call(&WorkerRequest::Aliases, None)?;
-    let requests =
-        crate::tools::project_tool_requests(&effective, &aliases, &BTreeMap::new(), &[])?;
     let lock_path = session.root.join("oyzu.lock");
     let edit = crate::tools::ToolLockEdit::capture(&lock_path)?;
     let captured_bytes = if lock_path.exists() {
@@ -64,7 +63,7 @@ pub fn install(
         ensure!(
             names.iter().all(|name| configured
                 .iter()
-                .any(|(tool, _)| name == tool.name() || name == tool.id())),
+                .any(|(tool, _)| aliases.get(name).is_some_and(|id| id == tool.id()))),
             "update must name configured tools or their canonical IDs"
         );
         if let Some(lock) = &captured {
@@ -94,7 +93,7 @@ pub fn install(
             names.is_empty()
                 || names
                     .iter()
-                    .any(|name| name == tool.name() || name == tool.id())
+                    .any(|name| aliases.get(name).is_some_and(|id| id == tool.id()))
         });
         let old = captured.as_ref().and_then(|lock| {
             old_environment.and_then(|env| {
