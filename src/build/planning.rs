@@ -283,8 +283,21 @@ pub(super) fn plan_with_dependencies(
         package["outputs"] = json!(outputs);
         planned.push(package);
     }
-    // Initial scheduler is deliberately serial; every actual ordering edge is explicit.
-    let mut previous: Option<String> = None;
+    // Targets have private workspaces. Preserve their internal mutation/hook
+    // sequence without inventing dependencies between unrelated targets.
+    let final_actions: BTreeMap<String, String> = planned
+        .iter()
+        .map(|action| {
+            Ok((
+                action["target"]
+                    .as_str()
+                    .context("missing action target")?
+                    .into(),
+                action["id"].as_str().context("missing action id")?.into(),
+            ))
+        })
+        .collect::<Result<_>>()?;
+    let mut previous: BTreeMap<String, String> = BTreeMap::new();
     for a in &mut planned {
         if let Some(inputs) = a["target"].as_str().and_then(|id| materialized.get(id)) {
             a["inputs"].as_array_mut().unwrap().extend(inputs.clone());
@@ -301,8 +314,22 @@ pub(super) fn plan_with_dependencies(
             .filter(|input| input["kind"] == "artifact")
             .filter_map(|input| input["producer"].as_str().map(str::to_owned))
             .collect();
-        if let Some(p) = &previous {
+        let target = a["target"]
+            .as_str()
+            .context("missing action target")?
+            .to_owned();
+        if let Some(p) = previous.get(&target) {
             prerequisites.insert(p.clone());
+        }
+        if let Some(config) = configs.get(&target) {
+            for dependency in &config.depends_on {
+                prerequisites.insert(
+                    final_actions
+                        .get(dependency)
+                        .context("target dependency has no final action")?
+                        .clone(),
+                );
+            }
         }
         if let Some(config) = a["target"]
             .as_str()
@@ -315,7 +342,10 @@ pub(super) fn plan_with_dependencies(
                 .unwrap_or(json!(0));
         }
         a["dependsOn"] = json!(prerequisites);
-        previous = a["id"].as_str().map(str::to_string);
+        previous.insert(
+            target,
+            a["id"].as_str().context("missing action id")?.into(),
+        );
     }
     validate_required_checks(workspace, &planned)?;
     let managed = workspace

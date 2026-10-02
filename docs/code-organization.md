@@ -25,6 +25,8 @@ Configuration's pure resolver consumes captured sources and registered types. `c
 
 Tool installation, environment activation, caching, agent/connectors, publishing and desktop/platform surfaces need the same ownership discipline as they arrive. Their proposed boundaries are in the architecture and OEPs. Do not create placeholder crates or put their future behavior into a general-purpose service object now.
 
+Build planning owns action dependency edges: actions that mutate one target workspace remain sequenced, explicit target dependencies wait for the producer's final action, and materialization retains its producer edges. Unrelated targets do not acquire ordering edges merely because their records are adjacent. Execution owns scheduling and report collection; changes to concurrency must preserve these dependencies and deferred hook/report boundaries.
+
 Existing broad public modules, dynamic records and partially combined responsibilities are migration work, not a pattern to copy blindly. Improve the relevant boundary with the feature being changed; preserve observable behavior and avoid unrelated repository-wide rewrites.
 
 ## Interfaces that earn their place
