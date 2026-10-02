@@ -157,6 +157,7 @@ jobs:
           python3 -m venv .ci-python
           .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
           .ci-python/bin/python -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
+          .ci-python/bin/python -m pip download --only-binary=:all: --dest .ci-python-app-wheels packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2 ruff==0.11.13
       - name: Build and verify native snapshot artifacts through the compiled CLI
         env:
           OYZU_BUILDKIT_APPARMOR_PROFILE: oyzu-buildkit
@@ -164,6 +165,7 @@ jobs:
           chmod +x cli/oyzu
           .ci-python/bin/python tooling/test-python-adapter.py
           .ci-python/bin/python tooling/test-python-reporting.py
+          .ci-python/bin/python tooling/test-python-application.py --wheels .ci-python-app-wheels
           .ci-python/bin/python tooling/test-helm-archive.py
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/helm:3.22.0 tooling/test-helm-reporting.py
           .ci-python/bin/python tooling/test-ant-adapter.py

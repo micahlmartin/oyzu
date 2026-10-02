@@ -1,7 +1,9 @@
 mod acquisition;
+mod application;
 mod detection;
 mod discovery;
 mod planning;
+mod quality;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
 use crate::{dependencies::Prepared, model::Target};
@@ -63,6 +65,10 @@ impl Builder for Python {
             RuntimeFile {
                 name: "python-reporting.py",
                 contents: include_str!("runtime/reporting.py"),
+            },
+            RuntimeFile {
+                name: "python-app.py",
+                contents: include_str!("runtime/application.py"),
             },
         ]
     }

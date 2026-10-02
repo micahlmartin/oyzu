@@ -41,24 +41,27 @@ def requirement_lines():
         if parsed.url:
             raise ValueError('Direct URL requirements need an approved source adapter')
         inputs.append(value)
-        purposes[re.sub(r'[-_.]+','-',parsed.name).lower()] = purpose
+        name = re.sub(r'[-_.]+','-',parsed.name).lower()
+        if purpose == 'runtime' or purposes.get(name) != 'runtime':
+            purposes[name] = purpose
     for item in data.get('project',{}).get('dependencies',[]):
         add(item,'runtime')
-    for item in data.get('build-system',{}).get('requires',['setuptools==80.9.0','wheel==0.45.1']):
+    package_project = Path('pyproject.toml').exists() or Path('setup.py').exists() or Path('setup.cfg').exists()
+    for item in data.get('build-system',{}).get('requires',['setuptools==80.9.0','wheel==0.45.1'] if package_project else []):
         add(item,'build')
     # Build frontends and conventional pytest integrations are builder inputs.
     for item in data.get('dependency-groups',{}).get('dev',[]):
         if not isinstance(item,str):
             raise ValueError('Included dependency groups are not supported yet')
         add(item,'test')
-    defaults=['build==1.2.2.post1','wheel==0.45.1']
+    defaults=['build==1.2.2.post1','wheel==0.45.1'] if package_project else []
     if Path('tests').is_dir() or Path('test').is_dir():
         defaults += ['pytest==8.3.5','pytest-cov==6.0.0']
     for item in defaults:
         name=Requirement(item).name
         if name not in purposes:
             add(item,'test' if name.startswith('pytest') else 'build')
-    if 'ruff' in data.get('tool',{}):
+    if 'ruff' in data.get('tool',{}) or not package_project:
         add('ruff==0.11.13','test')
     requirements = Path('requirements.txt')
     if requirements.exists():
@@ -219,7 +222,7 @@ def wheel_metadata(path):
     return info
 
 
-def inventory(purposes, roots):
+def inventory(purposes, roots, destination=Path('/out')):
     import pip
     from pip._vendor.packaging.requirements import Requirement
     from pip._vendor.packaging.markers import default_environment
@@ -230,7 +233,7 @@ def inventory(purposes, roots):
     for value in roots:
         item=Requirement(value)
         extras.setdefault(canonicalize_name(item.name),set()).update(item.extras)
-    for path in sorted(Path('/out/wheels').glob('*.whl')):
+    for path in sorted((destination/'wheels').glob('*.whl')):
         info=wheel_metadata(path)
         name=canonicalize_name(info['Name'])
         if name in packages:
@@ -266,11 +269,16 @@ def inventory(purposes, roots):
         manager_version=version('poetry')
     else:
         manager_version=pip.__version__
-    Path('/out/packages.json').write_text(json.dumps({'packages':list(packages.values()),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
+    runtime_roots = set()
+    for value in roots:
+        item = Requirement(value)
+        name = canonicalize_name(item.name)
+        if purposes.get(name) == 'runtime' and (item.marker is None or item.marker.evaluate()):
+            runtime_roots.add(packages[name]['id'])
+    (destination/'packages.json').write_text(json.dumps({'packages':list(packages.values()),'runtimeRoots':sorted(runtime_roots),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
 
 
 def prepare():
-    import venv
     data=project()
     if not data.get('project',{}).get('version') or not data['project'].get('name'):
         raise ValueError('Static PEP 621 name/version required for this Python build profile')
@@ -282,8 +290,16 @@ def prepare():
     if count!=1:
         raise ValueError('Cannot project snapshot version')
     Path('pyproject.toml').write_text(text[:section.start(1)]+content+text[section.end(1):])
+    prepare_environment()
+
+
+def prepare_environment(dependencies=Path('/dependencies')):
+    import venv
     venv.EnvBuilder(with_pip=False).create('.oyzu-build/venv')
-    wheels=sorted(str(p) for p in Path('/dependencies/wheels').glob('*.whl'))
+    # Ruff's native hierarchical config excludes engine state without replacing
+    # any project-owned include/exclude rules or changing the source checkout.
+    Path('.oyzu-build/ruff.toml').write_text('exclude = ["*"]\n', encoding='utf-8')
+    wheels=sorted(str(p) for p in (dependencies/'wheels').glob('*.whl'))
     run([sys.executable,'-I','-m','pip','--isolated','--python','.oyzu-build/venv','install','--no-index','--no-deps',*wheels])
 
 

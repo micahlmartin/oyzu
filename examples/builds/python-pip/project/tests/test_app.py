@@ -1,6 +1,7 @@
 import unittest
 from app import health, supported_version
 
+
 class AppTests(unittest.TestCase):
     def test_health(self):
         self.assertEqual(health(), {"status": "ok"})

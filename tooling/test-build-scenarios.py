@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, rust, vitest
+from build_scenarios import ant, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, python_application, rust, vitest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -110,6 +110,7 @@ def main():
         ant.verify(ROOT,base,invoke,validate,source_files,verified)
         helm.verify(ROOT,base,invoke,validate,source_files,verified)
         rust.verify(ROOT,base,invoke,validate,source_files,verified)
+        python_application.verify(ROOT,base,invoke,validate,source_files,verified)
         for example in ["node-package", "go-app"]:
             project = base / example
             shutil.copytree(ROOT / "examples/builds" / example / "project", project)

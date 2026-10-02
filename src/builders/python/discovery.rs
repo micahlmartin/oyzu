@@ -35,6 +35,13 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
         }
         if target.path.join("pyproject.toml").is_file() || target.path.join("setup.py").is_file() {
             insert(target, "build", &["python", "-m", "build"], true);
+        } else if super::application::matches(&target.path) {
+            insert(
+                target,
+                "build",
+                &["python", "-m", "compileall", "-q", "."],
+                true,
+            );
         }
         insert(target, "test", &["python", "-m", "pytest"], true);
     } else {
@@ -50,16 +57,10 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             test.build_stage = false;
         }
     }
-    if value.get("tool").and_then(|v| v.get("ruff")).is_some() {
-        insert(target, "lint", &["ruff", "check", "."], true);
-        insert(
-            target,
-            "format-check",
-            &["ruff", "format", "--check", "."],
-            true,
-        );
-        insert(target, "format", &["ruff", "format", "."], false);
-        target.tasks.get_mut("format").unwrap().mutates_source = true;
+    if value.get("tool").and_then(|v| v.get("ruff")).is_some()
+        || super::application::matches(&target.path)
+    {
+        super::quality::discover(target);
     }
     Ok(())
 }

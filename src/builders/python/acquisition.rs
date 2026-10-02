@@ -105,7 +105,7 @@ pub(super) fn prepare(
         .filter_map(|file| root.join(file).is_file().then_some(root.join(file)))
         .map(|file| snapshot::file_digest(&file))
         .collect::<Result<Vec<_>>>()?;
-    let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot","adapter":{"id":format!("python/{manager}-wheels"),"digest":records::digest("oyzu.adapter.v1alpha1",&json!(PYTHON_HELPER))?,"layoutVersion":"1"},"manager":{"id":manager,"version":metadata["managerVersion"],"digest":image.digest,"platform":platform},"sourceDigest":source_digest,"lockDigests":lock_digests,"targetPlatform":platform,"packages":packages,"preparedTree":tree.digest});
+    let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot","adapter":{"id":format!("python/{manager}-wheels"),"digest":records::digest("oyzu.adapter.v1alpha1",&json!(PYTHON_HELPER))?,"layoutVersion":"1"},"manager":{"id":manager,"version":metadata["managerVersion"],"digest":image.digest,"platform":platform},"sourceDigest":source_digest,"lockDigests":lock_digests,"targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,"extensions":{"oyzu.dev/python-runtime":{"roots":metadata["runtimeRoots"]}}});
     let digest = records::digest("oyzu.dependencies.v1alpha1", &record)?;
     Ok(Prepared {
         root: destination.into(),

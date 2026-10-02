@@ -65,8 +65,8 @@ def installed_sources(name):
     return sorted(modules), sorted(files)
 
 
-def coverage_configuration(name, destination):
-    modules, files = installed_sources(name)
+def coverage_configuration(name, destination, sources=None):
+    modules, files = installed_sources(name) if sources is None else sources
     config = native_configuration(Path.cwd())
     for section in ['run', 'report']:
         if not config.has_section(section):
@@ -82,11 +82,11 @@ def coverage_configuration(name, destination):
         config.write(output)
 
 
-def run_tests(name, junit, coverage, extra=()):
+def run_tests(name, junit, coverage, extra=(), *, sources=None):
     import pytest
     config = Path('.oyzu-build/coverage.ini').resolve()
     config.parent.mkdir(parents=True, exist_ok=True)
-    coverage_configuration(name, config)
+    coverage_configuration(name, config, sources)
     return pytest.main([
         '--import-mode=importlib', '--junitxml=' + str(junit),
         '--cov', '--cov-config=' + str(config), '--cov-report=xml:' + str(coverage),

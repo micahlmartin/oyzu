@@ -1,5 +1,6 @@
 """Adapter boundary regressions; full native builds run in test-build-scenarios.py."""
 import importlib.util
+import os
 from pathlib import Path
 import tempfile
 import unittest
@@ -13,6 +14,18 @@ spec.loader.exec_module(adapter)
 
 
 class WheelMetadataTests(unittest.TestCase):
+    def test_runtime_role_survives_shared_build_and_test_requirements(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root/'pyproject.toml').write_text('[project]\ndependencies=["packaging==24.2"]\n[build-system]\nrequires=["packaging==24.2"]\n[dependency-groups]\ndev=["packaging==24.2"]\n')
+            try:
+                os.chdir(root)
+                _, purposes = adapter.requirement_lines()
+            finally:
+                os.chdir(previous)
+            self.assertEqual(purposes['packaging'], 'runtime')
+
     def read(self, entries):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'demo_pkg-1.0-py3-none-any.whl'

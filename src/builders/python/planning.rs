@@ -6,6 +6,9 @@ use anyhow::{bail, Context, Result};
 use std::{collections::BTreeMap, fs};
 
 pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
+    if super::application::matches(&context.target.path) {
+        return super::application::plan(context);
+    }
     let target = context.target;
     let id = &target.name;
     if context.dependencies.is_none() {
@@ -95,19 +98,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         },
     ];
     plan.tasks.insert("test".into(), test);
-    for task in target.tasks.values() {
-        if task.argv.first().is_some_and(|v| v == "ruff") {
-            let mut argv = task.argv.clone();
-            argv[0] = ".oyzu-build/venv/bin/ruff".into();
-            plan.tasks.insert(
-                task.name.clone(),
-                TaskPlan {
-                    argv,
-                    ..TaskPlan::default()
-                },
-            );
-        }
-    }
+    super::quality::plan(target, &mut plan);
     plan.artifacts = vec![
         ArtifactSpec {
             kind: crate::builders::ArtifactKind::File,
