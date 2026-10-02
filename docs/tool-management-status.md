@@ -1890,3 +1890,24 @@ not that complete payload or dispatch implementation. Catalog provenance, broker
 handles, trusted operation-context binding, native process supervision, backend
 admission and the remaining OEP requirements are still open. A recomputed request
 digest is not authorization and does not identify a trusted sender.
+
+## Checkpoint 131: immutable normalized tool request identity
+
+ToolRequestIdentity fields are now private, with borrowed requests(),
+native_constraints(), required_capabilities() and digest() accessors. Only
+configuration projection and checked record parsing construct the identity.
+Callers can no longer mutate constraints or requests independently of their
+computed digest. Frozen selection and all existing consumers use the accessors.
+Serialized field names, canonical normalization and golden digests are unchanged.
+The reference documents migration from the experimental field API and the code
+map records the immutable identity boundary.
+
+Windows passes the full locked Rust suite, strict all-target Clippy, formatting
+and nine CLI task scenarios. Linux passes all five request tests, including
+projection/parse roundtrip and stale-lock denial, plus strict all-target Clippy
+with networking disabled. Documentation/diff checks pass. No dependency or CLI
+behavior changed. Immutability establishes internal consistency, not permission,
+trusted catalog provenance, operation freshness or sender authentication.
+
+The complete resolve payload and native worker supervision remain unfinished;
+this invariant correction does not complete TM-03/TM-05 or OEP-0003.

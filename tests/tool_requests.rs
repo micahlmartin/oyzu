@@ -45,23 +45,23 @@ fn identity(text: &str) -> tools::ToolRequestIdentity {
 fn canonical_requests_exclude_environment_and_preserve_backend_version_syntax() {
     let first = identity("[tools]\nnode='22'\n[env]\nSECRET='first'");
     let second = identity("[tools]\n'core:node'='22'\n[env]\nSECRET='second'");
-    assert_eq!(first.digest, second.digest);
+    assert_eq!(first.digest(), second.digest());
     assert_eq!(
-        first.digest,
+        first.digest(),
         "sha256:ea7616dfb64b2072eaee960143b4446718664c3de8e967b88deac20947f62fbf"
     );
     assert_eq!(
-        first.requests,
-        BTreeMap::from([("core:node".into(), "22".into())])
+        first.requests(),
+        &BTreeMap::from([("core:node".into(), "22".into())])
     );
     assert!(!serde_json::to_string(&first).unwrap().contains("SECRET"));
     let range = identity("[tools]\nnode='>=22 <24'");
-    assert_eq!(range.requests["core:node"], ">=22 <24");
-    assert_ne!(first.digest, range.digest);
+    assert_eq!(range.requests()["core:node"], ">=22 <24");
+    assert_ne!(first.digest(), range.digest());
     assert_eq!(
         identity("[tools]\nnode='20'\n[profile]\ndefault='dev'\n[profiles.dev.tools]\nnode='22'")
-            .digest,
-        first.digest
+            .digest(),
+        first.digest()
     );
 }
 
@@ -78,7 +78,7 @@ fn constraints_and_capabilities_bind_identity_with_order_independent_sets() {
     .unwrap();
     let reversed = BTreeMap::from([("core:node".into(), vec!["<25".into(), ">=20".into()])]);
     assert_eq!(
-        first.digest,
+        first.digest(),
         tools::project_tool_requests(
             &config,
             &catalog(),
@@ -86,16 +86,16 @@ fn constraints_and_capabilities_bind_identity_with_order_independent_sets() {
             &["exec".into(), "prebuilt".into()]
         )
         .unwrap()
-        .digest
+        .digest()
     );
     assert_ne!(
-        first.digest,
+        first.digest(),
         tools::project_tool_requests(&config, &catalog(), &constraints, &["exec".into()])
             .unwrap()
-            .digest
+            .digest()
     );
     assert_ne!(
-        first.digest,
+        first.digest(),
         tools::project_tool_requests(
             &config,
             &catalog(),
@@ -103,7 +103,7 @@ fn constraints_and_capabilities_bind_identity_with_order_independent_sets() {
             &["exec".into(), "prebuilt".into()]
         )
         .unwrap()
-        .digest
+        .digest()
     );
 }
 
@@ -142,7 +142,7 @@ fn computed_request_identity_drives_frozen_selection_and_stale_config_denial() {
     let requests = identity("[tools]\nnode='22'");
     let mut lock: toml::Value =
         toml::from_str(include_str!("fixtures/tool-lock/valid.toml")).unwrap();
-    lock["environment"][0]["request_digest"] = requests.digest.clone().into();
+    lock["environment"][0]["request_digest"] = requests.digest().into();
     let bytes = toml::to_string(&lock).unwrap();
     let path = temp.path().join("oyzu.lock");
     fs::write(&path, &bytes).unwrap();
@@ -194,12 +194,12 @@ fn normalized_request_record_roundtrips_projection_and_rejects_wire_drift() {
     let admitted = BTreeSet::from(["core:node".to_owned()]);
     let encoded = serde_json::to_vec(&projected).unwrap();
     let parsed = tools::ToolRequestIdentity::parse(&encoded, &admitted).unwrap();
-    assert_eq!(parsed.digest, projected.digest);
-    assert_eq!(parsed.requests["core:node"], ">=22 <24");
-    assert_eq!(parsed.native_constraints, projected.native_constraints);
+    assert_eq!(parsed.digest(), projected.digest());
+    assert_eq!(parsed.requests()["core:node"], ">=22 <24");
+    assert_eq!(parsed.native_constraints(), projected.native_constraints());
     assert_eq!(
-        parsed.required_capabilities,
-        projected.required_capabilities
+        parsed.required_capabilities(),
+        projected.required_capabilities()
     );
     assert!(tools::ToolRequestIdentity::parse(&encoded, &BTreeSet::new()).is_err());
     let original = serde_json::to_value(&projected).unwrap();
@@ -227,7 +227,7 @@ fn normalized_request_record_roundtrips_projection_and_rejects_wire_drift() {
     );
     let duplicate = format!(
         "{{\"digest\":\"{}\",{}",
-        projected.digest,
+        projected.digest(),
         std::str::from_utf8(&encoded)
             .unwrap()
             .trim_start_matches('{')

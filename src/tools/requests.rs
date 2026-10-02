@@ -4,15 +4,33 @@ use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Immutable normalized requests and their derived digest. Construct through
+/// projection or checked parsing; borrowed accessors cannot invalidate identity.
 #[derive(Debug, Serialize)]
 pub struct ToolRequestIdentity {
-    pub requests: BTreeMap<String, String>,
-    pub native_constraints: BTreeMap<String, Vec<String>>,
-    pub required_capabilities: Vec<String>,
-    pub digest: String,
+    requests: BTreeMap<String, String>,
+    native_constraints: BTreeMap<String, Vec<String>>,
+    required_capabilities: Vec<String>,
+    digest: String,
 }
 
 impl ToolRequestIdentity {
+    pub fn requests(&self) -> &BTreeMap<String, String> {
+        &self.requests
+    }
+
+    pub fn native_constraints(&self) -> &BTreeMap<String, Vec<String>> {
+        &self.native_constraints
+    }
+
+    pub fn required_capabilities(&self) -> &[String] {
+        &self.required_capabilities
+    }
+
+    pub fn digest(&self) -> &str {
+        &self.digest
+    }
+
     /// Decode a closed normalized request record against a caller-trusted set of
     /// canonical catalog IDs. Recompute its digest with the same rules as config
     /// projection; never interpret version syntax or grant backend permission.

@@ -38,9 +38,9 @@ pub fn select_for_tool_requests(
         workspace,
         directory,
         profile,
-        &requests.digest,
+        requests.digest(),
         platform,
-        Some(&requests.requests),
+        Some(requests.requests()),
     )
 }
 

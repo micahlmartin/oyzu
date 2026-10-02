@@ -473,6 +473,14 @@ trusted operation context; anyone can compute a digest for a different request.
 This parser supplies the normalized request portion of a future worker payload,
 not the complete resolve-operation schema, broker session or catalog provenance.
 
+`ToolRequestIdentity` is immutable after projection or checked parsing. Rust
+consumers use `requests()`, `native_constraints()`, `required_capabilities()` and
+`digest()` to borrow its contents. This replaces the experimental public fields;
+callers needing a changed request must project or parse a new identity so its
+digest is recomputed. JSON field names and digest calculation are unchanged.
+Frozen selection uses these accessors to compare the same validated request map
+and digest. Immutability preserves consistency, not policy approval or freshness.
+
 After projection, prefer `select_for_tool_requests(workspace, directory, profile,
 requests, platform)`: it checks both the computed digest and canonical request
 map against one captured lock. A lock with a matching digest but an altered
