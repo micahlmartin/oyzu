@@ -574,3 +574,39 @@ redacted error type. No file is modified, extracted or executed, and no network
 request occurs. Restore the exact retained source bytes after failure; do not
 rewrite trusted hashes to accept changed input. All 53 current files (234,668 bytes)
 passed this check, alongside mutation tests included in the maintenance CI suite.
+
+### Real Java catalog replay qualification
+
+The Java fixture provisioner captures the public mise catalogs for Linux amd64,
+macOS arm64 and Windows amd64, selecting the exact Temurin HotSpot JDK
+`temurin-21.0.6+7.0.LTS` independently of Rust backend execution:
+
+```sh
+python tooling/mise-upstream/capture_java_metadata.py --output /outside/repository/java-metadata.json
+```
+
+Python 3.11+ and public HTTPS access are required. The output must be a new path
+outside the checkout. Each response is limited to 16 MiB, 100,000 records and a
+30-second network timeout; the serialized fixture is limited to 32 MiB. Wrong
+variant, target filename, runtime version, archive kind, malformed checksum,
+missing or ambiguous exact records fail. The helper retains original UTF-8 catalog
+bodies and their size/hash plus expected archive URLs/checksums. It downloads no
+archives, executes no tool and grants no publisher or licensing approval. No
+credentials or alternate catalog URLs are accepted. Output-write failure may
+leave a partial file; use a new output path after investigating the failure.
+
+In the maintained fork, set `OYZU_JAVA_METADATA_FIXTURE` to that file and run the
+library-only `oyzu-embedding-check` example. The harness copies a bounded fixture
+into a fresh operation's private state, verifies captured byte identities and
+supplies only those responses through the embedding transport callback. Actual
+Java `resolve_lock_info` calls must match all three expected URLs and checksums;
+an unavailable version must fail. Exactly three catalog requests are expected.
+The existing hostile-config and other boundary cases still run. No separate mise
+CLI is built or invoked by this replay command.
+
+Linux library/example strict Clippy and all 22 ordinary harness cases plus the
+three-target Java replay passed. The replay ran with container networking disabled.
+Windows/macOS replay remains pending native CI. This is declared-metadata/backend
+agreement, not publisher signature verification, Java version-range resolution,
+archive installation, backend admission or production worker integration. The
+capture helper's negative cases are included in the maintenance Python tests.

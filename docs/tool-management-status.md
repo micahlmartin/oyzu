@@ -1672,3 +1672,24 @@ jobs, including the real Java store case with the older synthetic version. Its
 Windows Java step remains running. These results do not verify this corrected
 identity on macOS or complete Java backend admission. Real metadata replay through
 the fork, publisher verification and production integration remain outstanding.
+
+## Checkpoint 121: actual Java backend metadata replay
+
+The maintained fork's library-only harness now accepts a captured Java fixture
+through OYZU_JAVA_METADATA_FIXTURE. A fresh Java-only session supplies original
+catalog bytes through the explicit callback; the real Java backend resolves the
+canonical Temurin 21.0.6+7.0.LTS identity for all three targets, matching expected
+archive URLs and checksums, rejecting an unavailable version and issuing exactly
+three captured requests. No network fallback, archive acquisition or mise CLI is
+used. Linux passes 22 ordinary cases plus this three-target replay with container
+networking disabled; strict library/example Clippy and pinned formatting pass.
+
+The new first-party capture helper retains bounded original catalog responses
+and independently selects exact target records. All 18 maintenance tests pass,
+including wrong variant/target/checksum, ambiguity, malformed encoding and size
+bounds. A fresh 8,491,223-byte fixture has SHA-256
+f21a1f34bec60e46c0672acc598a41cb028b6dc46e00592a90be6779846cc05a and remains outside
+the checkout. Reference/code-map updates describe provisioning and limitations.
+Windows/macOS fork replay is pending native CI; declared checksums remain
+unauthenticated publisher evidence. No production mise import, dependency/notice
+change, legal approval or completed backend-admission claim is introduced.
