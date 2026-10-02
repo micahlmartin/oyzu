@@ -1328,3 +1328,23 @@ disabled, and strict all-target Linux Clippy passed. The corrected fixture also
 passed all 11 Windows layout tests and formatting; native macOS CI remains pending. The
 reference, contract index, schema, code map and draft acquisition rule now describe
 the exact mapping. Real jq/Aqua qualification remains outstanding.
+
+## Mise integration checkpoint 100: real jq raw store qualification
+
+The shared artifact harness now qualifies jq 1.8.1's original Windows amd64 raw
+binary (1,026,560 bytes, SHA-256 recorded in the reference). Downloaded bytes match
+both the release API digest and published checksum manifest. Original artifact,
+checksum manifest and release COPYING are retained outside the checkout. The
+synthetic Aqua layout preserves the binary bytes as jq.exe; no upstream code or
+artifact is added to the repository or release package.
+
+Windows verified caching, raw staging, receipt publication, held-lease jq version
+execution and changed-lock denial/recovery. Linux passed the same materialization
+case without executing the Windows binary, with Docker networking disabled, plus
+strict all-target Clippy. Native CI now provisions and tests jq independently of
+Node/Go, retaining release COPYING in runner temporary storage. Full Windows
+locked regression, strict Clippy, formatting and all nine CLI scenarios passed.
+All three real-artifact cases passed together, including Go GOROOT, compilation
+and native program execution; updated native CI remains pending. This is store
+qualification, not Aqua registry interpretation, publisher verification, legal
+approval or production backend admission.

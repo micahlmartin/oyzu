@@ -1,4 +1,4 @@
-//! Opt-in real upstream ZIP qualification, independent of backend authorization.
+//! Opt-in real upstream artifact qualification, independent of backend authorization.
 mod tool_store_fixture;
 
 use oyzu::{
@@ -10,8 +10,10 @@ use std::{fs, path::PathBuf};
 
 const PLATFORM: &str = "windows/amd64/msvc";
 
-struct ZipCase {
+struct ArtifactCase {
     tool: &'static str,
+    canonical: &'static str,
+    kind: &'static str,
     version: &'static str,
     digest: &'static str,
     size: u64,
@@ -25,8 +27,10 @@ struct ZipCase {
 #[test]
 #[ignore = "requires externally provisioned Node archive and independent manifest; see reference"]
 fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
-    qualify(ZipCase {
+    qualify(ArtifactCase {
         tool: "node",
+        canonical: "core:node",
+        kind: "zip",
         version: "22.14.0",
         digest: "sha256:55b639295920b219bb2acbcfa00f90393a2789095b7323f79475c9f34795f217",
         size: 34906389,
@@ -41,8 +45,10 @@ fn real_node_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<
 #[test]
 #[ignore = "requires externally provisioned Go archive and independent manifest; see reference"]
 fn real_go_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
-    qualify(ZipCase {
+    qualify(ArtifactCase {
         tool: "go",
+        canonical: "core:go",
+        kind: "zip",
         version: "1.24.13",
         digest: "sha256:40b16bc8f00540a2cb02dff4de72b73e966fdd8d65f95e33d8e4080b48a2459a",
         size: 87295983,
@@ -54,7 +60,25 @@ fn real_go_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<()
     })
 }
 
-fn qualify(case: ZipCase) -> anyhow::Result<()> {
+#[test]
+#[ignore = "requires externally provisioned jq artifact and independent manifest; see reference"]
+fn real_jq_raw_publication_parity_and_changed_lock_denial() -> anyhow::Result<()> {
+    qualify(ArtifactCase {
+        tool: "jq",
+        canonical: "aqua:jqlang/jq",
+        kind: "raw",
+        version: "1.8.1",
+        digest: "sha256:23cb60a1354eed6bcc8d9b9735e8c7b388cd1fdcb75726b93bc299ef22dd9334",
+        size: 1026560,
+        prefix: "",
+        artifact: "jq-windows-amd64.exe",
+        executable: "jq.exe",
+        path: ".",
+        ratio: 200,
+    })
+}
+
+fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
     let prefix = format!("OYZU_{}_STORE", case.tool.to_ascii_uppercase());
     let archive = PathBuf::from(
         std::env::var_os(format!("{prefix}_ARCHIVE")).expect("archive path required"),
@@ -78,19 +102,26 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
     let key = records::digest(
         "oyzu.tool-record.v2",
         &json!({
-            "id":format!("core:{}", case.tool), "version":case.version, "backend_digest":backend, "options":{}
+            "id":case.canonical.to_owned(), "version":case.version, "backend_digest":backend, "options":{}
         }),
     )?;
     let mut plan: Value = serde_json::from_str(include_str!("fixtures/tool-layout/plan.json"))?;
     plan["platform"] = json!(PLATFORM);
-    plan["archive_kind"] = json!("zip");
+    plan["archive_kind"] = json!(case.kind);
     plan["extraction_bounds"]["max_expansion_ratio"] = json!(case.ratio);
-    plan["strip_prefix"] = json!(case.prefix);
+    plan["strip_prefix"] = if case.kind == "raw" {
+        Value::Null
+    } else {
+        json!(case.prefix)
+    };
     plan["input_blob_digests"] = json!([case.digest]);
     plan["required_paths"] = json!([
         {"path":"LICENSE", "kind":"file"},
         {"path":case.executable, "kind":"file"}
     ]);
+    if case.kind == "raw" {
+        plan["required_paths"] = json!([{"path":case.executable, "kind":"file"}]);
+    }
     plan["entrypoints"] = json!({(case.tool): {
         "kind":"native", "payload_relative_path":case.executable,
         "interpreter_tool_key":null, "interpreter_relative_path":null, "prefix_args":[]
@@ -105,9 +136,9 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
     let mut lock: toml::Value = toml::from_str(include_str!("fixtures/tool-lock/valid.toml"))?;
     lock["environment"][0]["roots"] = vec![key.clone()].into();
     let mut requests = toml::map::Map::new();
-    requests.insert(format!("core:{}", case.tool), case.version.into());
+    requests.insert(case.canonical.to_owned(), case.version.into());
     lock["environment"][0]["requests"] = toml::Value::Table(requests);
-    lock["tool"][0]["id"] = format!("core:{}", case.tool).into();
+    lock["tool"][0]["id"] = case.canonical.to_owned().into();
     lock["tool"][0]["key"] = key.clone().into();
     lock["tool"][0]["version"] = case.version.into();
     let distribution = &mut lock["tool"][0]["distribution"][0];
@@ -161,7 +192,7 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
     assert_eq!(
         Value::Object(actual),
         expected["entries"],
-        "independent Python ZIP inventory parity"
+        "independent Python artifact inventory parity"
     );
     let lease = tools::lease_installation_selection(
         &lock_path,
@@ -203,6 +234,8 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
         assert!(output.status.success());
         let expected_version = if case.tool == "go" {
             format!("go version go{} windows/amd64", case.version)
+        } else if case.tool == "jq" {
+            format!("jq-{}", case.version)
         } else {
             format!("v{}", case.version)
         };
@@ -231,7 +264,7 @@ fn qualify(case: ZipCase) -> anyhow::Result<()> {
         )?,
         lease.selection_digest
     );
-    eprintln!("real {} ZIP: {} entries match; publication and changed-lock denial passed; native execution={}", case.tool, tree.entries.len(), cfg!(windows));
+    eprintln!("real {} artifact: {} entries match; publication and changed-lock denial passed; native execution={}", case.tool, tree.entries.len(), cfg!(windows));
     Ok(())
 }
 

@@ -59,6 +59,17 @@ jobs:
           curl --fail --silent --show-error --location --max-time 180 --max-filesize 87295983 --output "$OYZU_GO_STORE_ARCHIVE" https://dl.google.com/go/go1.24.13.windows-amd64.zip
           python tooling/prepare-go-store-fixture.py --archive "$OYZU_GO_STORE_ARCHIVE" --manifest "$OYZU_GO_STORE_MANIFEST"
           cargo test --locked --test tool_native_archive real_go_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+      - name: Real jq raw store parity and changed-lock denial
+        timeout-minutes: 5
+        shell: bash
+        env:
+          OYZU_JQ_STORE_ARCHIVE: ${{ runner.temp }}/jq-windows-amd64.exe
+          OYZU_JQ_STORE_MANIFEST: ${{ runner.temp }}/jq-store-manifest.json
+        run: |
+          curl --fail --silent --show-error --location --max-time 120 --max-filesize 1026560 --output "$OYZU_JQ_STORE_ARCHIVE" https://github.com/jqlang/jq/releases/download/jq-1.8.1/jq-windows-amd64.exe
+          curl --fail --silent --show-error --location --max-time 30 --max-filesize 1048576 --output "$RUNNER_TEMP/jq-COPYING" https://raw.githubusercontent.com/jqlang/jq/jq-1.8.1/COPYING
+          python tooling/prepare-jq-store-fixture.py --archive "$OYZU_JQ_STORE_ARCHIVE" --manifest "$OYZU_JQ_STORE_MANIFEST"
+          cargo test --locked --test tool_native_archive real_jq_raw_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
       - name: Native policy integrity store
         if: runner.os == 'Windows' || runner.os == 'macOS'
         run: cargo test --locked config::policy_runtime::tests::native_integrity_store_roundtrip -- --ignored --exact

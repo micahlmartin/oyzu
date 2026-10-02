@@ -729,3 +729,32 @@ existing archive layouts are unchanged. Synthetic tests cover exact bytes,
 receipt publication, ambiguous/missing/non-file destinations, path escapes and
 entry/depth/file-size bounds. This does not admit jq/Aqua or prove any real raw
 backend's provenance, publisher verification, environment or execution behavior.
+
+### Real jq raw-artifact qualification
+
+An opt-in store test uses the original jq 1.8.1 Windows amd64 release binary:
+1,026,560 bytes, SHA-256
+`23cb60a1354eed6bcc8d9b9735e8c7b388cd1fdcb75726b93bc299ef22dd9334`.
+Its release API digest and `sha256sum.txt` agree with the downloaded bytes. This
+is declared checksum consistency, not publisher signature verification. Retain
+the original artifact and upstream release `COPYING` outside the checkout.
+Neither is incorporated into Oyzu or its distributed package by this test.
+
+```sh
+python tooling/prepare-jq-store-fixture.py --archive /fixtures/jq-windows-amd64.exe --manifest /fixtures/jq-store-manifest.json
+export OYZU_JQ_STORE_ARCHIVE=/fixtures/jq-windows-amd64.exe
+export OYZU_JQ_STORE_MANIFEST=/fixtures/jq-store-manifest.json
+cargo test --locked --test tool_native_archive real_jq_raw_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+```
+
+Python 3.11+ is required. The helper rejects size/hash mismatch and exclusively
+creates the manifest without executing the binary. The layout maps the raw bytes
+to `jq.exe`, with synthetic Aqua admission and installer identities. The test
+verifies caching, exact payload parity, receipts, publication and changed-lock
+rejection/recovery; Windows runs `jq --version` while retaining the lease. Other
+hosts materialize the Windows artifact without executing it. Each native CI job
+provisions this fixture separately from Node and Go. No network is used by the
+Rust case itself. Windows execution and Linux foreign-target materialization
+(with Docker networking disabled) passed locally; updated native CI remains
+pending. This is not Aqua registry/resolver qualification, legal approval or a
+production installation command, and does not qualify other native jq targets.
