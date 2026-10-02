@@ -20,6 +20,11 @@
   ],
   "cases": [
     {
+      "name": "provisioned-base",
+      "change": "Use variants/provisioned-base with alpine:3.22 explicitly provisioned in the executor Docker store.",
+      "expect": "Capture the immutable image during preparation, build from its OCI store offline, retain input identity and produce repeatable snapshots; missing images fail preflight without pulling."
+    },
+    {
       "name": "external-add",
       "change": "Use the negative Dockerfile.",
       "expect": "Reject undeclared external acquisition before a hermetic action."
@@ -50,6 +55,8 @@
     }
   ],
   "requiredFiles": [
+    "variants/provisioned-base/Dockerfile",
+    "variants/provisioned-base/greeting.txt",
     "negative/Dockerfile",
     "project/.dockerignore",
     "project/Dockerfile",

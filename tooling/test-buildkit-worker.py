@@ -1,12 +1,14 @@
-"""Native BuildKit worker contract probe; not compiled-Oyzu image acceptance.
+"""Native BuildKit isolation probe and optional compiled-Oyzu image-input probe.
 
 Use a fresh rootless worker/store for every build. Its outer network is disabled,
-and only the source copy and private output directory are mounted from the host.
+and the direct worker probe mounts only source and private output. With --cli,
+also capture a provisioned base through Oyzu and verify repeated OCI exports.
 """
 import argparse
 import hashlib
 import io
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -173,9 +175,35 @@ def main():
         assert digests[0] == digests[1], 'fresh workers produced different OCI image identities'
         assert before == {p.relative_to(context).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
                           for p in context.rglob('*') if p.is_file()}
+        if args.cli:
+            # Exercise the actual CLI acquisition -> plan -> worker path early,
+            # independently of the longer multi-ecosystem scenario job.
+            project = evidence/'provisioned-base'
+            project.mkdir()
+            shutil.copyfile(context/'probe',project/'probe')
+            (project/'probe').chmod(0o755)
+            (project/'Dockerfile').write_text('FROM alpine:3.22\nCOPY probe /probe\nRUN '+json.dumps(['/probe',str(secret)],separators=(', ', ': '))+'\n')
+            native = []
+            for index in range(2):
+                result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'build'],
+                                        env={**os.environ,'OYZU_BUILDKIT_APPARMOR_PROFILE':args.apparmor_profile},
+                                        capture_output=True,text=True,timeout=300)
+                (evidence/f'base-{index}.stdout').write_text(result.stdout)
+                (evidence/f'base-{index}.stderr').write_text(result.stderr)
+                assert result.returncode==0, result.stdout+result.stderr
+                manifest=json.loads((project/'dist/manifest.json').read_text())
+                artifact,=manifest['artifacts']
+                digest,files=inspect_layout(project/'dist'/artifact['path'],sentinel)
+                assert 'etc/alpine-release' in files and files['probe']==(context/'probe').read_bytes()
+                assert manifest['status']=='succeeded' and digest==artifact['ociDigest']
+                captured=json.loads((project/'dist/dependencies/project.json').read_text())
+                binding,=captured['extensions']['oyzu.dev/docker']['images']
+                assert binding['reference']=='alpine:3.22' and binding['config'].startswith('sha256:')
+                native.append((manifest['planDigest'],digest,artifact['digest']))
+            assert native[0]==native[1], 'captured base build is not repeatable'
     record = {'worker': identity, 'apparmorProfile': args.apparmor_profile,
               'ociDigest': digests[0], 'result': 'native rootless worker contract passed',
-              'scope': 'worker/OCI probe only; compiled-Oyzu container build integration remains pending'}
+              'scope': 'native worker isolation and OCI inspection; compiled CLI provisioned-base capture/build/repeatability also verified when --cli is supplied'}
     (evidence / 'summary.json').write_text(json.dumps(record, indent=2))
     print(json.dumps(record))
 

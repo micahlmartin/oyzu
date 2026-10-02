@@ -111,6 +111,15 @@ jobs:
           go build -mod=readonly -trimpath -o "$ADAPTER" .
           cd "$GITHUB_WORKSPACE"
           python tooling/test-go-modulezip.py --adapter "$ADAPTER"
+      - name: Native OCI image input conversion
+        shell: bash
+        run: |
+          cd src/builders/docker/runtime/images
+          go mod download
+          go mod verify
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          GOPROXY=off GOSUMDB=off go test -mod=readonly ./...
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
@@ -201,6 +210,7 @@ jobs:
       - name: Provision native worker and probe compiler
         run: |
           docker pull moby/buildkit:v0.25.0-rootless
+          docker pull alpine:3.22
           docker pull golang:1.24-bookworm
       - name: Compile and test native Dockerfile metadata adapter
         run: docker build -f tooling/images/docker-metadata.Dockerfile -t oyzu-toolchain/docker:buildkit0.25.0 .
@@ -237,6 +247,7 @@ jobs:
       - name: Provision native toolchain images and contract validator
         run: |
           docker pull node:22-bookworm-slim
+          docker pull alpine:3.22
           docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
           docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm

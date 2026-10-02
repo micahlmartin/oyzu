@@ -34,6 +34,7 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 ## Failure and variation cases
 
 - **external-add:** Use the negative Dockerfile. Expected: Reject undeclared external acquisition before a hermetic action.
+- **provisioned-base:** Use [variants/provisioned-base](variants/provisioned-base/Dockerfile) with `alpine:3.22` already present in the executor's Docker image store. Preparation captures that image by immutable identity; the isolated build consumes its OCI store offline and emits a snapshot image. A missing base fails preflight without a pull. See [Docker image inputs](../../../docs/reference/docker-images.md) for scope and limitations.
 - **quality-gates:** Introduce noncanonical spacing or a relative WORKDIR. Native format/lint checks fail and block final artifacts without changing source.
 - **ignored-quality-config:** Exclude target-local Hadolint/EditorConfig files with `.dockerignore`. Checks must still use them while image layers omit them. See the [Dockerfile quality reference](../../../docs/reference/docker-quality.md) for native defaults and provisioning.
 

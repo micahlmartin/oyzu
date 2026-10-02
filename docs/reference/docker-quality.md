@@ -50,4 +50,4 @@ The compiled-CLI Linux suite additionally requires successful quality gates for 
 
 Hadolint is a static linter, not a container vulnerability scanner or proof of policy compliance. Native suppressions can change its result. Dockerfmt has documented syntax limitations, including escape directives and some shell grouping forms; support for every Dockerfile dialect is not claimed. Native configuration/tool behavior is described by [Hadolint](https://github.com/hadolint/hadolint#configure) and [dockerfmt](https://github.com/reteps/dockerfmt#configuration). Unsupported forms and broader scanner integrations remain part of the build-system work.
 
-Dockerfile-free packaging, external image/dependency acquisition, platform matrices and Helm image bindings remain separate unfinished capabilities. Quality checks do not make those scenarios implemented.
+Literal bases can now use [captured provisioned images](docker-images.md). Dockerfile-free packaging, registry image/dependency acquisition, platform matrices and Helm image bindings remain unfinished. Quality checks do not make those scenarios implemented.
