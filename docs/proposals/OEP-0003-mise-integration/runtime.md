@@ -319,3 +319,11 @@ activation holds a renewable session reference so pruning cannot remove the
 active PATH directory. Crashed sessions expire only after process identity
 (including start time) no longer exists; PID reuse is not ownership. Read-only
 copies into hermetic workers hold separate action leases.
+
+
+Worker session construction now requires an independently expected operation and
+envelope context. A syntactically valid request with a different request ID,
+context/backend digest, target or capability list is rejected before the session
+exists. This binding check does not authenticate the native channel or admit
+operation payloads/handles; the future supervisor must supply expectations from
+trusted state rather than copying them from the received frame.

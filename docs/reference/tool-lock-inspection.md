@@ -1111,9 +1111,15 @@ worker protocol.
 
 ### Worker-side operation session
 
-`ToolWorkerSession::new(request_bytes)` applies the same bounded outer-request
-validation as the supervisor exchange before a future dispatcher initializes a
-backend. `operation()` and `untrusted_payload()` expose only the validated
+`ToolWorkerSession::new(request_bytes, expected_operation, expected_context)`
+applies the same bounded outer-request validation as the supervisor exchange,
+then requires exact equality with independently trusted supervisor state before
+creating a session. It compares operation, request ID, context digest, backend
+release digest, target and the complete ordered capability list. A mismatch returns
+`TOOL_WORKER_REQUEST_BINDING_INVALID`; neither adding nor dropping capabilities
+is accepted. Expected values must come from the supervisor operation, never from
+the received request. This is identity binding, not channel authentication or
+validation of payload values and capability handles. `operation()` and `untrusted_payload()` expose only the validated
 operation name and untrusted payload. One session represents one operation; it
 does not authorize serving multiple workspaces in a persistent worker process.
 

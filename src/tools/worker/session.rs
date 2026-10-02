@@ -11,12 +11,27 @@ pub struct ToolWorkerSession {
 }
 
 impl ToolWorkerSession {
-    /// Validate the one initial request before backend initialization. Capability
-    /// IDs and payload contents are still untrusted, not authenticated handles.
-    pub fn new(request: &[u8]) -> Result<Self> {
-        Ok(Self {
-            exchange: ToolWorkerExchange::new(request)?,
-        })
+    /// Bind the initial envelope to independently trusted supervisor state before
+    /// backend initialization. Never derive expected values from the received
+    /// request. Exact capabilities are operation-specific, not an ambient allowlist.
+    /// Channel authentication and typed payload/handle admission remain external.
+    pub fn new(
+        request: &[u8],
+        expected_operation: ToolWorkerOperation,
+        expected: ToolWorkerRequestContext<'_>,
+    ) -> Result<Self> {
+        let exchange = ToolWorkerExchange::new(request)?;
+        let actual = exchange.context();
+        ensure!(
+            exchange.operation() == expected_operation
+                && actual.request_id == expected.request_id
+                && actual.context_digest == expected.context_digest
+                && actual.backend_release_digest == expected.backend_release_digest
+                && actual.target_platform == expected.target_platform
+                && actual.capabilities == expected.capabilities,
+            "TOOL_WORKER_REQUEST_BINDING_INVALID"
+        );
+        Ok(Self { exchange })
     }
 
     pub fn operation(&self) -> ToolWorkerOperation {
@@ -69,6 +84,42 @@ mod tests {
     use super::*;
     use serde_json::json;
     const REQUEST: &[u8] = include_bytes!("../../../tests/fixtures/tool-worker/request.json");
+    fn bound_session(request: &[u8]) -> Result<ToolWorkerSession> {
+        // Fixture represents independently selected supervisor state; mutated
+        // requests below must not be allowed to redefine this expectation.
+        let expected = ToolWorkerExchange::new(REQUEST)?;
+        ToolWorkerSession::new(request, expected.operation(), expected.context())
+    }
+
+    #[test]
+    fn session_requires_exact_independent_supervisor_binding() {
+        assert!(bound_session(REQUEST).is_ok());
+        for (field, replacement) in [
+            ("request_id", json!("22345678-1234-1234-1234-123456789abc")),
+            (
+                "context_digest",
+                json!(format!("sha256:{}", "c".repeat(64))),
+            ),
+            (
+                "backend_release_digest",
+                json!(format!("sha256:{}", "c".repeat(64))),
+            ),
+            ("target_platform", json!("windows/amd64/msvc")),
+            ("capabilities", json!([])),
+            ("capabilities", json!(["install", "metadata"])),
+            ("operation", json!("prepare")),
+        ] {
+            let mut value: Value = serde_json::from_slice(REQUEST).unwrap();
+            value[field] = replacement;
+            let bytes = serde_json::to_vec(&value).unwrap();
+            assert!(ToolWorkerExchange::new(&bytes).is_ok(), "{field}");
+            assert_eq!(
+                bound_session(&bytes).err().unwrap().to_string(),
+                "TOOL_WORKER_REQUEST_BINDING_INVALID",
+                "{field}"
+            );
+        }
+    }
     fn success() -> ToolWorkerOutcome {
         ToolWorkerOutcome::UntrustedResult(json!({}))
     }
@@ -84,7 +135,7 @@ mod tests {
                 code: "TOOL_STOPPED".into(),
             },
         ] {
-            let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
+            let mut worker = bound_session(REQUEST).unwrap();
             assert_eq!(worker.operation(), ToolWorkerOperation::Resolve);
             assert!(worker.untrusted_payload().is_object());
             let encoded = worker.finish(outcome).unwrap();
@@ -102,7 +153,7 @@ mod tests {
             ToolWorkerOutcome::UntrustedResult(json!({"too_large":"x".repeat(8*1024*1024)})),
             ToolWorkerOutcome::UntrustedResult(json!({"escaped":"\0".repeat(2*1024*1024)})),
         ] {
-            let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
+            let mut worker = bound_session(REQUEST).unwrap();
             assert!(worker.finish(outcome).is_err());
             assert!(worker.finish(success()).is_err());
         }
@@ -111,10 +162,10 @@ mod tests {
     #[test]
     fn cancellation_rejects_racing_success_and_poisoned_or_duplicate_input() {
         let cancel = ToolWorkerExchange::new(REQUEST).unwrap().cancel().unwrap();
-        let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
+        let mut worker = bound_session(REQUEST).unwrap();
         worker.accept_cancel(&cancel).unwrap();
         assert!(worker.finish(success()).is_err());
-        let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
+        let mut worker = bound_session(REQUEST).unwrap();
         worker.accept_cancel(&cancel).unwrap();
         assert!(worker.accept_cancel(&cancel).is_err());
         assert!(worker
@@ -132,7 +183,7 @@ mod tests {
         ] {
             let mut changed = base.clone();
             changed[field] = value;
-            let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
+            let mut worker = bound_session(REQUEST).unwrap();
             assert!(worker
                 .accept_cancel(&serde_json::to_vec(&changed).unwrap())
                 .is_err());
@@ -143,11 +194,11 @@ mod tests {
             b"{",
             b"{\"operation\":\"cancel\",\"operation\":\"cancel\"}",
         ] {
-            let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
+            let mut worker = bound_session(REQUEST).unwrap();
             assert!(worker.accept_cancel(invalid).is_err());
             assert!(worker.finish(success()).is_err());
         }
-        let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
+        let mut worker = bound_session(REQUEST).unwrap();
         worker.abort();
         assert!(worker.finish(success()).is_err());
     }
@@ -163,7 +214,7 @@ mod tests {
                 let worker = thread::spawn(move || -> Result<()> {
                     let mut wire = ToolWorkerChannel::new(child);
                     let request = serde_json::to_vec(&wire.receive()?)?;
-                    let mut session = ToolWorkerSession::new(&request)?;
+                    let mut session = bound_session(&request)?;
                     // Dispatcher admission needs the actual envelope identity,
                     // not another parse of an untrusted payload or ambient state.
                     let context = session.context();

@@ -2171,3 +2171,19 @@ This completes that metadata validation run, not full Python admission. Version
 constraint resolution, acquired artifact/publisher verification, installation,
 worker supervision, production wiring and shipping approval remain unfinished.
 Documentation and diff checks pass; OEP-0003 remains active.
+
+## Checkpoint 150: worker sessions bind trusted supervisor context
+
+ToolWorkerSession construction now requires an independently expected operation
+and envelope context. Exact request ID, context/backend digests, target and the
+complete capability set must match before the session exists. Regression cases
+mutate each field while retaining valid envelope syntax; all are rejected, including
+capability additions and removals. Existing terminal and cancellation tests now
+construct sessions against separate fixture expectations. The reference documents
+the changed experimental constructor and its trust boundary.
+
+Windows cargo test --locked, strict all-target Clippy, formatting, real CLI task
+scenarios, documentation and diff checks pass. Ignored external-archive scenarios
+were not run in this check. This identity binding does not authenticate channels,
+admit typed payloads or implement process supervision. Native spawn, OS deadlines,
+backend dispatch and full OEP-0003 integration remain unfinished.
