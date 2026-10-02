@@ -1278,3 +1278,17 @@ test, but execution of this increment in CI remains pending. Foreign hosts still
 only materialize the Windows archive. This establishes real compiler use from a
 verified published payload, not production environment projection, builder handoff,
 source admission, publisher signatures or full OEP completion.
+
+## Mise integration checkpoint 97: dependency alias provenance checks
+
+The upstream observer now inspects renamed `package = "mise"` dependencies and
+normal/build/development declarations in root and target tables. Every inspected
+declaration must name the public fork, disable default features and agree on the
+exact revision matched by Cargo.lock. Workspace inheritance and mise patch/replace
+overrides fail explicitly until the observer can verify their provenance; an
+unaccounted mise lock entry cannot be reported as absent integration. This closes
+a false-negative observation path without importing mise or conferring admission.
+
+Six maintenance regression tests passed, including alias/target wrong-source
+rejection, conflicting pins, unsupported overrides and orphan lock records.
+Detailed behavior and recovery are documented in the maintenance reference.

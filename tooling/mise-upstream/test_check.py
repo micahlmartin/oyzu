@@ -28,6 +28,38 @@ class MaintenanceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 check.pinned_dependency(manifest, lock)
 
+    def test_aliases_and_target_declarations_are_checked(self):
+        manifest, lock = self.fixture()
+        dependency = manifest["dependencies"].pop("mise")
+        dependency["package"] = "mise"
+        manifest["target"] = {"cfg(windows)": {"dependencies": {"embedded": dependency}}}
+        self.assertEqual(check.pinned_dependency(manifest, lock), "a" * 40)
+        dependency["git"] = "https://github.com/jdx/mise"
+        with self.assertRaises(ValueError):
+            check.pinned_dependency(manifest, lock)
+
+    def test_all_dependency_kinds_and_conflicting_pins(self):
+        for section in ("dependencies", "build-dependencies", "dev-dependencies"):
+            manifest, lock = self.fixture()
+            manifest.setdefault(section, {})["embedded"] = {
+                "package": "mise", "git": check.FORK, "rev": "b" * 40,
+                "default-features": False}
+            with self.assertRaises(ValueError):
+                check.pinned_dependency(manifest, lock)
+
+    def test_uninspected_sources_fail_instead_of_reporting_no_integration(self):
+        for manifest in (
+            {"workspace": {"dependencies": {"embedded": {"package": "mise"}}}},
+            {"patch": {check.FORK: {"embedded": {"package": "mise", "path": "local"}}}},
+            {"replace": {"mise:2026.10.0": {"path": "local"}}},
+            {"dependencies": {"mise": {"workspace": True}}},
+        ):
+            with self.assertRaises(ValueError):
+                check.pinned_dependency(manifest, {})
+        _, lock = self.fixture()
+        with self.assertRaises(ValueError):
+            check.pinned_dependency({}, lock)
+
     def test_unintegrated_fork_is_not_a_production_pin(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -31,16 +31,49 @@ def github(path):
 
 
 def pinned_dependency(manifest, lock):
-    dependency = manifest.get("dependencies", {}).get("mise")
-    if dependency is None:
+    declarations = []
+    def collect(table):
+        for name, dependency in table.items():
+            if name == "mise" or isinstance(dependency, dict) and dependency.get("package") == "mise":
+                declarations.append(dependency)
+    for section in ("dependencies", "build-dependencies", "dev-dependencies"):
+        collect(manifest.get(section, {}))
+        for target in manifest.get("target", {}).values():
+            collect(target.get(section, {}))
+    # Workspace inheritance and source replacement need resolved member/source
+    # provenance, which this root-manifest observer does not currently own.
+    unsupported = []
+    for name, dependency in manifest.get("workspace", {}).get("dependencies", {}).items():
+        if name == "mise" or isinstance(dependency, dict) and dependency.get("package") == "mise":
+            unsupported.append(name)
+    for table in manifest.get("patch", {}).values():
+        for name, dependency in table.items():
+            if name == "mise" or isinstance(dependency, dict) and dependency.get("package") == "mise":
+                unsupported.append(name)
+    if any(name.split(":")[0] == "mise" for name in manifest.get("replace", {})):
+        unsupported.append("replace")
+    if unsupported:
+        raise ValueError("mise workspace inheritance or source overrides require explicit provenance support")
+    packages = [p for p in lock.get("package", []) if p.get("name") == "mise"]
+    if not declarations:
+        if packages:
+            raise ValueError("mise lock entry has no inspected direct declaration")
         return None
-    if not isinstance(dependency, dict) or dependency.get("git") != FORK:
-        raise ValueError("mise must use the public oyzuai/mise fork")
-    rev = dependency.get("rev", "")
-    if not re.fullmatch(r"[0-9a-f]{40}", rev) or "branch" in dependency or "tag" in dependency:
-        raise ValueError("mise requires an immutable full commit rev")
-    if dependency.get("default-features") is not False:
-        raise ValueError("mise default features must be explicitly disabled")
+    revisions = set()
+    for dependency in declarations:
+        if (not isinstance(dependency, dict) or dependency.get("git") != FORK
+                or dependency.get("package", "mise") != "mise"
+                or "path" in dependency or "workspace" in dependency):
+            raise ValueError("mise must use the public oyzuai/mise fork")
+        rev = dependency.get("rev", "")
+        if not re.fullmatch(r"[0-9a-f]{40}", rev) or "branch" in dependency or "tag" in dependency:
+            raise ValueError("mise requires an immutable full commit rev")
+        if dependency.get("default-features") is not False:
+            raise ValueError("mise default features must be explicitly disabled")
+        revisions.add(rev)
+    if len(revisions) != 1:
+        raise ValueError("mise declarations disagree on the source revision")
+    rev = revisions.pop()
     expected = f"git+{FORK}?rev={rev}#{rev}"
     packages = [p for p in lock.get("package", []) if p.get("name") == "mise"]
     if len(packages) != 1 or packages[0].get("source") != expected:

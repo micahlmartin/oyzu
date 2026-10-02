@@ -18,7 +18,12 @@ and exact commit, the public `oyzuai/mise` default-branch commit, the experiment
 base, and Oyzu's production dependency pin when configured. It verifies that
 the named fork is public and has `jdx/mise` as its parent. If a direct mise
 dependency exists, it must use that fork, an exact full `rev`, disabled default
-features and a matching source in Oyzu's root Cargo.lock. A missing dependency
+features and a matching source in Oyzu's root Cargo.lock. Inspection covers renamed
+`package = "mise"` declarations, normal/build/development dependencies and target
+tables; all declarations must agree on one revision. Workspace inheritance, mise
+patch/replacement overrides and a lock entry without an inspected declaration
+fail explicitly because their provenance is not supported by this root-manifest
+observer. Unrelated dependencies and overrides are unaffected. A missing dependency
 produces `production-integration-not-configured`, never an inferred production
 pin from the fork head. Configured dependencies produce `manual-triage-required`.
 
@@ -41,8 +46,9 @@ security advisories, compute exposure, validate patch provenance, review license
 obligations, qualify platforms, enforce owner approval or perform the monthly
 promotion. `release_ready` always remains false. Those gates and @micahlmartin's
 ownership are specified in the [maintenance procedure](../proposals/OEP-0003-mise-integration/upstream-maintenance.md).
-Unit tests cover exact pin/lock agreement, moving/wrong sources and absence of
-production integration. Current live observation evidence is recorded in
+Unit tests cover exact pin/lock agreement, moving/wrong sources, renamed and
+target-specific declarations, conflicting revisions, unsupported source overrides
+and absence of production integration. Current live observation evidence is recorded in
 [tool-management status](../tool-management-status.md).
 
 The candidate embedding boundary is tracked in
