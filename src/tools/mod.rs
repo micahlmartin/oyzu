@@ -7,6 +7,8 @@ mod backend;
 pub mod development;
 mod edit;
 mod grant;
+#[cfg(feature = "mise-integration")]
+pub mod shell;
 pub use grant::{ToolGrantContext, ToolGrantOperation, VerifiedToolGrant};
 mod lock;
 mod requests;

@@ -11,6 +11,7 @@ on:
       - 'tooling/test-tool-management.py'
       - 'tooling/test-tool-updates.py'
       - 'tooling/test-tool-environment.py'
+      - 'tooling/test-tool-activation.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
 
@@ -68,6 +69,15 @@ jobs:
       - name: Apply environment in PowerShell
         if: runner.os == 'Windows'
         run: python tooling/test-tool-environment.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell pwsh
+      - name: Activate Bash and switch projects
+        if: runner.os != 'Windows'
+        run: python tooling/test-tool-activation.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell bash
+      - name: Activate Zsh and switch projects
+        if: runner.os == 'macOS'
+        run: python tooling/test-tool-activation.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell zsh
+      - name: Activate PowerShell and switch projects
+        if: runner.os == 'Windows'
+        run: python tooling/test-tool-activation.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell pwsh
       - name: Check feature-enabled code
         run: cargo clippy --locked --features mise-integration --all-targets -- -D warnings
       - name: Formatting

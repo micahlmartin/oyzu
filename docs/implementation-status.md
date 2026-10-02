@@ -22,8 +22,11 @@ Windows at `1acb16f`; macOS update acceptance remains pending. See the
 scope. This milestone does not complete the remaining OEP-0003 functionality.
 The `env` command now shares composition with `exec`, redacts inspection values
 and uses mise to render literal Bash/Zsh/PowerShell assignments. Linux Bash/Zsh
-application agrees with actual exec under disabled networking; automatic shell
-activation, switching and deactivation remain unfinished.
+application agrees with actual exec under disabled networking. Initial upstream
+hooks now connect Bash/Zsh activation, automatic directory switching, unavailable
+selection cleanup and deactivation. Full shell lifecycle qualification and
+PowerShell activation remain unfinished; PowerShell environment application has
+passed on Windows at `3eefcc2`.
 
 ## Builder objective
 

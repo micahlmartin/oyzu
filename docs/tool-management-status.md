@@ -2567,3 +2567,39 @@ updates, offline restoration, feature lint and formatting in run 37048375166;
 macOS 01e81be passed the complete cached-restoration job in run 37047681781.
 These close prior native evidence gaps, not the remaining functionality scope.
 Hardening remains reserved for future goals.
+
+## Checkpoint 164: upstream-rendered automatic shell sessions
+
+`activate bash|zsh|pwsh`, the internal hook-env entrypoint and `deactivate` now
+connect upstream-generated hooks to Oyzu's frozen local selection. The renderer
+uses a placeholder frontend while adapting generated names, then inserts the real
+frontend through upstream quoting so path/config text is never namespace-rewritten.
+Command-not-found automatic installation is disabled. No separate mise executable
+is invoked and no shell profile is modified.
+
+The new shell-session owner records changed values under a random temporary token.
+Transitions roll back prior owned values, apply the current project's environment
+and expose ready/unavailable status. Unchanged identity emits no delta; a missing
+selection clears the preceding project and reports once per changed failure.
+Scalar edits are preserved. Exact PATH restoration and removal of an unchanged
+leading owned insertion are supported; general ambiguous PATH edits remain open.
+
+Real Linux Bash and Zsh passed with Docker networking disabled: activation into
+Node 22.15.0, automatic cd to 22.14.0, empty unchanged-hook output, missing-selection
+cleanup, user scalar edit preservation, return to the first project and explicit
+deactivation. The final cleanup replay also passed. The native workflow now runs
+activation on Bash, Zsh and PowerShell; macOS and PowerShell results are pending.
+Previous Windows environment application at 3eefcc2 passed its entire job in run
+37049209850. This is initial TM-08 product behavior, not full lifecycle completion.
+
+Default Windows GNU locked tests, strict all-target Clippy, formatting and nine
+real task scenarios passed. Linux feature-enabled build, strict all-target Clippy
+and formatting passed before a final relative-root preservation correction; its
+final lint check is in progress. Detailed reference and owner map describe the
+session and its limits. Shims, complete PATH alignment, independent/nested session
+qualification, active-shell retention, profile installation and abandoned-session
+recovery remain functional work. Hardening remains reserved for future goals.
+
+Checkpoint 164 verification completion: final feature-enabled strict all-target
+Clippy and formatting passed, including absolute capture of an explicit root.
+Documentation structure and diff checks passed. Full OEP completion is not claimed.

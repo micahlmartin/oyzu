@@ -20,11 +20,16 @@ const SOURCE: &str = "https://nodejs.org/dist/";
 
 #[derive(Serialize, Deserialize)]
 enum WorkerRequest {
+    Hooks {
+        shell: String,
+        activate: bool,
+    },
     Metadata(Request),
     RenderEnvironment {
         shell: String,
         original: BTreeMap<String, String>,
         desired: BTreeMap<String, String>,
+        remove: Vec<String>,
     },
 }
 
@@ -97,19 +102,54 @@ pub fn worker() -> Result<i32> {
     })
     .map_err(|error| anyhow::anyhow!("{error:#}"))?;
     let request = match operation {
+        WorkerRequest::Hooks { shell, activate } => {
+            let kind = shell_kind(&shell)?;
+            let renderer = kind.as_shell();
+            let mut settings = (*mise::config::Settings::get()).clone();
+            settings.not_found_auto_install = false;
+            mise::config::settings::store(Arc::new(settings));
+            // Namespace adaptation occurs before inserting any user/path value.
+            let template = if activate {
+                renderer.activate(mise::shell::ActivateOptions {
+                    exe: PathBuf::from("__OYZU_FRONTEND_TOKEN__"),
+                    flags: String::new(),
+                    no_hook_env: false,
+                    prelude: vec![],
+                })
+            } else {
+                renderer.deactivate()
+            };
+            let template = template
+                .replace("mise", "oyzu")
+                .replace("MISE", "OYZU")
+                .replace("Mise", "Oyzu");
+            let script = if activate {
+                let prefix = renderer.set_env(
+                    "OYZU_FRONTEND",
+                    std::env::current_exe()?
+                        .to_str()
+                        .context("frontend path must be UTF-8")?,
+                );
+                let template = if shell == "pwsh" {
+                    template.replace("'__OYZU_FRONTEND_TOKEN__'", "$env:OYZU_FRONTEND")
+                } else {
+                    template.replace("__OYZU_FRONTEND_TOKEN__", "\"${OYZU_FRONTEND}\"")
+                };
+                format!("{prefix}{template}")
+            } else {
+                template
+            };
+            serde_json::to_writer(std::io::stdout(), &script)?;
+            return Ok(0);
+        }
         WorkerRequest::Metadata(request) => request,
         WorkerRequest::RenderEnvironment {
             shell,
             original,
             desired,
+            remove,
         } => {
-            let renderer = match shell.as_str() {
-                "bash" => mise::shell::ShellType::Bash,
-                "zsh" => mise::shell::ShellType::Zsh,
-                "pwsh" => mise::shell::ShellType::Pwsh,
-                _ => anyhow::bail!("supported shells are bash, zsh and pwsh"),
-            }
-            .as_shell();
+            let renderer = shell_kind(&shell)?.as_shell();
             let diff = mise::env_diff::EnvDiff::new(&original, desired);
             let mut script = String::new();
             for patch in diff.to_patches() {
@@ -120,6 +160,9 @@ pub fn worker() -> Result<i32> {
                     }
                     EnvDiffOperation::Remove(key) => renderer.unset_env(&key),
                 });
+            }
+            for key in remove {
+                script.push_str(&renderer.unset_env(&key));
             }
             serde_json::to_writer(std::io::stdout(), &script)?;
             return Ok(0);
@@ -490,16 +533,16 @@ pub fn install(
     Ok(0)
 }
 
-struct InstalledCommand {
+pub(super) struct InstalledCommand {
     lease: super::InstallationLease,
-    executable: PathBuf,
+    pub(super) executable: PathBuf,
     bin: PathBuf,
-    effective: config::resolve::EffectiveConfig,
+    pub(super) effective: config::resolve::EffectiveConfig,
 }
 
 // Shared frozen lookup for execution and executable discovery. The returned
 // lease keeps the verified installation available for the caller's operation.
-fn installed_command(
+pub(super) fn installed_command(
     directory: &Path,
     options: &config::session::Options,
     store: &Path,
@@ -593,15 +636,22 @@ pub fn exec(
 
 // Execution and shell output share one environment composition contract.
 fn command_environment(selected: &InstalledCommand) -> Result<BTreeMap<String, OsString>> {
+    compose_environment(selected, std::env::var_os("PATH").as_deref())
+}
+
+pub(super) fn compose_environment(
+    selected: &InstalledCommand,
+    path: Option<&std::ffi::OsStr>,
+) -> Result<BTreeMap<String, OsString>> {
     let mut environment = BTreeMap::new();
     for (name, value) in selected.effective.values() {
         if let Some(name) = name.strip_prefix("env.") {
             if let Some(value) = value.as_str() {
-                environment.insert(name.to_owned(), OsString::from(value));
+                environment.insert(environment_key(name), OsString::from(value));
             }
         }
     }
-    let mut paths = std::env::var_os("PATH")
+    let mut paths = path
         .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
         .unwrap_or_default();
     if paths.first() != Some(&selected.bin) {
@@ -647,6 +697,7 @@ pub fn environment(
             shell: shell.into(),
             original,
             desired,
+            remove: vec![],
         })?;
         print!("{script}");
     } else {
@@ -666,4 +717,50 @@ pub fn environment(
         }
     }
     Ok(0)
+}
+
+fn shell_kind(shell: &str) -> Result<mise::shell::ShellType> {
+    Ok(match shell {
+        "bash" => mise::shell::ShellType::Bash,
+        "zsh" => mise::shell::ShellType::Zsh,
+        "pwsh" => mise::shell::ShellType::Pwsh,
+        _ => anyhow::bail!("supported shells are bash, zsh and pwsh"),
+    })
+}
+
+pub(super) fn environment_key(name: &str) -> String {
+    if cfg!(windows) {
+        name.to_ascii_uppercase()
+    } else {
+        name.to_owned()
+    }
+}
+
+pub(super) fn hooks(shell: &str, activate: bool) -> Result<String> {
+    worker_call(&WorkerRequest::Hooks {
+        shell: shell.into(),
+        activate,
+    })
+}
+
+pub(super) fn render_changes(
+    shell: &str,
+    original: BTreeMap<String, String>,
+    changes: BTreeMap<String, Option<String>>,
+) -> Result<String> {
+    let mut desired = BTreeMap::new();
+    let mut remove = Vec::new();
+    for (key, value) in changes {
+        if let Some(value) = value {
+            desired.insert(key, value);
+        } else if original.contains_key(&key) {
+            remove.push(key);
+        }
+    }
+    worker_call(&WorkerRequest::RenderEnvironment {
+        shell: shell.into(),
+        original,
+        desired,
+        remove,
+    })
 }

@@ -142,15 +142,74 @@ Rendering requires UTF-8 environment values. Pass the same `--store` used for
 installation when using a shared store.
 
 This is a one-time application to the current shell. It does not install prompt
-hooks, automatically switch on directory changes or restore old values. Apply it
-in a disposable shell while automatic activation/deactivation is being connected.
+hooks, automatically switch on directory changes or restore old values. Use the
+activation commands below when testing automatic transitions instead.
 The lookup/rendering lease ends when the command returns; this does not establish
 an active-shell retention lease. Those lifecycle capabilities remain unfinished.
+
+## Development shell activation
+
+From an installed project, start a session in Bash or Zsh:
+
+```sh
+eval "$(oyzu activate bash)" # use zsh for Zsh
+node --version
+cd ../another-installed-project
+node --version
+oyzu deactivate
+```
+
+For a shared store, pass `--store /absolute/store` to `activate`. Without that
+option each hook looks in `.oyzu/tools` under its current directory. Root/profile
+options from activation are retained for the session. The PowerShell equivalent
+is `oyzu activate pwsh | Out-String | Invoke-Expression`; native PowerShell
+activation acceptance is pending.
+
+The pinned mise library renders the prompt/directory hooks and deactivation
+script. Oyzu adapts the generated namespace before inserting the real frontend
+path through mise's literal quoting. The hooks call this same Oyzu binary, never
+a separate mise executable. Automatic command-not-found installation is disabled.
+Each hook uses frozen local selection, with no network, installation or project
+task execution. Changing directories applies the new project's locked Node and
+literal TOML environment. Unchanged selection emits no environment changes.
+
+Oyzu records changed variable values and PATH in a temporary session file under
+the OS temporary directory's `oyzu-shell-sessions` directory; the environment
+carries its random token. Deactivation removes that file and emits cleanup.
+Scalars are restored only when they still equal the value Oyzu applied, preserving
+user edits. An unchanged PATH is restored exactly. A still-leading owned insertion
+can also be removed while preserving later user additions; arbitrary PATH
+reordering and ambiguous duplicate ownership are not fully implemented yet.
+
+A missing/stale/uninstalled selection clears the preceding project's delta,
+sets `OYZU_TOOL_STATUS=unavailable` and emits a diagnostic once per changed failure.
+A usable selection sets the status to `ready`. This clears Oyzu's prior PATH
+insertion; it does not block an independently installed system Node. Executable
+shims that enforce the declared missing-command behavior remain unfinished.
+
+The generated `oyzu` shell function evaluates deactivation output. Invoking the
+absolute binary with `deactivate` only prints it. No profile file is modified.
+Starting another activation in an already active session is rejected; independent
+and nested shell lifecycle qualification remains open. Hooks currently verify
+installed contents on every call, which can be slow in debug builds. Active-shell
+retention, abandoned-session recovery, fully reversible PATH alignment and profile
+installation remain unfinished. This is a controlled development integration.
+
+The real Linux Bash/Zsh acceptance passed with networking disabled: activation,
+automatic `cd` switching between Node 22.15.0 and 22.14.0, unchanged-hook output,
+missing-selection cleanup, user-edited scalar preservation and deactivation.
+Native macOS and PowerShell activation results are pending. Run it against the
+retained two-project workspace:
+
+```sh
+python tooling/test-tool-activation.py --cli PATH_TO_FEATURE_ENABLED_OYZU --workspace PATH --shell bash --shell zsh
+```
 
 Linux Bash and Zsh application passed with networking disabled on 2026-10-02:
 the shell launched the same Node executable as `exec`, literal metacharacters
 were preserved, inspection values were redacted and the lock was unchanged.
-PowerShell and native macOS environment application remain pending. Reproduce
+PowerShell environment application passed on Windows at `3eefcc2` in CI run
+`37049209850`; native macOS environment application remains pending. Reproduce
 against a retained acceptance workspace with Python 3.11+:
 
 ```sh

@@ -26,6 +26,29 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Emit upstream-rendered Oyzu shell activation hooks.
+    #[cfg(feature = "mise-integration")]
+    Activate {
+        #[arg(value_parser = ["bash", "zsh", "pwsh"])]
+        shell: String,
+        #[arg(long)]
+        store: Option<PathBuf>,
+    },
+    /// Restore this session's environment and remove its hooks.
+    #[cfg(feature = "mise-integration")]
+    Deactivate { shell: Option<String> },
+    #[cfg(feature = "mise-integration")]
+    #[command(hide = true)]
+    HookEnv {
+        #[arg(short = 's', long)]
+        shell: String,
+        #[arg(long)]
+        shell_pid: Option<u32>,
+        #[arg(long)]
+        reason: Option<String>,
+        #[arg(long)]
+        force: bool,
+    },
     /// Inspect the frozen environment or render literal shell assignments.
     #[cfg(feature = "mise-integration")]
     Env {
@@ -144,6 +167,24 @@ fn run() -> Result<i32> {
         ..Default::default()
     };
     match &cli.command {
+        #[cfg(feature = "mise-integration")]
+        Commands::Activate { shell, store } => {
+            anyhow::ensure!(!cli.json, "activation emits shell code, not JSON");
+            return oyzu::tools::shell::activate(&directory, &options, store.as_deref(), shell);
+        }
+        #[cfg(feature = "mise-integration")]
+        Commands::Deactivate { shell } => {
+            anyhow::ensure!(!cli.json, "deactivation emits shell code, not JSON");
+            let shell = shell
+                .clone()
+                .or_else(|| std::env::var("OYZU_SHELL").ok())
+                .ok_or_else(|| anyhow::anyhow!("specify the active shell"))?;
+            return oyzu::tools::shell::transition(&directory, &shell, true);
+        }
+        #[cfg(feature = "mise-integration")]
+        Commands::HookEnv { shell, .. } => {
+            return oyzu::tools::shell::transition(&directory, shell, false)
+        }
         #[cfg(feature = "mise-integration")]
         Commands::Env { store, shell } => {
             return oyzu::tools::development::environment(
@@ -310,6 +351,10 @@ fn run() -> Result<i32> {
         | Commands::Exec { .. }
         | Commands::Which { .. }
         | Commands::Env { .. } => unreachable!(),
+        #[cfg(feature = "mise-integration")]
+        Commands::Activate { .. } | Commands::Deactivate { .. } | Commands::HookEnv { .. } => {
+            unreachable!()
+        }
     }
     Ok(0)
 }
