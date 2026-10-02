@@ -94,7 +94,7 @@ export async function perform(context) {
 
 // Only already-admitted and verified archives enter the portable offline mirror.
 // Native cache metadata, temporary paths, configuration and logs stay private.
-export function exportStore(output, inventory) {
+export function exportStore({output, inventory}) {
   const mirror = join(output, 'mirror');
   mkdirSync(mirror);
   for (const entry of inventory.packages) {

@@ -20,15 +20,13 @@ def main():
     parser.add_argument('--native-cli', type=Path, required=True)
     parser.add_argument('--resolutions', action='store_true', help='Exercise the Yarn selective-resolution fixture')
     parser.add_argument('--patches', action='store_true', help='Exercise the pnpm native patch fixture')
-    parser.add_argument('--context', action='store_true', help='Export and consume a native Yarn offline mirror')
+    parser.add_argument('--context', action='store_true', help='Export and consume the native offline dependency store')
     args = parser.parse_args()
     manager = args.manager
     if args.resolutions and manager != 'yarn':
         parser.error('--resolutions requires --manager yarn')
     if args.patches and manager != 'pnpm':
         parser.error('--patches requires --manager pnpm')
-    if args.context and manager != 'yarn':
-        parser.error('--context requires --manager yarn')
     native = args.native_cli.resolve()
     env = dict(os.environ, OYZU_PNPM_YAML=str(native.parents[2] / 'yaml'),
                OYZU_YARN_LOCKFILE=str(native.parents[2] / '@yarnpkg/lockfile'))
@@ -116,7 +114,7 @@ def main():
                 result = subprocess.run(['node', '--test'], cwd=project, capture_output=True, text=True)
                 assert result.returncode == 0, result.stdout + result.stderr
                 assert lock_path.read_bytes() == original_lock
-                if args.context:
+                if args.context and manager == 'yarn':
                     # A consumer gets only the exported mirror and original
                     # source, never the adapter inventory or acquisition cache.
                     consumer = base / f'context consumer {index}'
@@ -146,8 +144,53 @@ def main():
                     next(mirror.glob('*.tgz')).write_bytes(b'corrupt')
                     consume(base / f'context corrupt cache {index}', False)
                     assert not (consumer / 'lifecycle-ran').exists()
+                if args.context and manager == 'pnpm':
+                    consumer = base / f'context consumer {index}'
+                    shutil.copytree(project, consumer, ignore=shutil.ignore_patterns('node_modules', 'lifecycle-ran'))
+                    captured_store = output / 'store'
+                    for path in (captured_store / 'v10/index').rglob('*.json'):
+                        assert all(value['checkedAt'] == 0 for value in json.loads(path.read_text())['files'].values())
+                    store = base / f'context writable store {index}'
+                    shutil.copytree(captured_store, store)
+                    def consume(success=True):
+                        result = subprocess.run(['node', str(native), '--config.manage-package-manager-versions=false',
+                                                 'install', '--offline', '--frozen-lockfile', '--ignore-scripts', '--ignore-pnpmfile',
+                                                 '--config.verify-store-integrity=true', '--config.side-effects-cache=false',
+                                                 '--store-dir', str(store)], cwd=consumer, env=env,
+                                                capture_output=True, text=True, timeout=150)
+                        assert (result.returncode == 0) == success, result.stdout + result.stderr
+                        return result
+                    consume()
+                    assert not (consumer / 'lifecycle-ran').exists()
+                    shutil.rmtree(store)
+                    result = subprocess.run(['node', '--test'], cwd=consumer, capture_output=True, text=True)
+                    assert result.returncode == 0, result.stdout + result.stderr
+                    assert (consumer / 'pnpm-lock.yaml').read_bytes() == original_lock
+                    assert tree(output) == captures[-1] and len(requests) == count
+                    shutil.rmtree(consumer / 'node_modules')
+                    shutil.copytree(captured_store, store)
+                    for path in (store / 'v10/files').rglob('*'):
+                        if path.is_file():
+                            path.write_bytes(b'corrupt')
+                    assert 'OFFLINE' in consume(False).stdout
+                    assert not (consumer / 'lifecycle-ran').exists()
             assert captures[0] == captures[1], 'captured bytes depend on location/time'
             assert sorted(requests) == sorted(urls * 2)
+            if args.context and manager == 'pnpm':
+                empty = base / 'empty project'
+                empty.mkdir()
+                (empty / 'package.json').write_text(json.dumps({'name': 'oyzu-empty', 'version': '1.0.0', 'packageManager': 'pnpm@10.11.0'}))
+                result = subprocess.run(['node', str(native), '--config.manage-package-manager-versions=false',
+                                         'install', '--offline', '--ignore-scripts', '--lockfile-only',
+                                         '--store-dir', str(base / 'empty fixture store')], cwd=empty, env=env,
+                                        capture_output=True, text=True, timeout=150)
+                assert result.returncode == 0, result.stdout + result.stderr
+                empty_output = base / 'empty capture'
+                empty_output.mkdir()
+                run('acquire-context', empty_output, empty)
+                assert (empty_output / 'store').is_dir()
+                assert json.loads((empty_output / 'inventory.json').read_text())['packages'] == []
+                assert len(requests) == count
             if args.patches:
                 shutil.rmtree(project / 'node_modules')
                 (project / 'lifecycle-ran').unlink()

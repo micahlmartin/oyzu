@@ -68,7 +68,7 @@ pub(super) fn get(id: &str) -> Result<&'static dyn Manager> {
 
 pub(super) fn dependency_providers(
 ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
-    &[&npm::Npm, &yarn::Yarn]
+    &[&npm::Npm, &pnpm::Pnpm, &yarn::Yarn]
 }
 
 pub(super) fn require_prepared(context: &PlanningContext<'_>) -> Result<()> {

@@ -99,6 +99,14 @@ fn provider_selection_preserves_ambiguity_and_managed_admission_before_effects()
         .contains("unambiguous implemented"));
     fs::remove_file(root.path().join("package-lock.json")).unwrap();
     assert_eq!(select(&context).unwrap().id(), "node/yarn");
+    fs::write(
+        root.path().join("pnpm-lock.yaml"),
+        "lockfileVersion: '9.0'\n",
+    )
+    .unwrap();
+    assert!(select(&context).is_err());
+    context.dependency_selector = Some("node/pnpm");
+    assert_eq!(select(&context).unwrap().id(), "node/pnpm");
     fs::write(root.path().join("requirements.txt"), "six==1.17.0\n").unwrap();
     context.dependency_selector = Some("python/pip");
     assert_eq!(select(&context).unwrap().id(), "python/pip");

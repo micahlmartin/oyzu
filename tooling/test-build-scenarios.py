@@ -18,6 +18,7 @@ from build_scenarios import baselines, ant, concurrency, docker, go, gradle, hel
 from build_scenarios import docker_dependencies
 from build_scenarios import docker_npm_context
 from build_scenarios import docker_yarn_context
+from build_scenarios import docker_pnpm_context
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -85,6 +86,7 @@ CASES = (
     ('docker', 'docker-dependencies', docker_dependencies.verify),
     ('docker', 'docker-npm-context', docker_npm_context.verify),
     ('docker', 'docker-yarn-context', docker_yarn_context.verify),
+    ('docker', 'docker-pnpm-context', docker_pnpm_context.verify),
     ('docker', 'node-application', node_application.verify),
     ('java', 'maven', maven.verify),
     ('java', 'gradle', gradle.verify),

@@ -10,6 +10,35 @@ use anyhow::{bail, Context, Result};
 
 pub(super) struct Pnpm;
 impl Pnpm {
+    fn capture(
+        &self,
+        context: PreparationContext<'_>,
+        acquisition: super::registry::Acquisition,
+    ) -> Result<Option<Prepared>> {
+        let required = self.validate(&context.target.path)?;
+        let sources = if required {
+            vec![broker::Source::new(
+                "npm-public",
+                "https://registry.npmjs.org/",
+                None,
+            )?]
+        } else {
+            vec![]
+        };
+        let root = context.target.path.clone();
+        let mut prepared = super::registry::prepare(
+            context,
+            Manager::id(self),
+            "pnpm.mjs",
+            "pnpm-lock.yaml",
+            acquisition,
+            sources,
+        )?;
+        if let Some(prepared) = &mut prepared {
+            patches::record(&root, prepared)?;
+        }
+        Ok(prepared)
+    }
     fn validate(&self, root: &std::path::Path) -> Result<bool> {
         let package = records::read(&root.join("package.json"))?;
         if package.get("workspaces").is_some()
@@ -47,6 +76,26 @@ impl Pnpm {
             .is_some_and(|packages| packages.as_mapping().is_some_and(|p| !p.is_empty())))
     }
 }
+
+impl crate::dependencies::context::Provider for Pnpm {
+    fn id(&self) -> &'static str {
+        "node/pnpm"
+    }
+    fn tools(&self) -> &'static [&'static str] {
+        &["node", "pnpm"]
+    }
+    fn detect(&self, source: &std::path::Path) -> bool {
+        source.join("package.json").is_file() && source.join("pnpm-lock.yaml").is_file()
+    }
+    fn store(&self) -> &'static str {
+        "store"
+    }
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Prepared> {
+        self.capture(context, super::registry::Acquisition::DependencyContext)?
+            .context("pnpm preparation did not produce a captured store")
+    }
+}
+
 impl Manager for Pnpm {
     fn id(&self) -> &'static str {
         "pnpm"
@@ -58,29 +107,7 @@ impl Manager for Pnpm {
         super::runtime_image(self.image(), node)
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        let required = self.validate(&context.target.path)?;
-        let sources = if required {
-            vec![broker::Source::new(
-                "npm-public",
-                "https://registry.npmjs.org/",
-                None,
-            )?]
-        } else {
-            vec![]
-        };
-        let root = context.target.path.clone();
-        let mut prepared = super::registry::prepare(
-            context,
-            self.id(),
-            "pnpm.mjs",
-            "pnpm-lock.yaml",
-            super::registry::Acquisition::Build,
-            sources,
-        )?;
-        if let Some(prepared) = &mut prepared {
-            patches::record(&root, prepared)?;
-        }
-        Ok(prepared)
+        self.capture(context, super::registry::Acquisition::Build)
     }
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()> {
         self.validate(&context.target.path)?;

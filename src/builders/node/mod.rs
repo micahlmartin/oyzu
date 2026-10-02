@@ -20,6 +20,10 @@ pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
     RuntimeFile {
+        name: "pnpm-store.mjs",
+        contents: include_str!("runtime/pnpm-store.mjs"),
+    },
+    RuntimeFile {
         name: "node-runtime.mjs",
         contents: include_str!("runtime/node-runtime.mjs"),
     },

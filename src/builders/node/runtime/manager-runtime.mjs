@@ -53,7 +53,7 @@ export async function run(profile) {
     if (!readFileSync(join(workspace,profile.lock)).equals(originalLock)) throw new Error('native manager rewrote the frozen lockfile');
     // Store export happens only after native validation succeeds. Managers own
     // layout; the lifecycle never exposes its temporary cache/configuration.
-    if (operation === 'acquire-context') await profile.exportStore(output, inventory);
+    if (operation === 'acquire-context') await profile.exportStore({output, inventory, temporary});
     if (mode === 'acquire') writeFileSync(join(output,'inventory.json'), JSON.stringify(inventory,null,2)+'\n');
   } finally { rmSync(temporary,{recursive:true,force:true}); }
 }
