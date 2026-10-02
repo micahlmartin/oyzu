@@ -1,5 +1,5 @@
 // Native root packaging and implicit test scope within an npm workspace.
-import {chmodSync, copyFileSync, globSync, lstatSync, mkdirSync} from 'node:fs';
+import {chmodSync, copyFileSync, globSync, lstatSync, mkdirSync, realpathSync} from 'node:fs';
 import {dirname, join, resolve} from 'node:path';
 import {npm} from './npm-native.mjs';
 
@@ -73,7 +73,10 @@ export function rootFrameworkArguments(framework, root, modules, version) {
     const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     // An inclusion filter preserves the project's native ignore patterns.
     // Jest versions match either absolute or root-relative test paths.
-    const prefix = escape(`${root.replaceAll('\\','/')}/`);
+    // Windows short names (RUNNER~1), junctions and POSIX symlink aliases can
+    // differ from Jest's canonical absolute paths. Retain both spellings.
+    const prefixes = [...new Set([root, realpathSync.native(root)].map(path => path.replaceAll('\\','/').replace(/^\/\/\?\/UNC\//, '//').replace(/^\/\/\?\//, '')))];
+    const prefix = `(?:${prefixes.map(path => escape(`${path}/`)).join('|')})`;
     const excluded = paths.map(path => `(?:${prefix})?${escape(`${path}/`)}`).join('|');
     return [`--${major >= 30 ? 'testPathPatterns' : 'testPathPattern'}=^(?!(?:${excluded})).*`];
   }

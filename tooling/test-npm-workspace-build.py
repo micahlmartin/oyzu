@@ -74,9 +74,10 @@ def main():
             inventory = json.loads((captured/'inventory.json').read_text())
             version = '0.1.0-dev.gabcdef123456'
             members = sorted(inventory['workspaces']['members'], key=lambda m: len(m['dependencies']))
-            quality = {'linter':'eslint', 'formatter':'prettier'}
+            quality = {'linter':'eslint', 'formatter':'prettier', 'excludes':[]}
             modules = [{**m, 'id':m['path'].split('/')[-1], 'version':version, 'filename':f"{m['name'].removeprefix('@').replace('/', '-')}-{version}.tgz", 'framework':'node-test', 'quality':quality} for m in members]
             spec = {'rootVersion':version, 'rootDependencies':inventory['workspaces']['rootDependencies'], 'rootScripts':json.loads((project/'package.json').read_text()).get('scripts',{}), 'rootFramework':'node-test', 'rootQuality':quality, 'modules':modules, 'nodeTestArguments':['--experimental-test-coverage','--test-coverage-exclude=**/*.test.*','--test-reporter=junit','--test-reporter-destination=__OYZU_TEST_REPORT__','--test-reporter=lcov','--test-reporter-destination=__OYZU_COVERAGE_REPORT__']}
+            spec['rootQuality'] = {**quality, 'excludes':[m['path'] for m in members]}
             if public_root:
                 spec['rootArtifact'] = {'id':'root-package', 'path':'.', 'name':'oyzu-workspace', 'version':version, 'filename':f'oyzu-workspace-{version}.tgz'}
             encoded = json.dumps(spec)

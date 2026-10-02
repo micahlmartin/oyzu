@@ -19,6 +19,8 @@ oyzu build
 
 `oyzu run list` also exposes an implicit `build` task. After installing the project's native dependencies, `oyzu run build` invokes declared member build scripts in dependency order when no root build script exists. Members without a build script are reported as having no requested compilation. This development task does not package snapshot artifacts; `oyzu build` owns the captured build and dist bundle.
 
+Local `lint` and `format-check` also compose native member scripts with inferred defaults; a scripted member does not suppress an unscripted sibling's checks. Defaults inspect root-owned source and exclude member/nested-member directories owned by other checks. Explicit root scripts take precedence. `oyzu run format` permits formatting writes, while captured builds request read-only formatting validation. Native quality tools must already be provisioned.
+
 No build YAML is required for this scenario. Configuration, where present, demonstrates only the feature under discussion.
 
 ## Native checks available now

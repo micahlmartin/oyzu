@@ -58,19 +58,21 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     }
     super::quality::discover(target);
     if manager == "npm" && value.get("workspaces").is_some() {
-        if !target.tasks.contains_key("build") {
+        for operation in ["build", "lint", "format-check", "format"] {
+            let scripts = &value["scripts"];
+            if scripts.get(operation).is_some()
+                || (operation == "format-check" && scripts.get("format:check").is_some())
+            {
+                continue;
+            }
             insert(
                 target,
-                "build",
-                &["npm", "run", "build", "--workspaces"],
-                true,
+                operation,
+                &["npm", "run", operation, "--workspaces"],
+                operation != "format",
             );
+            target.tasks.get_mut(operation).unwrap().mutates_source = operation == "format";
         }
-        super::super::unavailable(
-            target,
-            "format:check",
-            "Captured npm workspace operation; direct development integration remains pending",
-        );
     }
     Ok(())
 }

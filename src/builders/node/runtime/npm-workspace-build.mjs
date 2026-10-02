@@ -92,8 +92,8 @@ if (mode === 'project') {
         if (member.quality?.[lint ? 'linter' : 'formatter'] !== (lint ? 'eslint' : 'prettier')) {
           throw new Error(`Unsupported implicit workspace quality tool in ${member.path}`);
         }
-        const prefix = member.path === '.' ? '' : `${member.path}/`;
-        const excludes = spec.modules.map(m => m.path).filter(p => p.startsWith(prefix) && p !== member.path).map(p => p.slice(prefix.length));
+        const excludes = member.quality.excludes;
+        if (!Array.isArray(excludes)) throw new Error('Missing planned workspace quality scope');
         const env = {...process.env, OYZU_NODE_TEST_FRAMEWORK:member.framework, OYZU_NODE_QUALITY_EXCLUDE:JSON.stringify(excludes)};
         if (invoke([process.execPath, join(runtime, 'node-quality.mjs'), lint ? 'lint' : 'format-check'], resolve(root,member.path), env)) process.exitCode = 1;
       }

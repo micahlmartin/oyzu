@@ -2,9 +2,30 @@
 use super::{planning::ordered, Metadata};
 use crate::{builders::DevelopmentCommand, model::Task};
 use anyhow::{bail, Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{fs, process::Command};
+mod quality;
+
+#[derive(Serialize)]
+struct Step {
+    name: String,
+    path: String,
+    operation: Operation,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+enum Operation {
+    Script {
+        script: String,
+    },
+    NoCompilation,
+    Quality {
+        framework: String,
+        excludes: Vec<String>,
+    },
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -16,7 +37,11 @@ struct Native {
 pub(in crate::builders::node::managers::npm) fn command(
     task: &Task,
 ) -> Result<Option<DevelopmentCommand>> {
-    if task.provider != "npm" || task.argv != ["npm", "run", "build", "--workspaces"] {
+    let argv: Vec<_> = task.argv.iter().map(String::as_str).collect();
+    let ["npm", "run", stage, "--workspaces"] = argv.as_slice() else {
+        return Ok(None);
+    };
+    if task.provider != "npm" || !["build", "lint", "format-check", "format"].contains(stage) {
         return Ok(None);
     }
     let temporary = tempfile::Builder::new()
@@ -61,11 +86,35 @@ pub(in crate::builders::node::managers::npm) fn command(
         bail!("invalid native npm entrypoint");
     }
     let metadata = Metadata::read(native.workspaces)?.context("no native npm workspace members")?;
-    let steps: Vec<_> = ordered(&metadata)?
-        .into_iter()
-        .map(|m| json!({"name":m.name, "build":m.scripts.contains_key("build")}))
-        .collect();
-    let spec = serde_json::to_string(&json!({"command":native.command,"steps":steps}))?;
+    let steps: Vec<_> = if *stage == "build" {
+        ordered(&metadata)?
+            .into_iter()
+            .map(|m| Step {
+                name: m.name.clone(),
+                path: m.path.clone(),
+                operation: if m.scripts.contains_key("build") {
+                    Operation::Script {
+                        script: "build".into(),
+                    }
+                } else {
+                    Operation::NoCompilation
+                },
+            })
+            .collect()
+    } else {
+        quality::steps(task, &metadata, stage)?
+    };
+    let quality = if steps
+        .iter()
+        .any(|step| matches!(step.operation, Operation::Quality { .. }))
+    {
+        Some(include_str!("../../../runtime/quality.mjs"))
+    } else {
+        None
+    };
+    let spec = serde_json::to_string(
+        &json!({"command":native.command,"steps":steps,"stage":stage,"quality":quality}),
+    )?;
     if spec.len() > 20_000 {
         bail!("npm workspace development plan exceeds host argument limit");
     }
