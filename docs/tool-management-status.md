@@ -1977,3 +1977,18 @@ allowed; this correction only prevents a final newline bypassing a whole-string
 pattern. Contract documentation describes the boundary. Documentation and diff
 checks pass. These tests establish schema/runtime agreement for the fixtures,
 not backend admission, native supervision or full OEP-0003 completion.
+
+## Checkpoint 136: complete root CI at immutable-request revision
+
+[Run 37010483750](https://github.com/micahlmartin/oyzu/actions/runs/37010483750)
+completed successfully at 1c2ffaf9236bd835bc3ae1ba764e1292bd501fc2. All 16 jobs
+passed: native CLI builds and compiled CLI scenarios on Windows, macOS and Linux;
+the Linux isolated BuildKit worker contract; captured Python, Docker, Rust, Go,
+Java, Node, Helm and core build suites; and the combined captured-build acceptance
+job. This supersedes the pending workflow state recorded in checkpoint 133.
+
+These results cover the existing compiled CLI and synthetic-admission tool store
+qualification at that revision. They do not cover subsequent schema commits,
+the pending fork Python metadata change, production mise import, native tool-worker
+supervision or the full OEP-0003 tool-management lifecycle. No product behavior
+changed in this evidence update. Documentation and diff checks pass.
