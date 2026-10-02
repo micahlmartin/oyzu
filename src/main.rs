@@ -152,6 +152,10 @@ fn run() -> Result<i32> {
     {
         return oyzu::tools::development::worker();
     }
+    #[cfg(feature = "mise-integration")]
+    if let Some(code) = oyzu::tools::shims::dispatch()? {
+        return Ok(code);
+    }
     let cli = Cli::parse();
     let directory = cli
         .directory

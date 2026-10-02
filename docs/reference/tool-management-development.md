@@ -162,8 +162,9 @@ oyzu deactivate
 For a shared store, pass `--store /absolute/store` to `activate`. Without that
 option each hook looks in `.oyzu/tools` under its current directory. Root/profile
 options from activation are retained for the session. The PowerShell equivalent
-is `oyzu activate pwsh | Out-String | Invoke-Expression`; native PowerShell
-activation acceptance is pending.
+is `oyzu activate pwsh | Out-String | Invoke-Expression`. The original PowerShell
+activation/switching/deactivation scenario passed on Windows at `83049fa` in run
+`37050580618`; native acceptance with the newly added shims remains pending.
 
 The pinned mise library renders the prompt/directory hooks and deactivation
 script. Oyzu adapts the generated namespace before inserting the real frontend
@@ -183,9 +184,29 @@ reordering and ambiguous duplicate ownership are not fully implemented yet.
 
 A missing/stale/uninstalled selection clears the preceding project's delta,
 sets `OYZU_TOOL_STATUS=unavailable` and emits a diagnostic once per changed failure.
-A usable selection sets the status to `ready`. This clears Oyzu's prior PATH
-insertion; it does not block an independently installed system Node. Executable
-shims that enforce the declared missing-command behavior remain unfinished.
+A usable selection sets the status to `ready`. The versioned Oyzu shim stays at
+the front of PATH while the session is active. Its `node` invocation fails on a
+missing selection instead of falling back to a system Node. Deactivation removes
+the session's PATH insertion and restores the previous environment.
+
+### Native executable shims
+
+Install and activation provision `node` (`node.exe` on Windows) as a hardlink to
+the actual frontend image, with a byte-identical copy when hardlinking is unavailable.
+Shims live under `STORE/shims/RELEASE_DIGEST/shared` or `.../cwd`; their adjacent
+`oyzu-shim.json` identifies the release, command and store mode, never a project
+or locked version. Invocation validates the image/manifest and then uses the
+current working directory, configuration, lock and verified installation lease.
+Arguments and exit status go through the same native execution path as `exec`.
+There is no command-shell wrapper and no implicit download or PATH fallback.
+
+Activation chooses a fixed shared store when `--store` is supplied. Otherwise
+the shim resolves `.oyzu/tools` in each invocation directory. Active root/profile
+options come from the session; outside a session default configuration selection
+applies. Prompt hooks do not provision shims. Re-run install or start a new
+activation to provision a new frontend release; existing versioned images are
+retained for active shells. Shim pruning and broader command sets remain open.
+Deactivate sessions created before this shim support before reactivating them.
 
 The generated `oyzu` shell function evaluates deactivation output. Invoking the
 absolute binary with `deactivate` only prints it. No profile file is modified.
@@ -198,7 +219,10 @@ installation remain unfinished. This is a controlled development integration.
 The real Linux Bash/Zsh acceptance passed with networking disabled: activation,
 automatic `cd` switching between Node 22.15.0 and 22.14.0, unchanged-hook output,
 missing-selection cleanup, user-edited scalar preservation and deactivation.
-Native macOS and PowerShell activation results are pending. Run it against the
+The subsequent native-shim replay also passed on Linux Bash/Zsh, including literal
+arguments and exit status. A direct offline probe put a real Node later on PATH
+and confirmed that a missing selection failed instead of invoking it. Native
+macOS activation and Windows shim results remain pending. Run it against the
 retained two-project workspace:
 
 ```sh

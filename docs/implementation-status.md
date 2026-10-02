@@ -25,8 +25,12 @@ and uses mise to render literal Bash/Zsh/PowerShell assignments. Linux Bash/Zsh
 application agrees with actual exec under disabled networking. Initial upstream
 hooks now connect Bash/Zsh activation, automatic directory switching, unavailable
 selection cleanup and deactivation. Full shell lifecycle qualification and
-PowerShell activation remain unfinished; PowerShell environment application has
-passed on Windows at `3eefcc2`.
+PowerShell shim qualification remain unfinished; initial PowerShell activation
+passed on Windows at `83049fa`, following environment application at `3eefcc2`.
+Native Node shims now retain the frontend image, validate their adjacent manifest
+and resolve frozen selection for each invocation. Active sessions retain the shim
+on PATH when a project is unavailable, so a declared Node command cannot silently
+fall back to a system installation. Native shim qualification remains in progress.
 
 ## Builder objective
 

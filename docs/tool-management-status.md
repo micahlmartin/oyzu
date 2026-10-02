@@ -2603,3 +2603,30 @@ recovery remain functional work. Hardening remains reserved for future goals.
 Checkpoint 164 verification completion: final feature-enabled strict all-target
 Clippy and formatting passed, including absolute capture of an explicit root.
 Documentation structure and diff checks passed. Full OEP completion is not claimed.
+
+## Checkpoint 165: native shims resolve each invocation's frozen selection
+
+Install and activation now retain a versioned native frontend shim for Node,
+using a hardlink where possible and an identical copy otherwise. The adjacent
+manifest binds release digest, command and shared/current-directory store mode;
+it never pins a project or Node version. Invocation is detected before ordinary
+CLI parsing from the executable basename and validated manifest/image, then uses
+the same frozen execution path and active session options. It never acquires a
+missing tool or substitutes PATH. Windows uses node.exe, never a cmd wrapper.
+
+Active sessions put their shim ahead of ambient tools and keep it there when the
+current project is unavailable. Prompt hooks do not create shims. Deactivation
+restores the prior PATH. Linux Bash and Zsh real acceptance passed under Docker
+--network none: native-shim identity, literal arguments, exit status, project
+version switching, unchanged hooks, missing-selection failure, edited scalar
+preservation and cleanup. A separate direct probe made real Node 22.15.0 available
+later on PATH and confirmed the shim still returned exit 2 for the missing lock.
+The checked-in runner now includes that ambient-Node setup for native CI.
+
+Windows GNU default locked tests, strict all-target Clippy, formatting and nine
+real task scenarios passed. Linux feature-enabled build and final strict
+all-target Clippy/formatting passed. Documentation structure and diff checks
+passed. Windows/macOS shim evidence remains pending. Separately, original
+PowerShell activation/switching/deactivation at 83049fa passed in run 37050580618.
+Full shell lifecycle, shim pruning/command expansion, other tools and the rest of
+OEP-0003 remain open; hardening is reserved for future goals.

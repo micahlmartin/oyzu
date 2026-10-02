@@ -9,6 +9,8 @@ mod edit;
 mod grant;
 #[cfg(feature = "mise-integration")]
 pub mod shell;
+#[cfg(feature = "mise-integration")]
+pub mod shims;
 pub use grant::{ToolGrantContext, ToolGrantOperation, VerifiedToolGrant};
 mod lock;
 mod requests;

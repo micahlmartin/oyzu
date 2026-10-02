@@ -368,6 +368,7 @@ pub fn install(
                 &backend,
             )?;
             println!("Already installed node {}", metadata.archive.version);
+            super::shims::prepare(store, false)?;
             return Ok(0);
         }
     }
@@ -530,6 +531,7 @@ pub fn install(
         proposal.commit()?;
     }
     println!("Installed node {}", metadata.archive.version);
+    super::shims::prepare(store, false)?;
     Ok(0)
 }
 

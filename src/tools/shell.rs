@@ -15,6 +15,8 @@ const TOKEN: &str = "OYZU_SHELL_SESSION";
 
 #[derive(Default, Serialize, Deserialize)]
 struct State {
+    #[serde(default)]
+    shim_directory: Option<PathBuf>,
     store: Option<PathBuf>,
     profile: Option<String>,
     no_profile: bool,
@@ -23,6 +25,28 @@ struct State {
     identity: String,
     before: BTreeMap<String, Option<String>>,
     after: Environment,
+}
+
+impl State {
+    fn options(&self) -> Options {
+        Options {
+            root: self.root.clone(),
+            profile: self.profile.clone(),
+            no_profile: self.no_profile,
+            local_overrides: self.local_overrides,
+            ..Default::default()
+        }
+    }
+}
+
+pub(super) fn active_options() -> Result<Option<Options>> {
+    let Some(token) = std::env::var_os(TOKEN) else {
+        return Ok(None);
+    };
+    let state: State = serde_json::from_slice(&std::fs::read(state_path(
+        token.to_str().context("invalid shell session token")?,
+    )?)?)?;
+    Ok(Some(state.options()))
 }
 
 fn state_root() -> PathBuf {
@@ -67,6 +91,10 @@ pub fn activate(
         .prefix("session-")
         .tempfile_in(state_root())?;
     let state = State {
+        shim_directory: Some(super::shims::prepare(
+            &directory.join(store.unwrap_or(Path::new(".oyzu/tools"))),
+            store.is_none(),
+        )?),
         store: store
             .map(|path| std::path::absolute(directory.join(path)))
             .transpose()?,
@@ -151,17 +179,23 @@ pub fn transition(directory: &Path, shell: &str, deactivate: bool) -> Result<i32
     let mut identity = String::new();
     let mut unavailable = None;
     if !deactivate {
-        let options = Options {
-            root: state.root.clone(),
-            profile: state.profile.clone(),
-            no_profile: state.no_profile,
-            local_overrides: state.local_overrides,
-            ..Default::default()
-        };
+        let options = state.options();
         let store = state
             .store
             .clone()
             .unwrap_or_else(|| directory.join(".oyzu/tools"));
+        let shim_directory = state
+            .shim_directory
+            .as_ref()
+            .context("deactivate and reactivate this older shell session to enable shims")?;
+        let mut paths: Vec<_> = baseline
+            .get("PATH")
+            .map(|path| std::env::split_paths(path).collect())
+            .unwrap_or_default();
+        paths.insert(0, shim_directory.clone());
+        let shim_path = std::env::join_paths(paths)?
+            .into_string()
+            .map_err(|_| anyhow::anyhow!("shell PATH requires UTF-8"))?;
         match development::installed_command(directory, &options, &store) {
             Ok(selected) => {
                 identity = crate::records::digest(
@@ -183,6 +217,7 @@ pub fn transition(directory: &Path, shell: &str, deactivate: bool) -> Result<i32
                         })?,
                     );
                 }
+                target.insert("PATH".into(), shim_path.clone());
                 target.insert("OYZU_TOOL_STATUS".into(), "ready".into());
             }
             Err(error) => {
@@ -191,6 +226,7 @@ pub fn transition(directory: &Path, shell: &str, deactivate: bool) -> Result<i32
                     return Ok(0);
                 }
                 target.insert("OYZU_TOOL_STATUS".into(), "unavailable".into());
+                target.insert("PATH".into(), shim_path);
                 unavailable = Some(error);
             }
         }
