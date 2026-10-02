@@ -13,6 +13,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
 )
 
 const metadataLimit = 1024 * 1024
@@ -68,12 +69,17 @@ func analyze(body []byte) (metadata, error) {
 	if err != nil {
 		return m, err
 	}
-	stages, _, err := instructions.Parse(parsed.AST, nil)
+	stages, arguments, err := instructions.Parse(parsed.AST, nil)
 	if err != nil {
 		return m, err
 	}
 	if len(stages) == 0 {
 		return m, fmt.Errorf("Dockerfile has no stages")
+	}
+	lex := shell.NewLex(parsed.EscapeToken)
+	defaults, err := globalDefaults(lex, arguments)
+	if err != nil {
+		return m, err
 	}
 	// Native aliases can refer forward. We retain their identities; BuildKit
 	// remains responsible for native stage-cycle validation during conversion.
@@ -92,6 +98,22 @@ func analyze(body []byte) (metadata, error) {
 	}
 	previous := map[string]bool{}
 	for index, s := range stages {
+		s.BaseName, err = expandSelection(lex, s.BaseName, defaults)
+		if err != nil {
+			return m, parser.WithLocation(err, s.Location)
+		}
+		if s.BaseName == "" {
+			return m, parser.WithLocation(fmt.Errorf("base image resolves to an empty name"), s.Location)
+		}
+		if s.Platform != "" {
+			s.Platform, err = expandSelection(lex, s.Platform, defaults)
+			if err != nil {
+				return m, parser.WithLocation(err, s.Location)
+			}
+			if s.Platform == "" {
+				return m, parser.WithLocation(fmt.Errorf("stage platform resolves to an empty value"), s.Location)
+			}
+		}
 		m.Stages = append(m.Stages, stage{Name: s.Name, Base: s.BaseName, Platform: s.Platform})
 		add := func(kind, reference string, line int) {
 			m.Requirements = append(m.Requirements, requirement{Kind: kind, Reference: reference, Stage: index, Line: line})

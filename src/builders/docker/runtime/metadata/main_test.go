@@ -23,7 +23,6 @@ func TestExternalAndSensitiveRequirements(t *testing.T) {
 		{"FROM registry.example/base:1\n", "image", "registry.example/base:1"},
 		{"FROM 0\n", "image", "0"},
 		{"FROM self AS self\n", "image", "self"},
-		{"ARG BASE=scratch\nFROM ${BASE}\n", "dynamic-base", "${BASE}"},
 		{"FROM --platform=linux/arm64 scratch\n", "platform", "linux/arm64"},
 		{"FROM scratch\nCOPY --from=external /app /app\n", "image-or-context", "external"},
 		{"FROM scratch\nADD https://example.invalid/archive /app\n", "add-source", "https://example.invalid/archive"},

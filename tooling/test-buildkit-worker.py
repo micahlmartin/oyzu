@@ -182,7 +182,7 @@ def main():
             project.mkdir()
             shutil.copyfile(context/'probe',project/'probe')
             (project/'probe').chmod(0o755)
-            (project/'Dockerfile').write_text('FROM alpine:3.22\nCOPY probe /probe\nRUN '+json.dumps(['/probe',str(secret)],separators=(', ', ': '))+'\n')
+            (project/'Dockerfile').write_text('ARG BASE=alpine:3.22\nFROM ${BASE}\nCOPY probe /probe\nRUN '+json.dumps(['/probe',str(secret)],separators=(', ', ': '))+'\n')
             native = []
             for index in range(2):
                 result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'build'],

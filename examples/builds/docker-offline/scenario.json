@@ -20,6 +20,11 @@
   ],
   "cases": [
     {
+      "name": "argument-base",
+      "change": "Use variants/argument-base with its image provisioned; global ARG defaults compose the base reference.",
+      "expect": "Native expansion determines the captured base before execution without reading ambient environment variables. Missing defaults that produce an empty base fail preparation."
+    },
+    {
       "name": "image-aliases",
       "change": "Use variants/image-aliases with alpine:3.22 provisioned; FROM, external COPY and an image-backed RUN mount use equivalent short and qualified references.",
       "expect": "Preserve both requested references in the input evidence, use one native context only when captured identities agree, and retain copied content without persisting the temporary mount."
@@ -60,6 +65,7 @@
     }
   ],
   "requiredFiles": [
+    "variants/argument-base/Dockerfile",
     "variants/image-aliases/Dockerfile",
     "variants/provisioned-base/Dockerfile",
     "variants/provisioned-base/greeting.txt",

@@ -137,6 +137,25 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert {i['reference'] for i in alias_inputs}=={'alpine:3.22','docker.io/library/alpine:3.22'}
     assert len({(i['name'],i['manifest'],i['config'],i['tree_digest']) for i in alias_inputs})==1
     verified.append('Docker native reference aliases bind one immutable context for FROM, external COPY and temporary image-backed RUN mounts')
+    arguments=base/'docker-argument-base'
+    shutil.copytree(root/'examples/builds/docker-offline/variants/argument-base',arguments)
+    before=source_files(arguments)
+    invoke(arguments,'build')
+    expanded=validate(arguments/'dist')
+    assert expanded['status']=='succeeded' and source_files(arguments)==before
+    expanded_image,=expanded['artifacts']
+    _,_,expanded_files=image_contents(arguments/'dist'/expanded_image['path'])
+    assert expanded_files['etc/alpine-release']==alias_files['etc/alpine-release']
+    expanded_inputs=json.loads((arguments/'dist/dependencies/project.json').read_text())['extensions']['oyzu.dev/docker']
+    expanded_binding,=expanded_inputs['images']
+    assert expanded_binding['reference']=='docker.io/library/alpine:3.22'
+    assert expanded_inputs['metadata']['stages'][0]['base']==expanded_binding['reference']
+    (arguments/'Dockerfile').write_text('ARG BASE\nFROM ${BASE}\n')
+    invoke(arguments,'build',success=False)
+    empty=validate(arguments/'dist')
+    assert not empty['actions'] and not empty['artifacts']
+    assert any('empty name' in d['message'] for d in empty['diagnostics'])
+    verified.append('Docker global ARG defaults resolve through native expansion before capture; missing base defaults fail preflight')
     (provisioned/'Dockerfile').write_text('FROM example.invalid/oyzu/unprovisioned:1\n')
     invoke(provisioned,'build',success=False)
     missing=validate(provisioned/'dist')
