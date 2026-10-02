@@ -123,10 +123,9 @@ impl Session {
             sources::project_sources(&root, &root, local, &registry)?,
         );
         if directory != root {
-            captured.insert(
-                directory.clone(),
-                sources::project_sources(&root, &directory, local, &registry)?,
-            );
+            let target_sources = sources::project_sources(&root, &directory, local, &registry)?;
+            validate_shared_capture(&captured, &directory, &target_sources)?;
+            captured.insert(directory.clone(), target_sources);
         }
         let inherited = if options.profile.is_none() && !options.no_profile {
             std::env::var("OYZU_INHERITED_PROFILE").ok()
@@ -291,18 +290,7 @@ impl Session {
             if !self.captured.contains_key(&target) {
                 let captured =
                     sources::project_sources(&self.root, &target, self.local, &self.registry)?;
-                for source in &captured {
-                    for prior in self
-                        .captured
-                        .values()
-                        .flatten()
-                        .filter(|prior| prior.identity == source.identity)
-                    {
-                        if prior.digest != source.digest {
-                            bail!("CONFIG_EDIT_CONFLICT: configuration changed during capture");
-                        }
-                    }
-                }
+                validate_shared_capture(&self.captured, &target, &captured)?;
                 self.captured.insert(target.clone(), captured);
                 // Reject an oversized union before reading more targets. Shared
                 // ancestor files participate once in the invocation budget.
@@ -377,4 +365,59 @@ pub fn workspace_root(directory: &Path, explicit: Option<&Path>) -> Result<PathB
         }
     }
     Ok(directory)
+}
+
+// Compare the complete shared scope, including absence. Comparing only matching
+// identities would miss a file created or deleted after an earlier capture.
+fn validate_shared_capture(
+    prior: &std::collections::BTreeMap<PathBuf, Vec<ConfigSource>>,
+    target: &Path,
+    captured: &[ConfigSource],
+) -> Result<()> {
+    for (prior_target, prior_sources) in prior {
+        let shared = |source: &&ConfigSource| {
+            target.starts_with(&source.directory) && prior_target.starts_with(&source.directory)
+        };
+        let previous: std::collections::BTreeMap<_, _> = prior_sources
+            .iter()
+            .filter(shared)
+            .map(|s| (&s.identity, &s.digest))
+            .collect();
+        let current: std::collections::BTreeMap<_, _> = captured
+            .iter()
+            .filter(shared)
+            .map(|s| (&s.identity, &s.digest))
+            .collect();
+        if previous != current {
+            bail!("CONFIG_EDIT_CONFLICT: configuration changed during capture");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shared_capture_detects_creation_deletion_and_changes_but_allows_new_target_scope() {
+        let root = tempfile::tempdir().unwrap();
+        let root = root.path().canonicalize().unwrap();
+        let child = root.join("child");
+        std::fs::create_dir(&child).unwrap();
+        let registry = Registry::default();
+        let read = || sources::project_sources(&root, &child, true, &registry).unwrap();
+        let absent = std::collections::BTreeMap::from([(root.clone(), Vec::new())]);
+        std::fs::write(root.join("oyzu.local.toml"), "[build]\njobs=2\n").unwrap();
+        let present = read();
+        assert!(validate_shared_capture(&absent, &child, &present).is_err());
+        let prior = std::collections::BTreeMap::from([(root.clone(), present)]);
+        std::fs::remove_file(root.join("oyzu.local.toml")).unwrap();
+        assert!(validate_shared_capture(&prior, &child, &read()).is_err());
+        std::fs::write(root.join("oyzu.local.toml"), "[build]\njobs=3\n").unwrap();
+        assert!(validate_shared_capture(&prior, &child, &read()).is_err());
+        std::fs::write(root.join("oyzu.local.toml"), "[build]\njobs=2\n").unwrap();
+        std::fs::write(child.join("oyzu.toml"), "[build]\njobs=4\n").unwrap();
+        assert!(validate_shared_capture(&prior, &child, &read()).is_ok());
+    }
 }

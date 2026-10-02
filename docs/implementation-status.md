@@ -445,3 +445,5 @@ The Windows native JDK 17/Ant 1.10.18 probe passed conventional and custom targe
 Integration references: [Ant build listeners](https://ant.apache.org/manual/listeners.html), [JaCoCo Java agent](https://www.jacoco.org/jacoco/trunk/doc/agent.html), and [JaCoCo coverage semantics](https://www.jacoco.org/jacoco/trunk/doc/ant.html). These are integration references, not copied implementation code.
 
 Structured CLI edits use the same bounded duplicate-rejecting JSON parser as administrative input. Regression tests reject duplicate task fields, duplicate nested environment keys and excessive nesting before any file write, while keeping supplied values out of diagnostics (CFG-06/14).
+
+Invocation capture compares complete shared ancestor scopes, including absent files. Creation, deletion or content changes between root and target reads cause `CONFIG_EDIT_CONFLICT`; a newly selected target may still contribute its own nested scope. A filesystem regression covers these transitions (CFG-01/13).
