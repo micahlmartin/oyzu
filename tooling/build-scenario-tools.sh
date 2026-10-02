@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 mode="${1:-}"
 suite="${2:-all}"
-case "$suite" in all|core|node|python|go|rust|java|helm|docker) ;; *) echo "Unknown suite: $suite" >&2; exit 2 ;; esac
+case "$suite" in all|core|dependencies|node|python|go|rust|java|helm|docker) ;; *) echo "Unknown suite: $suite" >&2; exit 2 ;; esac
 case "$mode" in provision|native) ;; *) echo "Usage: bash tooling/build-scenario-tools.sh {provision|native} [suite]" >&2; exit 2 ;; esac
 selected() {
   if [[ "$suite" == all ]]; then return 0; fi
@@ -17,7 +17,7 @@ selected() {
 if [[ "$mode" == provision ]]; then
   python3 -m venv .ci-python
   .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
-  if selected node core docker; then
+  if selected node core docker dependencies; then
     docker pull node:22-bookworm-slim
     docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
@@ -31,19 +31,23 @@ if [[ "$mode" == provision ]]; then
       docker build --build-arg QUALITY_IMAGE="oyzu-toolchain/node:quality-${version}" --tag "oyzu-toolchain/node:yarn1.22.22-node${version}" tooling/images/node-yarn
     done
   fi
-  if selected node docker; then
+  if selected node dependencies; then
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
     docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
     docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
   fi
-  if selected go docker core; then
+  if selected go docker core dependencies; then
     docker pull golang:1.24-bookworm
+  fi
+  if selected go docker core; then
     docker build --tag oyzu-toolchain/go:1.24-mod0.25.0 --file tooling/images/go.Dockerfile .
   fi
-  if selected docker; then
+  if selected dependencies; then
     docker pull python:3.13-slim-bookworm
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-npm
+  fi
+  if selected docker; then
     # The CI runner provisions binfmt/QEMU separately. These distinct tags keep
     # the native default images intact in both classic and containerd stores.
     docker build --platform linux/arm64 --tag oyzu-toolchain/go:1.24-mod0.25.0-linux-arm64 --file tooling/images/go.Dockerfile .
@@ -52,7 +56,7 @@ if [[ "$mode" == provision ]]; then
     test "$(docker run --rm --pull=never --network=none oyzu-toolchain/go:1.24-mod0.25.0-linux-arm64 go env GOOS GOARCH)" = $'linux\narm64'
     test "$(docker run --rm --pull=never --network=none oyzu-toolchain/node:npm11.11.0-node22-linux-arm64 node -p 'process.platform+"/"+process.arch')" = linux/arm64
   fi
-  if selected python core docker; then
+  if selected python core dependencies; then
     docker pull python:3.12-slim-bookworm
     docker pull python:3.12-bookworm
     docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim
@@ -76,14 +80,14 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/maven:3.9.11-jdk17 --file tooling/images/maven.Dockerfile .
     docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile .
   fi
-  if selected docker go python; then
+  if selected docker go python dependencies; then
     docker pull alpine:3.22
     docker tag alpine:3.22 oyzu-fixture/alpine:amd64
     docker build --tag oyzu-toolchain/docker:buildkit0.25.0 --file tooling/images/docker-metadata.Dockerfile .
     sudo apparmor_parser -r tooling/images/buildkit.apparmor
   fi
 else
-  if selected docker; then
+  if selected dependencies; then
     PATH="$PWD/tooling/images/node-npm/node_modules/.bin:$PATH" .ci-python/bin/python tooling/test-npm-context.py
     node --test tooling/test-pnpm-store.mjs
     .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --context --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js

@@ -66,7 +66,7 @@ def validate(bundle):
             else:
                 assert digest(path) == artifact["digest"]
     return records["manifest"]
-SUITES = ('core', 'node', 'python', 'go', 'rust', 'java', 'helm', 'docker')
+SUITES = ('core', 'dependencies', 'node', 'python', 'go', 'rust', 'java', 'helm', 'docker')
 # Registration retains the existing full-run order. A suite is only a selection
 # of these checks; it cannot replace native outcomes or scenario expectations.
 CASES = (
@@ -84,11 +84,11 @@ CASES = (
     ('go', 'go', go.verify),
     ('core', 'materialization', materialization.verify),
     ('docker', 'docker', docker.verify),
-    ('docker', 'docker-dependencies', docker_dependencies.verify),
-    ('docker', 'docker-npm-context', docker_npm_context.verify),
-    ('docker', 'docker-yarn-context', docker_yarn_context.verify),
-    ('docker', 'docker-pnpm-context', docker_pnpm_context.verify),
-    ('docker', 'docker-go-context', docker_go_context.verify),
+    ('dependencies', 'docker-dependencies', docker_dependencies.verify),
+    ('dependencies', 'docker-npm-context', docker_npm_context.verify),
+    ('dependencies', 'docker-yarn-context', docker_yarn_context.verify),
+    ('dependencies', 'docker-pnpm-context', docker_pnpm_context.verify),
+    ('dependencies', 'docker-go-context', docker_go_context.verify),
     ('docker', 'node-application', node_application.verify),
     ('java', 'maven', maven.verify),
     ('java', 'gradle', gradle.verify),
