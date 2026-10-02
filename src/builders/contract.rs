@@ -40,6 +40,8 @@ pub(crate) trait Builder: Sync {
     /// Report contract for explicit host test execution. None means this native
     /// profile still lacks direct-run evidence integration. No acquisition or
     /// sandbox claim is implied; commands use already provisioned host tools.
+    /// Commands may reference `/oyzu/<name>` from runtime_files(); host execution
+    /// stages those owned assets privately and translates the declared paths.
     fn development_test(&self, _target: &Target, _task: &Task) -> Result<Option<TaskPlan>> {
         Ok(None)
     }

@@ -176,9 +176,10 @@ jobs:
             CLI=cli/oyzu
             chmod +x "$CLI"
           fi
-          "$PYTHON" -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2 -r tooling/design-requirements.txt
+          "$PYTHON" -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2 uv==0.12.21 poetry==2.5.1 -r tooling/design-requirements.txt
           "$PYTHON" tooling/test-python-tasks.py --cli "$CLI"
           "$PYTHON" tooling/test-python-reporting.py
+          "$PYTHON" tooling/test-python-direct.py --cli "$CLI"
           "$PYTHON" tooling/test-direct-test-bundles.py --cli "$CLI"
       - name: Execute compiled CLI against real task scenarios
         shell: bash

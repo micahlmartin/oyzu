@@ -21,10 +21,14 @@ fn relative(root: &Path, path: &Path) -> Result<String> {
     Ok(if path.is_empty() { ".".into() } else { path })
 }
 
-fn host_path(value: &str, root: &Path, output: &Path) -> String {
+fn host_path(value: &str, root: &Path, output: &Path, runtime: &Path) -> String {
     // Only engine-owned mount prefixes are translated. Native shell bodies and
     // other arguments are never parsed or rewritten by this coordinator.
-    for (prefix, base) in [("/out/", output), ("/workspace/", root)] {
+    for (prefix, base) in [
+        ("/out/", output),
+        ("/workspace/", root),
+        ("/oyzu/", runtime),
+    ] {
         if let Some(path) = value.strip_prefix(prefix) {
             return base.join(path).to_string_lossy().into_owned();
         }
@@ -86,11 +90,24 @@ pub(super) fn run(
     let mut tasks = Vec::new();
     let mut actions = Vec::new();
     let mut targets = BTreeMap::new();
+    let mut runtimes = std::collections::BTreeSet::new();
     for (index, id) in sequence.iter().enumerate() {
         let mut task = workspace.tasks[id].clone();
         let (target, config) = configuration(workspace, id);
         let owner = target.unwrap_or(primary_target);
         let contract = contracts.get(id);
+        let runtime = temporary.path().join("runtime").join(&owner.name);
+        if contract.is_some() && runtimes.insert(owner.name.clone()) {
+            fs::create_dir_all(&runtime)?;
+            for file in builders::get(&owner.builder)?.runtime_files() {
+                if !snapshot::portable(file.name) {
+                    bail!("invalid builder runtime path");
+                }
+                let destination = runtime.join(file.name);
+                fs::create_dir_all(destination.parent().context("missing runtime parent")?)?;
+                fs::write(destination, file.contents)?;
+            }
+        }
         let bindings = reports::bindings::bind(&workspace.root, &owner.name, &task, contract)?;
         for input in bindings.inputs.values() {
             if matches!(input.root, reports::Root::Workspace) {
@@ -119,15 +136,15 @@ pub(super) fn run(
                         }
                     }
                 }
-                *arg = host_path(arg, &workspace.root, &output);
+                *arg = host_path(arg, &workspace.root, &output, &runtime);
             }
         }
-        task.env.extend(
-            bindings
-                .env
-                .iter()
-                .map(|(key, value)| (key.clone(), host_path(value, &workspace.root, &output))),
-        );
+        task.env.extend(bindings.env.iter().map(|(key, value)| {
+            (
+                key.clone(),
+                host_path(value, &workspace.root, &output, &runtime),
+            )
+        }));
         if let Some(parent) = super::hook_owner(&task).and_then(|id| workspace.tasks.get(&id)) {
             let parent_bindings = reports::bindings::bind(
                 &workspace.root,
@@ -135,12 +152,13 @@ pub(super) fn run(
                 parent,
                 contracts.get(&parent.id()),
             )?;
-            task.env.extend(
-                parent_bindings
-                    .env
-                    .iter()
-                    .map(|(key, value)| (key.clone(), host_path(value, &workspace.root, &output))),
-            );
+            task.env
+                .extend(parent_bindings.env.iter().map(|(key, value)| {
+                    (
+                        key.clone(),
+                        host_path(value, &workspace.root, &output, &runtime),
+                    )
+                }));
         }
         if let Some(config) = config {
             config.validate_environment(&task.env)?;

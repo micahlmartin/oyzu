@@ -1,6 +1,6 @@
 # Direct test reports
 
-`oyzu run test` now produces a test-only `dist/` bundle for single-package Node projects using the built-in `node:test` runner. Native Node and the selected package manager must already be installed. There is no Docker, desktop, sign-in or tool-installation prerequisite for this host workflow.
+`oyzu run test` produces a test-only `dist/` bundle for single-package Node projects using the built-in `node:test` runner and Python projects using pytest through pip, uv or Poetry. Native tools, dependencies and any required reporters must already be installed. There is no Docker, desktop, sign-in or tool-installation prerequisite for this host workflow. See [Python test reporting](python-testing.md) for its native configuration, prerequisites and coverage scope; the examples below use Node.
 
 ```text
 oyzu run list
@@ -13,7 +13,7 @@ The builder recognizes the conventional runner or a supported exact test command
 
 ## Outputs and failures
 
-The invocation uses the same report binding, validation, collection and bundle transaction as captured builds. `dist/manifest.json` links current JUnit and LCOV reports, their summaries, the recorded plan, execution envelope and logs. It records no newly built application artifacts and does not run packaging, lint or formatting just because tests were requested. Use `oyzu build` for builder stages and snapshot artifacts.
+The invocation uses the same report binding, validation, collection and bundle transaction as captured builds. `dist/manifest.json` links current JUnit and coverage reports (LCOV for Node, Cobertura for Python), their summaries, the recorded plan, execution envelope and logs. It records no newly built application artifacts and does not run packaging, lint or formatting just because tests were requested. Use `oyzu build` for builder stages and snapshot artifacts.
 
 Native test failures, missing required reports, malformed reports and an unmet configured coverage minimum fail the command. Valid failed-test reports and bounded malformed report bytes are retained when available. Collection waits for the post-hook so that a report-transforming hook can finish. A failing pre-hook blocks its test; a failing test skips its success-only post-hook; a failing post-hook retains the test's available reports. A launch failure produces failed action evidence rather than success. Unexecuted actions are marked blocked.
 
@@ -39,6 +39,6 @@ The plan, envelope and manifest disclose `oyzu.dev/invocation` with `kind: test`
 
 CI detection gives `ci-unverified`, not a trusted producer identity. Effective configuration identity and available management metadata are recorded, but this test invocation does not satisfy unrelated full-build checks or grant publication/signing authority. Inspection checks integrity and agreement of invocation records, not authenticity. This is local development evidence, not hermetic or production provenance.
 
-The first integrated profile is built-in Node testing outside workspaces. Jest, Vitest, Mocha, Node workspaces and other builder families still use their existing development-task behavior without this test-only bundle integration. A supported test depending on an unsupported test profile fails before execution rather than claiming complete evidence for both. These are implementation gaps; the intended common builder reporting contract remains broader.
+Integrated profiles are built-in Node testing outside workspaces and Python's pytest default. Jest, Vitest, Mocha, Node workspaces and other builder families still use their existing development-task behavior without this test-only bundle integration. A supported test depending on an unsupported test profile fails before execution rather than claiming complete evidence for both. These are implementation gaps; the intended common builder reporting contract remains broader.
 
 The native probe is `python tooling/test-direct-test-bundles.py --cli <compiled-oyzu-path>`, with dependencies from `tooling/design-requirements.txt`. It checks real native tests, application coverage, lifecycle behavior, hooks, failed/missing/malformed evidence, redirected/stale reports, launch failures, native output preservation, history and inspection tampering. CI runs it after CLI compilation on Windows, macOS and Linux. Revision-specific results and remaining gaps are recorded in [implementation status](../implementation-status.md); CI wiring alone does not prove all hosts passed.

@@ -6,6 +6,7 @@ mod distribution_app;
 mod legacy;
 mod planning;
 mod quality;
+mod testing;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
 use crate::{dependencies::Prepared, model::Target};
@@ -32,6 +33,13 @@ impl Builder for Python {
     }
     fn discover(&self, target: &mut Target) -> Result<()> {
         discovery::discover(target)
+    }
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<super::TaskPlan>> {
+        Ok(testing::development(target, task))
     }
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
         match target.manager.as_str() {

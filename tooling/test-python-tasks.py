@@ -16,6 +16,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='oyzu python tasks ') as temporary:
         project = Path(temporary)
         (project/'requirements.txt').write_text('')
+        (project/'application.py').write_text('VALUE = 4\n')
         env = {**os.environ, 'PATH':str(Path(sys.executable).parent)+os.pathsep+os.environ.get('PATH','')}
 
         def run(*argv, code=0, extra_env=None):
@@ -31,13 +32,13 @@ def main():
         (project/'conftest.py').unlink()
         assert 'no tests ran' in run('run','test',code=5).stdout
         test = project/'test_root.py'
-        test.write_text('def test_root():\n    assert 2 + 2 == 4\n')
+        test.write_text('from application import VALUE\ndef test_root():\n    assert VALUE == 4\n')
         assert '1 passed' in run('run','test').stdout
         test.write_text("raise RuntimeError('native testpaths ignored')\n")
         checks = project/'checks'
         checks.mkdir()
         selected = checks/'spec_check.py'
-        selected.write_text('def test_selected():\n    assert 2 + 2 == 4\n')
+        selected.write_text('from application import VALUE\ndef test_selected():\n    assert VALUE == 4\n')
         (project/'pytest.ini').write_text('[pytest]\ntestpaths=checks\npython_files=spec_*.py\n')
         assert '1 passed' in run('run','test').stdout
         # Change size as well as contents: timestamp-based Python bytecode caches
