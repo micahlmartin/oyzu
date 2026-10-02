@@ -135,4 +135,5 @@ Windows MSVC target. Reports are retained for 30 days as
 `cargo-evidence-<target>-<commit>` artifacts. Preserve reviewed evidence outside
 expiring CI storage before release review. A missing report fails the job; an
 upload does not approve licenses, establish a shipping graph or fulfill source
-delivery obligations. The workflow's first report-producing run is pending.
+delivery obligations. Notice directory enumeration failures reject collection;
+unreadable directories cannot silently disappear from a successful report. The workflow's first report-producing run is pending.

@@ -513,3 +513,13 @@ inventory remains consistent, and workflow YAML parses with three explicit
 targets. The first report-producing CI run remains pending. Local Linux evidence
 contains 955 unreviewed packages; the cross-target collection stopped at missing
 macOS cache metadata. It does not establish three-target evidence or approval.
+
+## Checkpoint 62: incomplete notice scans fail collection
+
+Fork `bb3ba5b25` makes directory enumeration errors fatal to candidate notice
+collection. Python's default walk behavior could otherwise silently omit an
+unreadable subtree. The regression injects an enumeration permission failure
+and requires rejection instead of a partial inventory. All 20 compliance tests
+ran on Windows (one symlink skip); the dependency/notice inventory is unchanged
+and consistent. Native evidence collection remains pending, and no license
+disposition or release approval has changed.
