@@ -2,6 +2,7 @@
 import shutil
 import subprocess
 import zipfile
+from .java_quality import verify as verify_quality
 
 
 def verify(root, base, invoke, validate, source_files, verified):
@@ -31,7 +32,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert len(coverage) == 2 and all(r['summary']['covered'] > 0 for r in coverage)
     assert all(r['format'] == 'jacoco' for r in coverage)
     assert len({r['id'] for r in tests + coverage}) == 4
-    assert [a['id'] for a in manifest['actions']] == ['project:prepare', 'project:build', 'project:package']
+    assert [a['id'] for a in manifest['actions']] == ['project:prepare', 'project:build', 'project:lint', 'project:format-check', 'project:package']
     invoke(project, 'inspect', 'dist')
     mounts = []
     for i, artifact in enumerate(jars):
@@ -45,6 +46,8 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert {a['id']: a['digest'] for a in repeated['artifacts']} == {a['id']: a['digest'] for a in artifacts}
     # Changing shared code must fail its native tests and block all exports.
     source = project / 'library/src/main/java/example/Greeting.java'
+    verify_quality(project, source, invoke, validate, source_files)
+    verified.append('maven: native lint/format failures retain test evidence, block snapshots and leave source unchanged')
     source.write_text(source.read_text().replace('Hello, Oyzu!', 'Changed shared code'))
     invoke(project, 'build', success=False)
     failed = validate(project / 'dist')

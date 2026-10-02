@@ -14,6 +14,7 @@ use std::path::Path;
 pub(in crate::builders) struct Gradle;
 
 const RUNTIME: &[RuntimeFile] = &[
+    super::quality::RUNTIME,
     RuntimeFile {
         name: "gradle.py",
         contents: include_str!("runtime/adapter.py"),
@@ -45,6 +46,12 @@ impl Builder for Gradle {
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)
     }
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        super::quality::development(task)
+    }
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         RUNTIME
     }
@@ -75,6 +82,7 @@ impl Builder for Gradle {
         insert(target, "build", &[executable, "--no-daemon", "build"], true);
         insert(target, "test", &[executable, "--no-daemon", "test"], false);
 
+        super::quality::discover(target)?;
         Ok(())
     }
 }

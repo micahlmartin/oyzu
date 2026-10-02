@@ -111,6 +111,16 @@ jobs:
           go build -mod=readonly -trimpath -o "$ADAPTER" .
           cd "$GITHUB_WORKSPACE"
           python tooling/test-go-modulezip.py --adapter "$ADAPTER"
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Native Java quality tasks
+        shell: bash
+        run: |
+          python tooling/provision-java-quality.py --destination .ci-java-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-java-quality.py --cli "$CLI" --tools .ci-java-quality
       - name: Native Dockerfile quality tasks
         shell: bash
         run: |
@@ -241,9 +251,9 @@ jobs:
           docker build --tag oyzu-toolchain/poetry:2.5.1-python3.12 --file tooling/images/python-poetry.Dockerfile tooling/images
           docker build --tag oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1 --file tooling/images/rust.Dockerfile tooling/images
           docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile tooling/images
+          docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile .
           docker build --tag oyzu-toolchain/maven:3.9.11-jdk17 --file tooling/images/maven.Dockerfile .
-          docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile tooling/images
+          docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile .
           docker build --tag oyzu-toolchain/docker:buildkit0.25.0 --file tooling/images/docker-metadata.Dockerfile .
           sudo apparmor_parser -r tooling/images/buildkit.apparmor
           python3 -m venv .ci-python

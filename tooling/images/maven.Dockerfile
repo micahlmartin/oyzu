@@ -13,3 +13,10 @@ RUN javac --release 17 -cp '/opt/maven/lib/*' -d /opt/oyzu-maven/classes /opt/oy
     && jar --create --file /opt/oyzu-maven/metadata.jar --date=1980-01-01T00:00:02Z -C /opt/oyzu-maven/classes .
 ENV MAVEN_HOME=/opt/maven
 ENV PATH=/opt/maven/bin:$PATH
+
+COPY tooling/provision-java-quality.py /tmp/oyzu-provision/tooling/provision-java-quality.py
+COPY src/builders/java/runtime /tmp/oyzu-provision/src/builders/java/runtime
+RUN python3 /tmp/oyzu-provision/tooling/provision-java-quality.py --destination /opt/oyzu-java-quality \
+    && chmod -R a+rX /opt/oyzu-java-quality \
+    && rm -rf /tmp/oyzu-provision
+ENV OYZU_JAVA_QUALITY_HOME=/opt/oyzu-java-quality

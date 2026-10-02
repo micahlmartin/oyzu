@@ -45,3 +45,7 @@ Acceptance criteria: BUILDER-02, BUNDLE-01. See the [design catalog](../../../do
 
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+
+## Java quality gates
+
+The [Java quality reference](../../../docs/reference/java-quality.md) describes provisioned native lint and formatting defaults. `oyzu run list` includes `lint`, `format-check` and explicit `format`; builds run the read-only checks before exporting artifacts. Add an unused import or a formatting-only change to exercise failure: test evidence remains available, artifacts are blocked and the checkout stays unchanged. Native task replacements retain their existing authority.

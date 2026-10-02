@@ -15,6 +15,7 @@ use std::path::Path;
 pub(in crate::builders) struct Maven;
 
 const RUNTIME: &[RuntimeFile] = &[
+    super::quality::RUNTIME,
     RuntimeFile {
         name: "maven_reporting.py",
         contents: include_str!("runtime/reporting.py"),
@@ -41,6 +42,12 @@ impl Builder for Maven {
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)
+    }
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        super::quality::development(task)
     }
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         RUNTIME
@@ -88,6 +95,7 @@ impl Builder for Maven {
         insert(target, "build", &[executable, "-B", "verify"], true);
         insert(target, "test", &[executable, "-B", "test"], false);
 
+        super::quality::discover(target)?;
         Ok(())
     }
 }

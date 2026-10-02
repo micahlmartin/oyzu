@@ -4,7 +4,7 @@ Status: experimental. Oyzu detects a `pom.xml` without a build YAML file and tre
 
 ## Tools and commands
 
-Development tasks use provisioned Maven or the native Maven wrapper. Static `oyzu run list` does not execute Maven. Implicit `install` runs dependency preparation, `build` runs `mvn -B verify`, and `test` runs `mvn -B test`. The explicit test task is not separately repeated during the build lifecycle. Checks already bound to `verify` run under Maven; default Java lint/format tooling is not implemented yet.
+Development tasks use provisioned Maven or the native Maven wrapper. Static `oyzu run list` does not execute Maven. Implicit `install` runs dependency preparation, `build` runs `mvn -B verify`, and `test` runs `mvn -B test`. The explicit test task is not separately repeated during the build lifecycle. Checks already bound to `verify` run under Maven. Shared [Java quality defaults](java-quality.md) add native lint and read-only formatting gates, with explicit task replacements available.
 
 Captured builds require Docker and the explicitly provisioned Maven 3.9.11/JDK 17 image:
 
@@ -45,4 +45,4 @@ python tooling/test-maven-metadata.py --maven-home <maven-home> --java-home <jdk
 
 The default check needs no downloaded plugins. The lifecycle variant needs its pinned fixture plugins/dependencies in that native repository; adding `--acquire` explicitly allows a native online fixture run to provision them before the offline checks. That test setup is distinct from Oyzu's captured acquisition protocol.
 
-Windows native testing passed effective custom report directories, successful/failed unit and integration reports, unchanged XML bytes and an integration-only module. The Linux captured suite also exercises snapshot artifacts, source immutability, module coverage and failed integration-test evidence; the new report-plan cases await CI confirmation. Earlier reactor artifact/report evidence remains recorded in [implementation status](../implementation-status.md). Remaining work includes default Java quality tasks, broader test providers, custom/aggregate coverage, generated test roots, private repositories, release policy and complete authored-scenario acceptance.
+Windows native testing passed effective custom report directories, successful/failed unit and integration reports, unchanged XML bytes and an integration-only module. The Linux captured suite also exercises snapshot artifacts, source immutability, module coverage and failed integration-test evidence; the new report-plan cases await CI confirmation. Earlier reactor artifact/report evidence remains recorded in [implementation status](../implementation-status.md). Java quality defaults are documented in the [shared Java quality reference](java-quality.md). Remaining work includes broader test providers, custom/aggregate coverage, generated test roots, private repositories, release policy and complete authored-scenario acceptance.

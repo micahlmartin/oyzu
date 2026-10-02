@@ -57,6 +57,8 @@ src/
       runtime/build.py        # Native compiler-message binding and contained executable staging
       runtime/package.py      # Verified native archives/indexes in a private registry overlay
       tests.rs                # Workspace projection and containment regressions
+    java/quality.rs           # Shared native Java quality task defaults and invocation mapping
+    java/runtime/             # Owned Java source launcher and default Checkstyle rules
     java/{maven,gradle,ant}/   # Separate native-manager adapters
       maven/metadata.rs       # Typed native reactor metadata and output validation
       maven/preparation.rs    # Scoped native repository capture and POM overlay

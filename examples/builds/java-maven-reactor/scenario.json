@@ -16,7 +16,8 @@
   ],
   "expected": [
     "Use the native parent/modules/dependency graph once.",
-    "Associate library and app jars plus Surefire reports with their modules."
+    "Associate library and app jars plus Surefire reports with their modules.",
+    "Expose implicit lint and read-only formatting checks; explicit format may rewrite sources, but build never does."
   ],
   "cases": [
     {
@@ -38,6 +39,16 @@
       "name": "shared-code-change",
       "change": "Change the library greeting.",
       "expect": "Re-test the consuming app through the reactor graph."
+    },
+    {
+      "name": "lint-failure",
+      "change": "Add an unused java.util.Random import to an application source file.",
+      "expect": "Native compilation/tests can succeed, but lint fails, artifacts are blocked, test evidence is retained and source stays unchanged."
+    },
+    {
+      "name": "format-failure",
+      "change": "Add an extra space between public and class in an application source file.",
+      "expect": "Read-only formatting fails and blocks artifacts without changing source; explicit oyzu run format can repair it."
     }
   ],
   "nativeChecks": [

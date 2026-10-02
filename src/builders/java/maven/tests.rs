@@ -37,7 +37,9 @@ fn native_reactor_plan_binds_module_artifacts_reports_and_one_lifecycle() {
         .artifacts
         .iter()
         .any(|a| a.filename == "app-1.0.0-dev.g123.jar"));
-    assert_eq!(plan.tasks.len(), 1);
+    assert_eq!(plan.tasks.len(), 4);
+    assert!(plan.tasks.contains_key("lint"));
+    assert!(plan.tasks.contains_key("format-check"));
     assert_eq!(plan.tasks["build"].reports.len(), 2);
     assert_eq!(
         plan.tasks["build"].reports[0].input.as_deref(),

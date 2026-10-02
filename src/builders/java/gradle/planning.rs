@@ -105,5 +105,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     }
     plan.tasks.insert("build".into(), build);
     plan.package.argv.push(serde_json::to_string(&exports)?);
+    super::super::quality::plan(context.target, &mut plan);
     Ok(plan)
 }

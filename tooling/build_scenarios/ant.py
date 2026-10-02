@@ -2,6 +2,7 @@
 import shutil
 import subprocess
 import zipfile
+from .java_quality import verify as verify_quality
 import xml.etree.ElementTree as ET
 
 
@@ -44,6 +45,9 @@ def verify(root, base, invoke, validate, source_files, verified):
         repeated = invoke(project, 'build')
         assert repeated['artifacts'][0]['digest'] == artifact['digest']
         verified.append(f'Ant {name}: native Java assertion JUnit, measured application JaCoCo coverage, versioned JAR content, repeatability and unchanged source')
+
+        verify_quality(project, project/'src/example/Greeting.java', invoke, validate, source_files)
+        verified.append(f'Ant {name}: native quality failures block artifacts without modifying source')
 
         if name=='conventional':
             config = project/'oyzu.toml'
