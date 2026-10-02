@@ -9,7 +9,8 @@
     "PLAN-05"
   ],
   "projects": [
-    "project"
+    "project",
+    "variants/yarn-classic"
   ],
   "oyzu": [
     "oyzu build"
@@ -28,6 +29,11 @@
       "name": "duplicate-execution",
       "change": "Select both workspace root and package targets.",
       "expect": "Do not run the same native workspace task twice."
+    },
+    {
+      "name": "yarn-classic",
+      "change": "Use the checked-in variants/yarn-classic project with its native Classic lock.",
+      "expect": "Build both snapshot packages with matching local dependency versions, JUnit/LCOV, quality gates and retained failure evidence without changing source."
     }
   ],
   "nativeChecks": [
@@ -59,7 +65,13 @@
     "project/packages/app/package.json",
     "project/packages/shared/index.mjs",
     "project/packages/shared/package.json",
-    "project/packages/shared/shared.test.mjs"
+    "project/packages/shared/shared.test.mjs",
+    "variants/yarn-classic/package.json",
+    "variants/yarn-classic/yarn.lock",
+    "variants/yarn-classic/packages/app/package.json",
+    "variants/yarn-classic/packages/app/app.test.mjs",
+    "variants/yarn-classic/packages/shared/package.json",
+    "variants/yarn-classic/packages/shared/shared.test.mjs"
   ],
   "hosts": {
     "intended": [

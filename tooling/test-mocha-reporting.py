@@ -39,7 +39,7 @@ def workspace(cli, base, npm):
     state.mkdir()
     encoded = json.dumps(spec)
     (state/'plan.json').write_text(encoded)
-    env['OYZU_NPM_WORKSPACE_PLAN'] = hashlib.sha256(encoded.encode()).hexdigest()
+    env['OYZU_NODE_WORKSPACE_PLAN'] = hashlib.sha256(encoded.encode()).hexdigest()
     def run(success=True):
         shutil.rmtree(state/'reports', ignore_errors=True)
         result = subprocess.run(['node',str(runtime/'npm-workspace-build.mjs'),'test'],cwd=project,env=env,
@@ -71,7 +71,7 @@ def workspace(cli, base, npm):
     spec['rootScripts']=package['scripts']
     encoded = json.dumps(spec)
     (state/'plan.json').write_text(encoded)
-    env['OYZU_NPM_WORKSPACE_PLAN']=hashlib.sha256(encoded.encode()).hexdigest()
+    env['OYZU_NODE_WORKSPACE_PLAN']=hashlib.sha256(encoded.encode()).hexdigest()
     shutil.rmtree(state/'reports')
     result = subprocess.run(['node',str(runtime/'npm-workspace-build.mjs'),'test'],cwd=project,env=env,
                             capture_output=True,text=True,timeout=120)

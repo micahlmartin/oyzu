@@ -21,6 +21,22 @@ pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
     RuntimeFile {
+        name: "workspace-build.mjs",
+        contents: include_str!("runtime/workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-plan.mjs",
+        contents: include_str!("runtime/workspace-plan.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspace-build.mjs",
+        contents: include_str!("runtime/yarn-workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspaces.mjs",
+        contents: include_str!("runtime/yarn-workspaces.mjs"),
+    },
+    RuntimeFile {
         name: "native-workspace.mjs",
         contents: include_str!("runtime/native-workspace.mjs"),
     },

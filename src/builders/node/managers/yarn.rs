@@ -33,12 +33,11 @@ impl Yarn {
     }
     fn validate(&self, root: &std::path::Path) -> Result<bool> {
         let package = records::read(&root.join("package.json"))?;
-        if package.get("workspaces").is_some()
-            || [".yarnrc", ".yarnrc.yml", ".npmrc"]
-                .iter()
-                .any(|name| root.join(name).exists())
+        if [".yarnrc", ".yarnrc.yml", ".npmrc"]
+            .iter()
+            .any(|name| root.join(name).exists())
         {
-            bail!("Yarn workspace/custom configuration capture is not implemented yet");
+            bail!("Yarn custom configuration capture is not implemented yet");
         }
         let lock = std::fs::read_to_string(root.join("yarn.lock"))?;
         if !lock.lines().any(|line| line.trim() == "# yarn lockfile v1") {
@@ -48,6 +47,7 @@ impl Yarn {
             .lines()
             .any(|line| !line.trim().is_empty() && !line.trim().starts_with('#'));
         if !required
+            && package.get("workspaces").is_none()
             && ["dependencies", "devDependencies", "optionalDependencies"]
                 .iter()
                 .any(|field| {
@@ -82,6 +82,28 @@ impl crate::dependencies::context::Provider for Yarn {
 }
 
 impl Manager for Yarn {
+    fn workspace_build_command(&self) -> Option<Vec<String>> {
+        Some(
+            ["yarn", "workspaces", "run", "build"]
+                .map(str::to_owned)
+                .to_vec(),
+        )
+    }
+    fn workspace_plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
+        let prepared = context
+            .dependencies
+            .context("Yarn workspace requires captured metadata")?;
+        let metadata = crate::builders::node::workspace::model::Metadata::read(
+            prepared.record["extensions"]["oyzu.dev/yarn"]["workspaces"].clone(),
+        )?
+        .context("missing captured Yarn workspace model")?;
+        crate::builders::node::workspace::planning::plan(
+            context,
+            self,
+            &metadata,
+            "yarn-workspace-build.mjs",
+        )
+    }
     fn workspace_test_command(&self) -> Vec<String> {
         ["yarn", "workspaces", "run", "test"]
             .map(str::to_owned)

@@ -1,5 +1,7 @@
-//! Manager-independent package scopes and host test evidence. Native managers
-//! own membership observation, commands, dependency graphs and packaging.
+//! Shared Node package facts, plans, scopes and evidence. Native managers own
+//! membership observation, dependency resolution, projection and packaging.
+pub(super) mod model;
+pub(super) mod planning;
 pub(super) mod reporting;
 mod testing;
 pub(super) use testing::{native_plan, report_plan};

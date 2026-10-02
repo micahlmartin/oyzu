@@ -83,6 +83,7 @@ pub(crate) fn safe_report_parent(root: &Path, relative: &str) -> Result<()> {
 }
 
 mod host;
+mod lock;
 
 pub(crate) fn verify_host_outputs(root: &Path, entries: &[snapshot::Entry]) -> Result<()> {
     host::verify(root, entries)
@@ -95,7 +96,7 @@ pub(crate) struct Transaction {
     previous: Option<String>,
     stage: tempfile::TempDir,
     // Keep the lock alive through publication and rollback, including failures.
-    _lock: fs::File,
+    _lock: lock::WorkspaceLock,
 }
 
 fn metadata(path: &Path) -> Result<Option<fs::Metadata>> {
@@ -169,8 +170,7 @@ impl Transaction {
             .read(true)
             .write(true)
             .open(&lock_path)?;
-        lock.try_lock()
-            .context("another build holds the workspace lock")?;
+        let lock = lock::WorkspaceLock::acquire(lock)?;
         let dist = root.join("dist");
         let previous = if host {
             host::identity(&dist)?

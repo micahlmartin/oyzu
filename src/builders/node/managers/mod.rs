@@ -26,6 +26,11 @@ pub(super) trait Manager: Sync {
             "--workspaces".into(),
         ]
     }
+    /// Optional native workspace build command when the root has no script.
+    /// Captured execution can supply richer composition through workspace_plan.
+    fn workspace_build_command(&self) -> Option<Vec<String>> {
+        None
+    }
     fn image(&self) -> &'static str;
     /// Opt into runtime matrices only when preparation and replay verify Node.
     fn runtime_image(&self, _node: &str) -> Result<String> {

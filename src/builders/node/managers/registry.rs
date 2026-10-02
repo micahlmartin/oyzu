@@ -55,11 +55,13 @@ pub(super) fn prepare(
             "size":p["size"], "purpose":"build", "dependencies":[], "verification":"digest-only"
         })).collect();
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
+    let workspaces =
+        crate::builders::node::workspace::model::Metadata::read(inventory["workspaces"].clone())?;
     let extensions = BTreeMap::from([(
         format!("oyzu.dev/{manager}"),
         json!({
             "nodeVersion":inventory["nodeVersion"], "inventory":"all-locked-registry-tarballs",
-            "integrity":"lockfile-sha512", "dependencyEdges":"not-modeled", "purposeClassification":"build-inputs"
+            "integrity":"lockfile-sha512", "dependencyEdges":"not-modeled", "purposeClassification":"build-inputs", "workspaces":workspaces
         }),
     )]);
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",

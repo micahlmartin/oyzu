@@ -24,6 +24,7 @@ from build_scenarios import docker_go_context
 from build_scenarios import docker_rust_context
 from build_scenarios import mixed_monorepo
 from build_scenarios import generated_source, service_test
+from build_scenarios import yarn_workspaces
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -83,6 +84,7 @@ CASES = (
     ('node', 'node-matrix', node_matrix.verify),
     ('node', 'node-managers', node_managers.verify),
     ('node', 'node-workspaces', node_workspaces.verify),
+    ('node', 'yarn-workspaces', yarn_workspaces.verify),
     ('node', 'node-quality', node_quality.verify),
     ('python', 'python-testing', python_testing.verify),
     ('node', 'jest', jest.verify),

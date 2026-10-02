@@ -30,9 +30,9 @@ export function query(command, args) {
   return result.stdout;
 }
 
-export function member(name, location) {
-  const root = realpathSync(process.cwd());
-  const directory = realpathSync(resolve(location));
+export function member(name, location, workspace = process.cwd()) {
+  const root = realpathSync(workspace);
+  const directory = realpathSync(resolve(root, location));
   const path = relative(root, directory).replaceAll('\\', '/');
   if (!path || isAbsolute(path) || path.split('/').includes('..')) throw new Error('Workspace member must be inside its root');
   const pkg = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
