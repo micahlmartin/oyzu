@@ -382,5 +382,6 @@ retention, unlocked newer-build selection, missing/empty/wrong-version denial an
 ordinary fallback compatibility. Scoped strict library/example Clippy, formatting,
 22 existing embedding scenarios and compliance guard checks also pass. Native
 validation is [run 37020409067](https://github.com/oyzuai/mise/actions/runs/37020409067),
-pending at this observation. These tests do not establish a complete Python
+completed successfully on Windows, macOS and Linux at this revision. These tests
+do not establish a complete Python
 resolver, publisher verification, production admission or distribution approval.

@@ -2044,3 +2044,16 @@ Decoded sizes were 195,798 / 181,436 / 158,412 bytes for Linux/macOS/Windows.
 The operational reference documents usage and limitations. This retains inputs;
 it does not claim Rust backend replay, Python resolution or installation success.
 OEP-0003 remains incomplete.
+
+## Checkpoint 141: native locked Python catalog checks pass
+
+Fork run 37020409067 completed successfully on Windows, macOS and Linux at
+4595732a494af3afc442945d671844210c41e627. All three jobs passed the Python
+catalog regressions and existing library/embedding checks. This supersedes the
+pending result in checkpoint 139 and the qualification companion. It establishes
+bounded catalog decoding and embedded locked-filename retention within the tested
+paths, not Python resolution, worker integration or installation support.
+
+The separate compliance workflow 37020409077 requires current-head human approval
+from @micahlmartin. No approval is inferred from passing technical checks.
+Documentation and diff checks pass; full OEP-0003 implementation remains active.
