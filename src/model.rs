@@ -60,6 +60,8 @@ pub struct Workspace {
     pub targets: BTreeMap<String, Target>,
     pub tasks: BTreeMap<String, Task>,
     #[serde(skip)]
+    pub(crate) declarations: crate::config::BuildInventory,
+    #[serde(skip)]
     pub configuration: BTreeMap<String, crate::config::resolve::EffectiveConfig>,
     #[serde(skip)]
     pub root_configuration: Option<crate::config::resolve::EffectiveConfig>,

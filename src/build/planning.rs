@@ -1,5 +1,5 @@
 //! Translate typed builder intent into the versioned execution plan.
-use crate::{builders, config, dependencies, executor, model::Workspace, records, snapshot, tasks};
+use crate::{builders, dependencies, executor, model::Workspace, records, snapshot, tasks};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
@@ -21,11 +21,28 @@ fn platform(image: &executor::Image) -> Value {
     json!({"os":image.os,"arch":image.arch})
 }
 
+/// Selection uses frozen declarations; execution must consume source containing
+/// the same inventory bytes (including an inventory being added or removed).
+pub(super) fn verify_inventory_source(
+    workspace: &Workspace,
+    source: &snapshot::Snapshot,
+) -> Result<()> {
+    let captured = source
+        .entries
+        .iter()
+        .find(|entry| entry.path == "build.yaml")
+        .and_then(|entry| entry.digest.as_ref());
+    if captured != workspace.declarations.source_digest.as_ref() {
+        bail!("build.yaml changed between discovery and source capture; rerun the build to select and plan from the same inventory");
+    }
+    Ok(())
+}
+
 pub(super) fn target_order(
     workspace: &Workspace,
     selected: &BTreeSet<String>,
 ) -> Result<Vec<String>> {
-    let configs = config::targets(&workspace.root)?.unwrap_or_default();
+    let configs = &workspace.declarations.targets;
     for (id, c) in configs.iter().filter(|(id, _)| selected.contains(*id)) {
         if !c.matrix.is_empty() || c.container.is_some() || c.bindings.is_some() {
             bail!("{id}: platform expansion and packaging options are not implemented yet");
@@ -89,6 +106,7 @@ pub(super) fn plan_with_dependencies(
     images: &BTreeMap<String, executor::Image>,
     dependencies: &BTreeMap<String, dependencies::Prepared>,
 ) -> Result<Value> {
+    verify_inventory_source(workspace, source)?;
     let mut intents = BTreeMap::new();
     for id in workspace.targets.keys() {
         intents.insert(
@@ -124,6 +142,7 @@ pub(super) fn compile(
     dependencies: &BTreeMap<String, dependencies::Prepared>,
     intents: &BTreeMap<String, builders::BuilderPlan>,
 ) -> Result<Value> {
+    verify_inventory_source(workspace, source)?;
     let selected = intents.keys().cloned().collect();
     let order = target_order(workspace, &selected)?;
     let mut planned = Vec::new();
@@ -131,7 +150,7 @@ pub(super) fn compile(
     let mut artifacts = Vec::new();
     let mut tools = Vec::new();
     let builder_digest = snapshot::file_digest(&std::env::current_exe()?)?;
-    let configs = config::targets(&workspace.root)?.unwrap_or_default();
+    let configs = &workspace.declarations.targets;
     let mut materialized = BTreeMap::new();
     let task_graph = super::task_graph::TaskGraph::new(workspace, intents)?;
     for id in order {

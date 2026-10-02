@@ -1,7 +1,7 @@
 //! Requested build targets and their declared/native task dependency closure.
 //! Discovery remains workspace-wide; only selected targets are prepared. Native
 //! plans may add required owners, but cannot remove a user's requested target.
-use crate::{builders::BuilderPlan, config, model::Workspace, tasks};
+use crate::{builders::BuilderPlan, model::Workspace, tasks};
 use anyhow::{bail, Result};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet};
@@ -41,7 +41,7 @@ impl Selection {
     }
 
     fn expand_declared(&mut self, workspace: &Workspace) -> Result<()> {
-        let configuration = config::targets(&workspace.root)?.unwrap_or_default();
+        let configuration = &workspace.declarations.targets;
         loop {
             let before = self.targets.len();
             for id in self.targets.clone() {
@@ -122,6 +122,27 @@ mod tests {
     }
 
     const TARGETS: &str = "api: {uses: node/package, path: api}\nschema: {uses: node/package, path: schema}\nassets: {uses: node/package, path: assets}\nunused: {uses: node/package, path: unused}\n";
+
+    #[test]
+    fn selection_uses_the_discovered_inventory_after_its_file_changes() {
+        let root = tempfile::tempdir().unwrap();
+        let yaml = TARGETS.replace(
+            "api: {uses: node/package, path: api}",
+            "api: {uses: node/package, path: api, depends_on: [schema]}",
+        );
+        fixture(root.path(), &yaml, "");
+        let workspace = discovery::discover(root.path()).unwrap();
+        fs::write(root.path().join("build.yaml"), "invalid: [changed").unwrap();
+        let selected = Selection::new(&workspace, &["api".into()]).unwrap();
+        assert_eq!(
+            selected.targets,
+            BTreeSet::from(["api".into(), "schema".into()])
+        );
+        assert_eq!(
+            super::super::planning::target_order(&workspace, &selected.targets).unwrap(),
+            vec!["schema", "api"]
+        );
+    }
 
     #[test]
     fn requests_preserve_explicit_mode_deduplicate_and_reject_unknown_targets() {
@@ -282,6 +303,11 @@ mod tests {
             yaml.replace("path: assets}", "path: assets, depends_on: [api]}"),
         )
         .unwrap();
+        assert_eq!(
+            super::super::planning::target_order(&workspace, &selection.targets).unwrap(),
+            ["assets", "schema", "api"]
+        );
+        let workspace = discovery::discover(root.path()).unwrap();
         assert!(
             super::super::planning::target_order(&workspace, &selection.targets)
                 .unwrap_err()

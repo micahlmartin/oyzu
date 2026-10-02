@@ -24,6 +24,53 @@ fn planned(root: &Path, temp: &Path) -> Value {
 }
 
 #[test]
+fn build_inventory_is_frozen_and_must_match_captured_source() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    let original = "app: {uses: node/package}\n";
+    fs::write(root.path().join("build.yaml"), original).unwrap();
+    let workspace = discovery::discover_with_shell(root.path(), Some("sh")).unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let images = BTreeMap::from([(
+        "app".into(),
+        Image {
+            reference: "node:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        },
+    )]);
+    let before = build::plan(&workspace, &source, &images).unwrap();
+    // Pure planning consumes the captured inventory, not this live file.
+    fs::write(
+        root.path().join("build.yaml"),
+        "app: {uses: node/package, matrix: {node: ['22.14.0', '24.14.1']}}\n",
+    )
+    .unwrap();
+    assert_eq!(build::plan(&workspace, &source, &images).unwrap(), before);
+    let later = tempfile::tempdir().unwrap();
+    let changed_source = snapshot::capture(root.path(), &later.path().join("source")).unwrap();
+    assert!(build::plan(&workspace, &changed_source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("changed between discovery and source capture"));
+    fs::remove_file(root.path().join("build.yaml")).unwrap();
+    let without = tempfile::tempdir().unwrap();
+    let absent_source = snapshot::capture(root.path(), &without.path().join("source")).unwrap();
+    assert!(build::plan(&workspace, &absent_source, &images).is_err());
+    let inferred = discovery::discover_with_shell(root.path(), Some("sh")).unwrap();
+    assert!(build::plan(&inferred, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("changed between discovery and source capture"));
+}
+
+#[test]
 fn plans_are_location_independent_bind_toolchain_and_keep_hooks() {
     let a = tempfile::tempdir().unwrap();
     let b = tempfile::tempdir().unwrap();

@@ -20,7 +20,7 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct TargetConfig {
     pub uses: String,
     #[serde(default)]
@@ -37,7 +37,7 @@ pub struct TargetConfig {
     pub dependencies: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Materialize {
     pub from: String,
@@ -114,10 +114,26 @@ pub fn targets(root: &Path) -> Result<Option<BTreeMap<String, TargetConfig>>> {
 pub type TargetInventory = BTreeMap<String, TargetConfig>;
 pub type InventoryResolution = (Option<TargetInventory>, Vec<sources::Diagnostic>);
 pub fn targets_with_diagnostics(root: &Path) -> Result<InventoryResolution> {
+    let (captured, diagnostics) = capture_targets(root)?;
+    Ok((
+        captured.source_digest.is_some().then_some(captured.targets),
+        diagnostics,
+    ))
+}
+
+/// One bounded read of build.yaml, shared by discovery, selection and planning.
+/// The digest identifies the exact bytes parsed, including optional fields.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct BuildInventory {
+    pub targets: TargetInventory,
+    pub source_digest: Option<String>,
+}
+
+pub(crate) fn capture_targets(root: &Path) -> Result<(BuildInventory, Vec<sources::Diagnostic>)> {
     let mut diagnostics = Vec::new();
     let path = root.join("build.yaml");
     if !path.is_file() {
-        return Ok((None, diagnostics));
+        return Ok((BuildInventory::default(), diagnostics));
     }
     use std::io::Read;
     let file = fs::File::open(&path)?;
@@ -207,7 +223,15 @@ pub fn targets_with_diagnostics(root: &Path) -> Result<InventoryResolution> {
             }
         }
     }
-    Ok((Some(values), diagnostics))
+    use sha2::{Digest, Sha256};
+    let source_digest = Some(format!("sha256:{:x}", Sha256::digest(text.as_bytes())));
+    Ok((
+        BuildInventory {
+            targets: values,
+            source_digest,
+        },
+        diagnostics,
+    ))
 }
 
 pub fn project(root: &Path) -> Result<ProjectConfig> {

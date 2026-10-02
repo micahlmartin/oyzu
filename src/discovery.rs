@@ -284,5 +284,6 @@ pub(crate) fn discover_with_session(
         tasks,
         configuration: effective_configs,
         root_configuration: Some(root_effective),
+        declarations: selected.declarations,
     })
 }

@@ -93,6 +93,7 @@ pub fn run_selected_with_options(
         let mut workspace = workspace?;
         let mut selection = selection::Selection::new(&workspace, requested)?;
         let source = snapshot::capture(&root, &source_path)?;
+        planning::verify_inventory_source(&workspace, &source)?;
         for target in workspace.targets.values_mut() {
             target.path = source_path.join(target.path.strip_prefix(&root)?);
             for task in target.tasks.values_mut() {

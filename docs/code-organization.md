@@ -52,6 +52,8 @@ Existing broad public modules, dynamic records and partially combined responsibi
 
 `model::BuilderSelection` records inferred versus explicit builder selection at discovery's construction boundary. Node's conventional application detector consumes that intent and the native build-script evidence; the shared discovery engine does not select Node output directories. `node/application` owns the dist convention and framework-specific output precedence, reusing the same staging runtime and shared directory inventory/materialization as Vite. Configuration, execution and collection retain their existing owners.
 
+Configuration owns `BuildInventory`: a single bounded parse of build.yaml with the digest of those exact bytes. Discovery's inventory selection retains it in `Workspace`; build selection, target ordering and compilation consume it without reopening the file. Build planning verifies agreement with the captured source inventory before preparation and when compiling a plan. This is a stable input boundary for future variant expansion, not an implementation of matrix execution. The frozen declarations are internal state, not reconstructed from serialized discovery output.
+
 ## Interfaces that earn their place
 
 Node's `mocha` module owns exact invocation adaptation; its runtime composes native Mocha reporters and invokes native c8. Framework detection remains in `node/detection/frameworks`, manager lifecycle behavior stays native, and shared report collection remains engine-owned. The common Node toolchain image provisions c8 alongside quality tools, but coverage integration stays with reporting rather than the lint/format adapter.
