@@ -541,3 +541,20 @@ metadata collection. Fork `76192a7eb` provisions the exact metadata query and
 feature set before offline collection instead. Local Windows collection then
 succeeded. Compliance tests pass (19 passed, one Windows symlink skip), notices
 remain consistent, and the updated CI matrix is pending.
+
+## Checkpoint 64: clean native candidate reports retained for review
+
+Run `36975506849` successfully collected and uploaded reports on all three
+native runners. Downloaded reports bind clean merge revision `b7914105eb84460a64bee20ca13784fed603e10d`.
+The [evidence index](proposals/OEP-0003-mise-integration/candidate-license-evidence.json)
+records artifact names, report SHA-256 hashes, declaration counts and identities
+without observed notices. Counts are 952/975/955 packages for Darwin ARM64,
+Windows MSVC and Linux GNU, with 98/96/98 lacking collector-recognized notices.
+These clean reports supersede the local modified-checkout reports for review
+evidence, not for approval. Collection/upload steps passed while job cache cleanup
+was still running; no overall workflow completion is inferred. The report source
+predates the subsequent unreadable-directory and exact-provisioning fixes.
+
+Executable-layout revision `1aae272` passes all three native CLI build jobs in
+run `36975364359`; Linux CLI task and isolated BuildKit checks also pass. Other
+scenario jobs were still running when recorded. Full OEP acceptance remains open.
