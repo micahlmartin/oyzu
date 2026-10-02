@@ -1,3 +1,4 @@
+pub(crate) mod assertions;
 mod contract;
 use anyhow::{bail, Result};
 pub(crate) use contract::{matches, validate_declarations, Input, Root};

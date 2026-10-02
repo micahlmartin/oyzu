@@ -1,4 +1,5 @@
 //! Private rootless BuildKit worker. Application RUN never receives a host socket.
+use super::files::{file, output_file};
 use super::{docker_path, run, Execution, Mode, Request};
 use crate::snapshot;
 use anyhow::{bail, Context, Result};
@@ -6,7 +7,7 @@ use serde_json::Value;
 use std::{
     collections::BTreeSet,
     fs,
-    path::{Path, PathBuf},
+    path::Path,
     process::Command,
     thread,
     time::{Duration, Instant},
@@ -37,44 +38,6 @@ impl Drop for Worker<'_> {
             let _ = self.stop();
         }
     }
-}
-
-fn output_file(root: &Path, relative: &str) -> Result<fs::File> {
-    if !snapshot::portable(relative) {
-        bail!("invalid worker output path");
-    }
-    let parts: Vec<_> = relative.split('/').collect();
-    let mut path = root.to_path_buf();
-    for part in &parts[..parts.len() - 1] {
-        path.push(part);
-        match fs::symlink_metadata(&path) {
-            Ok(metadata) if !metadata.file_type().is_symlink() && metadata.is_dir() => (),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => fs::create_dir(&path)?,
-            _ => bail!("unsafe worker output parent"),
-        }
-    }
-    path.push(parts.last().unwrap());
-    Ok(fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)?)
-}
-
-fn file(root: &Path, relative: &str) -> Result<PathBuf> {
-    if !snapshot::portable(relative) {
-        bail!("invalid captured context path");
-    }
-    let mut path = root.to_path_buf();
-    for part in relative.split('/') {
-        path.push(part);
-        if fs::symlink_metadata(&path)?.file_type().is_symlink() {
-            bail!("BuildKit input is a symlink");
-        }
-    }
-    if !fs::metadata(&path)?.is_file() {
-        bail!("BuildKit context input is not a regular file");
-    }
-    Ok(path)
 }
 
 fn copy(root: &Path, relative: &str, destination: &Path, total: &mut u64) -> Result<()> {

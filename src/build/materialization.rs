@@ -175,9 +175,78 @@ pub(super) fn apply(
     Ok(receipts)
 }
 
+/// Link original producer evidence; never relabel it as consumer measurements.
+pub(super) fn reference_reports(
+    receipts: &mut [Value],
+    bundle: &Path,
+    artifacts: &[Value],
+    actions: &[Value],
+    reports: &[Value],
+) -> Result<()> {
+    for receipt in receipts {
+        let artifact = artifacts
+            .iter()
+            .find(|a| a["id"] == receipt["artifact"] && a["digest"] == receipt["digest"])
+            .context("missing materialized artifact identity")?;
+        let target = artifact["target"]
+            .as_str()
+            .context("missing producer target")?;
+        let mut references = Vec::new();
+        for report in reports.iter().filter(|r| {
+            r["target"] == target
+                && r["status"] == "collected"
+                && matches!(r["kind"].as_str(), Some("test" | "coverage"))
+        }) {
+            if !actions
+                .iter()
+                .any(|a| a["id"] == report["action"] && a["status"] == "succeeded")
+            {
+                bail!("materialized producer report action did not succeed");
+            }
+            let path = report["path"]
+                .as_str()
+                .context("missing producer report path")?;
+            if snapshot::file_digest(&safe_file(bundle, path)?)? != report["digest"] {
+                bail!("materialized producer report failed integrity verification");
+            }
+            references.push(json!({"report":report["id"],"kind":report["kind"],"digest":report["digest"],"subjectDigest":report["subjectDigest"]}));
+        }
+        receipt["extensions"]["oyzu.dev/producer-reports"] =
+            json!({"scope":"producer-target","reports":references});
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn producer_report_links_keep_scope_and_reject_tampered_or_failed_evidence() {
+        let bundle = tempfile::tempdir().unwrap();
+        fs::write(bundle.path().join("coverage.out"), "mode: set\n").unwrap();
+        let digest = snapshot::file_digest(&bundle.path().join("coverage.out")).unwrap();
+        let artifacts = vec![json!({"id":"app/primary","target":"app","digest":"artifact-digest"})];
+        let actions = vec![json!({"id":"app:test","status":"succeeded"})];
+        let reports = vec![
+            json!({"id":"app:coverage","target":"app","action":"app:test","kind":"coverage","status":"collected","path":"coverage.out","digest":digest,"subjectDigest":"source-digest"}),
+        ];
+        let mut receipts = vec![json!({"artifact":"app/primary","digest":"artifact-digest"})];
+        reference_reports(&mut receipts, bundle.path(), &artifacts, &actions, &reports).unwrap();
+        let linked = &receipts[0]["extensions"]["oyzu.dev/producer-reports"];
+        assert_eq!(linked["scope"], "producer-target");
+        assert_eq!(linked["reports"][0]["digest"], digest);
+        assert_eq!(linked["reports"][0]["subjectDigest"], "source-digest");
+        let failed = vec![json!({"id":"app:test","status":"failed"})];
+        assert!(
+            reference_reports(&mut receipts, bundle.path(), &artifacts, &failed, &reports).is_err()
+        );
+        fs::write(bundle.path().join("coverage.out"), "tampered evidence").unwrap();
+        assert!(
+            reference_reports(&mut receipts, bundle.path(), &artifacts, &actions, &reports)
+                .is_err()
+        );
+    }
 
     #[test]
     fn verified_copies_preserve_producer_and_reject_tampering_and_overwrites() {

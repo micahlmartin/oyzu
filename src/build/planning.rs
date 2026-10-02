@@ -169,6 +169,16 @@ pub(super) fn plan_with_dependencies(
             .iter()
             .map(|(name, plan)| (operation_id(name), plan))
             .collect();
+        let native_operations: BTreeSet<_> = operation_contracts
+            .keys()
+            .filter(|id| {
+                workspace
+                    .tasks
+                    .get(*id)
+                    .is_some_and(|task| task.provider == target.manager)
+            })
+            .cloned()
+            .collect();
         for stage in &intent.stages {
             // Match public task lookup for a single-target workspace: explicit
             // root tasks own unqualified operations. Never fan a root override
@@ -179,10 +189,13 @@ pub(super) fn plan_with_dependencies(
             let Some(task) = workspace.tasks.get(&task_id) else {
                 continue;
             };
-            if task.availability.is_some() || (!task.build_stage && !root_override) {
+            let provided = native_operations.contains(&task_id);
+            if (task.availability.is_some() && !provided)
+                || (!task.build_stage && !root_override && !provided)
+            {
                 continue;
             }
-            let sequence = tasks::sequence(workspace, &task_id)?;
+            let sequence = tasks::sequence_for_build(workspace, &task_id, &native_operations)?;
             for (position, step) in sequence.iter().enumerate() {
                 if !emitted.insert(step.clone()) {
                     continue;

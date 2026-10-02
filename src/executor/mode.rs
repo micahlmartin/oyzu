@@ -14,6 +14,10 @@ pub(crate) enum Profile {
 pub(crate) enum Mode {
     #[default]
     Process,
+    OciValidation {
+        input: String,
+        report: String,
+    },
     Buildkit {
         output: String,
         image_name: String,
@@ -27,6 +31,14 @@ impl Mode {
     pub fn argv(&self, platform: &str) -> Option<Vec<String>> {
         match self {
             Self::Process => None,
+            Self::OciValidation { input, report } => Some(vec![
+                "oyzu:validate-oci".into(),
+                format!("/out/{input}"),
+                "--platform".into(),
+                platform.into(),
+                "--junit".into(),
+                format!("/out/{report}"),
+            ]),
             Self::Buildkit { image_name, .. } => Some(
                 [
                     "buildctl",
@@ -58,6 +70,14 @@ impl Mode {
     }
 
     pub fn validate(&self) -> Result<()> {
+        if let Self::OciValidation { input, report } = self {
+            if !crate::snapshot::portable(input)
+                || !crate::snapshot::portable(report)
+                || input.eq_ignore_ascii_case(report)
+            {
+                bail!("invalid OCI validation input/report paths");
+            }
+        }
         if let Self::Buildkit {
             output,
             image_name,
@@ -111,6 +131,11 @@ impl Mode {
                 "docker-network-none",
                 "docker-read-only-root",
                 "docker-cap-drop-all",
+            ],
+            Self::OciValidation { .. } => &[
+                "engine-bounded-oci-validation",
+                "no-project-code-execution",
+                "contained-report-write",
             ],
             Self::Buildkit { .. } => &[
                 "docker-network-none",

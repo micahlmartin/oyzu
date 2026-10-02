@@ -1,5 +1,7 @@
 //! Container execution never mounts the live checkout, user home or Docker socket.
+mod files;
 mod mode;
+mod validation;
 mod worker;
 use anyhow::{bail, Context, Result};
 pub(crate) use mode::{Mode, Profile};
@@ -228,6 +230,7 @@ pub(crate) fn execute_mode(
     mode.validate()?;
     match mode {
         Mode::Process => execute_with_mounts(request, mounts),
+        Mode::OciValidation { input, report } => validation::execute(request, input, report),
         Mode::Buildkit { .. } => worker::execute(request, mode, materialized),
     }
 }

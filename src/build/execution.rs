@@ -138,12 +138,19 @@ pub(super) fn execute_plan(
         }
         if initialized.insert(target.to_string()) {
             let binding = (|| -> Result<()> {
-                let receipts = materialization::apply(
+                let mut receipts = materialization::apply(
                     &workspaces[target],
                     bundle,
                     a["inputs"].as_array().context("missing action inputs")?,
                     &records.artifacts,
                     &records.actions,
+                )?;
+                materialization::reference_reports(
+                    &mut receipts,
+                    bundle,
+                    &records.artifacts,
+                    &records.actions,
+                    &records.reports,
                 )?;
                 if !receipts.is_empty() {
                     fs::create_dir_all(bundle.join("inputs"))?;

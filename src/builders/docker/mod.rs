@@ -42,7 +42,7 @@ impl Builder for Docker {
     fn discover(&self, target: &mut Target) -> Result<()> {
         target.manager = "docker".into();
         insert(target, "build", &["docker", "build", "."], true);
-        unavailable(target, "test", "No image smoke-test contract is configured");
+        unavailable(target, "test", "Default OCI validation runs during oyzu build; direct image test bundles are not implemented yet");
         unavailable(target, "lint", "No Dockerfile linter is configured");
         unavailable(
             target,
