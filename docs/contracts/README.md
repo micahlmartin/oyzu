@@ -1,5 +1,12 @@
 # Draft build record schemas
 
+OEP-0003's separate [archive layout schema](tools-v1/archive-layout.schema.json)
+defines the initial tool finalizer record. Its shared shape fixtures run through
+`python tooling/check-tool-contracts.py` (the same pinned design requirements)
+and the Rust finalizer tests. The schema is a draft and checks shape only; the
+[finalizer contract](../reference/tool-lock-inspection.md#data-only-candidate-finalization)
+describes semantic checks, implementation limits and admission responsibilities.
+
 These JSON Schema 2020-12 documents are proposed **v1alpha1** contracts, not stable APIs or proof of correct execution. They accompany [OEP-0019](../proposals/OEP-0019-build-records-and-conformance/README.md).
 
 | Schema | Purpose |

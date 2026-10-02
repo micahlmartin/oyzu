@@ -3,6 +3,7 @@
 mod access;
 mod archive;
 mod blob;
+mod layout;
 mod receipt;
 mod transaction;
 mod tree;
@@ -10,6 +11,7 @@ mod tree;
 pub(super) use archive::{materialize, materialize_blob};
 pub(super) use blob::cache;
 pub use blob::VerifiedBlob;
+pub(super) use layout::stage;
 pub(super) use receipt::verify;
 pub(super) use transaction::transact;
 pub use transaction::InstallationLease;

@@ -883,3 +883,44 @@ documented macOS failure. Candidate `e896fe0f9` contains the narrow macOS fix;
 [run 36969203910](https://github.com/oyzuai/mise/actions/runs/36969203910)
 has passed Linux while Windows/macOS remain running. The source-integration and
 release gates remain open; the full OEP is not implemented.
+
+## Checkpoint 44: data-only layout finalization and candidate receipts
+
+TM-01/04/05 now have an initial finite archive-layout record, its draft format-1
+JSON Schema and a data-only staging finalizer. The finalizer binds the complete
+canonical plan to a caller-trusted admission digest and the selected lock's
+layout/backend/platform/blob identities. It strips an optional archive prefix,
+applies tighter extraction limits, checks required paths, resolves typed
+self/direct-dependency references and authors a canonical candidate receipt.
+The complete selected closure is still reverified before atomic publication.
+Neither operation edits the lock or executes payload code. See the
+[finalizer contract](reference/tool-lock-inspection.md#data-only-candidate-finalization).
+
+The end-to-end store test now streams a synthetic archive into the blob cache,
+finalizes it into a receipt-bearing candidate, publishes under OS locks/leases,
+and verifies the committed selection against unchanged lock bytes. Windows GNU
+Rust 1.94 passed the full Rust suite, strict all-target Clippy, formatting and all
+nine compiled CLI task scenarios. The final seven layout tests passed on Windows
+and eight on Linux Docker Rust 1.94, with strict Clippy on both. Linux additionally
+checks contained and escaping symlinks after prefix stripping. Earlier archive
+and blob regressions also passed after the extractor refactor.
+
+The schema checker passed with pinned `jsonschema==4.25.1`: one valid layout and
+17 invalid shape mutations shared with the Rust finalizer tests. A dedicated CI
+job now runs this shape check; native Rust checks exercise runtime semantics.
+Schema validity alone proves no content integrity, admission or execution result.
+Documentation checks passed. No production dependency or upstream code was added.
+
+Supported finalizer transforms remain tar/tar.gz with optional strip-prefix,
+root payload and no executable overrides. ZIP/xz/raw, subtree projection,
+executable overrides, compiled descriptors, backend-generated plans, publisher
+verification, worker/broker wiring and backend parity remain unfinished. These
+synthetic archives are never represented as real installed Node versions and
+are never executed. The full OEP acceptance matrix remains open.
+
+Fork candidate `e896fe0f9d75f1a4f544b6ee92ffbdbc4f33f496` passed library/example
+Clippy and all five fresh-process boundary checks on native Windows, macOS and
+Linux in [run 36969203910](https://github.com/oyzuai/mise/actions/runs/36969203910).
+This resolves the macOS runtime-variable failure. It qualifies only that current
+library boundary, including the fixture-backed real Node catalog parser; it does
+not qualify native installations, distribution licensing or a release.

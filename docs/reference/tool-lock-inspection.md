@@ -255,3 +255,56 @@ which now uses the shared snapshot verifier. Extraction and final observation
 retain the same native directory handle. This proves byte identity and safe
 materialization only; backend/layout admission, publisher verification, receipts
 and execution authority remain separate requirements.
+
+## Data-only candidate finalization
+
+`tools::stage_tool_candidate` consumes a `VerifiedBlob`, bounded format-1 layout
+JSON and `ToolCandidateRequest`. The request identifies the exact lock selection,
+tool key, trusted installer identity, empty operation-owned candidate directory
+and an admitted layout digest obtained from compiled release data. Project input
+must never supply the admission digest. There is no production descriptor registry
+or automatic backend admission yet; this library operation cannot grant them.
+
+Layout identity is domain `oyzu.archive-layout.v1` over the complete canonical
+plan. It must match both the supplied admission digest and locked distribution.
+Backend digest, target platform, single input blob digest and size must also match;
+package-closure distributions are not admitted by this archive-only finalizer.
+Unknown/duplicate JSON fields, omitted nullable fields and unsupported formats fail.
+The initial [JSON Schema](../contracts/tools-v1/archive-layout.schema.json) records
+the closed field names. Rust adds portable path, byte, graph, identity and content
+checks that JSON Schema cannot establish.
+
+Currently supported plans use `tar` or `tar.gz`, optional `strip_prefix`,
+`payload_subtree: "."` and an empty `executable_paths` array. Other archive kinds,
+subtree projection and executable overrides fail explicitly. Entries outside the
+strip prefix are rejected, including a prefix ancestor that is not an ordinary
+empty directory. Strip-prefix removal does not rewrite symlink targets; the final
+contained link graph must remain valid. Required paths are a sorted unique list
+of exact payload paths and `file`, `directory` or `symlink` types.
+
+`extraction_bounds` has positive integer `max_entries`, `max_bytes`,
+`max_file_bytes`, `max_depth` and `max_expansion_ratio` fields. These may tighten,
+but never raise, the existing extractor ceilings. `max_bytes` caps both total
+payload bytes and the expanded archive stream (including archive metadata).
+All runtime fixtures exercising smaller bounds must still fail before a receipt
+is written. The schema permits the broader proposed archive vocabulary; schema
+validity does not mean a tuple is currently implemented or admitted.
+
+Entrypoint templates have `kind`, `payload_relative_path`, explicit nullable
+`interpreter_tool_key` / `interpreter_relative_path`, and ordered `prefix_args`.
+Native entrypoints require null interpreter fields. Interpreter entrypoints use
+`self` or an exact direct dependency tool key, avoiding a circular self identity.
+Path arguments and environment path lists use `owner` (`self` or an exact direct
+dependency tool key) plus `relative_path`. Typed literal strings are never
+evaluated. Resolution substitutes installation keys, never absolute paths.
+Names, collisions, literals, declared dependency references, own payload path
+types and own executable permissions are checked before receipt creation.
+
+Success leaves only `payload/` and canonical `receipt.json` in the candidate,
+and returns its installation key. It never edits `oyzu.lock`, publishes, performs
+network operations or invokes tool code. Whole-selection publication then checks
+all dependency references, receipts and current payload bytes before committing.
+Failure can leave an incomplete candidate; callers must not adopt it. Receipt
+creation does not itself verify publisher signatures or attestations: callers
+must establish that evidence before invoking this boundary. Recovery, production
+worker wiring, compiled descriptors and native backend parity are still required.

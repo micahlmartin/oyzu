@@ -316,7 +316,10 @@ fn executable(entry: &TreeEntry, platform: &str) -> Result<()> {
     Ok(())
 }
 
-fn resolve<'a>(index: &BTreeMap<&str, &'a TreeEntry>, path: &str) -> Result<&'a TreeEntry> {
+pub(super) fn resolve<'a>(
+    index: &BTreeMap<&str, &'a TreeEntry>,
+    path: &str,
+) -> Result<&'a TreeEntry> {
     access::relative(path)?;
     let mut remaining: VecDeque<_> = path.split('/').map(str::to_owned).collect();
     let mut resolved = Vec::new();

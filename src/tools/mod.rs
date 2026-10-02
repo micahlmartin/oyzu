@@ -11,6 +11,35 @@ use anyhow::{ensure, Context, Result};
 use serde::Serialize;
 use std::{fs::File, io::Read, path::Path};
 
+/// Caller-owned candidate staging and reviewed release identities. The admission
+/// digest must come from trusted compiled backend data, never project input.
+pub struct ToolCandidateRequest<'a> {
+    pub lock_path: &'a Path,
+    pub staging: &'a Path,
+    pub scope: &'a str,
+    pub profile: &'a str,
+    pub platform: &'a str,
+    pub tool_key: &'a str,
+    pub installer_release_digest: &'a str,
+    pub admitted_layout_digest: &'a str,
+}
+
+/// Materialize a locked data-only layout and write an uncommitted candidate
+/// receipt. Does not verify publisher signatures, publish, execute or authorize.
+/// Complete selection verification is still required before publication.
+pub fn stage_tool_candidate(
+    request: ToolCandidateRequest<'_>,
+    plan: &[u8],
+    blob: VerifiedBlob,
+) -> Result<String> {
+    let mut bytes = Vec::new();
+    File::open(request.lock_path)?
+        .take(lock::MAX_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)?;
+    let lock = lock::parse(&bytes)?;
+    store::stage(request, plan, blob, &lock)
+}
+
 /// Reverify a cache hit or stream exact locked bytes into the content-addressed
 /// store. Cache hits never read `source`; corruption never triggers fallback.
 /// The returned private snapshot remains independent of later cache mutations.

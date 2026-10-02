@@ -14,6 +14,41 @@ use std::{
 const MAX_BYTES: u64 = 8 * 1024 * 1024 * 1024;
 const MAX_FILE: u64 = 1024 * 1024 * 1024;
 
+#[derive(Clone, serde::Deserialize, serde::Serialize)]
+#[serde(deny_unknown_fields)]
+pub(super) struct Bounds {
+    pub max_entries: u32,
+    pub max_bytes: u64,
+    pub max_file_bytes: u64,
+    pub max_depth: u32,
+    pub max_expansion_ratio: u32,
+}
+impl Default for Bounds {
+    fn default() -> Self {
+        Self {
+            max_entries: 200_000,
+            max_bytes: MAX_BYTES,
+            max_file_bytes: MAX_FILE,
+            max_depth: 64,
+            max_expansion_ratio: 200,
+        }
+    }
+}
+impl Bounds {
+    pub(super) fn validate(&self) -> Result<()> {
+        ensure!(
+            (1..=200_000).contains(&self.max_entries)
+                && (1..=MAX_BYTES).contains(&self.max_bytes)
+                && (1..=MAX_FILE).contains(&self.max_file_bytes)
+                && self.max_file_bytes <= self.max_bytes
+                && (1..=64).contains(&self.max_depth)
+                && (1..=200).contains(&self.max_expansion_ratio),
+            "unsupported extraction bounds"
+        );
+        Ok(())
+    }
+}
+
 pub(in crate::tools) fn materialize(
     source: &Path,
     staging: &Path,
@@ -58,6 +93,20 @@ pub(in crate::tools) fn materialize_blob(
 }
 
 fn unpack(verified: super::VerifiedBlob, root: Directory, gzip: bool) -> Result<TreeInspection> {
+    unpack_layout(verified, root, gzip, None, &Bounds::default())
+}
+
+pub(super) fn unpack_layout(
+    verified: super::VerifiedBlob,
+    root: Directory,
+    gzip: bool,
+    strip_prefix: Option<&str>,
+    bounds: &Bounds,
+) -> Result<TreeInspection> {
+    bounds.validate()?;
+    if let Some(prefix) = strip_prefix {
+        access::relative(prefix)?;
+    }
     let size = verified.size();
     let verified = verified.into_file()?;
     let reader: Box<dyn Read> = if gzip {
@@ -66,11 +115,12 @@ fn unpack(verified: super::VerifiedBlob, root: Directory, gzip: bool) -> Result<
         Box::new(verified)
     };
     let limit = if gzip {
-        size.saturating_mul(200).min(MAX_BYTES)
+        size.saturating_mul(u64::from(bounds.max_expansion_ratio))
+            .min(bounds.max_bytes)
     } else {
-        MAX_BYTES
+        bounds.max_bytes
     };
-    extract(reader, root.duplicate()?, limit)?;
+    extract(reader, root.duplicate()?, limit, strip_prefix, bounds)?;
     super::tree::inspect_directory(&root)
 }
 
@@ -100,7 +150,13 @@ impl<R: Read> Read for Bounded<R> {
     }
 }
 
-fn extract(reader: Box<dyn Read>, root: Directory, limit: u64) -> Result<()> {
+fn extract(
+    reader: Box<dyn Read>,
+    root: Directory,
+    limit: u64,
+    strip_prefix: Option<&str>,
+    bounds: &Bounds,
+) -> Result<()> {
     let mut archive = tar::Archive::new(Bounded {
         reader,
         remaining: limit,
@@ -118,7 +174,10 @@ fn extract(reader: Box<dyn Read>, root: Directory, limit: u64) -> Result<()> {
     for entry in archive.entries()?.raw(true) {
         let mut entry = entry?;
         entries += 1;
-        ensure!(entries <= 200_000, "archive entry limit exceeded");
+        ensure!(
+            entries <= bounds.max_entries as usize,
+            "archive entry limit exceeded"
+        );
         let kind = entry.header().entry_type();
         if kind.is_gnu_longname() || kind.is_gnu_longlink() {
             ensure!(entry.size() <= 16 * 1024, "archive extension exceeds limit");
@@ -148,7 +207,24 @@ fn extract(reader: Box<dyn Read>, root: Directory, limit: u64) -> Result<()> {
         };
         access::relative(path)?;
         ensure!(explicit.insert(path.to_owned()), "duplicate archive path");
+        let path = if let Some(strip) = strip_prefix {
+            if path == strip || strip.starts_with(&format!("{path}/")) {
+                ensure!(
+                    kind.is_dir() && entry.size() == 0 && long_link.is_none(),
+                    "strip-prefix ancestor is not an ordinary directory"
+                );
+                continue;
+            }
+            path.strip_prefix(&format!("{strip}/"))
+                .context("archive entry is outside strip-prefix")?
+        } else {
+            path
+        };
         let components: Vec<_> = path.split('/').collect();
+        ensure!(
+            components.len() <= bounds.max_depth as usize,
+            "archive depth limit exceeded"
+        );
         let mut parent = root.duplicate()?;
         let mut prefix = String::new();
         for (index, name) in components.iter().enumerate() {
@@ -170,7 +246,7 @@ fn extract(reader: Box<dyn Read>, root: Directory, limit: u64) -> Result<()> {
                 ensure!(names <= 32 * 1024 * 1024, "archive path bytes exceed limit");
                 paths.insert(folded, (prefix.clone(), directory));
                 ensure!(
-                    paths.len() <= 200_000,
+                    paths.len() <= bounds.max_entries as usize,
                     "expanded archive entry limit exceeded"
                 );
             }
@@ -181,11 +257,14 @@ fn extract(reader: Box<dyn Read>, root: Directory, limit: u64) -> Result<()> {
         let name = components.last().unwrap();
         if kind.is_file() {
             ensure!(long_link.is_none(), "link extension on regular file");
-            ensure!(entry.size() <= MAX_FILE, "archive file exceeds limit");
+            ensure!(
+                entry.size() <= bounds.max_file_bytes,
+                "archive file exceeds limit"
+            );
             bytes = bytes
                 .checked_add(entry.size())
                 .context("archive payload size overflow")?;
-            ensure!(bytes <= MAX_BYTES, "archive payload exceeds limit");
+            ensure!(bytes <= bounds.max_bytes, "archive payload exceeds limit");
             let mut file = parent.create_file(name)?;
             let written = io::copy(&mut entry, &mut file)?;
             ensure!(written == entry.size(), "truncated archive file");

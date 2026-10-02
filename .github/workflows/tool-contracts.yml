@@ -1,0 +1,22 @@
+name: Tool record contracts
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  layout-shapes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Validate shared layout shape fixtures
+        run: |
+          python3 -m venv .ci-tool-contracts
+          .ci-tool-contracts/bin/python -m pip install -r tooling/design-requirements.txt
+          .ci-tool-contracts/bin/python tooling/check-tool-contracts.py

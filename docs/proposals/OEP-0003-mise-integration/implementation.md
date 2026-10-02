@@ -8,7 +8,10 @@ installation keys; TM-04 has a no-follow payload tree observer and bounded
 verified tar/gzip staging materializer and full-selection receipt/content matching.
 Streamed verified blob caching, atomic per-install publication and cooperative OS leases now have an initial
 implementation. Lease journals, recovery/prune, consumer lifecycle and admitted
-layout verification remain absent. These do not
+layout admission remain absent. Initial data-only tar/gzip layout finalization
+now binds a caller-admitted descriptor, strips an archive prefix, applies smaller
+extraction limits and authors a candidate receipt; it does not provide compiled
+backend descriptors or prove publisher verification. These do not
 complete either package or qualify a production backend. Other packages remain
 unimplemented unless existing components are explicitly identified as foundations.
 
