@@ -32,6 +32,14 @@ Separate the first demonstration, remaining required end-to-end scenarios and la
 
 State the functional implementation completion criteria separately from production graduation. Completion of those functional checks ends the implementation goal; manual testing and maintainer evaluation precede selection of any later hardening scope.
 
+Make the finish line concrete before implementation:
+
+- **First proof:** project/input, real command, expected artifact or usable result, and evidence location.
+- **Functional completion:** the finite set of required user scenarios, including failures essential to correct behavior.
+- **Deferred qualification:** additional hardening and its rationale, with no implied commitment to implement it in this milestone.
+
+For every follow-up, identify which missing or failing functional scenario it closes. Otherwise place it in deferred qualification. The detailed design sections below are not an instruction to exhaust every edge case before demonstrating the proposal.
+
 ## Contracts and design
 
 Define inputs, outputs, identities, state transitions, dependencies, compatibility, and ownership. Mark provisional syntax. Explain how overrides and hooks interact with engine-owned guarantees.

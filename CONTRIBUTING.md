@@ -32,6 +32,8 @@ When directing an agent or reviewing a follow-up, identify the missing user flow
 
 The implementation goal ends when its agreed functional flows and end-to-end checks are complete. Hardening is not part of that completion decision unless explicitly requested. Maintainers then manually test and evaluate the implementation before choosing any hardening work; agents must not silently extend the implementation goal into that later phase.
 
+Older component checklists do not override this delivery order. Review each proposed follow-up against a named missing or failing user scenario. If it only raises the degree of hardening, defer it for maintainer selection. Keep failed checks and known limits visible without turning them automatically into an unbounded implementation milestone.
+
 ## Find a bounded starting point
 
 Use this table to narrow your first change, then consult the [code map](docs/code-organization.md) for the authoritative ownership details. You do not need to understand every subsystem before contributing.
