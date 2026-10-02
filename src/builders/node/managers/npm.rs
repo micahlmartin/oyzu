@@ -1,4 +1,5 @@
 mod preparation;
+mod workspace;
 use super::Manager;
 use crate::{
     builders::{BuilderPlan, CommandSpec, PlanningContext, PreparationContext},
