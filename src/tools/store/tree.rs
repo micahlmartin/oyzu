@@ -38,8 +38,12 @@ pub struct TreeEntry {
 /// the completed manifest. Its result is an observation, not a trusted receipt.
 pub(in crate::tools) fn inspect(path: &Path) -> Result<TreeInspection> {
     let directory = Directory::open(path)?;
+    inspect_directory(&directory)
+}
+
+pub(super) fn inspect_directory(directory: &Directory) -> Result<TreeInspection> {
     let mut scan = Scan::default();
-    scan.walk(&directory, "", 0)?;
+    scan.walk(directory, "", 0)?;
     for (expected, observed) in scan.links.values() {
         ensure!(
             expected == observed,

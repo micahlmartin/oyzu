@@ -56,7 +56,7 @@ pub(super) struct Distribution {
     pub package_closure_digest: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Verification {
     pub kind: VerificationKind,
@@ -65,7 +65,7 @@ pub(super) struct Verification {
     pub subject_digest: String,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "kebab-case")]
 pub(super) enum VerificationKind {
     DigestOnly,

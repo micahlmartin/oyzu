@@ -136,3 +136,46 @@ Windows devices/ADS and conflicting parent types. The returned tree observation
 still does not attest policy, receipt authenticity or an atomic snapshot against
 a malicious same-user writer. This is partial TM-04/MISE-13 evidence, not a
 complete installation or backend acceptance result.
+
+## Receipt/content verification foundation
+
+The Rust library's `tools::verify_installation_selection` reads a format-2 lock,
+an exact scope/profile/platform, a tool store root and a caller-trusted installer
+release digest. It requires `installs/<installation-key-hex>/receipt.json` and
+`payload/` for every tool in the selected closure. It returns the selection digest
+only after all records and payloads match. It does not download, repair, execute,
+publish or acquire leases, and is not an execution authorization API.
+
+Receipts use the exact fields specified by OEP-0003, with format 1 and explicit
+null `package_closure_digest` when absent. Unknown fields and duplicate JSON keys
+fail. Every locked field, publisher-verification record, sorted direct dependency
+installation-key list and installer release identity must match. Every payload
+is rehashed through no-follow handles; no mtime cache or upstream installed-version
+status can satisfy this operation. The current composition budget is one million
+tree entries and 32 GiB of payload content across the selection, with the existing
+per-tree limits also applied. Receipt JSON is capped at 2 MiB and uses the existing
+strict JSON depth/entry limits. Larger tuples require reviewed limits rather than
+project-controlled overrides.
+
+The initial resolved launch records are closed tagged objects:
+
+- Native: `kind: "native"`, `payload_relative_path`, ordered `prefix_args`.
+- Interpreter: `kind: "interpreter"`, `payload_relative_path`, `interpreter`, ordered `prefix_args`.
+- Installation path: `installation_key`, `relative_path`.
+- Argument: `kind: "literal"` with `value`, or `kind: "path"` with an installation `path`.
+- Environment value: `kind: "literal"` with `value`, or `kind: "paths"` with ordered installation `paths`.
+
+Entrypoints must resolve to existing files; interpreters must also be executable
+on Unix targets. Directory environment references and file/directory arguments
+may use the exact current or direct-dependency installation only. `.` denotes
+that installation's payload root for directory references. Symlinks resolve
+through the already-verified manifest, not through unchecked filesystem opens.
+Command/environment case collisions, invalid environment names, NUL literals,
+excessive arguments and literal PATH replacement fail. Literal arguments remain
+data; no shell is invoked. A versioned external JSON Schema remains outstanding.
+
+This verifies receipt/content binding, not receipt authenticity or compatibility
+with an admitted layout plan. A caller must separately check backend/layout
+admission, verification evidence, policy, leases and current authority before
+using the data. A self-consistent altered receipt and tree is not an authorized
+installation. Publication and lease management remain separate unfinished work.

@@ -83,3 +83,29 @@ pub fn materialize_archive(
         gzip,
     )
 }
+
+/// Fully rehash every installation in a locked selection and compare closed
+/// receipts against that lock and a caller-trusted installer release identity.
+/// This verifies content bindings only, not layout admission or execution grants.
+pub fn verify_installation_selection(
+    lock_path: &Path,
+    store: &Path,
+    scope: &str,
+    profile: &str,
+    platform: &str,
+    installer: &str,
+) -> Result<String> {
+    let mut bytes = Vec::new();
+    File::open(lock_path)?
+        .take(lock::MAX_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)?;
+    let lock = lock::parse(&bytes)?;
+    store::verify(
+        &lock,
+        &std::path::absolute(store)?,
+        scope,
+        profile,
+        platform,
+        installer,
+    )
+}

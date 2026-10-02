@@ -5,7 +5,8 @@ the proposed implementation, not a report that these work packages are done.
 The experiment is complete. Staged implementation was authorized on 2026-10-02;
 TM-01 now has an initial lock structure/identity inspector with recursive
 installation keys; TM-04 has a no-follow payload tree observer and bounded
-verified tar/gzip staging materializer. These do not
+verified tar/gzip staging materializer and full-selection receipt/content matching.
+Receipt publication, leases and admitted layout verification remain absent. These do not
 complete either package or qualify a production backend. Other packages remain
 unimplemented unless existing components are explicitly identified as foundations.
 

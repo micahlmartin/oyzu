@@ -783,3 +783,34 @@ native npm workspace acquisition with an invalid root dependency on
 `@oyzu-example/shared`. That failure remains unresolved; local archive checks
 do not establish that the whole draft PR is green. Full OEP-0003 implementation,
 licensing approval and end-to-end qualification remain outstanding.
+
+## Checkpoint 41: locked selection receipt/content matching
+
+TM-04 now validates closed format-1 receipts against every installation in a
+selected format-2 closure and freshly hashes all payloads through native held
+directory handles. It compares the complete verification record, source artifact
+size/digest, layout/backend identities, direct dependency installation keys and
+caller-trusted installer release identity. No installed-version shortcut or
+mtime cache is accepted. Typed entrypoints, interpreter paths, prefix arguments
+and environment paths must resolve inside the selected self/direct-dependency
+payloads; command/environment case collisions and literal PATH replacement fail.
+The library returns a content-bound selection digest, not an execution grant.
+The [receipt contract](reference/tool-lock-inspection.md#receiptcontent-verification-foundation)
+documents limits, initial resolved record syntax and the missing admission,
+schema, publication and lease layers. This is partial TM-01/04 and MISE-07 evidence.
+
+The full Windows GNU Rust 1.94 suite passed before the final additional receipt
+regressions; all six final receipt integration tests then passed on Windows and
+Linux Docker Rust 1.94, with strict all-target Clippy and Windows formatting.
+Linux also passed all 20 tool unit tests. Cases include every bound receipt
+identity, duplicate/unknown fields, absent receipts, changed archive identity
+with unchanged version, typed interpreter/argument containment, current payload
+tampering and dependency-only tampering. Fixtures contain ordinary synthetic
+files and execute nothing; they do not qualify a real backend installation.
+All nine compiled CLI task scenarios and documentation structure checks passed.
+
+The fork's candidate `c404d20b2` passed its native Linux library/conformance job
+in [run 36966809734](https://github.com/oyzuai/mise/actions/runs/36966809734).
+Windows and macOS had passed the library Clippy step and were running the
+conformance step when inspected. Those pending results are not inferred passes.
+The compliance review gate still awaits the owner's recorded decision.
