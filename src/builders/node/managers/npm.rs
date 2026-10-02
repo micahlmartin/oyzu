@@ -10,6 +10,9 @@ use anyhow::{bail, Result};
 
 pub(super) struct Npm;
 impl Manager for Npm {
+    fn workspace_plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
+        workspace::plan(context)
+    }
     fn id(&self) -> &'static str {
         "npm"
     }

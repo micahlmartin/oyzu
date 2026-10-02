@@ -6,13 +6,10 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let target = context.target;
     let id = &target.name;
     let package = records::read(&target.path.join("package.json"))?;
-    if package.get("workspaces").is_some() {
-        bail!(
-            "{}: Node workspace artifact and task planning is not implemented yet",
-            target.name
-        );
-    }
     let manager = super::managers::get(&target.manager)?;
+    if package.get("workspaces").is_some() {
+        return manager.workspace_plan(context);
+    }
     let version = semver_snapshot(target, context.source);
     let name = package["name"]
         .as_str()

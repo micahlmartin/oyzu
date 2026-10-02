@@ -23,10 +23,14 @@ function entrypoint() {
 
 const cli = entrypoint();
 export const nativeRequire = createRequire(cli);
-export function npm(args, workspace, cache) {
-  const result = spawnSync(process.execPath, [cli, ...args, '--offline', '--audit=false', '--fund=false',
+export function npmCommand(args, cache) {
+  return [process.execPath, cli, '--offline', '--audit=false', '--fund=false',
     '--update-notifier=false', '--engine-strict=true', '--force=false', '--cache', cache,
-    '--userconfig', join(cache, 'user.npmrc'), '--globalconfig', join(cache, 'global.npmrc')], {
+    '--userconfig', join(cache, 'user.npmrc'), '--globalconfig', join(cache, 'global.npmrc'), ...args];
+}
+export function npm(args, workspace, cache) {
+  const [command, ...argv] = npmCommand(args, cache);
+  const result = spawnSync(command, argv, {
     cwd: workspace, encoding: 'utf8', timeout: 240_000, maxBuffer: 8 * 1024 * 1024,
   });
   if (result.error) throw result.error;

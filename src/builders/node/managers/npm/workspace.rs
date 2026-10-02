@@ -1,4 +1,11 @@
 //! Typed native workspace facts; no scheduling or package execution here.
+mod planning;
+
+pub(super) fn plan(
+    context: crate::builders::PlanningContext<'_>,
+) -> Result<crate::builders::BuilderPlan> {
+    planning::plan(context)
+}
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
@@ -8,6 +15,8 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) struct Metadata {
     schema_version: u32,
     members: Vec<Member>,
+    #[serde(default)]
+    root_dependencies: Vec<Edge>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -74,9 +83,14 @@ impl Metadata {
                 bail!("invalid or colliding native npm workspace identity");
             }
         }
-        for member in &metadata.members {
+        for dependencies in metadata
+            .members
+            .iter()
+            .map(|m| &m.dependencies)
+            .chain(std::iter::once(&metadata.root_dependencies))
+        {
             let mut edges = BTreeSet::new();
-            for edge in &member.dependencies {
+            for edge in dependencies {
                 if !names.contains(edge.target.as_str())
                     || edge.name.is_empty()
                     || edge.spec.is_empty()

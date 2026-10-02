@@ -43,26 +43,42 @@ export async function members(workspace, packageJson) {
 
 export async function graph(workspace, members) {
   if (!members.length) return null;
+  // macOS /var -> /private/var (and other aliased checkout roots) must use
+  // the same canonical root as native workspace membership discovery.
+  workspace = realpathSync(workspace);
   const Arborist = nativeRequire('@npmcli/arborist');
   const tree = await new Arborist({path: workspace, offline: true, ignoreScripts: true}).loadActual();
   const paths = new Map(members.map(m => [realpathSync(join(workspace, m.path)), m.name]));
   const output = [];
+  function edges(node) {
+    const dependencies = [];
+    for (const edge of node.edgesOut.values()) {
+      // Arborist's synthetic membership edges contain absolute file: paths.
+      // Membership is already captured above; only declared dependency edges
+      // belong in the portable graph used for ordering/version projection.
+      let kind = edge.type, spec = edge.spec;
+      if (kind === 'workspace') {
+        const declaration = [['optionalDependencies','optional'], ['dependencies','prod'], ['devDependencies','dev'], ['peerDependencies','peer']]
+          .find(([field]) => Object.hasOwn(node.package[field] ?? {}, edge.name));
+        if (!declaration) continue;
+        kind = declaration[1];
+        spec = node.package[declaration[0]][edge.name];
+      }
+      if (edge.error && !edge.optional) throw new Error(`Invalid native workspace dependency ${node.name}: ${edge.name}`);
+      if (!edge.to) continue;
+      const destination = edge.to.isLink ? edge.to.target : edge.to;
+      const target = paths.get(realpathSync(destination.path));
+      if (target) dependencies.push({name: edge.name, target, kind, spec});
+    }
+    return dependencies.sort((a,b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  }
   for (const member of members) {
     const link = tree.children.get(member.name);
     const node = link?.isLink ? link.target : link;
     if (!node || !node.isWorkspace || realpathSync(node.path) !== realpathSync(join(workspace, member.path))) {
       throw new Error(`Native npm installation did not link workspace ${member.name}`);
     }
-    const dependencies = [];
-    for (const edge of node.edgesOut.values()) {
-      if (edge.error && !edge.optional) throw new Error(`Invalid native workspace dependency ${member.name}: ${edge.name}`);
-      if (!edge.to) continue;
-      const destination = edge.to.isLink ? edge.to.target : edge.to;
-      const target = paths.get(realpathSync(destination.path));
-      if (target) dependencies.push({name: edge.name, target, kind: edge.type, spec: edge.spec});
-    }
-    dependencies.sort((a,b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
-    output.push({...member, dependencies});
+    output.push({...member, dependencies: edges(node)});
   }
-  return {schemaVersion: 1, members: output};
+  return {schemaVersion: 1, members: output, rootDependencies: edges(tree)};
 }

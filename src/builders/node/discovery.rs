@@ -52,5 +52,14 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             super::super::unavailable(target, "test", &format!("Detected {framework}; its implicit runner/report integration is not implemented yet"));
         }
     }
+    if manager == "npm" && value.get("workspaces").is_some() {
+        for name in ["build", "format-check", "format:check"] {
+            super::super::unavailable(
+                target,
+                name,
+                "Captured npm workspace operation; direct development integration remains pending",
+            );
+        }
+    }
     Ok(())
 }

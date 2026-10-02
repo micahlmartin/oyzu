@@ -1,6 +1,7 @@
 """Native npm workspace capture/replay; no simulated resolver or package manager."""
 import hashlib
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -53,6 +54,14 @@ def main():
             result = subprocess.run(['node','--test','--test-reporter=tap'], cwd=project, capture_output=True, text=True)
             assert result.returncode==0 and '# pass 2' in result.stdout, (result.stdout,result.stderr)
         assert captures[0]==captures[1], 'workspace capture must not depend on absolute paths or cache state'
+        if os.name != 'nt':
+            alias = base/'aliased root'
+            alias.symlink_to(project, target_is_directory=True)
+            output = base/'aliased capture'
+            output.mkdir()
+            execute('acquire', output, alias)
+            assert json.loads((output/'inventory.json').read_text())==inventory
+            execute('install', output, alias)
         package['version'] = '2.0.0'
         manifest.write_text(json.dumps(package))
         output = base/'stale'

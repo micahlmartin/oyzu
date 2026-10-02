@@ -362,6 +362,71 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn npm_workspace_plans_keep_each_artifact_and_required_report_under_override() {
+        for custom in [false, true] {
+            let temp = tempfile::tempdir().unwrap();
+            let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("examples/builds/node-workspace/project");
+            let source = snapshot::capture(&fixture, &temp.path().join("source")).unwrap();
+            if custom {
+                fs::write(
+                    temp.path().join("source/oyzu.toml"),
+                    "[tasks.\"project:test\"]\nargv=['custom-test']\n",
+                )
+                .unwrap();
+            }
+            let workspace = crate::discovery::discover(&temp.path().join("source")).unwrap();
+            let image = executor::Image {
+                reference: "node:test".into(),
+                digest: format!("sha256:{}", "1".repeat(64)),
+                os: "linux".into(),
+                arch: "amd64".into(),
+            };
+            let mut members = Vec::new();
+            for name in ["app", "shared"] {
+                let pkg =
+                    records::read(&workspace.root.join(format!("packages/{name}/package.json")))
+                        .unwrap();
+                let edges = if name == "app" {
+                    json!([{"name":"@oyzu-example/shared","target":"@oyzu-example/shared","kind":"prod","spec":"0.1.0"}])
+                } else {
+                    json!([])
+                };
+                members.push(json!({"name":pkg["name"],"path":format!("packages/{name}"),"version":pkg["version"],"private":pkg["private"].as_bool().unwrap_or(false),"scripts":pkg["scripts"],"dependencies":edges}));
+            }
+            let dependency = dependencies::Prepared {
+                root: temp.path().into(),
+                digest: format!("sha256:{}", "2".repeat(64)),
+                record: json!({"extensions":{"oyzu.dev/npm":{"workspaces":{"schemaVersion":1,"members":members,"rootDependencies":[]}}}}),
+            };
+            let plan = plan_with_dependencies(
+                &workspace,
+                &source,
+                &BTreeMap::from([("project".into(), image)]),
+                &BTreeMap::from([("project".into(), dependency)]),
+            )
+            .unwrap();
+            let actions = plan["actions"].as_array().unwrap();
+            assert!(actions.iter().any(|a| a["id"] == "project:build"));
+            let test = actions.iter().find(|a| a["id"] == "project:test").unwrap();
+            assert_eq!(test["reports"].as_array().unwrap().len(), 4);
+            assert!(test["reports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|r| r["required"] == true));
+            if custom {
+                assert_eq!(test["argv"], json!(["custom-test"]));
+            }
+            let package = actions
+                .iter()
+                .find(|a| a["id"] == "project:package")
+                .unwrap();
+            assert_eq!(package["outputs"].as_array().unwrap().len(), 2);
+        }
+    }
+
+    #[test]
     fn qualified_docker_test_override_keeps_build_stage_and_required_evidence() {
         let root = tempfile::tempdir().unwrap();
         fs::write(root.path().join("Dockerfile"), "FROM scratch\n").unwrap();
