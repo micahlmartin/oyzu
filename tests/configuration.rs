@@ -501,9 +501,17 @@ fn project_capture_rejects_aggregate_entries_before_resolution() {
     let text = format!("[future]\nvalues=[{}]\n", vec!["0"; 5000].join(","));
     std::fs::write(root.path().join("oyzu.toml"), &text).unwrap();
     std::fs::write(root.path().join("oyzu.local.toml"), &text).unwrap();
-    let capture = |local| oyzu::config::sources::project_sources(
-        root.path(), root.path(), local, &Registry::default(),
-    );
+    let capture = |local| {
+        oyzu::config::sources::project_sources(
+            root.path(),
+            root.path(),
+            local,
+            &Registry::default(),
+        )
+    };
     assert!(capture(false).is_ok());
-    assert!(capture(true).unwrap_err().to_string().contains("CONFIG_LIMIT"));
+    assert!(capture(true)
+        .unwrap_err()
+        .to_string()
+        .contains("CONFIG_LIMIT"));
 }
