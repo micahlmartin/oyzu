@@ -115,6 +115,18 @@ fn initialize() -> Result<()> {
     settings.node.mirror_url = env::var("OYZU_SPIKE_ROUTE")
         .ok()
         .map(|route| format!("{}/", route.trim_end_matches('/')));
+    settings.go.default_packages_file = state.join("no-default-go-packages");
+    settings.python.compile = Some(false);
+    settings.python.default_packages_file = Some(state.join("no-default-python-packages"));
+    if let Ok(route) = env::var("OYZU_SPIKE_ROUTE") {
+        settings.go.download_mirror = route.trim_end_matches('/').to_owned();
+    }
+    if let Ok(repo) = env::var("OYZU_SPIKE_GO_REPO") {
+        settings.go.repo = repo;
+    }
+    if let Ok(replacements) = env::var("OYZU_SPIKE_URL_REPLACEMENTS") {
+        settings.url_replacements = Some(serde_json::from_str(&replacements)?);
+    }
     mise::config::settings::store(Arc::new(settings));
     mise::register_util_hooks();
     mise::frontend::register(mise::frontend::Frontend {
@@ -150,6 +162,18 @@ fn shell(args: &[String]) -> ShellType {
     }
 }
 
+fn backend_identity(name: &str) -> Result<String> {
+    if matches!(name, "node" | "go" | "java" | "python") {
+        return Ok(format!("core:{name}"));
+    }
+    let catalog: BTreeMap<String, String> =
+        serde_json::from_str(&env::var("OYZU_SPIKE_BACKENDS").unwrap_or_else(|_| "{}".into()))?;
+    catalog
+        .get(name)
+        .cloned()
+        .ok_or_else(|| eyre::eyre!("backend not in host qualification catalog: {name}"))
+}
+
 async fn selected(config: &Arc<Config>, install: bool) -> Result<(Toolset, EnvMap)> {
     let mut ts = Toolset::new(ToolSource::Argument);
     let Some((directory, project)) = project()? else {
@@ -157,12 +181,10 @@ async fn selected(config: &Arc<Config>, install: bool) -> Result<(Toolset, EnvMa
     };
     ensure!(
         project.tools.len() == 1,
-        "experiment requires one explicit Node tool"
+        "experiment currently requires one explicit tool"
     );
-    let request = project
-        .tools
-        .get("node")
-        .ok_or_else(|| eyre::eyre!("unsupported tool"))?;
+    let (name, request) = project.tools.iter().next().unwrap();
+    let identity = backend_identity(name)?;
     let lock: Lock = toml::from_str(&fs::read_to_string(directory.join("oyzu.lock"))?)?;
     ensure!(
         lock.format == 1 && lock.tool.len() == 1,
@@ -170,7 +192,7 @@ async fn selected(config: &Arc<Config>, install: bool) -> Result<(Toolset, EnvMa
     );
     let locked = &lock.tool[0];
     ensure!(
-        locked.id == "core:node" && locked.request == *request,
+        locked.id == identity && locked.request == *request,
         "lock/config identity mismatch"
     );
     ensure!(
@@ -181,7 +203,7 @@ async fn selected(config: &Arc<Config>, install: bool) -> Result<(Toolset, EnvMa
         env::var("OYZU_SPIKE_DENY_VERSION").ok().as_ref() != Some(&locked.version),
         "policy denies locked version, including cached installs"
     );
-    let ba = Arc::new(BackendArg::new("node".into(), Some("core:node".into())));
+    let ba = Arc::new(BackendArg::new(name.clone(), Some(identity.clone())));
     let tr = ToolRequest::new(ba, &locked.version, ToolSource::Argument)?;
     let backend = tr.backend()?;
     let platform = backend.get_platform_key();
@@ -191,7 +213,7 @@ async fn selected(config: &Arc<Config>, install: bool) -> Result<(Toolset, EnvMa
         .find(|d| d.platform == platform)
         .ok_or_else(|| eyre::eyre!("lock has no distribution for {platform}"))?;
     ensure!(
-        distribution.source_id == "node-fixture" && distribution.dependencies.is_empty(),
+        distribution.dependencies.is_empty(),
         "unsupported acquisition route/dependencies"
     );
     ensure!(
@@ -222,14 +244,33 @@ async fn selected(config: &Arc<Config>, install: bool) -> Result<(Toolset, EnvMa
     let ext = if cfg!(windows) { "zip" } else { "tar.gz" };
     if install {
         let route = env::var("OYZU_SPIKE_ROUTE")?;
+        let url = if let Ok(manifest) = env::var("OYZU_SPIKE_ARTIFACTS") {
+            let artifacts: BTreeMap<String, String> =
+                serde_json::from_str(&fs::read_to_string(manifest)?)?;
+            artifacts
+                .get(&format!(
+                    "{}:{}",
+                    distribution.source_id, distribution.digest
+                ))
+                .cloned()
+                .ok_or_else(|| {
+                    eyre::eyre!("locked distribution is not in approved artifact routes")
+                })?
+        } else {
+            ensure!(
+                identity == "core:node" && distribution.source_id == "node-fixture",
+                "backend requires host-supplied artifact routes"
+            );
+            format!(
+                "{}/v{v}/node-v{v}-{os}-{arch}.{ext}",
+                route.trim_end_matches('/'),
+                v = locked.version
+            )
+        };
         tv.lock_platforms.insert(
             platform,
             PlatformInfo {
-                url: Some(format!(
-                    "{}/v{v}/node-v{v}-{os}-{arch}.{ext}",
-                    route.trim_end_matches('/'),
-                    v = locked.version
-                )),
+                url: Some(url),
                 checksum: Some(distribution.digest.clone()),
                 size: Some(distribution.size),
                 ..Default::default()
@@ -287,12 +328,14 @@ async fn run(raw_args: Vec<String>) -> Result<i32> {
     let config = Config::oyzu_experiment_empty().await?;
     if command == "resolve" || command == "lock" {
         let (directory, project) = project()?.ok_or_else(|| eyre::eyre!("missing oyzu.toml"))?;
-        let request = project
-            .tools
-            .get("node")
-            .ok_or_else(|| eyre::eyre!("missing node request"))?;
+        ensure!(
+            project.tools.len() == 1,
+            "one explicit tool required for lock resolution"
+        );
+        let (name, request) = project.tools.iter().next().unwrap();
+        let identity = backend_identity(name)?;
         let tr = ToolRequest::new(
-            Arc::new(BackendArg::new("node".into(), Some("core:node".into()))),
+            Arc::new(BackendArg::new(name.clone(), Some(identity.clone()))),
             request,
             ToolSource::Argument,
         )?;
@@ -331,7 +374,7 @@ async fn run(raw_args: Vec<String>) -> Result<i32> {
             let lock = Lock {
                 format: 1,
                 tool: vec![LockedTool {
-                    id: "core:node".into(),
+                    id: identity,
                     request: request.clone(),
                     version: tv.version.clone(),
                     backend_digest: format!("git:{PIN}"),
@@ -339,7 +382,8 @@ async fn run(raw_args: Vec<String>) -> Result<i32> {
                         platform: target.to_key(),
                         digest,
                         size,
-                        source_id: "node-fixture".into(),
+                        source_id: env::var("OYZU_SPIKE_SOURCE_ID")
+                            .unwrap_or_else(|_| "node-fixture".into()),
                         verification: "fixture-sha256".into(),
                         dependencies: vec![],
                     }],

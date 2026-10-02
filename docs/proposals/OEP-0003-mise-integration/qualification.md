@@ -54,7 +54,93 @@ Rust/task/documentation checks. No design is marked accepted by a passing test.
 
 ## Completion record
 
-Pending: backend matrix and source inventory; macOS runtime evidence; real broker
-integration; enforced acquisition/attack matrix; final cross-platform regression
-and evidence audit. Completion requires actual outcomes for every item above,
+Pending: completion of the backend matrix and source inventory; additional native
+platform edge cases; the remaining enforced acquisition/attack matrix; final
+cross-platform regression and evidence audit. Initial native macOS and real
+broker evidence are recorded below. Completion requires actual outcomes for every item above,
 not merely adding test scripts or CI configuration.
+
+### First production-broker evidence
+
+The [Windows-host/Linux-worker run](../../../tooling/mise-experiment/results/production-broker-windows-host.json)
+passes ten cases through the actual `oyzu::broker::Session` and
+`oyzu::executor::execute_with_mounts` APIs. The independently compiled test driver
+links the production crate; broker and executor source is not copied into a fake
+implementation. A credential-free loopback HTTP bridge in the worker adapts mise
+requests to the existing production spool transport.
+
+Real Node metadata creates `oyzu.lock`, its archive installs through the broker,
+and frozen Node execution makes no acquisition request. The origin observes the
+host-only test credential on approved requests. Canary scanning finds it in no
+worker-visible workspace, output or spool file. An upstream error body and
+response cookie containing that canary are not exposed to the worker.
+
+A default-network positive control reaches the same origin that the enforced
+worker cannot reach by raw TCP, spawned curl or an explicit proxy. The broker
+rejects an unapproved path and reauthorizes a redirect before contacting its
+denied destination. Inside the worker, the root filesystem is read-only,
+capabilities are empty, no-new-privileges is set, only loopback exists and the
+Docker socket is absent. This proves this host/worker combination, not a native
+Windows process sandbox or a deployed platform authorization service.
+
+The macOS workflow ran at commit `7f39a651b516982ae8e90e7213ed6ef3794292af`
+([run 36951600718](https://github.com/micahlmartin/oyzu/actions/runs/36951600718)).
+Its runtime step passed; [the inspected artifact](../../../tooling/mise-experiment/results/macos-arm64.json)
+records 30 passing cases on native Darwin ARM64. Normalized harness hashes match
+the executed Git commit. Both real Node distributions, Bash/Zsh lifecycle with
+duplicate PATH entries and user edits, lock ownership, direct exec, shims and
+concurrent installation are covered. This does not prove macOS x64 or native
+macOS network enforcement; additional platform edge cases remain open.
+The broader backend matrix, further attack cases and final regression remain open.
+
+### Expanded core-backend and attack evidence
+
+The [expanded Windows-host/Linux-worker run](../../../tooling/mise-experiment/results/production-broker-core-linux.json)
+passes 20 cases using the actual production broker and executor. Beyond the Node
+baseline, the real core Go backend installs Go 1.24.1 and reports the expected
+version and `GOROOT`. The core Java backend installs Temurin `8.0.442+6` and runs
+the real JVM. Java's additional metadata lookup passes through the same broker,
+using upstream's existing URL-replacement setting before the experimental HTTP
+route guard. Neither frozen execution changes `oyzu.lock` or acquires content.
+
+These two additional cases use exact Oyzu locks populated from separately
+provisioned upstream release metadata. They do **not** establish backend version
+discovery, cross-platform Go/Java installs, or dependency resolution. Archive
+digests, metadata digests, source identities, production source hashes, driver
+identity and worker image identity are recorded with the run. Acquisition routes
+remain host-supplied; no mise project configuration or lockfile is introduced.
+
+Additional attacks cover external UDP DNS traffic, a socket attempt from the
+installed Node runtime, encoded path traversal variants, a corrupted archive and
+an unavailable source. The corrupt installation fails checksum verification;
+neither failed installation becomes executable or changes the lock. Credentials
+remain absent from worker-visible files and reports.
+
+The [initial Go attempt](../../../tooling/mise-experiment/results/production-broker-go-initial.json)
+ran out of space while retaining the preceding Node fixture in the executor's
+512 MiB scratch filesystem. A [Windows-backed output-store retry](../../../tooling/mise-experiment/results/production-broker-go-output-timeout.json)
+exceeded the harness's 240-second installation timeout.
+The passing cases release the completed tool fixture before installing the next
+one in scratch. This qualifies separate one-tool installations, not shared-store
+capacity or output-store performance. The production resource limits were not
+relaxed.
+
+The expanded Rust frontend and HTTP patch built and passed the experiment's
+Clippy/format checks on Linux (with the previously documented upstream
+`collapsible_match` lint exception). The [Linux Node regression](../../../tooling/mise-experiment/results/linux-expanded-core-regression.json)
+again passes all 31 cases. Windows and macOS have not yet rerun this expanded
+frontend; their earlier results apply to the earlier recorded source.
+
+### Outbound-path inventory started
+
+Pinned-source inspection already shows why additional backends need independent
+qualification rather than inheriting the Node result:
+
+| Backend family | Observed pinned behavior | Required case |
+| --- | --- | --- |
+| Core Go | Version listing invokes `git ls-remote`; installation constructs a mirror URL and fetches its `.sha256` companion | Mediate Git metadata and checksum acquisition, not only an archive override |
+| Core Java | Even a locked archive URL is followed by a Java-metadata lookup for installation layout | Supply approved metadata as well as archive bytes |
+| Core Python | Precompiled installation has lock-integrity and provenance-verification branches | Preserve the selected verification strength and deny uncaptured helper/provenance downloads |
+| Aqua registry | Pending inventory | Pin registry/tool metadata and qualify release/checksum/verification paths |
+| Script/plugin backend | Pending inventory | Pin real plugin code; contain its own clients and child processes |
+| Native package-manager backend | Pending inventory | Capture dependency resolution and lifecycle downloads through approved routes |

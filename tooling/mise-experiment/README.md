@@ -64,7 +64,8 @@ toolchain's `gcc.exe`; put its `bin` directory on PATH for build and execution.
 That run uses upstream's normal dev profile (debug level 1 and incremental
 compilation), so its timings are not directly comparable with the Linux build.
 Mixed LLVM/GCC attempts failed in the build script before this consistent
-toolchain succeeded. MSVC and macOS were not verified in this experiment.
+toolchain succeeded. MSVC remains unverified. The expanded qualification record
+also contains a native macOS ARM64 run.
 
 After a successful Linux run, process/filesystem/network traces can be collected
 in the same network-isolated container using its printed run directory:
@@ -78,3 +79,29 @@ host, case outcomes, timings and fixture requests. Full trace logs remain under
 that run's `traces/`; their hashes and counts are in `summary.json`. Recorded
 results under `results/` are evidence from this experiment, not a portable
 performance target or a claim that the production CLI provides these commands.
+
+## Real broker and enforced worker qualification
+
+The expanded scope and current evidence are tracked in
+[the qualification record](../../docs/proposals/OEP-0003-mise-integration/qualification.md).
+`broker-host` links the actual production Oyzu crate and calls its broker and
+executor APIs. It has its own lockfile and never receives source credentials
+from a project file. The driver configuration is generated under a host-private
+fixture directory and is not mounted into the worker.
+
+Build the driver with the same consistent native compiler setup described above:
+
+```sh
+cargo +1.95.0 build --locked --manifest-path tooling/mise-experiment/broker-host/Cargo.toml
+python tooling/mise-experiment/prepare_broker_image.py --binary /absolute/linux/oyzu-mise-spike --context /absolute/external/image-context
+python tooling/mise-experiment/provision_backends.py --work /absolute/fixtures
+python tooling/mise-experiment/run_broker.py --driver /absolute/broker-host-binary --work /absolute/fixtures
+```
+
+The image requires the previously built `oyzu-mise-experiment:trace` base and a
+Linux frontend binary, even when the host is Windows. Provision the real Linux
+x64 Node archives/inventory under the fixtures directory before this run. The
+current positive control uses Docker Desktop's `host.docker.internal`; the
+recorded host is Windows and the enforced worker is Linux x64. No native Windows
+sandbox is implied. Source credentials are generated test canaries, never real
+accounts or credentials, and only credential-presence booleans enter the report.

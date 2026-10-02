@@ -1,5 +1,5 @@
 diff --git a/crates/mise-util/src/http.rs b/crates/mise-util/src/http.rs
-index 74688f1..85fb83d 100644
+index 74688f1..1f6e96b 100644
 --- a/crates/mise-util/src/http.rs
 +++ b/crates/mise-util/src/http.rs
 @@ -623,6 +623,9 @@ fn https_downgrade_policy(what: &'static str) -> reqwest::redirect::Policy {
@@ -12,14 +12,23 @@ index 74688f1..85fb83d 100644
          if is_https_downgrade(attempt.previous(), attempt.url()) {
              attempt.error(std::io::Error::other(format!(
                  "refusing to redirect {what} from HTTPS to HTTP"
-@@ -1518,6 +1521,7 @@ impl Client {
-         verb_label: &str,
+@@ -1519,6 +1522,8 @@ impl Client {
          options: SendOnceOptions,
      ) -> Result<Response> {
-+        oyzu_experiment_route(&url)?;
          let original_url = url.clone();
++        apply_url_replacements(&mut url);
++        oyzu_experiment_route(&url)?;
          crate::resolve_progress::fetching(&url);
          #[cfg(unix)]
+         if let Some(socket) = github_relay_socket(&url) {
+@@ -1556,7 +1561,6 @@ impl Client {
+             }
+             return options.check_response(response);
+         }
+-        apply_url_replacements(&mut url);
+         crate::resolve_progress::fetching(&url);
+         let host_key = http_host_key(&url);
+         if crate::network::prefer_offline(&Settings::get())
 @@ -2598,3 +2602,19 @@ async fn warn_when_download_is_slow(
  
  #[cfg(test)]
