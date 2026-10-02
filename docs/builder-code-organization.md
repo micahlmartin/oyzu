@@ -29,6 +29,7 @@ src/
     python/
       mod.rs                  # Descriptor and interface implementation
       discovery.rs            # pip / uv / Poetry inference
+      detection/testing.rs    # Native pytest evidence and profile fallback
       acquisition.rs          # Native locks and scoped wheel acquisition
       planning.rs             # Python commands and artifact/report intent
       runtime/adapter.py      # Embedded native Python adapter
@@ -137,6 +138,8 @@ Go preparation uses a private native module cache and a loopback GOPROXY adapter
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 
 Native runtime code belongs to its ecosystem. The embedded Python adapter exists to invoke native package tooling and inspect native metadata inside the isolated toolchain environment. It does not own scheduling, policy decisions or bundle finalization. Further Python growth should split manager and operation modules inside `builders/python`, not add unrelated ecosystems to a global helpers directory.
+
+Python test discovery records native pytest configuration or the profile fallback through `detection/testing.rs`. It does not guess collection results from directory names. The native runner owns actual selection and no-tests outcomes; acquisition prepares reporter inputs independently of directory layout. Report parsing and action/artifact failure propagation remain shared engine responsibilities. The [Python testing reference](reference/python-testing.md) distinguishes direct task behavior from captured-build evidence.
 
 Python requirements-only application planning lives in `application.rs`, with archive assembly and artifact-source test execution in `runtime/application.py`. Package/application plans reuse `quality.rs` for native Ruff tasks, the acquisition adapter for prepared environments, and `runtime/reporting.py` for native pytest/coverage integration. The prepared dependency record's `oyzu.dev/python-runtime` extension identifies runtime roots; application packaging consumes their captured closure. Distribution metadata is never synthesized to fit a requirements application into the package builder. Archive collection, required reports and action ordering remain shared engine responsibilities.
 

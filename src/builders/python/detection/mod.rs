@@ -1,5 +1,6 @@
-//! Independent manager and quality detectors over bounded captured metadata.
+//! Independent manager, test and quality detectors over bounded captured metadata.
 mod quality;
+mod testing;
 use crate::discovery::{
     detectors::{exclusive, Detector, Finding, Source},
     Resolution,
@@ -12,6 +13,7 @@ pub(super) struct Profile {
     pub manager: Resolution,
     pub linter: Resolution,
     pub formatter: Resolution,
+    pub framework: Resolution,
 }
 struct ContextData {
     source: Source,
@@ -85,6 +87,8 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
             ".flake8",
             "setup.cfg",
             "tox.ini",
+            "pytest.ini",
+            ".pytest.ini",
         ],
     )?;
     let project = source
@@ -96,10 +100,12 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
     let manager = exclusive("Python package manager", &context, MANAGERS)?;
     let linter = exclusive("Python linter", &context, quality::LINTERS)?;
     let formatter = exclusive("Python formatter", &context, quality::FORMATTERS)?;
+    let framework = exclusive("Python test framework", &context, testing::FRAMEWORKS)?;
     Ok(Profile {
         project: context.project,
         manager,
         linter,
         formatter,
+        framework,
     })
 }

@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, rust, vitest
+from build_scenarios import ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_quality, node_workspaces, python_application, python_legacy, python_quality, python_testing, rust, vitest
 from build_scenarios.node_fixtures import format_sources
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -104,6 +104,7 @@ def main():
         node_managers.verify(ROOT,base,invoke,validate,source_files,verified)
         node_workspaces.verify(ROOT,base,invoke,validate,source_files,verified)
         node_quality.verify(ROOT,base,invoke,validate,source_files,verified)
+        python_testing.verify(ROOT,base,invoke,validate,source_files,verified)
         jest.verify(ROOT,base,invoke,validate,source_files,verified)
         vitest.verify(ROOT,base,invoke,validate,source_files,verified)
         go.verify(ROOT,base,invoke,validate,source_files,verified)

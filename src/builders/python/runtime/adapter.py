@@ -49,14 +49,14 @@ def requirement_lines(locked=()):
     package_project = Path('pyproject.toml').exists() or Path('setup.py').exists() or Path('setup.cfg').exists()
     for item in data.get('build-system',{}).get('requires',['setuptools==80.9.0','wheel==0.45.1'] if package_project else []):
         add(item,'build')
-    # Build frontends and conventional pytest integrations are builder inputs.
+    # Native pytest discovers tests at execution, including configured/root paths.
+    # Its reporting inputs cannot depend on a guessed directory convention.
     for item in data.get('dependency-groups',{}).get('dev',[]):
         if not isinstance(item,str):
             raise ValueError('Included dependency groups are not supported yet')
         add(item,'test')
     defaults=['build==1.2.2.post1','wheel==0.45.1'] if package_project else []
-    if Path('tests').is_dir() or Path('test').is_dir():
-        defaults += ['pytest==8.3.5','pytest-cov==6.0.0']
+    defaults += ['pytest==8.3.5','pytest-cov==6.0.0']
     requirements = Path('requirements.txt')
     if requirements.exists():
         text = requirements.read_text().replace('\\\n',' ')
