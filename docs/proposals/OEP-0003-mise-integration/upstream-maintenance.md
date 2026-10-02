@@ -13,12 +13,18 @@ does not expose all required seams. A fork and a dependency pin serve different
 purposes: the fork holds our changes; the pin selects the exact version we build.
 This is an engineering decision, not a requirement imposed by the MIT license.
 
-@micahlmartin is the initial technical owner for update triage, patch scope,
-promotion and compliance-policy changes. Legal approval remains a separate
-recorded responsibility. Before required review becomes enforceable, designate
-another authorized human for changes authored by that owner; self-approval or
-AI approval does not satisfy independent review. An update record names its
-implementer and independent reviewer.
+@micahlmartin owns technical decisions, update triage, patch scope, promotion,
+compliance policy and licensing/distribution approval, as confirmed by maintainer
+instruction on 2026-10-02. No second owner is required to begin implementation.
+Ownership is not evidence of completed review: each update records the actual
+reviewer, reviewed head and explicit decision, including unresolved obligations.
+AI-generated checks and inventories cannot approve their own results.
+
+When GitHub prevents the owner from formally approving a PR authored under the
+same account, record his decision against the exact head in a review record and
+use an owner-authorized promotion gate. Do not fabricate a second reviewer or
+claim GitHub's formal approving-review requirement passed. The enforcement
+implementation must test that gate before declaring it operational.
 
 | Location | Responsibility |
 | --- | --- |
@@ -122,7 +128,7 @@ prerequisite for a safe local fix.
    consumer PR pins the candidate commit for testing, updates root Cargo.lock
    and provenance together, and contains all evidence in the gate table below.
    Inspect every lockfile change; do not perform an unrelated blanket update.
-6. **Review and merge the fork.** Independent human approval and required checks
+6. **Review and merge the fork.** Recorded human-owner approval and required checks
    must cover the current head. Merge without rewriting published history.
    Record the resulting full main commit; a squash or merge can change identity.
 7. **Promote the consumer pin.** Update the Oyzu PR to that exact final fork
@@ -156,7 +162,7 @@ missing evidence into a pass. Existing failures remain tracked and cannot be
 silently grandfathered into a production release.
 
 Branch protection must require the relevant qualification and compliance checks,
-current-head independent human approval, stale-review dismissal and no force
+current-head human-owner approval, stale-review dismissal and no force
 push/deletion on main in both repositories. Changes to checks, ownership or
 policy require review under the existing compliance rules. Configure these
 controls before declaring the process enforced; checked-in workflow files alone
@@ -193,7 +199,7 @@ Monitoring credentials are read-only; candidate preparation has narrowly scoped
 branch/PR permissions and no merge or publication authority.
 
 MISE-15 is complete only after a real upstream update traverses both repositories
-with current-head human review and all gates, an intentional provenance mismatch
+with current-head human-owner review and all gates, an intentional provenance mismatch
 and notice change are rejected, and rollback is demonstrated without changing
 project TOML or silently rewriting oyzu.lock. Record the initial qualified pin,
 reviewer assignment, last upstream check, next check and unresolved exceptions.

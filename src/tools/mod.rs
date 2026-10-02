@@ -1,0 +1,55 @@
+//! Oyzu-owned tool identity. Inspection is read-only and confers no install or
+//! execution authority; backend admission and receipt validation are separate.
+mod lock;
+
+use anyhow::{ensure, Context, Result};
+use serde::Serialize;
+use std::{fs::File, io::Read, path::Path};
+
+#[derive(Debug, Serialize)]
+pub struct LockInspection {
+    pub format: u32,
+    pub environments: usize,
+    pub tools: usize,
+    pub platforms: Vec<String>,
+    pub selections: Vec<LockedSelection>,
+    pub validation: &'static str,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct LockedSelection {
+    pub scope: String,
+    pub profile: String,
+    pub platform: String,
+    pub digest: String,
+}
+
+/// Validate a bounded format-2 document without discovery, network, execution or
+/// mutation. This checks structure and content identities, not source trust,
+/// current configuration compatibility, installed content or authorization.
+pub fn inspect_lock(path: &Path) -> Result<LockInspection> {
+    let file = File::open(path).with_context(|| format!("open {}", path.display()))?;
+    ensure!(
+        file.metadata()?.is_file(),
+        "tool lock must be a regular file"
+    );
+    let mut bytes = Vec::new();
+    file.take(lock::MAX_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)?;
+    let document = lock::parse(&bytes)?;
+    Ok(LockInspection {
+        format: document.format,
+        environments: document.environment.len(),
+        tools: document.tool.len(),
+        platforms: document
+            .tool
+            .iter()
+            .flat_map(|tool| tool.distribution.iter())
+            .map(|distribution| distribution.platform.clone())
+            .collect::<std::collections::BTreeSet<_>>()
+            .into_iter()
+            .collect(),
+        validation: "structure-and-identity-only",
+        selections: document.selections,
+    })
+}

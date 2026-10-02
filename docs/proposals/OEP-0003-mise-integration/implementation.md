@@ -2,8 +2,10 @@
 
 Normative draft companion to [OEP-0003](README.md). This is a work breakdown for
 the proposed implementation, not a report that these work packages are done.
-The experiment is complete; all production packages below start unimplemented
-unless existing production components are explicitly identified as foundations.
+The experiment is complete. Staged implementation was authorized on 2026-10-02;
+TM-01 now has an initial lock structure/identity inspector. This does not complete
+TM-01 or qualify a production backend. Other packages remain unimplemented unless
+existing production components are explicitly identified as foundations.
 
 ## Dependency order and deliverables
 

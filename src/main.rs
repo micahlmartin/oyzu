@@ -26,6 +26,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Inspect tool-management records without installing or executing tools.
+    Tools {
+        #[command(subcommand)]
+        command: ToolCommand,
+    },
     /// Inspect, validate or edit cascading configuration without executing tasks.
     Config {
         #[command(subcommand)]
@@ -50,6 +55,15 @@ enum Commands {
     },
     /// Verify recorded content in a build bundle or exported OCI layout tar.
     Inspect { bundle: PathBuf },
+}
+
+#[derive(Subcommand)]
+enum ToolCommand {
+    /// Validate format-2 lock structure and identity (not trust or installed state).
+    InspectLock {
+        #[arg(default_value = "oyzu.lock")]
+        path: PathBuf,
+    },
 }
 
 fn main() {
@@ -78,6 +92,15 @@ fn run() -> Result<i32> {
         ..Default::default()
     };
     match &cli.command {
+        Commands::Tools {
+            command: ToolCommand::InspectLock { path },
+        } => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&oyzu::tools::inspect_lock(&directory.join(path))?)?
+            );
+            return Ok(0);
+        }
         Commands::Config { command } => {
             println!(
                 "{}",
@@ -156,7 +179,10 @@ fn run() -> Result<i32> {
                 return Ok(code);
             }
         }
-        Commands::Build { .. } | Commands::Inspect { .. } | Commands::Config { .. } => {
+        Commands::Build { .. }
+        | Commands::Inspect { .. }
+        | Commands::Config { .. }
+        | Commands::Tools { .. } => {
             unreachable!()
         }
     }

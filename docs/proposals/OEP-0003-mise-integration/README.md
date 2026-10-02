@@ -12,7 +12,7 @@ tracking-issue: null
 
 # In-process mise integration
 
-This is the implementation proposal for Oyzu tool management, informed by the completed [experiment](experiment.md) and [qualification](qualification.md). MUST, MUST NOT and SHOULD express proposed requirements. The proposal is implementation-ready for review; it is not accepted, and the production CLI does not yet implement it. Experiment results do not satisfy production acceptance gates. Tool installation remains outside the current builder objective until this work is explicitly scheduled.
+This is the implementation proposal for Oyzu tool management, informed by the completed [experiment](experiment.md) and [qualification](qualification.md). MUST, MUST NOT and SHOULD express proposed requirements. The proposal is implementation-ready for review; it is not accepted, and the production CLI does not yet implement it. Experiment results do not satisfy production acceptance gates. The maintainer authorized staged implementation, including tool management, on 2026-10-02. Individual acceptance and release gates remain in force.
 
 ## Decision and intended outcome
 

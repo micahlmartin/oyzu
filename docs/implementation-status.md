@@ -4,8 +4,9 @@
 
 The [implementation-ready OEP-0003 draft](proposals/OEP-0003-mise-integration/README.md)
 now defines the proposed production architecture and work packages from these
-findings. It remains unaccepted; writing the design does not implement or authorize
-production tool installation under the current builder objective.
+findings. It remains a draft. The maintainer subsequently authorized staged
+implementation on 2026-10-02; the production checkpoint below distinguishes
+delivered contracts from remaining integration and release gates.
 
 The authorized [mise experiment](proposals/OEP-0003-mise-integration/experiment.md)
 investigates tool management separately from the builder objective below.
@@ -660,3 +661,36 @@ The new Windows compiled-CLI probe passed real Node, Jest 29 and Vitest 5 execut
 The complete Rust suite, Clippy, rustfmt, CLI build, existing task/hook scenarios and workspace build/quality task regressions passed on Windows. Documentation, changed Python scenario syntax and all 58 example structure checks passed. The preceding run `36962406992` was still building its Windows CLI when checked; its Linux and macOS CLI builds had passed. No workflow was restarted or treated as finished based on elapsed time.
 
 This does not complete EX-020 or the full builder goal. Member task groups, affected/duplicate-target selection, broader framework inheritance, standalone development-task dist/report collection, other package-manager workspaces and remaining builder scenarios still require work. Native local verification does not prove Linux sandbox execution; no local container engine is available.
+## Mise production implementation: first contracts (2026-10-02)
+
+The maintainer authorized staged OEP-0003 implementation and designated
+@micahlmartin as technical and licensing decision owner. Draft PR
+[4](https://github.com/micahlmartin/oyzu/pull/4) contains the proposal, historical
+qualification and the first production lock-identity component. Ownership does
+not record a completed license audit or approve a particular shipped graph.
+
+`oyzu tools inspect-lock` now performs bounded format-2 structure, record identity
+and platform dependency-graph validation and computes complete selection digests.
+It rejects cycles, dangling or ambiguous closures, unknown fields, malformed
+digests, duplicate records and verification-subject mismatches. Inspection does
+not authorize execution, prove installed content, resolve current configuration
+or validate backend-specific options. See the [reference](reference/tool-lock-inspection.md).
+TM-01 remains partial: production schemas, remaining contracts and integration
+are still required. No production mise dependency, installer, activation or exec
+path is enabled by this change.
+
+Local Rust 1.94 Windows GNU verification passed: 152 tests, two preexisting
+ignored tests, strict all-target Clippy, and nine real CLI task scenarios. Ten
+new unit tests and one compiled-CLI test cover lock failures and a separately
+computed canonical identity vector. MSVC could not run locally because its
+linker is absent; existing CI covers native Windows/macOS/Linux and its results
+must be inspected separately. These checks do not qualify the mise runtime.
+
+The [upstream observer](reference/mise-maintenance.md) passed three unit tests and
+a real public GitHub observation. The observed latest stable release was
+`v2026.10.0` at `bc11f90c74eba23bf0d7350efb540e62fb7d9ffd`; the public fork head
+was `b1b8d3e4aed6a0a610fdd1d845df11da470afd08`. The report correctly marked the
+production pin absent. The weekly workflow is authored but not scheduled live
+until merged into main. Patch provenance, advisory triage, owner approval gates,
+branch protection, first source import approval and full qualification remain
+outstanding. Do not interpret an observation job's green status as release approval.

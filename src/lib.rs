@@ -14,3 +14,4 @@ pub mod records;
 pub mod reports;
 pub mod snapshot;
 pub mod tasks;
+pub mod tools;
