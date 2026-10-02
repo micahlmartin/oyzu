@@ -2,27 +2,38 @@
 import {createRequire} from 'node:module';
 import {copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {isDeepStrictEqual} from 'node:util';
 import {archives} from './registry-archives.mjs';
 
 const require = createRequire(import.meta.url);
+function parse(text) {
+  const parser = require(process.env.OYZU_YARN_LOCKFILE ?? '/opt/oyzu-yarn/node_modules/@yarnpkg/lockfile');
+  const lock = parser.parse(text);
+  if (lock.type !== 'success') throw new Error('Yarn lock must be fully resolved without merge conflicts');
+  return lock.object;
+}
 export function inputs(workspace) {
   for (const name of ['.yarnrc', '.yarnrc.yml', '.npmrc']) {
     if (existsSync(join(workspace, name))) throw new Error(`Yarn capture does not yet support ${name}`);
   }
   const manifest = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
-  if (manifest.workspaces || manifest.resolutions) throw new Error('Yarn workspace/resolution capture is not implemented yet');
+  if (manifest.workspaces) throw new Error('Yarn workspace capture is not implemented yet');
+  if (manifest.resolutions != null) {
+    if (typeof manifest.resolutions !== 'object' || Array.isArray(manifest.resolutions)
+        || Object.values(manifest.resolutions).some(value => typeof value !== 'string' || /[:/\\]/.test(value))) {
+      throw new Error('Yarn resolutions must use registry version ranges; file, Git and URL overrides are not supported');
+    }
+  }
   const text = readFileSync(join(workspace, 'yarn.lock'), 'utf8');
   if (!text.split(/\r?\n/).some(line => line.trim() === '# yarn lockfile v1')) throw new Error('Yarn capture requires a Classic v1 lock');
-  const parser = require(process.env.OYZU_YARN_LOCKFILE ?? '/opt/oyzu-yarn/node_modules/@yarnpkg/lockfile');
-  const lock = parser.parse(text);
-  if (lock.type !== 'success') throw new Error('Yarn lock must be fully resolved without merge conflicts');
+  const lock = parse(text);
   for (const field of ['dependencies', 'devDependencies', 'optionalDependencies']) {
     for (const [name, version] of Object.entries(manifest[field] ?? {})) {
-      if (!lock.object[`${name}@${version}`]) throw new Error(`Yarn capture requires a current frozen lockfile for ${name}`);
+      if (!lock[`${name}@${version}`]) throw new Error(`Yarn capture requires a current frozen lockfile for ${name}`);
     }
   }
   const packages = new Map();
-  for (const [selector, value] of Object.entries(lock.object)) {
+  for (const [selector, value] of Object.entries(lock)) {
     const url = new URL(value.resolved);
     if (url.protocol !== 'https:' || url.username || url.password || url.search || (url.hash && !/^#[a-f0-9]{40}$/.test(url.hash))) {
       throw new Error(`Yarn capture requires a credential-free registry archive: ${selector}`);
@@ -64,7 +75,19 @@ export async function perform(context) {
   for (const entry of packages) copyFileSync(join(output, 'tarballs', `${entry.sha256}.tgz`), join(mirror, entry.mirror));
   const config = join(temporary, 'yarnrc');
   writeFileSync(config, `yarn-offline-mirror ${JSON.stringify(mirror)}\nyarn-offline-mirror-pruning false\ndisable-self-update-check true\n`);
-  await execute(['install', '--offline', '--frozen-lockfile', '--non-interactive', '--production=false',
-    ...(mode === 'acquire' ? ['--ignore-scripts'] : []), '--use-yarnrc', config, '--cache-folder', join(temporary, 'cache')]);
+  const lockPath = join(workspace, 'yarn.lock');
+  const originalLock = readFileSync(lockPath);
+  const install = ['install', '--offline', '--non-interactive', '--production=false',
+    '--use-yarnrc', config, '--cache-folder', join(temporary, 'cache')];
+  // Yarn's frozen mode can suppress lock writes for a changed resolution. Let
+  // native Yarn compute its actual lock in this private tree with hooks disabled,
+  // then compare parsed identities before allowing any lifecycle execution.
+  await execute([...install, '--ignore-scripts', '--force']);
+  if (!isDeepStrictEqual(parse(originalLock.toString('utf8')), parse(readFileSync(lockPath, 'utf8')))) {
+    throw new Error('Yarn requires a current frozen lockfile; native dependency resolution changed');
+  }
+  // Native formatting is not dependency identity; preserve the exact source lock.
+  writeFileSync(lockPath, originalLock);
+  if (mode === 'install') await execute([...install, '--frozen-lockfile', '--force']);
   return {layoutVersion:2, packages};
 }

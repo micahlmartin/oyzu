@@ -66,6 +66,7 @@ else
   if selected node; then
     .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager pnpm --native-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs
     .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --resolutions --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
   fi
   if selected python; then
     .ci-python/bin/python tooling/test-python-adapter.py

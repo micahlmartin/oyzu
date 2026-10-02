@@ -18,14 +18,21 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--manager', choices=['pnpm', 'yarn'], required=True)
     parser.add_argument('--native-cli', type=Path, required=True)
+    parser.add_argument('--resolutions', action='store_true', help='Exercise the Yarn selective-resolution fixture')
     args = parser.parse_args()
     manager = args.manager
+    if args.resolutions and manager != 'yarn':
+        parser.error('--resolutions requires --manager yarn')
     native = args.native_cli.resolve()
     env = dict(os.environ, OYZU_PNPM_YAML=str(native.parents[2] / 'yaml'),
                OYZU_YARN_LOCKFILE=str(native.parents[2] / '@yarnpkg/lockfile'))
     expected = {('is-odd', '3.0.1'), ('is-number', '6.0.0')}
     if manager == 'yarn':
         expected.add(('@colors/colors', '1.6.0'))
+    if args.resolutions:
+        expected.add(('is-number', '7.0.0'))
+    fixture = ('examples/builds/node-managers/variants/yarn-resolutions' if args.resolutions
+               else f'tooling/fixtures/{manager}-registry')
     urls = [f'https://registry.npmjs.org/{name}/-/{name.split("/")[-1]}-{version}.tgz'
             for name, version in sorted(expected)]
     bodies = {}
@@ -77,7 +84,7 @@ def main():
             captures = []
             for index in range(2):
                 project = base / f'project {index}'
-                shutil.copytree(ROOT / f'tooling/fixtures/{manager}-registry', project)
+                shutil.copytree(ROOT / fixture, project)
                 package_path = project / 'package.json'
                 package = json.loads(package_path.read_text())
                 package['scripts']['preinstall'] = 'node lifecycle.cjs'
@@ -103,6 +110,20 @@ def main():
                 assert lock_path.read_bytes() == original_lock
             assert captures[0] == captures[1], 'captured bytes depend on location/time'
             assert sorted(requests) == sorted(urls * 2)
+            if args.resolutions:
+                # Both versions exist in the mirror. Native resolution must still
+                # reject the changed graph before running any project hooks.
+                shutil.rmtree(project / 'node_modules')
+                (project / 'lifecycle-ran').unlink()
+                package['resolutions']['is-odd/is-number'] = '6.0.0'
+                package_path.write_text(json.dumps(package))
+                assert 'native dependency resolution changed' in run('install', output, project, False).stderr
+                assert not (project / 'lifecycle-ran').exists()
+                assert len(requests) == count and tree(output) == captures[-1]
+                lock_path.write_bytes(original_lock)
+                package['resolutions']['is-odd/is-number'] = '7.0.0'
+                package_path.write_text(json.dumps(package))
+                run('install', output, project)
             # Failures must not silently resolve a different version or execute source hooks.
             shutil.rmtree(project / 'node_modules')
             archive = next((output / 'tarballs').glob('*.tgz'))
@@ -123,6 +144,13 @@ def main():
                 (project / '.pnpmfile.cjs').write_text("throw new Error('project hook executed');")
                 assert 'does not yet support .pnpmfile.cjs' in run('acquire', output, project, False).stderr
             else:
+                package['resolutions'] = {'is-number': 'file:../outside'}
+                package_path.write_text(json.dumps(package))
+                assert 'registry version ranges' in run('acquire', output, project, False).stderr
+                package.pop('resolutions')
+                if args.resolutions:
+                    package['resolutions'] = {'is-odd/is-number': '7.0.0'}
+                package_path.write_text(json.dumps(package))
                 lock_path.write_bytes(original_lock.replace(b'https://registry.npmjs.org/is-odd/-/is-odd-3.0.1.tgz', b'file:/outside'))
                 assert 'credential-free registry archive' in run('acquire', output, project, False).stderr
                 lock_path.write_bytes(original_lock)
@@ -130,7 +158,7 @@ def main():
                 assert 'does not yet support .yarnrc' in run('acquire', output, project, False).stderr
             assert len(requests) == count
             assert not failures, failures
-            print(f'{manager}: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed')
+            print(f'{manager}: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed (resolutions={args.resolutions})')
         finally:
             stop.set()
             thread.join()

@@ -11,7 +11,8 @@
   "projects": [
     "npm",
     "pnpm",
-    "yarn"
+    "yarn",
+    "variants/yarn-resolutions"
   ],
   "oyzu": [
     "oyzu build"
@@ -21,6 +22,11 @@
     "Competing locks are an explicit negative case, not normal fixture state."
   ],
   "cases": [
+    {
+      "name": "yarn-selective-resolutions",
+      "change": "Build variants/yarn-resolutions using its native package.json and yarn.lock.",
+      "expect": "Keep direct is-number 6.0.0 and use 7.0.0 only under is-odd; collect five passing tests, coverage and a snapshot package. Changing the override without updating the lock must fail before project hooks execute."
+    },
     {
       "name": "competing-locks",
       "change": "Copy another variant's lock into one project.",
@@ -65,7 +71,12 @@
     "yarn/build.mjs",
     "yarn/package.json",
     "yarn/src/greeting.mjs",
-    "yarn/test/greeting.test.mjs"
+    "yarn/test/greeting.test.mjs",
+    "variants/yarn-resolutions/package.json",
+    "variants/yarn-resolutions/yarn.lock",
+    "variants/yarn-resolutions/build.mjs",
+    "variants/yarn-resolutions/src/greeting.mjs",
+    "variants/yarn-resolutions/test/greeting.test.mjs"
   ],
   "hosts": {
     "intended": [

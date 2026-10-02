@@ -12,7 +12,6 @@ impl Yarn {
     fn validate(&self, root: &std::path::Path) -> Result<bool> {
         let package = records::read(&root.join("package.json"))?;
         if package.get("workspaces").is_some()
-            || package.get("resolutions").is_some()
             || [".yarnrc", ".yarnrc.yml", ".npmrc"]
                 .iter()
                 .any(|name| root.join(name).exists())
