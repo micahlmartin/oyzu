@@ -18,6 +18,7 @@ on:
       - 'tooling/test-tool-go.py'
       - 'tooling/test-tool-mixed.py'
       - 'tooling/test-tool-aliases.py'
+      - 'tooling/test-tool-rust.py'
       - 'tooling/test-shell-profile.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
@@ -58,6 +59,10 @@ jobs:
           restore-keys: tool-user-flow-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}-
       - name: Build library-linked Oyzu
         run: cargo build --locked --features mise-integration --bin oyzu
+      - name: Rust installation and real Cargo compilation
+        run: python tooling/test-tool-rust.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-rust-acceptance"
+      - name: Restore Rust from cached installation snapshot
+        run: python tooling/test-tool-rust.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-rust-acceptance" --offline-check --restore-cached
       - name: Real Node install and execution
         timeout-minutes: 15
         run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"

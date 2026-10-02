@@ -33,7 +33,7 @@ fn digest(path: &Path) -> Result<String> {
     Ok(format!("{:x}", hash.finalize()))
 }
 
-/// Retain the actual frontend image as native Node/Go shims. This runs during
+/// Retain the actual frontend image as native tool-command shims. This runs during
 /// install/activation, never during a prompt hook. A shared store is explicit;
 /// dynamic mode uses the invocation directory's store on every subsequent call.
 pub(super) fn prepare(store: &Path, dynamic: bool) -> Result<PathBuf> {
@@ -44,7 +44,7 @@ pub(super) fn prepare(store: &Path, dynamic: bool) -> Result<PathBuf> {
         .join(&release)
         .join(if dynamic { "cwd" } else { "shared" });
     std::fs::create_dir_all(&directory)?;
-    for name in ["node", "go"] {
+    for name in ["node", "go", "cargo", "rustc", "rustdoc"] {
         let image = directory.join(if cfg!(windows) {
             format!("{name}.exe")
         } else {
@@ -83,7 +83,7 @@ pub fn dispatch() -> Result<Option<i32>> {
         .file_stem()
         .and_then(|name| name.to_str())
         .unwrap_or("");
-    if !matches!(name, "node" | "go") {
+    if !matches!(name, "node" | "go" | "cargo" | "rustc" | "rustdoc") {
         return Ok(None);
     }
     let manifest: Manifest = serde_json::from_slice(&super::read_record(

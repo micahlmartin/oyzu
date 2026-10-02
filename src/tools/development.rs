@@ -16,7 +16,7 @@ use std::{
     sync::Arc,
 };
 
-const PIN: &str = "9290bcac695c8ff8a56760ccebd785d5062b459c";
+const PIN: &str = "1da2a9fa009ada755cbcc96e5d944fe1cd61072c";
 #[derive(Serialize, Deserialize)]
 enum WorkerReply {
     Fetch(String),
@@ -56,6 +56,10 @@ fn complete(value: &impl Serialize) -> Result<()> {
 #[derive(Serialize, Deserialize)]
 enum WorkerRequest {
     Aliases,
+    InstallRust {
+        version: String,
+        archive: PathBuf,
+    },
     Hooks {
         shell: String,
         activate: bool,
@@ -151,11 +155,30 @@ pub fn worker() -> Result<i32> {
     let session = mise::embedding::Session::initialize(mise::embedding::Options {
         state: state.path().canonicalize()?,
         frontend: std::env::current_exe()?,
-        tools: ["node".to_owned(), "go".to_owned()].into(),
+        tools: ["node".to_owned(), "go".to_owned(), "rust".to_owned()].into(),
         transport: Some(transport),
     })
     .map_err(|error| anyhow::anyhow!("{error:#}"))?;
     let request = match operation {
+        WorkerRequest::InstallRust { version, archive } => {
+            let runtime = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()?;
+            let root = runtime
+                .block_on(async {
+                    mise::backend::load_tools().await?;
+                    session.install_rust(&version).await
+                })
+                .map_err(|error| anyhow::anyhow!("{error:#}"))?;
+            let output = std::fs::File::create(archive)?;
+            let gzip = flate2::write::GzEncoder::new(output, flate2::Compression::fast());
+            let mut tar = tar::Builder::new(gzip);
+            tar.follow_symlinks(true);
+            tar.append_dir_all("rust", root)?;
+            tar.into_inner()?.finish()?;
+            complete(&())?;
+            return Ok(0);
+        }
         WorkerRequest::Aliases => {
             complete(
                 &session
@@ -232,6 +255,7 @@ pub fn worker() -> Result<i32> {
     };
     let result = if let Some(version) = request.exact {
         let archive = match request.tool {
+            Tool::Rust => anyhow::bail!("Rust facts are owned by the native installer adapter"),
             Tool::Node => serde_json::to_value(
                 session
                     .node_archive_facts(&version, &request.target)
@@ -254,6 +278,7 @@ pub fn worker() -> Result<i32> {
             .build()?;
         let metadata: serde_json::Value = runtime.block_on(async {
             match request.tool {
+                Tool::Rust => anyhow::bail!("Rust requires native installation"),
                 Tool::Node => {
                     let version = session
                         .resolve_node_version(&request.request, &[])
@@ -382,12 +407,16 @@ fn configuration(directory: &Path, options: &config::session::Options) -> Result
         let tool = match id.as_str() {
             "core:node" => Tool::Node,
             "core:go" => Tool::Go,
-            _ => anyhow::bail!("development integration supports Node and Go"),
+            "core:rust" => Tool::Rust,
+            _ => anyhow::bail!("development integration supports Node, Go and Rust"),
         };
         Acquisition::new(&effective, None, tool)?;
         configured.push((tool, request.clone()));
     }
-    ensure!(!configured.is_empty(), "configure Node or Go in Oyzu TOML");
+    ensure!(
+        !configured.is_empty(),
+        "configure Node, Go or Rust in Oyzu TOML"
+    );
     let names: Vec<_> = configured.iter().map(|(tool, _)| tool.id()).collect();
     config::enforcement::tool_eligibility_with_aliases(&effective, &names, &aliases)?;
     Ok(Configuration {
@@ -400,16 +429,34 @@ fn configuration(directory: &Path, options: &config::session::Options) -> Result
 }
 
 fn plan(tool: Tool, archive: &Archive, digest: &str, backend: &str) -> serde_json::Value {
+    let paths: Vec<_> = tool
+        .commands()
+        .iter()
+        .map(|name| {
+            if *name == tool.commands()[0] {
+                archive.executable_relative_path.clone()
+            } else {
+                format!(
+                    "{}/{}{}",
+                    archive.bin_relative_path,
+                    name,
+                    if cfg!(windows) { ".exe" } else { "" }
+                )
+            }
+        })
+        .collect();
+    let entrypoints: BTreeMap<_, _> = tool.commands().iter().zip(&paths).map(|(name, path)| (*name, json!({"kind":"native","payload_relative_path":path,"interpreter_tool_key":null,"interpreter_relative_path":null,"prefix_args":[]}))).collect();
     json!({"format":1,"backend_digest":backend,"platform":archive.target,
         "input_blob_digests":[digest],"archive_kind":archive.archive_kind,"strip_prefix":archive.strip_prefix,"payload_subtree":".",
         "required_paths":[{"path":archive.executable_relative_path,"kind":"file"}],
-        "entrypoints":{tool.name():{"kind":"native","payload_relative_path":archive.executable_relative_path,"interpreter_tool_key":null,"interpreter_relative_path":null,"prefix_args":[]}},
+        "entrypoints":entrypoints,
         "environment":{"PATH":{"kind":"paths","paths":[{"owner":"self","relative_path":archive.bin_relative_path}]}},
         "extraction_bounds":{"max_entries":200000,"max_bytes":8589934592u64,"max_file_bytes":1073741824,"max_depth":64,"max_expansion_ratio":tool.expansion_ratio(&archive.archive_kind)},
-        "executable_paths":if cfg!(windows) { Vec::<String>::new() } else { vec![archive.executable_relative_path.clone()] }})
+        "executable_paths":if cfg!(windows) { Vec::<String>::new() } else { paths }})
 }
 
 mod installation;
+mod native;
 pub use installation::install;
 
 pub(super) struct InstalledEnvironment {
@@ -453,33 +500,37 @@ pub(super) fn installed_environment(
     let mut executables = BTreeMap::new();
     let mut bins = Vec::new();
     for (tool, _) in configured {
-        let selected = lease.command(tool.name())?;
-        let ToolLaunch::Native {
-            payload_relative_path,
-            prefix_args,
-        } = selected.launch
-        else {
-            anyhow::bail!("core tool requires a native launch descriptor");
-        };
-        ensure!(
-            prefix_args.is_empty(),
-            "unexpected core tool prefix arguments"
-        );
-        let payload = std::path::absolute(store)?
-            .join("installs")
-            .join(&selected.installation_key[7..])
-            .join("payload");
-        let executable = payload.join(payload_relative_path);
-        // Both admitted core backends place the primary command in their bin
-        // directory (the payload root for Node on Windows).
-        bins.push((
-            tool,
-            executable
-                .parent()
-                .context("tool bin directory unavailable")?
-                .to_path_buf(),
-        ));
-        executables.insert(tool.name().into(), executable);
+        for name in tool.commands() {
+            let selected = lease.command(name)?;
+            let ToolLaunch::Native {
+                payload_relative_path,
+                prefix_args,
+            } = selected.launch
+            else {
+                anyhow::bail!("core tool requires a native launch descriptor");
+            };
+            ensure!(
+                prefix_args.is_empty(),
+                "unexpected core tool prefix arguments"
+            );
+            let payload = std::path::absolute(store)?
+                .join("installs")
+                .join(&selected.installation_key[7..])
+                .join("payload");
+            let executable = payload.join(payload_relative_path);
+            // Admitted core backends place the primary command in their bin
+            // directory (the payload root for Node on Windows).
+            if *name == tool.commands()[0] {
+                bins.push((
+                    tool,
+                    executable
+                        .parent()
+                        .context("tool bin directory unavailable")?
+                        .to_path_buf(),
+                ));
+            }
+            executables.insert((*name).into(), executable);
+        }
     }
     Ok(InstalledEnvironment {
         lease,
@@ -632,13 +683,13 @@ pub fn environment(
             let tools: BTreeMap<_, _> = selected
                 .bins
                 .iter()
-                .map(|(tool, _)| (tool.id(), &selected.executables[tool.name()]))
+                .map(|(tool, _)| (tool.id(), &selected.executables[tool.commands()[0]]))
                 .collect();
             let mut output =
                 json!({"tools":tools, "executables":selected.executables, "environment":values});
             if let [(tool, _)] = selected.bins.as_slice() {
                 output["tool"] = json!(tool.id());
-                output["executable"] = json!(selected.executables[tool.name()]);
+                output["executable"] = json!(selected.executables[tool.commands()[0]]);
             }
             println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
@@ -703,4 +754,20 @@ pub(super) fn render_changes(
         },
         None,
     )
+}
+
+/// Validate explicit install names through the same registry/configuration owner.
+pub fn require_configured_tools(
+    directory: &Path,
+    options: &config::session::Options,
+    names: &[String],
+) -> Result<()> {
+    if names.is_empty() {
+        return Ok(());
+    }
+    let config = configuration(directory, options)?;
+    for name in names {
+        ensure!(config.aliases.get(name).is_some_and(|id| config.requests.requests().contains_key(id)), "requested tool {name} is not configured; declare its version in [tools] in oyzu.toml first");
+    }
+    Ok(())
 }

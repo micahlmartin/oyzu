@@ -1,6 +1,6 @@
 # Core tool-management development integration
 
-This opt-in implementation connects standalone Node and Go installation and execution
+This opt-in implementation connects Node, Go and Rust installation and execution
 through Oyzu configuration, the maintained mise Rust library, format-2 locks and
 Oyzu's installation store. It is under active functional acceptance testing;
 it is not a distribution-qualified release. The maintainer authorized development
@@ -13,10 +13,15 @@ cargo build --locked --features mise-integration --bin oyzu
 ```
 
 The dependency is pinned to oyzuai/mise revision
-`9290bcac695c8ff8a56760ccebd785d5062b459c`; defaults are disabled and the selected
+`1da2a9fa009ada755cbcc96e5d944fe1cd61072c`; defaults are disabled and the selected
 features are `rustls` and `vendored-lua`. A fresh instance of the Oyzu executable
 owns mise's process-global state. No separate mise executable is used. The default
 Oyzu build does not expose these commands yet.
+
+The Rust-enabled fork pin changes the backend identity recorded in development
+locks. Projects locked with the earlier pin must explicitly update their selected
+tools online before frozen execution with this build; retain the previous frontend
+when replaying an unchanged old lock. This is a development compatibility change.
 
 ## First user flow
 
@@ -44,18 +49,19 @@ oyzu exec -- node -e 'console.log(process.env.APP_MODE)'
 
 The shell quoting in the last example is suitable for Bash and PowerShell.
 `-C DIRECTORY`, explicit root and profile selection use the existing configuration
-resolver. Initial installation supports Node, Go or both at the workspace root.
+resolver. Installation supports Node, Go and Rust selections at the workspace root.
 The Node selector is interpreted by mise against the actual Node catalog. Existing
 locks retain the exact version unless an update is explicitly requested.
 
 Tool names are resolved through the maintained fork's pinned registry. For the
 currently admitted backends, `node` and `"core:node"` identify the same tool, as
-do `go` and `"core:go"`. Quote canonical TOML keys containing a colon. Changing
+do `go` and `"core:go"`, and `rust` and `"core:rust"`. Quote canonical TOML keys containing a colon. Changing
 only between these names preserves the normalized request identity and existing
 lock; it does not require installation or relocking. Defining both names for one
 tool fails with `TOOL_ALIAS_AMBIGUOUS`, even if their versions agree. Unknown
 registry names fail with `TOOL_ALIAS_UNSUPPORTED`. This does not enable additional
-backends or make alias names executable commands: use `node` and `go` for exec.
+backends or make alias names executable commands: use `node`, `go`, `cargo`,
+`rustc` or `rustdoc` for exec.
 Selective updates accept the same registry names. Administrative `tools.allowed`
 values are compared through that same alias map; this setting remains admin-only.
 The real acceptance runner is
@@ -634,3 +640,54 @@ execution. Windows Go and macOS profile failures were corrected subsequently;
 the corrected native results remain pending. See the consolidated
 [review checkpoint](../implementation-status.md#oep-0003-review-checkpoint-2026-10-02)
 for the remaining functional scope and evidence boundaries.
+
+
+## Rust installation through mise
+
+The Rust integration is being verified through the same `install`, `which`,
+`exec`, environment and shell contracts as Node/Go. It requires a feature-enabled
+Oyzu frontend and an exact stable version declared in Oyzu TOML:
+
+```toml
+[tools]
+rust = "1.95.0"
+```
+
+```sh
+oyzu install rust
+oyzu which cargo
+oyzu exec -- rustc --version
+oyzu exec -- cargo build
+oyzu install rust --frozen --offline
+```
+
+An explicit install name must already be configured. It validates the name and
+installs the complete configured project selection, retaining one environment
+lock rather than creating a separate Rust installation workflow. Bare `install`
+continues to install all configured tools. The Rust backend currently accepts
+exact three-part stable versions and uses the upstream minimal profile: Cargo,
+rustc and rustdoc. Components, extra targets, rolling channels and native
+rust-toolchain file discovery remain subsequent functional work.
+
+Mise performs the rustup installation in private homes. Oyzu packages the completed
+compiler sysroot into its existing cached archive/store format, retaining bundled
+notices; the receipt identifies the published Cargo/rustc/rustdoc commands. The
+lock's digest-only evidence covers that generated snapshot, not a claim of signed
+publisher verification or a captured bootstrap download closure. Frozen cached
+restoration does not invoke rustup. If both installation and archive are absent,
+restore online through explicit update; do not silently regenerate a different
+archive for an existing digest.
+
+Rustup subprocesses use normal public downloads in this initial integration.
+Managed mode and configured Rust connector routes are rejected until complete
+routing is connected; direct fallback from an enforced route is not supported.
+Cargo package/Git acquisition remains ordinary Cargo behavior. Mutable Cargo
+cache/configuration is separate from the committed compiler payload. Execution
+sets RUSTC and RUSTDOC to selected native binaries and prepends their bin directory;
+no ambient rustup installation supplies the compiler. A compatible system linker
+and SDK are prerequisites, particularly MSVC build tools on Windows and command
+line tools on macOS. Installing Rust does not install those system prerequisites.
+
+Acceptance is exercised by `tooling/test-tool-rust.py`; current run outcomes are
+recorded in implementation status. This section describes the implementation
+under verification, not completed three-platform qualification.

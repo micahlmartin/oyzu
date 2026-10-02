@@ -7,7 +7,7 @@ description = "An opinionated developer build platform"
 publish = false
 
 [dependencies]
-mise = { git = "https://github.com/oyzuai/mise", rev = "9290bcac695c8ff8a56760ccebd785d5062b459c", default-features = false, features = ["rustls", "vendored-lua"], optional = true }
+mise = { git = "https://github.com/oyzuai/mise", rev = "1da2a9fa009ada755cbcc96e5d944fe1cd61072c", default-features = false, features = ["rustls", "vendored-lua"], optional = true }
 tokio = { version = "1", features = ["rt", "net", "time"], optional = true }
 reqwest-mise = { package = "reqwest", version = "0.13", default-features = false, optional = true }
 http = { version = "1", optional = true }

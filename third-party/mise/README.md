@@ -1,7 +1,7 @@
 # Mise development dependency
 
 Source: https://github.com/oyzuai/mise at
-9290bcac695c8ff8a56760ccebd785d5062b459c.
+1da2a9fa009ada755cbcc96e5d944fe1cd61072c.
 The original upstream MIT license is preserved verbatim in LICENSE.
 
 The maintainer authorized controlled development integration on 2026-10-02.

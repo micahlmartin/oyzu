@@ -61,6 +61,10 @@ impl Acquisition {
             .copied()
             .copied()
             .or_else(|| routes.iter().find(|route| route["scope"] == "*").copied());
+        ensure!(
+            tool != Tool::Rust || route.is_none(),
+            "Rust installer routing is not connected; direct fallback is disabled"
+        );
         Ok(Self {
             tool,
             connector: route.map(|route| route["connectorId"].as_str().unwrap().to_owned()),
@@ -82,6 +86,14 @@ impl Acquisition {
             "TOOL_ROUTE_UNSUPPORTED: unrecognized tool resource"
         );
         let resource = match self.tool {
+            Tool::Rust
+                if matches!(
+                    url.host_str(),
+                    Some("sh.rustup.rs" | "win.rustup.rs" | "static.rust-lang.org")
+                ) =>
+            {
+                Some("rustup-bootstrap")
+            }
             Tool::Node if url.host_str() == Some("nodejs.org") && url.query().is_none() => {
                 url.path().strip_prefix("/dist/")
             }
@@ -125,6 +137,7 @@ impl Acquisition {
                     match self.tool {
                         Tool::Node => PUBLIC,
                         Tool::Go => "https://dl.google.com/go/",
+                        Tool::Rust => "https://sh.rustup.rs/",
                     }
                     .into(),
                     None,
@@ -136,6 +149,18 @@ impl Acquisition {
                 sources.push(broker::Source::new(
                     "go-catalog",
                     "https://go.dev/dl/",
+                    None,
+                )?);
+            }
+            if self.tool == Tool::Rust {
+                sources.push(broker::Source::new(
+                    "rustup-windows",
+                    "https://win.rustup.rs/",
+                    None,
+                )?);
+                sources.push(broker::Source::new(
+                    "rust-distribution",
+                    "https://static.rust-lang.org/",
                     None,
                 )?);
             }

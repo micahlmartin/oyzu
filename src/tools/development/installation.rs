@@ -118,19 +118,36 @@ pub fn install(
             );
         }
         let mut acquisition = Acquisition::new(&effective, bindings, *tool)?;
-        let metadata = metadata(
-            &Request {
-                tool: *tool,
-                request: request.clone(),
-                exact: if changed {
-                    None
-                } else {
-                    old.map(|record| record.version.clone())
-                },
-                target: host.into(),
-            },
-            Some(&mut acquisition),
-        )?;
+        let (metadata, mut acquired) = if *tool == Tool::Rust {
+            if let Some(old) = old.filter(|_| !changed) {
+                (super::native::rust_metadata(&old.version, host), None)
+            } else {
+                ensure!(
+                    !offline,
+                    "Rust installation requires online acquisition or a cached lock"
+                );
+                let (metadata, bytes) =
+                    super::native::install_rust(request, host, &mut acquisition)?;
+                (metadata, Some(bytes))
+            }
+        } else {
+            (
+                metadata(
+                    &Request {
+                        tool: *tool,
+                        request: request.clone(),
+                        exact: if changed {
+                            None
+                        } else {
+                            old.map(|record| record.version.clone())
+                        },
+                        target: host.into(),
+                    },
+                    Some(&mut acquisition),
+                )?,
+                None,
+            )
+        };
         let old_distribution = old.and_then(|record| {
             record
                 .distribution
@@ -150,7 +167,6 @@ pub fn install(
         };
         let layout = plan(*tool, &metadata.archive, &digest, &backend);
         let layout_digest = records::digest("oyzu.archive-layout.v1", &layout)?;
-        let mut acquired = None;
         let record = if let Some(old) = old.filter(|_| !changed) {
             ensure!(
                 old_distribution.unwrap().layout_digest == layout_digest,

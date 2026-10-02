@@ -63,16 +63,18 @@ enum Commands {
         #[arg(long, value_parser = ["bash", "zsh", "pwsh"])]
         shell: Option<String>,
     },
-    /// Install the configured Node or Go tool (opt-in development integration).
+    /// Install the configured tool selection (opt-in development integration).
     #[cfg(feature = "mise-integration")]
     Install {
+        /// Confirm named tools are configured; installs the complete project selection.
+        tools: Vec<String>,
         /// Require an existing matching lock without resolving new versions.
         #[arg(long)]
         frozen: bool,
         /// Use only existing locks, installations and cached archives.
         #[arg(long)]
         offline: bool,
-        /// Resolve configured requirements again (configured Node or Go tool).
+        /// Resolve configured requirements again (configured tool selection).
         #[arg(long, num_args = 0.., conflicts_with_all = ["frozen", "offline"])]
         update: Option<Vec<String>>,
         /// Host-owned connector endpoints and authorization environment references.
@@ -262,12 +264,14 @@ fn run() -> Result<i32> {
         }
         #[cfg(feature = "mise-integration")]
         Commands::Install {
+            tools,
             store,
             frozen,
             offline,
             update,
             connector_bindings,
         } => {
+            oyzu::tools::development::require_configured_tools(&directory, &options, tools)?;
             return oyzu::tools::development::install(
                 &directory,
                 &options,

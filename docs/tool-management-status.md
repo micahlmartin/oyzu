@@ -2811,3 +2811,33 @@ functional scope remains active; hardening stays deferred.
 The final default Windows locked test suite passed with two test threads, followed
 by strict all-target Clippy, formatting and all nine real task scenarios.
 Documentation and diff checks passed. Native product CI remains pending.
+
+## Checkpoint 173: Rust through the normal install flow (2026-10-02)
+
+The maintained mise fork now exposes its existing native Rust/rustup installer,
+with operation-private homes and direct compiler-sysroot publication. Oyzu consumes
+pin `1da2a9fa009ada755cbcc96e5d944fe1cd61072c`; no mise executable is invoked.
+`oyzu install rust` validates a configured Rust request and uses the existing
+format-2 lock, archive cache, receipts, store and execution environment. Cargo,
+rustc and rustdoc are published commands. Bundled toolchain notices are retained.
+
+The real Linux amd64 runner installed Rust 1.95.0 with ambient Rust removed from
+PATH, resolved all three commands from the store, checked their versions and
+compiled/executed a dependency-free program through `oyzu exec`. Initial attempts
+exposed missing upstream backend/installation registry initialization; calling
+mise's backend initializer resolved the integration failure. Frozen/offline
+restoration and building Oyzu with this compiler remain in progress. Three-host
+Rust acceptance is added to the existing workflow; native results are pending.
+
+Default Windows locked tests, strict all-target Clippy, formatting and nine task
+scenarios passed during this change. Linux feature-enabled build and strict
+all-target Clippy/formatting passed. The fork's full-workspace/all-feature/all-target
+Clippy passed. Prior Node/Go workflow run `37060499018` completed successfully on
+all three hosts; it predates Rust support. Documentation and diff checks passed.
+
+Rust currently requires an exact stable version and minimal profile. Corporate
+routing, channels/components/targets, native manifest discovery, Rust version
+switching and shell qualification remain functional follow-ups. Generated archive
+hashes are snapshot integrity evidence, not publisher signature evidence. The
+server allowlist and complete installer routing remain the enforced-mode end
+state; current direct acquisition is authorized. Hardening remains deferred.

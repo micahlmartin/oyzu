@@ -107,8 +107,10 @@ passed. Windows Go installation failed on the expansion allowance and macOS
 profile installation failed on a symlinked project path. Fixes are committed in
 `e0406c5` and `785499e` respectively. Those corrected native flows, mixed-tool
 acceptance and canonical-name acceptance are not yet verified by completed CI.
-The latest [run 37060499018](https://github.com/micahlmartin/oyzu/actions/runs/37060499018)
-was in progress when this checkpoint was written.
+Subsequent [run 37060499018](https://github.com/micahlmartin/oyzu/actions/runs/37060499018)
+at `e0406c5` completed successfully on Windows, macOS and Linux. This verifies
+those corrections and the then-current Node/Go workflow, including mixed-tool and
+canonical-name acceptance. It predates Rust installation support.
 
 Local Linux mixed-tool and alias flows passed as detailed above. Default Windows
 locked tests, strict Clippy, formatting and nine real task scenarios passed;
@@ -119,11 +121,16 @@ retains detailed evidence. Hardening, including additional fault-injection,
 worker isolation and robustness work, is reserved for future goals and is not
 represented as completed or used to block remaining functional implementation.
 
-Rust/rustup is now explicitly required. Source inspection confirms mise already owns
-its rustup installation and environment behavior, but our current embedding API
-does not expose that installation path. The [reuse investigation and first proof](proposals/OEP-0003-mise-integration/implementation.md#rust-backend-reuse-and-first-proof)
-records transport, private-home and store integration work. No Oyzu Rust install
-has run; separately provisioned build toolchains are not product evidence.
+Rust now uses the normal `oyzu install rust` flow with `[tools] rust = "1.95.0"`,
+Oyzu's format-2 lock and store, and the maintained fork's existing rustup backend.
+The Rust-enabled fork pin is `1da2a9fa009ada755cbcc96e5d944fe1cd61072c`.
+On Linux amd64, real installation, store-owned Cargo/rustc/rustdoc version checks,
+and dependency-free Cargo compilation/program execution passed with ambient Rust
+removed from PATH. The payload retains bundled Cargo licenses and Rust copyright
+files. Frozen replay, rebuilding Oyzu with the installed compiler and native
+Windows/macOS Rust qualification remain under verification at this checkpoint.
+See the [current reference](reference/tool-management-development.md#rust-installation-through-mise)
+and [reuse investigation](proposals/OEP-0003-mise-integration/implementation.md#rust-backend-reuse-and-first-proof).
 The maintainer clarified that direct normal-backend acquisition is authorized for
 current standalone installation work. Corporate proxy implementation is not a
 prerequisite. The final enforced mode requires a server allowlist for installation

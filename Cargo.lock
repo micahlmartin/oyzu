@@ -332,7 +332,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 [[package]]
 name = "aqua-registry"
 version = "2026.5.3"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "blake3",
  "expr-lang",
@@ -6650,7 +6650,7 @@ dependencies = [
 [[package]]
 name = "mise"
 version = "2026.10.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "age 0.12.1",
  "aqua-registry",
@@ -6795,12 +6795,12 @@ dependencies = [
 [[package]]
 name = "mise-agent-env"
 version = "0.1.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 
 [[package]]
 name = "mise-bootstrap"
 version = "0.1.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "base64 0.23.1",
  "eyre",
@@ -6811,7 +6811,7 @@ dependencies = [
 [[package]]
 name = "mise-brew-metadata"
 version = "0.1.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "eyre",
  "serde",
@@ -6821,7 +6821,7 @@ dependencies = [
 [[package]]
 name = "mise-brew-relocation"
 version = "0.1.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "eyre",
  "log",
@@ -6831,7 +6831,7 @@ dependencies = [
 [[package]]
 name = "mise-cache-core"
 version = "0.1.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "base64 0.23.1",
  "blake3",
@@ -6855,7 +6855,7 @@ dependencies = [
 [[package]]
 name = "mise-interactive-config"
 version = "2026.1.12"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "async-trait",
  "console",
@@ -6870,7 +6870,7 @@ dependencies = [
 [[package]]
 name = "mise-settings"
 version = "2026.9.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "confique",
  "eyre",
@@ -6888,7 +6888,7 @@ dependencies = [
 [[package]]
 name = "mise-sigstore"
 version = "0.1.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
@@ -6910,7 +6910,7 @@ dependencies = [
 [[package]]
 name = "mise-util"
 version = "2026.9.0"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "age 0.12.1",
  "aho-corasick",
@@ -11821,7 +11821,7 @@ dependencies = [
 [[package]]
 name = "vfox"
 version = "2026.7.2"
-source = "git+https://github.com/oyzuai/mise?rev=9290bcac695c8ff8a56760ccebd785d5062b459c#9290bcac695c8ff8a56760ccebd785d5062b459c"
+source = "git+https://github.com/oyzuai/mise?rev=1da2a9fa009ada755cbcc96e5d944fe1cd61072c#1da2a9fa009ada755cbcc96e5d944fe1cd61072c"
 dependencies = [
  "glob",
  "homedir",
