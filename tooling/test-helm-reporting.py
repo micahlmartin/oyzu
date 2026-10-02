@@ -112,6 +112,15 @@ def main():
         # Native subchart suites must be selected without any root test suite.
         subcharts = base/'subchart-only'
         shutil.copytree(ROOT/'examples/builds/helm-chart/variants/subchart-only', subcharts)
+        # Passing assertions do not replace native dependency/lint validation.
+        subprocess.run([helm,'dependency','build',str(subcharts),'--skip-refresh'],check=True)
+        subprocess.run([helm,'lint',str(subcharts),'--strict','--with-subcharts'],check=True)
+        undeclared = base/'undeclared-child'
+        shutil.copytree(subcharts,undeclared)
+        parent = undeclared/'Chart.yaml'
+        parent.write_text(parent.read_text().split('dependencies:')[0])
+        lint = subprocess.run([helm,'lint',str(undeclared),'--strict','--with-subcharts'],capture_output=True,text=True)
+        assert lint.returncode != 0 and 'missing these dependencies: child' in lint.stdout, (lint.stdout,lint.stderr)
         if args.cli:
             listed = subprocess.run([str(args.cli.resolve()),'-C',str(subcharts),'run','list','--json'],
                                     env={**os.environ,'PATH':''},capture_output=True,text=True,timeout=30)
@@ -161,7 +170,6 @@ def main():
         # Preparation expands native packaged dependencies before Helm's local build.
         prepared = base/'prepared-packed'
         shutil.copytree(packed,prepared)
-        (prepared/'Chart.yaml').write_text((prepared/'Chart.yaml').read_text()+'dependencies:\n- name: child\n  version: 1.0.0\n')
         charts = runpy.run_path(str(ROOT/'src/builders/helm/runtime/charts.py'))
         charts['expand'](prepared)
         subprocess.run([helm,'dependency','build',str(prepared),'--skip-refresh'],check=True)

@@ -146,6 +146,17 @@ def verify(root, base, invoke, validate, source_files, verified):
     with tarfile.open(subcharts/'dist'/artifact['path']) as archive:
         assert yaml.safe_load(archive.extractfile('parent/Chart.yaml'))['version']==artifact['version']
         assert 'parent/charts/child/templates/configmap.yaml' in archive.getnames()
+    parent = subcharts/'Chart.yaml'
+    metadata = parent.read_text()
+    parent.write_text(metadata.split('dependencies:')[0])
+    before = source_files(subcharts)
+    invoke(subcharts,'build',success=False)
+    failed = validate(subcharts/'dist')
+    assert not failed['artifacts'] and source_files(subcharts)==before
+    assert next(a for a in failed['actions'] if a['id']=='project:lint')['status']=='failed'
+    tests = [r for r in failed['reports'] if r['kind']=='test']
+    assert len(tests)==2 and all(r['summary']['passed']==1 for r in tests)
+    parent.write_text(metadata)
     child_suite = subcharts/'charts/child/tests/configmap_test.yaml'
     child_suite.write_text(child_suite.read_text().replace('value: "42"','value: "99"'))
     before = source_files(subcharts)

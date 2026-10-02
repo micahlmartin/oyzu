@@ -2,6 +2,8 @@
 
 The experimental `helm/chart` builder discovers an application or library chart at `Chart.yaml` or `chart/Chart.yaml`. A basic chart needs no Oyzu configuration. If both locations exist, choose explicit target paths in `build.yaml`; ambiguous discovery fails. The [chart example](../../examples/builds/helm-chart/README.md) includes a contained local library dependency and optional native assertion suites.
 
+Vendored children under `charts/` must also be declared in the parent's native `Chart.yaml` dependencies for strict lint. For a contained child, declare its name/version and omit the repository URL. Passing child assertions does not waive this native metadata requirement. If lint reports missing dependencies, correct the parent declaration; Oyzu does not silently add native dependencies or disable the lint gate.
+
 ## Prerequisites and commands
 
 Development commands use an already provisioned Helm executable. Native assertion suites additionally require Python 3.11+ as `python` on PATH and the `helm-unittest` plugin in Helm's configured plugin directory. Oyzu does not install either tool. Local verification used Helm 3.22.0 and helm-unittest 1.2.0 on Windows; Linux native checks are wired into CI. This is not a claim of verified plugin execution on all three hosts.

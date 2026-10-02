@@ -54,4 +54,6 @@ Files such as `scenario.json` and sibling expectation data belong to the example
 
 ## Packaged subchart assertions
 
+Both child-only variants declare the vendored child in the parent's native `Chart.yaml`. No repository URL is needed. Removing that declaration must fail native strict lint even if all child assertions pass; the CLI build keeps lint as a required gate.
+
 `variants/packaged-only` contains a native Helm archive built from `variants/subchart-only/charts/child`. Its parent declares that local dependency without a repository. Run Oyzu directly from the packaged-only variant to exercise static archive-suite discovery, private native dependency preparation, real assertions and snapshot chart/rendered artifacts. No extraction occurs in the checkout. Recreate the child archive using `helm package`, then the owned archive normalization helper if maintaining the fixture; refresh its generated `.tgz.sha256` identity sidecar and do not hand-author archive bytes. Structural example validation checks that identity; native archive probes verify its behavior. A changed child assertion must fail testing and block artifact export. Empty selected suites also fail, even if the native plugin reports a successful exit with zero tests.
