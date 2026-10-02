@@ -457,6 +457,22 @@ Limits are 4096 alias entries, 256 root requests, 4096 constrained tool IDs,
 or `-_.:/`. Invalid/oversized values fail before cloning the bounded collections.
 Nothing is read from disk, downloaded, executed or modified by projection.
 
+`ToolRequestIdentity::parse(json_bytes, admitted_ids)` reads the serialized
+identity record for an internal consumer. The caller supplies canonical IDs
+from a trusted catalog, not from the record. Exactly `requests`,
+`native_constraints`, `required_capabilities` and `digest` are required; extra
+fields and duplicate JSON keys fail. It shares projection's normalization and
+identity calculation, requires already sorted sets and checks the supplied digest
+against the recomputed value. Literal version syntax remains unchanged.
+
+Decoding is bounded to 8 MiB, nesting depth 32 and 10,000 JSON entries before
+typed conversion, followed by the limits above. No files, network or tools are
+accessed. Catalog membership is only a consistency check, not source trust or
+permission to use a backend. A caller must also bind the record's digest to its
+trusted operation context; anyone can compute a digest for a different request.
+This parser supplies the normalized request portion of a future worker payload,
+not the complete resolve-operation schema, broker session or catalog provenance.
+
 After projection, prefer `select_for_tool_requests(workspace, directory, profile,
 requests, platform)`: it checks both the computed digest and canonical request
 map against one captured lock. A lock with a matching digest but an altered

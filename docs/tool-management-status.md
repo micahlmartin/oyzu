@@ -1864,3 +1864,29 @@ This is qualification evidence for the experimental library boundary. It does
 not establish the missing full resolver, native worker supervision, production
 import, license approval or end-to-end tool-management commands. Documentation
 and diff checks pass; no runtime code changed in this checkpoint.
+
+## Checkpoint 130: normalized request records share projection validation
+
+ToolRequestIdentity::parse now decodes a closed JSON identity record against a
+caller-trusted canonical catalog-ID set. It reuses configuration projection's
+normalizer and digest calculation, preserves literal version syntax, requires
+sorted unique constraint/capability sets and rejects digest drift. Unknown fields,
+duplicate JSON keys, absent catalog IDs and malformed records fail. The shared
+strict parser bounds bytes, depth and JSON entries before typed conversion.
+The per-value projection bound remains before copying configuration values.
+
+The roundtrip test starts with actual effective configuration projection, then
+rejects changed requests/digests, unsorted and duplicate sets, unknown command
+fields, duplicate JSON keys and an empty admitted catalog. Existing golden
+request identity and frozen-selection tests remain passing. Windows full locked
+suite, strict Clippy, formatting and nine CLI scenarios pass; after restoring
+the pre-copy value check, all five request tests were rerun on Windows/Linux.
+Linux strict all-target Clippy also passes with networking disabled. Reference
+and code-map updates describe one owner for normalization and its trust boundary;
+documentation/diff checks pass. No dependency or CLI surface changed.
+
+This is the normalized-request portion needed by the future typed resolve payload,
+not that complete payload or dispatch implementation. Catalog provenance, broker
+handles, trusted operation-context binding, native process supervision, backend
+admission and the remaining OEP requirements are still open. A recomputed request
+digest is not authorization and does not identify a trusted sender.

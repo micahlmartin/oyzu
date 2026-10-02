@@ -1,7 +1,7 @@
 //! Effective configuration projection; version interpretation stays in the backend.
 use crate::config::resolve::EffectiveConfig;
 use anyhow::{ensure, Context, Result};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Debug, Serialize)]
@@ -10,6 +10,50 @@ pub struct ToolRequestIdentity {
     pub native_constraints: BTreeMap<String, Vec<String>>,
     pub required_capabilities: Vec<String>,
     pub digest: String,
+}
+
+impl ToolRequestIdentity {
+    /// Decode a closed normalized request record against a caller-trusted set of
+    /// canonical catalog IDs. Recompute its digest with the same rules as config
+    /// projection; never interpret version syntax or grant backend permission.
+    /// JSON duplicates, unknown fields, unsorted sets and identity drift fail.
+    pub fn parse(bytes: &[u8], admitted_ids: &BTreeSet<String>) -> Result<Self> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Record {
+            requests: BTreeMap<String, String>,
+            native_constraints: BTreeMap<String, Vec<String>>,
+            required_capabilities: Vec<String>,
+            digest: String,
+        }
+        let record: Record = serde_json::from_value(crate::config::policy::strict_json_limit(
+            bytes,
+            8 * 1024 * 1024,
+        )?)?;
+        ensure!(admitted_ids.len() <= 4096, "tool catalog exceeds limit");
+        for id in admitted_ids {
+            super::lock::canonical_id(id)?;
+        }
+        super::lock::digest(&record.digest)?;
+        let admitted = admitted_ids.iter().map(String::as_str).collect();
+        let normalized = normalize_requests(
+            record.requests,
+            &record.native_constraints,
+            &record.required_capabilities,
+            &admitted,
+            0,
+        )?;
+        ensure!(
+            normalized.native_constraints == record.native_constraints
+                && normalized.required_capabilities == record.required_capabilities,
+            "tool request sets are not normalized"
+        );
+        ensure!(
+            normalized.digest == record.digest,
+            "tool request identity mismatch"
+        );
+        Ok(normalized)
+    }
 }
 
 /// Project captured effective values using a caller-trusted, unambiguous alias
@@ -51,7 +95,9 @@ pub fn project_tool_requests(
         let version = value
             .as_str()
             .context("tool request must be a literal version string")?;
-        text(version, &mut budget)?;
+        // Bound each copy here; the shared normalizer accounts for the full
+        // request/constraint budget once the canonical request map is complete.
+        text(version, &mut 0)?;
         ensure!(
             requests
                 .insert(canonical.to_owned(), version.to_owned())
@@ -59,6 +105,31 @@ pub fn project_tool_requests(
             "TOOL_ALIAS_AMBIGUOUS: multiple configured names identify the same tool"
         );
         ensure!(requests.len() <= 256, "tool root request limit exceeded");
+    }
+    normalize_requests(
+        requests,
+        native_constraints,
+        required_capabilities,
+        &admitted,
+        budget,
+    )
+}
+
+fn normalize_requests(
+    requests: BTreeMap<String, String>,
+    native_constraints: &BTreeMap<String, Vec<String>>,
+    required_capabilities: &[String],
+    admitted: &BTreeSet<&str>,
+    mut budget: usize,
+) -> Result<ToolRequestIdentity> {
+    ensure!(requests.len() <= 256, "tool root request limit exceeded");
+    for (canonical, version) in &requests {
+        super::lock::canonical_id(canonical)?;
+        ensure!(
+            admitted.contains(canonical.as_str()),
+            "request tool is not admitted in catalog"
+        );
+        text(version, &mut budget)?;
     }
     ensure!(
         native_constraints.len() <= 4096,

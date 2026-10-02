@@ -179,3 +179,58 @@ fn computed_request_identity_drives_frozen_selection_and_stale_config_denial() {
     .to_string()
     .contains("locked request map"));
 }
+
+#[test]
+fn normalized_request_record_roundtrips_projection_and_rejects_wire_drift() {
+    use serde_json::json;
+    use std::collections::BTreeSet;
+    let projected = tools::project_tool_requests(
+        &effective("[tools]\nnode='>=22 <24'"),
+        &catalog(),
+        &BTreeMap::from([("core:node".into(), vec![">=20".into(), "<25".into()])]),
+        &["prebuilt".into(), "exec".into()],
+    )
+    .unwrap();
+    let admitted = BTreeSet::from(["core:node".to_owned()]);
+    let encoded = serde_json::to_vec(&projected).unwrap();
+    let parsed = tools::ToolRequestIdentity::parse(&encoded, &admitted).unwrap();
+    assert_eq!(parsed.digest, projected.digest);
+    assert_eq!(parsed.requests["core:node"], ">=22 <24");
+    assert_eq!(parsed.native_constraints, projected.native_constraints);
+    assert_eq!(
+        parsed.required_capabilities,
+        projected.required_capabilities
+    );
+    assert!(tools::ToolRequestIdentity::parse(&encoded, &BTreeSet::new()).is_err());
+    let original = serde_json::to_value(&projected).unwrap();
+    for (pointer, value) in [
+        ("/requests/core:node", json!("24")),
+        ("/native_constraints/core:node", json!([">=20", "<25"])),
+        ("/native_constraints/core:node", json!(["<25", "<25"])),
+        ("/required_capabilities", json!(["prebuilt", "exec"])),
+        ("/required_capabilities", json!(["exec", "exec"])),
+        ("/digest", json!(format!("sha256:{}", "0".repeat(64)))),
+    ] {
+        let mut changed = original.clone();
+        *changed.pointer_mut(pointer).unwrap() = value;
+        assert!(
+            tools::ToolRequestIdentity::parse(&serde_json::to_vec(&changed).unwrap(), &admitted)
+                .is_err(),
+            "{pointer}"
+        );
+    }
+    let mut unknown = original;
+    unknown["command"] = json!("not a worker command");
+    assert!(
+        tools::ToolRequestIdentity::parse(&serde_json::to_vec(&unknown).unwrap(), &admitted)
+            .is_err()
+    );
+    let duplicate = format!(
+        "{{\"digest\":\"{}\",{}",
+        projected.digest,
+        std::str::from_utf8(&encoded)
+            .unwrap()
+            .trim_start_matches('{')
+    );
+    assert!(tools::ToolRequestIdentity::parse(duplicate.as_bytes(), &admitted).is_err());
+}
