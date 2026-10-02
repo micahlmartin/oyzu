@@ -44,3 +44,11 @@ ownership are specified in the [maintenance procedure](../proposals/OEP-0003-mis
 Unit tests cover exact pin/lock agreement, moving/wrong sources and absence of
 production integration. Current live observation evidence is recorded in
 [implementation status](../implementation-status.md).
+
+The candidate embedding boundary is tracked in
+[fork draft PR 2](https://github.com/oyzuai/mise/pull/2), stacked on the compliance
+foundation. Its library-only conformance example checks private initialization,
+transport restrictions, settings resets, duplicate PATH entries and the actual
+Node backend parser/resolver with fixture metadata. It is not Oyzu's production
+Cargo dependency. Its native CI matrix and compliance review gate must be checked
+against the exact candidate head; old experiment results do not qualify it.

@@ -8,7 +8,7 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 
 | Responsibility | Current entry points | Boundary to preserve as the code grows |
 | --- | --- | --- |
-| Tool identity and store | `src/tools/`, `src/tools/lock/`, `src/tools/store/` | Own bounded lock/closure identities and handle-anchored payload observation; native filesystem access stays under store/access; inspection does not confer backend admission, policy or execution authority |
+| Tool identity and store | `src/tools/`, `src/tools/lock/`, `src/tools/store/` | Own bounded lock/closure identities, verified archive materialization and handle-anchored payload observation; native filesystem access stays under store/access; staging/inspection does not confer backend admission, policy or execution authority |
 | CLI input and output | `src/main.rs`, `src/config_args.rs`, `src/presentation.rs` | Parse arguments, call operations, render results; keep business rules in the library |
 | Invocation composition | `src/invocation.rs` | Capture configuration before shared non-executing target selection; compose subsystem operations without moving their rules into CLI parsing |
 | Configuration | `src/config.rs`, `src/config/` | Own bounded source capture, typed settings, profiles, constraints, immutable resolution and edits; keep protected policy verification and effectful refresh separate from pure resolution |

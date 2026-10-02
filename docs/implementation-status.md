@@ -739,3 +739,47 @@ The previous [run 36962956724](https://github.com/micahlmartin/oyzu/actions/runs
 The older [run 36959555496](https://github.com/micahlmartin/oyzu/actions/runs/36959555496) completed with a captured-build failure in generated hook fixture source that did not satisfy the newly active formatting gate. The hook and subsequent isolation probe fixtures now use the existing native formatter during fixture authoring, before capture. Their generated sources passed local native formatting checks, and the hook source also passed lint. The build gate is unchanged; no formatting is added to build execution. Container verification of the corrected fixtures remains pending.
 
 CI now runs Biome CLI probes on all three hosts and adds Linux captured-build cases requiring a snapshot npm archive, collected JUnit/coverage, unchanged source and artifact rejection after real Biome lint/format failures. No local container engine was available, so those new isolated cases have not been locally verified. The full builder/scenario objective remains active, including member task groups, other manager workspaces, broader framework coverage and the outstanding capabilities recorded above.
+
+## Checkpoint 40: verified archive staging and fork embedding boundary
+
+OEP-0003 TM-04 now includes tar/gzip materialization into empty caller-owned
+staging. Locked archive size/SHA-256 are verified into an unnamed private file
+before extraction. Writes use the native no-follow handle layer, new files cannot
+overwrite existing entries, links are created after regular writes, and the
+complete tree is inspected before returning. Entry, file, expansion, depth,
+extension and aggregate path/target limits fail closed. Raw tar iteration bounds
+GNU extension allocation. Publication, receipts, leases and acquisition remain
+unimplemented; this is not a working `oyzu install` command. ZIP/PAX, archive
+hardlinks and Windows symlink layouts are unsupported. See the
+[materialization contract](reference/tool-lock-inspection.md#archive-materialization-foundation).
+
+On Windows GNU Rust 1.94, the full suite passed (164 tests; two existing worker
+fixtures ignored), along with strict all-target Clippy, formatting and all nine
+real CLI task scenarios. Four archive integration tests cover byte verification,
+empty staging, traversal/aliases, collisions, special files, GNU bounds, gzip
+corruption and expansion bombs. Linux Docker Rust 1.94 passed six archive
+integration tests (including internal/escaping/cyclic symlinks and nonblocking
+rejection of FIFO/symlink archive sources), a native writer
+test that replaces a held root and attempts an existing-link write, and strict
+all-target Clippy. These are store algorithm tests, not backend installation
+acceptance. No new dependency or copied third-party implementation was added.
+
+[Fork draft PR 2](https://github.com/oyzuai/mise/pull/2) now contains a single-use
+embedding context with private roots, no config discovery, mandatory supplied
+HTTP transport, denied direct-client access, immutable settings reloads,
+frontend-owned shims and verbatim PATH composition. On Linux Rust 1.95 its five
+fresh-process scenarios and library/example Clippy passed. The fifth scenario
+uses mise's actual Node parser/resolver with fixture catalog metadata, resolving
+`22` to `22.15.0`; it is not a real download/install test. Fourteen compliance
+regressions passed and the existing 1,109 lock records remain unreviewed. The
+native three-host workflow is running on candidate `c404d20b2`; native results
+must be inspected before claiming qualification. The compliance CI correctly
+requires @micahlmartin's current-head review; owner assignment does not satisfy
+that review. Oyzu still has no production mise Cargo dependency.
+
+The prior Oyzu [CI run 36964551092](https://github.com/micahlmartin/oyzu/actions/runs/36964551092)
+passed all three CLI builds and macOS/Linux task jobs, but Windows failed during
+native npm workspace acquisition with an invalid root dependency on
+`@oyzu-example/shared`. That failure remains unresolved; local archive checks
+do not establish that the whole draft PR is green. Full OEP-0003 implementation,
+licensing approval and end-to-end qualification remain outstanding.

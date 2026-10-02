@@ -179,7 +179,7 @@ fn tool_key(tool: &Tool) -> Result<String> {
     )
 }
 
-fn digest(value: &str) -> Result<()> {
+pub(super) fn digest(value: &str) -> Result<()> {
     ensure!(
         value.len() == 71
             && value.starts_with("sha256:")

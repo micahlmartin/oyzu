@@ -16,6 +16,54 @@ pub(in crate::tools::store) struct Directory {
 }
 
 impl Directory {
+    pub fn duplicate(&self) -> Result<Self> {
+        Ok(Self {
+            handle: self.handle.try_clone()?,
+        })
+    }
+
+    pub fn create_directory(&self, name: &str) -> Result<Self> {
+        component(name)?;
+        let native = native_name(name)?;
+        let result = unsafe { libc::mkdirat(self.handle.as_raw_fd(), native.as_ptr(), 0o700) };
+        if result != 0 {
+            let error = io::Error::last_os_error();
+            ensure!(
+                error.kind() == io::ErrorKind::AlreadyExists,
+                "create payload directory: {error}"
+            );
+        }
+        self.child(name)
+    }
+
+    pub fn create_file(&self, name: &str) -> Result<File> {
+        component(name)?;
+        let name = native_name(name)?;
+        let fd = unsafe {
+            libc::openat(
+                self.handle.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_WRONLY | libc::O_CREAT | libc::O_EXCL | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        owned(fd)
+    }
+
+    pub fn create_link(&self, name: &str, target: &str) -> Result<()> {
+        component(name)?;
+        let name = native_name(name)?;
+        let target = CString::new(target)?;
+        let result =
+            unsafe { libc::symlinkat(target.as_ptr(), self.handle.as_raw_fd(), name.as_ptr()) };
+        ensure!(
+            result == 0,
+            "create payload symlink: {}",
+            io::Error::last_os_error()
+        );
+        Ok(())
+    }
+
     pub fn open(path: &Path) -> Result<Self> {
         ensure!(path.is_absolute(), "store root must be absolute");
         let fd = unsafe {

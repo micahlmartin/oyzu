@@ -100,4 +100,39 @@ verification also fail. Limits cannot be raised by project input.
 a malicious same-user writer. The scanner reads all bytes and uses no mtime-only
 cache, but a trusted receipt comparison, healthy monitor or private managed
 materialization is still required at the selection/execution boundary. Those
-store operations and the archive finalizer are not implemented yet.
+receipt/publication operations are not implemented yet.
+
+## Archive materialization foundation
+
+The Rust library's `tools::materialize_archive` accepts an archive source, an
+empty operation-owned staging directory, the expected SHA-256 and exact byte
+size, and whether the archive is gzip compressed. This is a store implementation
+boundary, not a CLI install command or a stable external plugin interface.
+It does not acquire bytes, authorize a backend, execute anything, write a receipt
+or publish an installation. Failed staging must be discarded by the caller.
+
+Source and staging paths must have physical, non-symlink ancestors. The source
+must be a regular file; no-follow opens reject symlinks and special files before
+reads. The source is copied through a bounded buffer into a private unnamed file while
+checking its locked identity. Extraction reads that verified file, never a
+reopened source path. Unix writes use descriptor-relative no-follow operations;
+Windows holds ancestor directories against replacement and creates new files
+without following reparse points. Existing staging content is rejected.
+
+The initial implementation accepts regular files, directories and bounded GNU
+long-name/link extensions in tar or gzip-compressed tar. Symlinks are delayed
+until all file writes finish, then checked against the complete payload graph.
+Windows symlink materialization, hardlinks, PAX, sparse entries, ZIP and other
+formats remain unsupported and fail; backend admission must account for these
+limits. Ownership, set-ID and archive directory permissions are not imported:
+directories are private and traversable, files are private with Unix executable
+bits retained. A reviewed layout plan is still required for final permissions.
+
+Bounds include 200,000 raw and expanded entries, 8 GiB input/expanded bytes,
+1 GiB per file, depth 64, 16 KiB GNU extension bodies and a 200:1 gzip expansion
+ratio. The decoder is drained after tar's end marker so gzip trailers and trailing
+expanded data are checked. Paths reject traversal, absolute names, case aliases,
+Windows devices/ADS and conflicting parent types. The returned tree observation
+still does not attest policy, receipt authenticity or an atomic snapshot against
+a malicious same-user writer. This is partial TM-04/MISE-13 evidence, not a
+complete installation or backend acceptance result.

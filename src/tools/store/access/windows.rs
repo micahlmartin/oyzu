@@ -22,6 +22,42 @@ pub(in crate::tools::store) struct Directory {
 }
 
 impl Directory {
+    pub fn duplicate(&self) -> Result<Self> {
+        Ok(Self {
+            path: self.path.clone(),
+            handles: self
+                .handles
+                .iter()
+                .map(File::try_clone)
+                .collect::<std::io::Result<_>>()?,
+        })
+    }
+
+    pub fn create_directory(&self, name: &str) -> Result<Self> {
+        component(name)?;
+        if let Err(error) = fs::create_dir(self.path.join(name)) {
+            ensure!(
+                error.kind() == std::io::ErrorKind::AlreadyExists,
+                "create payload directory: {error}"
+            );
+        }
+        self.child(name)
+    }
+
+    pub fn create_file(&self, name: &str) -> Result<File> {
+        component(name)?;
+        Ok(OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .share_mode(FILE_SHARE_READ)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(self.path.join(name))?)
+    }
+
+    pub fn create_link(&self, _name: &str, _target: &str) -> Result<()> {
+        anyhow::bail!("archive symlink layout is not yet admitted on Windows")
+    }
+
     pub fn open(path: &Path) -> Result<Self> {
         ensure!(path.is_absolute(), "store root must be absolute");
         let mut directory = Self {

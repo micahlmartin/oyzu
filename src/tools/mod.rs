@@ -62,3 +62,24 @@ pub fn inspect_lock(path: &Path) -> Result<LockInspection> {
 pub fn inspect_tree(path: &Path) -> Result<TreeInspection> {
     store::inspect(&std::path::absolute(path)?)
 }
+
+/// Materialize verified tar bytes into an empty operation-owned staging
+/// directory. On failure the caller must discard staging. This does not publish
+/// an installation, produce a receipt, execute code or grant selection authority.
+/// GNU tar and gzip are supported; PAX, hardlinks and Windows symlinks are not yet
+/// admitted. Source and staging must not be concurrently writable by other users.
+pub fn materialize_archive(
+    source: &Path,
+    staging: &Path,
+    digest: &str,
+    size: u64,
+    gzip: bool,
+) -> Result<TreeInspection> {
+    store::materialize(
+        &std::path::absolute(source)?,
+        &std::path::absolute(staging)?,
+        digest,
+        size,
+        gzip,
+    )
+}
