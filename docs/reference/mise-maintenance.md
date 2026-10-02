@@ -696,3 +696,30 @@ and selection, not the supplied HTTP transport or complete Python Session API.
 The fork workflow now provisions independently captured inputs with a pinned
 helper and retains fixture/report evidence for 30 days; native results for this
 new replay remain pending. Ordinary library test runs skip this opt-in test.
+
+### Experimental Python catalog artifact API
+
+The fork's `Session::python_catalog_artifact(version, target, locked_filename)`
+returns catalog claims for an exact stable CPython version. Supported targets are
+`linux/amd64/gnu`, `darwin/arm64/native` and `windows/amd64/msvc`. The session must
+admit `python` and supply metadata transport. Version ranges, PyPy, source builds,
+other targets and custom flavors are outside this API. Oyzu TOML and lockfiles
+remain frontend-owned; this does not expose mise project configuration.
+
+The result includes version, target, catalog URL and original gzip-byte SHA-256,
+release, filename and archive URL. Only install-only and install-only-stripped
+`.tar.gz` artifacts with complete expected identities are returned. A supplied
+locked filename must exist exactly; missing versions, substituted artifacts,
+malformed filenames and corrupt/oversized catalogs fail. Without a locked filename,
+upstream selection ranks the available builds. Each call obtains its own catalog;
+there is no cross-call snapshot or cache guarantee yet.
+
+Only catalog HTTP requests use the supplied transport. This API does not acquire
+artifact bytes or checksum sidecars, run subprocesses, verify attestations or
+install tools. Catalog hashes identify inputs; they do not authenticate publishers
+or verify artifact bytes. Offline use requires the supplied transport to replay
+retained metadata. At fork revision `c31fc1decd06313ec3f883e555722f9e9b5a1aaf`, Linux real-catalog
+replay, formatting, strict library/example Clippy and all 25 embedding scenarios
+pass, including invalid-input, catalog-only transport, offline and unadmitted
+Python cases. Native API results remain pending. The production Oyzu CLI does
+not yet expose this API and Python backend admission remains incomplete.

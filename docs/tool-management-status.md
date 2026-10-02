@@ -2072,3 +2072,18 @@ and reports. Those new native results remain pending. The maintenance reference
 contains reproduction instructions and boundaries: this is private parser/selector
 coverage, not HTTP transport, a Python resolver API, installation, or approval.
 Documentation and diff checks pass; full OEP-0003 remains in progress.
+
+## Checkpoint 143: Python catalog-only artifact facts
+
+Fork c31fc1decd06313ec3f883e555722f9e9b5a1aaf adds the explicit-target
+Session Python catalog API, reusing upstream selection without lock-resolution's
+artifact acquisition/provenance effects. The maintenance reference defines its
+inputs, outputs, transport, supported layouts and remaining obligations. Linux
+passes real-catalog replay, formatting, strict library/example Clippy and all
+25 embedding scenarios; three new cases exercise the public API and denials.
+Compliance inventory remains consistent; 24 guard tests pass with two symlink
+skips. Native API CI is pending. No production mise import is introduced.
+
+This advances TM-03/TM-06 metadata handling, not Python version resolution,
+artifact checksum/attestation verification, installation or distribution approval.
+Documentation and diff checks pass. OEP-0003 remains in progress.
