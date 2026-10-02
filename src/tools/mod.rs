@@ -1,7 +1,9 @@
 //! Oyzu-owned tool identity and verified content storage. Inspection is read-only;
 //! cache/publication mutations require caller admission and confer no execution
 //! authority. Backend admission and current policy remain separate gates.
+mod backend;
 mod lock;
+pub use backend::{inspect as inspect_backend, BackendInspection};
 mod store;
 pub use store::InstallationLease;
 pub use store::LeaseRecovery;

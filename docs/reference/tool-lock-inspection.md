@@ -401,6 +401,25 @@ shapes offline. The checker rejects duplicate JSON keys and nonlocal schema
 references. Descriptor fixtures cover four valid shapes and thirteen rejected
 shapes, including floating refs, omitted identities, open records and unsafe
 integers. Schema checks do not establish sorted feature order, provenance,
-canonical descriptor hashing, compatibility or admission. Rust descriptor parsing
-and schema/runtime agreement are still unimplemented; the CLI does not consume
-this record yet. No stable project configuration syntax is introduced.
+canonical descriptor hashing, compatibility or admission. The Rust parser checks the shared fixtures and additionally requires features to
+be sorted and unique. No stable project configuration syntax is introduced.
+
+`oyzu tools inspect-backend PATH` reads a regular JSON file, bounded to 2 MiB
+plus one overflow probe. Relative paths use `-C`, then `--root`, then the current
+directory. It emits JSON with `digest`, `source_pin` and
+`validation: "structure-and-identity-only"`, regardless of `--json`. Success exits
+0; malformed, oversized or unreadable input exits 2. It rejects unknown/duplicate
+fields, omitted nullable identities, malformed digests, floating source refs and
+unsafe revisions. It never reads project/mise configuration, accesses the network,
+executes backend code or changes files. Repair input explicitly and rerun on error.
+
+```sh
+oyzu tools inspect-backend tests/fixtures/tool-backend/descriptor.json
+```
+
+The example is synthetic and cannot authorize installation. The digest uses
+`oyzu.backend.v1`, a zero byte and canonical JSON through the shared record encoder.
+A checked-in golden identity and per-field mutation tests verify identity binding;
+formatting differences do not change it. Compiled descriptor admission, provenance
+validation, source licensing approval and compatibility remain separate unimplemented
+gates. A self-consistent malicious descriptor can pass inspection.

@@ -59,10 +59,15 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum ToolCommand {
+    /// Validate a backend descriptor identity without admitting its source.
+    #[command(name = "inspect-backend")]
+    Backend { path: PathBuf },
     /// Observe a payload tree without following links or trusting a receipt.
-    InspectTree { path: PathBuf },
+    #[command(name = "inspect-tree")]
+    Tree { path: PathBuf },
     /// Validate format-2 lock structure and identity (not trust or installed state).
-    InspectLock {
+    #[command(name = "inspect-lock")]
+    Lock {
         #[arg(default_value = "oyzu.lock")]
         path: PathBuf,
     },
@@ -95,7 +100,18 @@ fn run() -> Result<i32> {
     };
     match &cli.command {
         Commands::Tools {
-            command: ToolCommand::InspectTree { path },
+            command: ToolCommand::Backend { path },
+        } => {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&oyzu::tools::inspect_backend(
+                    &directory.join(path)
+                )?)?
+            );
+            return Ok(0);
+        }
+        Commands::Tools {
+            command: ToolCommand::Tree { path },
         } => {
             println!(
                 "{}",
@@ -104,7 +120,7 @@ fn run() -> Result<i32> {
             return Ok(0);
         }
         Commands::Tools {
-            command: ToolCommand::InspectLock { path },
+            command: ToolCommand::Lock { path },
         } => {
             println!(
                 "{}",

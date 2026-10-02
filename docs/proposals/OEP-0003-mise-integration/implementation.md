@@ -19,7 +19,8 @@ unimplemented unless existing components are explicitly identified as foundation
 TM-01 now has draft versioned layout and receipt JSON schemas with shared
 invalid-shape fixtures checked by the schema validator and Rust runtime. A draft
 backend descriptor schema and shape fixtures now encode the specified identity
-fields; Rust descriptor parsing and semantic agreement remain outstanding. Worker
+fields; bounded Rust parsing, shared shape tests and canonical identity inspection
+are implemented. Compiled descriptor admission remains outstanding. Worker
 and selection-grant schemas remain outstanding.
 
 ## Dependency order and deliverables

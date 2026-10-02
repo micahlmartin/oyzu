@@ -569,3 +569,21 @@ thirteen invalid descriptor fixtures. All descriptor/layout/receipt shape checks
 pass, as do documentation structure checks. Runtime descriptor parsing, sorted
 feature semantics, canonical identity vectors and compiled backend admission
 remain outstanding; this is not production source integration or TM-01 completion.
+
+## Checkpoint 66: runtime backend descriptor identity inspection
+
+TM-01 adds `oyzu tools inspect-backend PATH`, backed by a private descriptor
+module and the existing strict JSON/canonical record encoders. It reads at most
+2 MiB plus an overflow probe, requires explicit nullable identities and exact
+source/digest shapes, bounds revision integers and requires sorted unique features.
+Output reports identity only; it cannot authorize source imports or installations.
+The runtime consumes all shared descriptor fixtures, rejects duplicate keys,
+unsorted features and oversize input, and binds every field against a canonical
+golden digest. A real CLI test verifies read-only behavior, failure exit status
+and independence from malformed Oyzu/mise configuration. Compiled admission,
+compatibility and reviewed source integration remain outstanding.
+
+Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and all
+nine real CLI task scenarios passed. Linux descriptor unit tests, all three tool
+inspection CLI regressions and strict all-target Clippy passed. Shared schema
+fixtures and documentation checks passed; native macOS confirmation is pending.
