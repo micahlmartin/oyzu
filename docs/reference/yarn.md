@@ -41,6 +41,8 @@ This follows Yarn's [documented offline mirror](https://classic.yarnpkg.com/blog
 
 ## Outputs, failures and migration
 
+A finite `matrix.node` in `build.yaml` selects exact provisioned runtimes while retaining native Classic lock and selective-resolution semantics. Each variant has separate runtime evidence, tasks, reports and snapshot archives. See [runtime matrices](runtime-matrices.md) for provisioning, failure behavior, limits and measured verification. Modern Yarn and workspace support remain separate unfinished capabilities.
+
 Successful builds emit native snapshot `.tgz` packages, normalized for repeatable archive metadata. The embedded package version matches the artifact version. `dist/manifest.json` records actual artifacts, tests and coverage, with dependency snapshots and native logs alongside it. Failed tests retain reports and block packaging. Bundle inspection checks content integrity; it does not establish release trust.
 
 Dependency adapter layout `2` records names, versions, source IDs, SHA-256 digests and sizes. The `oyzu.dev/yarn` extension records `lockfile-sha512` integrity and all-locked-registry-tarballs inventory. Purpose is currently classified as build input; dependency edges and runtime/test classifications are not modeled. These records are not a complete runtime SBOM.

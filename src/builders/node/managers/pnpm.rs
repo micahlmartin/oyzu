@@ -54,6 +54,9 @@ impl Manager for Pnpm {
     fn image(&self) -> &'static str {
         "oyzu-toolchain/node:pnpm10.11.0-node22"
     }
+    fn runtime_image(&self, node: &str) -> Result<String> {
+        super::runtime_image(self.image(), node)
+    }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
         let required = self.validate(&context.target.path)?;
         let sources = if required {

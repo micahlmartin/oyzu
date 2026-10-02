@@ -46,6 +46,9 @@ impl Manager for Yarn {
     fn image(&self) -> &'static str {
         "oyzu-toolchain/node:yarn1.22.22-node22"
     }
+    fn runtime_image(&self, node: &str) -> Result<String> {
+        super::runtime_image(self.image(), node)
+    }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
         let sources = if self.validate(&context.target.path)? {
             vec![

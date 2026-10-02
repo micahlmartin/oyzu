@@ -6,6 +6,8 @@ This is repository-wide engineering guidance for contributors and coding agents.
 
 Oyzu currently uses one Rust package with a library and CLI binary. Modules establish boundaries now; separate crates are a later option when reuse, dependency isolation or distribution warrants them. A new ecosystem does not automatically need a new crate.
 
+Dependency direction is a reviewable constraint: entry points compose library operations; operations consume owned contracts; adapters implement those contracts. Registration may name concrete adapters. An adapter must not import CLI/UI code or another ecosystem's implementation. For example, packaging a Go binary in a Docker image should connect the producer and consumer through the shared artifact/materialization contract, not make the Docker builder call the Go builder. If both need the same rule, put that rule with its actual shared owner. This preserves reuse from future agent and platform entry points without requiring those entry points to exist today.
+
 | Responsibility | Current entry points | Boundary to preserve as the code grows |
 | --- | --- | --- |
 | CLI input and output | `src/main.rs`, `src/config_args.rs`, `src/presentation.rs` | Parse arguments, call operations, render results; keep business rules in the library |
@@ -55,6 +57,8 @@ Existing broad public modules, dynamic records and partially combined responsibi
 Configuration owns `BuildInventory`: a single bounded parse of build.yaml with the digest of those exact bytes. Discovery's inventory selection retains it in `Workspace`; build selection, target ordering and compilation consume it without reopening the file. Build planning verifies agreement with the captured source inventory before preparation and when compiling a plan. This is a stable input boundary for future variant expansion, not an implementation of matrix execution. The frozen declarations are internal state, not reconstructed from serialized discovery output.
 
 ## Interfaces that earn their place
+
+`builders/node/toolchain` owns exact Node version validation, preparation environment and observed-version checks. Native managers opt into runtime selection through `Manager::runtime_image`; their default image remains the single owner of the manager/version family. The shared `node-runtime.mjs` verifies the actual interpreter at npm and pnpm/Yarn entrypoints. Each adapter retains its native dependency formats, engine checks and installation semantics. Node planning reads runtime evidence from the selected manager's existing dependency extension; shared build planning never switches on manager names.
 
 `build/variants` derives concrete target/task instances and dependency matching from the frozen inventory. It owns portable IDs, bounds and build-only root-stage aliases; it does not parse native runtime versions or resolve images. Selection recomputes producer closure after expansion. `Builder::variant_toolchain` admits supported runtime profiles and selects provisioned image references; the Node/npm adapter validates actual runtime and native engine compatibility during preparation. Shared planning preserves variant identity in target/artifact records and passes original operation names to reporting adapters even when graph identities use root aliases. See [runtime matrices](reference/runtime-matrices.md) for limits and verification scope.
 

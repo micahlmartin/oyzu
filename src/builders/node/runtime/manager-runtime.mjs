@@ -3,10 +3,12 @@ import {spawn} from 'node:child_process';
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {verifyNodeVersion} from './node-runtime.mjs';
 
 export async function run(profile) {
   const [mode, output = mode === 'acquire' ? '/out' : '/dependencies', workspace = '/workspace', broker = '/broker'] = process.argv.slice(2);
   if (!['acquire', 'install'].includes(mode)) throw new Error('expected acquire or install');
+  verifyNodeVersion();
   const temporary = mkdtempSync(join(tmpdir(), `oyzu-${profile.id}-`));
   const environment = {...process.env, HOME:join(temporary,'home'), USERPROFILE:join(temporary,'home'),
     XDG_CONFIG_HOME:join(temporary,'config'), XDG_DATA_HOME:join(temporary,'data'),

@@ -481,7 +481,7 @@ mod tests {
                 .contains("exact major.minor.patch"));
         }
         target.variant.insert("node".into(), "24.14.1".into());
-        target.manager = "pnpm".into();
+        target.manager = "unknown".into();
         assert!(builder.variant_toolchain(&target).is_err());
     }
 }

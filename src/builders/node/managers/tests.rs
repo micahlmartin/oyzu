@@ -72,6 +72,49 @@ fn manager_profiles_keep_native_packing_and_report_forwarding() {
         assert!(override_command
             .iter()
             .any(|arg| arg.contains("/out/custom.xml")));
+        let mut variant = target.clone();
+        variant.variant.insert("node".into(), "24.14.1".into());
+        assert!(builder
+            .variant_toolchain(&variant)
+            .unwrap()
+            .contains(&format!("/node:{manager}")));
+        assert!(builder
+            .variant_toolchain(&variant)
+            .unwrap()
+            .ends_with("-node24.14.1"));
+        assert!(builder
+            .plan(PlanningContext {
+                target: &variant,
+                source: &source,
+                dependencies: Some(&prepared),
+            })
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("preflight evidence"));
+        let namespace = format!("oyzu.dev/{manager}");
+        let mut observed = Prepared {
+            root: capture.path().into(),
+            digest: prepared.digest.clone(),
+            record: json!({"extensions":{namespace.clone(): {"nodeVersion":"22.14.0"}}}),
+        };
+        assert!(builder
+            .plan(PlanningContext {
+                target: &variant,
+                source: &source,
+                dependencies: Some(&observed),
+            })
+            .is_err());
+        observed.record["extensions"][&namespace]["nodeVersion"] = json!("24.14.1");
+        let variant_plan = builder
+            .plan(PlanningContext {
+                target: &variant,
+                source: &source,
+                dependencies: Some(&observed),
+            })
+            .unwrap();
+        assert_eq!(variant_plan.package.argv, plan.package.argv);
+        assert_eq!(variant_plan.tasks["test"].argv, plan.tasks["test"].argv);
         let package_file = capture.path().join("source/package.json");
         let mut package = crate::records::read(&package_file).unwrap();
         package["dependencies"]["uncaptured"] = "1.0.0".into();

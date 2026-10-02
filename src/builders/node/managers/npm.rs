@@ -25,6 +25,9 @@ impl Manager for Npm {
     fn image(&self) -> &'static str {
         "oyzu-toolchain/node:npm11.11.0-node22"
     }
+    fn runtime_image(&self, node: &str) -> Result<String> {
+        super::runtime_image(self.image(), node)
+    }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
         preparation::prepare(context)
     }

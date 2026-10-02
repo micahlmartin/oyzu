@@ -1,6 +1,7 @@
 """EX-032: execute both authored runtimes and verify separate native evidence."""
 import json
 import shutil
+import tarfile
 
 from .node_fixtures import format_sources
 
@@ -75,3 +76,60 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(a for a in failed['actions'] if a['id'] == f"{targets['22.14.0']}:post_root-test")['status'] == 'succeeded'
     invoke(project, 'inspect', 'dist')
     verified.append('EX-032: Node 22.14.0/24.14.1 native preflight, isolated build/test/quality actions, versioned directories, JUnit/coverage, repeatability, runtime mismatch and engine rejection')
+    verify_manager_matrices(root, base, invoke, validate, source_files, verified)
+
+
+def verify_manager_matrices(root, base, invoke, validate, source_files, verified):
+    for manager, native_version, fixture in [
+        ('pnpm', '10.11.0', 'pnpm-patches'),
+        ('yarn', '1.22.22', 'yarn-resolutions'),
+    ]:
+        project = base/f'{manager}-runtime-matrix'
+        shutil.copytree(root/'examples/builds/node-managers/variants'/fixture, project)
+        (project/'build.yaml').write_text('app:\n  uses: node/package\n  matrix:\n    node: ["22.14.0", "24.14.1"]\n')
+        before = source_files(project)
+        tasks = invoke(project, 'run', 'list', '--json')
+        assert tasks['app:test']['argv'] == [manager, 'run', 'test']
+        invoke(project, 'build')
+        manifest = validate(project/'dist')
+        assert manifest['status'] == 'succeeded' and source_files(project) == before
+        targets = {t['variant']['node']: t['id'] for t in manifest['targets']}
+        assert set(targets) == {'22.14.0', '24.14.1'}
+        assert len(manifest['artifacts']) == 2
+        for version, target in targets.items():
+            artifact, = [a for a in manifest['artifacts'] if a['target'] == target]
+            assert artifact['kind'] == 'file' and artifact['variant'] == {'node': version}
+            assert '-dev.g' in artifact['version'] and artifact['version'] in artifact['path']
+            with tarfile.open(project/'dist'/artifact['path']) as package:
+                assert json.load(package.extractfile('package/package.json'))['version'] == artifact['version']
+                assert 'package/dist/greeting.mjs' in package.getnames()
+            dependency = json.loads((project/'dist/dependencies'/f'{target}.json').read_text())
+            assert dependency['manager']['version'] == native_version
+            assert dependency['extensions'][f'oyzu.dev/{manager}']['nodeVersion'] == version
+            assert dependency['packages']
+            if manager == 'pnpm':
+                assert dependency['extensions']['oyzu.dev/pnpm']['sourcePatches']
+            reports = [r for r in manifest['reports'] if r['target'] == target]
+            assert {r['kind'] for r in reports} == {'test', 'coverage'}
+            assert all(r['status'] == 'collected' for r in reports)
+            assert next(r for r in reports if r['kind'] == 'test')['summary']['passed'] >= 4
+            assert next(r for r in reports if r['kind'] == 'coverage')['summary']['covered'] > 0
+            for stage in ['build', 'test', 'lint', 'format-check', 'package']:
+                assert next(a for a in manifest['actions'] if a['id'] == f'{target}:{stage}')['status'] == 'succeeded'
+        invoke(project, 'inspect', 'dist')
+        repeated = invoke(project, 'build')
+        assert repeated['planDigest'] == manifest['planDigest']
+        assert [(a['target'], a['digest']) for a in repeated['artifacts']] == [(a['target'], a['digest']) for a in manifest['artifacts']]
+        invoke(project, 'build', '--image', f'{manager}=oyzu-toolchain/node:{manager}{native_version}-node24.14.1', success=False)
+        failed = validate(project/'dist')
+        assert not failed['actions'] and not failed['artifacts']
+        assert 'does not match provisioned Node' in failed['diagnostics'][0]['message']
+        package_path = project/'package.json'
+        package = json.loads(package_path.read_text())
+        package.setdefault('engines', {})['node'] = '>=999'
+        package_path.write_text(json.dumps(package))
+        invoke(project, 'build', success=False)
+        failed = validate(project/'dist')
+        assert not failed['actions'] and not failed['artifacts']
+        assert 'engine' in failed['diagnostics'][0]['message'].lower()
+        verified.append(f'Node matrix {manager}: both exact runtimes, native {fixture}, frozen dependency replay, versioned archives, native tests/coverage/quality, repeatability and mismatched-runtime rejection')

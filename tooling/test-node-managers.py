@@ -18,6 +18,7 @@ def main():
     parser.add_argument('--yarn-cli', type=Path, required=True)
     parser.add_argument('--tar-stream', type=Path, required=True)
     args = parser.parse_args()
+    node_version = subprocess.check_output(['node', '-p', 'process.versions.node'], text=True).strip()
     os.environ['OYZU_PNPM_YAML'] = str(args.pnpm_cli.resolve().parents[2] / 'yaml')
     os.environ['OYZU_YARN_LOCKFILE'] = str(args.yarn_cli.resolve().parents[2] / '@yarnpkg/lockfile')
     with tempfile.TemporaryDirectory(prefix='oyzu-native-managers-') as temporary:
@@ -42,6 +43,8 @@ def main():
             output.mkdir()
 
             def execute(command, success=True, env=None):
+                if env is None:
+                    env = {**os.environ, 'OYZU_EXPECT_NODE': node_version}
                 result = subprocess.run(command,cwd=project,env=env,capture_output=True,text=True,encoding='utf-8',timeout=120)
                 assert (result.returncode == 0) == success, result.stdout + result.stderr
                 return result
@@ -49,7 +52,19 @@ def main():
             execute(['node',str(wrapper),'acquire',str(output),str(project)])
             assert not (project / 'lifecycle-ran').exists()
             inventory = json.loads((output / 'inventory.json').read_text())
-            assert inventory['version'] == expected
+            assert inventory['version'] == expected and inventory['nodeVersion'] == node_version
+            denied = base/(manager+'-runtime-denied')
+            denied.mkdir()
+            mismatch = execute(['node', str(wrapper), 'acquire', str(denied), str(project)], False,
+                               {**os.environ, 'OYZU_EXPECT_NODE': '0.0.0'})
+            assert 'does not match provisioned Node' in mismatch.stderr
+            assert not list(denied.iterdir()) and not (project/'lifecycle-ran').exists()
+            altered = {**inventory, 'nodeVersion': '0.0.0'}
+            (output/'inventory.json').write_text(json.dumps(altered))
+            mismatch = execute(['node', str(wrapper), 'install', str(output), str(project)], False)
+            assert 'differs from captured preflight' in mismatch.stderr
+            assert not (project/'lifecycle-ran').exists()
+            (output/'inventory.json').write_text(json.dumps(inventory))
             package['version'] = '0.1.0-dev.g0123456789ab'
             package_file.write_text(json.dumps(package))
             execute(['node',str(wrapper),'install',str(output),str(project)])
@@ -88,7 +103,7 @@ def main():
             package['engines']['node'] = '>=999'
             package_file.write_text(json.dumps(package))
             execute(['node',str(wrapper),'acquire',str(output),str(project)],False)
-            print(manager+': native version, frozen install, lifecycle isolation, tests/reports and reproducible snapshot package passed')
+            print(manager+': exact Node admission/replay identity, native manager version, frozen install, lifecycle isolation, tests/reports and reproducible snapshot package passed')
 
 
 if __name__ == '__main__':

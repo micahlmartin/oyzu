@@ -1,6 +1,6 @@
 # Runtime matrix builds
 
-Experimental captured builds can expand a finite Node/npm runtime matrix. A single project definition supplies the tasks, overrides and hooks for every variant. Other language runtimes, platform matrices, cross-compilation and automatic runtime selection remain unfinished. This does not install tools.
+Experimental captured builds can expand a finite Node runtime matrix for npm, pnpm and Yarn Classic. A single project definition supplies the tasks, overrides and hooks for every variant. Other language runtimes, platform matrices, cross-compilation and automatic runtime selection remain unfinished. This does not install tools.
 
 ## Configure and provision
 
@@ -13,9 +13,17 @@ app:
     node: ["22.14.0", "24.14.1"]
 ```
 
-Use `node/package` for native package archives. `node/app` retains its existing framework/output inference; see [Node applications](node-applications.md). Runtime versions must be exact numeric `major.minor.patch` values. Ranges, aliases and multiple language axes are not accepted. Native `package.json` engines still constrain every requested runtime, and the provisioned npm must match any declared `packageManager`.
+Use `node/package` for native package archives. `node/app` retains its existing framework/output inference; see [Node applications](node-applications.md). Runtime versions must be exact numeric `major.minor.patch` values. Ranges, aliases and multiple language axes are not accepted. Native `package.json` engines still constrain every requested runtime, and the provisioned native manager must match any declared `packageManager`. The manager is inferred from native metadata, not another matrix axis or Oyzu setting. Existing manager restrictions still apply, including the single-project [pnpm](pnpm.md) and [Yarn Classic](yarn.md) dependency profiles.
 
-The current executor needs provisioned Linux Docker images and the existing sandbox capabilities. Each runtime defaults to `oyzu-toolchain/node:npm11.11.0-node<VERSION>`. CI provisions the two versions above using the existing quality and npm Dockerfiles with `NODE_IMAGE` and `QUALITY_IMAGE` build arguments; see [the acceptance provisioner](../../tooling/build-scenario-tools.sh). Provisioning is explicit test infrastructure, not a download performed by a build action. A missing image fails normally; provision the image before retrying. Windows/macOS host-side checks do not establish isolated execution on those operating systems.
+The current executor needs provisioned Linux Docker images and the existing sandbox capabilities. Default image names follow the selected manager:
+
+| Native manager | Provisioned image for each requested Node version |
+| --- | --- |
+| npm 11.11.0 | `oyzu-toolchain/node:npm11.11.0-node<VERSION>` |
+| pnpm 10.11.0 | `oyzu-toolchain/node:pnpm10.11.0-node<VERSION>` |
+| Yarn Classic 1.22.22 | `oyzu-toolchain/node:yarn1.22.22-node<VERSION>` |
+
+CI provisions the two Node versions above using the existing quality and manager Dockerfiles with `NODE_IMAGE` and `QUALITY_IMAGE` build arguments; see [the acceptance provisioner](../../tooling/build-scenario-tools.sh). Provisioning is explicit test infrastructure, not a download performed by a build action. A missing image fails normally; provision the image before retrying. Windows/macOS host-side checks do not establish isolated execution on those operating systems.
 
 ```text
 oyzu run list
@@ -42,7 +50,9 @@ Expansion uses the frozen build inventory and does not rewrite `build.yaml`. Dis
 
 ## Runtime evidence and failure
 
-The npm adapter checks the actual `process.versions.node` against the requested version before acquisition. It uses the selected npm's native engine validator for the root and workspace members before fetching registry packages. Prepared metadata records the observed runtime, and offline installation checks that Node and npm still match that capture. A manager-level `--image npm=...` override applies to every selected npm target; it cannot bypass these checks and usually cannot satisfy two different runtime versions.
+All three adapters check the actual `process.versions.node` against the requested version before acquisition. npm uses its native engine validator for the root and workspace members before fetching registry packages. pnpm and Yarn validate engines during their native preparation/install operation, before application actions; registry archives may already have been captured. Oyzu does not substitute npm's engine interpretation for either manager's native rules.
+
+Prepared metadata records the observed runtime in the manager's existing dependency extension (`oyzu.dev/npm`, `oyzu.dev/pnpm` or `oyzu.dev/yarn`). Planning requires the requested version in that evidence, and isolated installation checks that Node and the manager still match the capture. Native patches, resolutions, frozen locks and lifecycle rules retain their manager-owned behavior. A manager-level override such as `--image pnpm=...` applies to every selected target using that manager; it cannot bypass these checks and usually cannot satisfy two different runtime versions.
 
 No application action is scheduled until all selected variants have passed preparation and planning. An unavailable runtime, mismatched image, incompatible engines or unsupported adapter therefore produces a failed bundle without application artifacts. Correct the declaration or provisioned toolchain and rebuild. Existing source and prior bundles follow the ordinary [bundle retention](build-bundles.md) rules.
 
@@ -50,6 +60,6 @@ Once execution starts, a failing variant retains its available reports and canno
 
 ## Verification and remaining scope
 
-Rust tests cover deterministic expansion, root/qualified task and hook identity, matching dependencies, ambiguous materialization, collisions, bounds, selected producer closure, separate artifact paths and required runtime evidence. The native [runtime probe](../../tooling/test-node-runtime.py) checks actual Node admission and native engine failures without a registry. CI runs it on all three task hosts after compiling the CLI.
+Rust tests cover deterministic expansion, root/qualified task and hook identity, matching dependencies, ambiguous materialization, collisions, bounds, selected producer closure, separate artifact paths and required runtime evidence for each manager. The native [npm runtime probe](../../tooling/test-node-runtime.py) and [pnpm/Yarn manager probe](../../tooling/test-node-managers.py) check actual Node admission, replay identity and native failures. CI runs them on all three task hosts after compiling the CLI.
 
-[The EX-032 captured acceptance group](../../tooling/build_scenarios/node_matrix.py) requires both exact runtimes, build/test/lint/read-only-format actions, snapshot directories, JUnit/coverage, repeatable plans/output, mismatch and engine failures before actions, and a runtime-specific test failure with separate evidence. Its addition is not itself a passing result; consult [implementation status](../implementation-status.md) for observed CI evidence. All-platform matrices, other managers/languages, variant-aware caching/publication and the complete scenario catalog remain outstanding.
+[The captured matrix acceptance group](../../tooling/build_scenarios/node_matrix.py) requires both exact runtimes, build/test/lint/read-only-format actions, snapshot directories for EX-032, snapshot package archives for pnpm patches and Yarn resolutions, JUnit/coverage, repeatable plans/output and mismatched-runtime rejection. The npm example also checks incompatible engines before actions and a runtime-specific test failure with separate evidence. Its addition is not itself a passing result; consult [implementation status](../implementation-status.md) for observed CI evidence. Platform matrices, additional managers/languages, variant-aware caching/publication and the complete scenario catalog remain outstanding.

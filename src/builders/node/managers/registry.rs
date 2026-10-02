@@ -15,11 +15,12 @@ pub(super) fn prepare(
         &context,
         super::super::RUNTIME,
         &["node".into(), format!("/oyzu/{runtime}"), "acquire".into()],
-        &BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]),
+        &super::super::toolchain::preparation_environment(context.target)?,
         sources,
     )?;
     let manager = &context.target.manager;
     let inventory = records::read(&context.destination.join("inventory.json"))?;
+    super::super::toolchain::verify(context.target, inventory["nodeVersion"].as_str())?;
     ensure!(
         inventory["layoutVersion"] == 2,
         "unsupported native registry capture layout"

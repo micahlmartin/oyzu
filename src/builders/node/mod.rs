@@ -7,6 +7,7 @@ mod mocha;
 mod planning;
 mod quality;
 mod reporting;
+mod toolchain;
 mod vitest;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
@@ -18,6 +19,10 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "node-runtime.mjs",
+        contents: include_str!("runtime/node-runtime.mjs"),
+    },
     RuntimeFile {
         name: "mocha.mjs",
         contents: include_str!("runtime/mocha.mjs"),
@@ -181,48 +186,19 @@ impl Builder for Node {
         Ok(managers::get(&target.manager)?.image())
     }
     fn variant_toolchain(&self, target: &Target) -> Result<String> {
-        let base = self.toolchain(target)?;
-        let Some(version) = target.variant.get("node") else {
-            if !target.variant.is_empty() {
-                anyhow::bail!("{}: Node builder requires a node runtime axis", target.name);
-            }
-            return Ok(base.into());
-        };
-        if target.variant.len() != 1 || target.manager != "npm" {
-            anyhow::bail!(
-                "{}: runtime matrix currently requires the npm adapter",
-                target.name
-            );
+        let manager = managers::get(&target.manager)?;
+        match toolchain::requested(target)? {
+            Some(version) => manager.runtime_image(version),
+            None => Ok(manager.image().into()),
         }
-        let components: Vec<_> = version.split('.').collect();
-        if components.len() != 3
-            || components.iter().any(|part| {
-                part.is_empty()
-                    || !part.bytes().all(|b| b.is_ascii_digit())
-                    || (part.len() > 1 && part.starts_with('0'))
-                    || part.parse::<u32>().is_err()
-            })
-        {
-            anyhow::bail!(
-                "{}: matrix.node requires an exact major.minor.patch runtime",
-                target.name
-            );
-        }
-        Ok(format!("oyzu-toolchain/node:npm11.11.0-node{version}"))
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         self.variant_toolchain(context.target)?;
-        if let Some(version) = context.target.variant.get("node") {
-            let actual = context
-                .dependencies
-                .and_then(|d| d.record["extensions"]["oyzu.dev/npm"]["nodeVersion"].as_str());
-            if actual != Some(version.as_str()) {
-                anyhow::bail!(
-                    "{}: runtime variant requires matching captured Node preflight evidence",
-                    context.target.name
-                );
-            }
-        }
+        let namespace = format!("oyzu.dev/{}", context.target.manager);
+        let actual = context
+            .dependencies
+            .and_then(|d| d.record["extensions"][&namespace]["nodeVersion"].as_str());
+        toolchain::verify(context.target, actual)?;
         planning::plan(context)
     }
 

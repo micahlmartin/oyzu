@@ -5,12 +5,11 @@ import {fetch} from './broker_transport.mjs';
 import {readLock, verify} from './npm_lock.mjs';
 import {npm, nativeRequire} from './npm-native.mjs';
 import {members, graph} from './npm-workspaces.mjs';
+import {verifyNodeVersion} from './node-runtime.mjs';
 
 const [mode, root = mode === 'acquire' ? '/out' : '/dependencies', workspace = '/workspace', broker = '/broker'] = process.argv.slice(2);
 if (!['acquire', 'install'].includes(mode)) throw new Error('expected npm acquire or install');
-if (process.env.OYZU_EXPECT_NODE && process.env.OYZU_EXPECT_NODE !== process.versions.node) {
-  throw new Error(`requested Node ${process.env.OYZU_EXPECT_NODE} does not match provisioned Node ${process.versions.node}`);
-}
+verifyNodeVersion();
 const packageJson = JSON.parse(readFileSync(join(workspace, 'package.json'), 'utf8'));
 const workspaceMembers = await members(workspace, packageJson);
 const lock = readLock(workspace, workspaceMembers);

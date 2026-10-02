@@ -10,11 +10,18 @@ use crate::{
     builders::{BuilderPlan, CommandSpec, PlanningContext, PreparationContext},
     dependencies::Prepared,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 pub(super) trait Manager: Sync {
     fn id(&self) -> &'static str;
     fn image(&self) -> &'static str;
+    /// Opt into runtime matrices only when preparation and replay verify Node.
+    fn runtime_image(&self, _node: &str) -> Result<String> {
+        bail!(
+            "{} runtime matrix integration is not implemented",
+            self.id()
+        );
+    }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>>;
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()>;
     fn package(&self, target: &str, filename: &str) -> CommandSpec;
@@ -39,6 +46,15 @@ pub(super) trait Manager: Sync {
     fn script(&self, name: &str, _forward_arguments: bool) -> Vec<String> {
         vec![self.id().into(), "run".into(), name.into()]
     }
+}
+
+/// Our provisioned image family convention; keep the manager/version prefix
+/// owned by image() rather than duplicating it in the Node builder.
+fn runtime_image(default: &str, node: &str) -> Result<String> {
+    let (family, _) = default
+        .rsplit_once("-node")
+        .context("native image has no Node runtime suffix")?;
+    Ok(format!("{family}-node{node}"))
 }
 
 pub(super) fn get(id: &str) -> Result<&'static dyn Manager> {

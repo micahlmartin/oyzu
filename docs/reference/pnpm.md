@@ -20,6 +20,8 @@ Development tasks use installed host tools. `oyzu run list` exposes native packa
 
 ## Acquisition and execution
 
+A finite `matrix.node` in `build.yaml` selects exact provisioned runtimes while keeping native pnpm scripts, frozen locks and patches unchanged. Each variant records its actual Node version and receives separate tasks, reports and snapshot artifacts. See [runtime matrices](runtime-matrices.md) for image naming, compatibility checks, limits and measured verification. Matrix support does not add pnpm workspaces or private registry configuration.
+
 The admitted lock format is v9 with one root importer. Every registry package in its `packages` section is captured, including transitive and optional entries, even when native pnpm does not install an entry on the selected platform. Resolution must contain a SHA-512 integrity value. Registry archive URLs derive from the locked package name/version and use the engine's scoped `npm-public` route to `https://registry.npmjs.org/`.
 
 Acquisition disables project lifecycle scripts. Unsupported pnpm configuration and hook files are rejected before any native invocation, including the version query. Preparation verifies archive digests before handing bytes to pnpm. The snapshot contains content-addressed tarballs and a deterministic inventory; it does not retain pnpm's timestamped mutable store.
