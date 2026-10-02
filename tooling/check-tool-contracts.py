@@ -59,6 +59,8 @@ def check_contract(name, schema_path, fixture_path, cases_path, valid_path=None)
 
 
 def main():
+    check_contract("request identity", "docs/contracts/tools-v1/request-identity.schema.json",
+                   "tests/fixtures/tool-requests/identity.json", "tests/fixtures/tool-requests/invalid-shapes.json")
     check_contract("worker request envelope", "docs/contracts/tools-v1/worker-envelope.schema.json",
                    "tests/fixtures/tool-worker/request.json", "tests/fixtures/tool-worker/invalid-requests.json")
     check_contract("worker response envelope", "docs/contracts/tools-v1/worker-envelope.schema.json",

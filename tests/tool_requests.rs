@@ -234,3 +234,32 @@ fn normalized_request_record_roundtrips_projection_and_rejects_wire_drift() {
     );
     assert!(tools::ToolRequestIdentity::parse(duplicate.as_bytes(), &admitted).is_err());
 }
+
+#[test]
+fn request_record_shared_shapes_match_runtime_admission() {
+    use serde_json::Value;
+    use std::collections::BTreeSet;
+    let bytes = include_bytes!("fixtures/tool-requests/identity.json");
+    let admitted = BTreeSet::from(["core:node".to_owned()]);
+    let valid = tools::ToolRequestIdentity::parse(bytes, &admitted).unwrap();
+    assert_eq!(valid.digest(), identity("[tools]\nnode='22'").digest());
+    let original: Value = serde_json::from_slice(bytes).unwrap();
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/tool-requests/invalid-shapes.json")).unwrap();
+    for case in cases {
+        let mut changed = original.clone();
+        let key = case["pointer"].as_str().unwrap().strip_prefix('/').unwrap();
+        let map = changed.as_object_mut().unwrap();
+        if case["remove"] == true {
+            map.remove(key);
+        } else {
+            map.insert(key.into(), case["value"].clone());
+        }
+        assert!(
+            tools::ToolRequestIdentity::parse(&serde_json::to_vec(&changed).unwrap(), &admitted)
+                .is_err(),
+            "{}",
+            case["name"]
+        );
+    }
+}

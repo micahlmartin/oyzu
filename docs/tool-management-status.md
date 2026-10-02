@@ -1911,3 +1911,26 @@ trusted catalog provenance, operation freshness or sender authentication.
 
 The complete resolve payload and native worker supervision remain unfinished;
 this invariant correction does not complete TM-03/TM-05 or OEP-0003.
+
+## Checkpoint 132: shared normalized-request shape contract
+
+Added the draft request-identity JSON schema and one golden valid plus 18
+malformed-shape fixtures shared by the schema checker and Rust parser tests.
+The valid digest is checked against actual effective-configuration projection.
+Fixtures cover missing/unknown fields, non-map requests, malformed canonical IDs,
+nonliteral/empty/control-containing versions, empty/duplicate constraints,
+duplicate/invalid capabilities and malformed digests. Shared testing caught and
+corrected regex end anchoring that initially accepted a final newline in a version.
+
+All tool schema fixture checks pass. Windows passes the full locked Rust suite,
+strict all-target Clippy, formatting and nine CLI scenarios. Linux passes six
+request tests and strict all-target Clippy with networking disabled. Documentation
+and diff checks pass. Reference and contract index distinguish shape validation
+from runtime UTF-8 byte/aggregate limits, ordering, catalog membership and digest
+recomputation. This adds no stable API claim or maintainer design acceptance.
+
+The complete resolve-operation payload, catalog/broker context, native process
+supervision and production integration remain outstanding. Schema agreement for
+this record does not qualify a backend or complete OEP-0003. Existing CI run
+37010483750 remains active at the preceding immutable-request revision; it is
+not evidence for this later schema/test commit.

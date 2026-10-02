@@ -1,0 +1,8 @@
+{
+  "requests": {
+    "core:node": "22"
+  },
+  "native_constraints": {},
+  "required_capabilities": [],
+  "digest": "sha256:ea7616dfb64b2072eaee960143b4446718664c3de8e967b88deac20947f62fbf"
+}

@@ -481,6 +481,14 @@ digest is recomputed. JSON field names and digest calculation are unchanged.
 Frozen selection uses these accessors to compare the same validated request map
 and digest. Immutability preserves consistency, not policy approval or freshness.
 
+The [draft request-record schema](../contracts/tools-v1/request-identity.schema.json)
+and `tests/fixtures/tool-requests/` share malformed-shape cases with the Rust
+parser. Run `python tooling/check-tool-contracts.py` with the design requirements
+installed to check the schema fixtures. Schema string lengths count characters;
+the runtime additionally enforces UTF-8 bytes, aggregate budgets, sorted order,
+catalog membership and digest recomputation. Passing shape checks does not prove
+those semantic checks or qualify a backend.
+
 After projection, prefer `select_for_tool_requests(workspace, directory, profile,
 requests, platform)`: it checks both the computed digest and canonical request
 map against one captured lock. A lock with a matching digest but an altered

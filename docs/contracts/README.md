@@ -5,6 +5,7 @@ They use their own format fields and must not be treated as stable public APIs.
 
 | Tool schema | Current implementation and limits |
 | --- | --- |
+| [Normalized tool requests](tools-v1/request-identity.schema.json) | Closed identity record with shared schema/Rust malformed-shape fixtures. Sorted sets, UTF-8 byte budgets, catalog membership and recomputed digest are runtime checks; this is not a complete worker resolve payload. |
 | [Worker outer envelopes](tools-v1/worker-envelope.schema.json) | Closed request/result/cancel envelopes with Rust response correlation and supervisor-side lifecycle checks; operation-specific payload schemas and worker dispatch remain absent. |
 | [Archive layout](tools-v1/archive-layout.schema.json) | Data-only candidate finalization for tar, tar.gz, raw single-file artifacts and bounded ZIP32; optional prefix removal, dot payload subtree and explicit Unix executable paths. The broader schema vocabulary includes tar.xz, which the runtime currently rejects. |
 | [Receipt](tools-v1/receipt.schema.json) | Candidate receipt parsing and whole-selection/content verification, including exact locked identities and dependency ownership. A matching receipt does not authorize execution. |
