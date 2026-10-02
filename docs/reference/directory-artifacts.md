@@ -1,6 +1,6 @@
 # Directory artifact integrity and materialization
 
-The experimental build engine can collect, inspect and materialize a declared directory artifact. The [Node application adapter](node-applications.md) now declares directory outputs for conventional Vite builds. Custom-script output selection and platform-matrix expansion remain required before the complete [directory-materialization example](../../examples/builds/materialize-directory/README.md) can pass. This does not add project configuration or infer `dist/` for arbitrary build scripts.
+The experimental build engine can collect, inspect and materialize a declared directory artifact. The [Node application adapter](node-applications.md) declares directory outputs for conventional Vite builds and explicit `node/app` custom builds using the `dist/` convention. Platform matrices now expand matching producer/consumer variants, but suitable target execution or established platform independence and complete OCI index assembly remain required before the full [directory-materialization example](../../examples/builds/materialize-directory/README.md) can pass. This does not infer directory outputs for arbitrary unclassified build scripts.
 
 ## Record and identity
 
@@ -18,7 +18,7 @@ This uses the engine's existing tree encoding and includes directory entries exp
 
 When a directory output is selected by `materialize`, its contents appear immediately beneath the configured destination. An artifact containing `index.html` copied to `site` becomes `site/index.html`, without an extra output-directory layer. The producer must have succeeded. The engine verifies its recorded content before copying and verifies the new copy afterward. Each consumer gets independent bytes; editing them cannot alter the producer bundle. Existing destinations, overlapping mappings and collisions with captured source fail. Producer test/coverage references retain their original scope.
 
-Directory handling does not establish platform independence. Compatibility requires matching producer and consumer artifact target OS/architecture, independently of their worker platforms. Cross-platform reuse requires additional builder facts and selection rules; arbitrary JavaScript-generated files do not receive that classification automatically. See [Docker target selection](docker-images.md#artifact-target-and-worker-platform) for the current distinction and limits.
+Directory handling does not establish platform independence. Compatibility requires matching producer and consumer artifact target OS/architecture, independently of their worker platforms. Consumer requirements propagate backward through materialization to matching producer variants, as described in [matrix selection](runtime-matrices.md#platform-requirements-and-producer-selection). Cross-platform reuse requires additional builder facts and selection rules; arbitrary JavaScript-generated files do not receive that classification automatically. See [Docker target selection](docker-images.md#artifact-target-and-worker-platform) for the current distinction and limits.
 
 ## Limits, failures and verification
 

@@ -4,7 +4,7 @@ This is the entry point for current functionality documentation. Maintain featur
 
 | Reference | Coverage |
 | --- | --- |
-| [Runtime matrices](runtime-matrices.md) | Finite Node variants for npm/pnpm/Yarn Classic, runtime admission, task/edge expansion, separate evidence and current limits |
+| [Runtime and platform matrices](runtime-matrices.md) | Node runtime variants, platform propagation through artifacts, selection, executor admission and separate evidence |
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
 | [Build bundles](build-bundles.md) | Workspace locking, staging, history, destination-change checks, failure evidence and recovery limits |
 | [Build tasks](build-tasks.md) | Builder stages, cross-target prerequisites, hooks, private workspace ownership, report gates and failure behavior |

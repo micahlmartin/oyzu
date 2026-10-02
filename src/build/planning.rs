@@ -43,6 +43,11 @@ pub(super) fn target_order(
     selected: &BTreeSet<String>,
 ) -> Result<Vec<String>> {
     let configs = &workspace.declarations.targets;
+    for id in selected {
+        if let Some(message) = workspace.build_variant_errors.get(id) {
+            bail!("{message}");
+        }
+    }
     for (id, c) in configs.iter().filter(|(id, _)| selected.contains(*id)) {
         if !c.matrix.is_empty() || c.container.is_some() || c.bindings.is_some() {
             bail!("{id}: platform expansion and packaging options are not implemented yet");

@@ -287,5 +287,6 @@ pub(crate) fn discover_with_session(
         root_configuration: Some(root_effective),
         declarations: selected.declarations,
         build_root_overrides: BTreeMap::new(),
+        build_variant_errors: BTreeMap::new(),
     })
 }

@@ -11,6 +11,7 @@ pub(super) struct Selection {
     requested: BTreeSet<String>,
     all: BTreeSet<String>,
     explicit: bool,
+    declared_platforms: BTreeSet<String>,
     variants: super::variants::Mapping,
 }
 
@@ -36,6 +37,13 @@ impl Selection {
             requested,
             all,
             explicit,
+            declared_platforms: workspace
+                .declarations
+                .targets
+                .iter()
+                .filter(|(_, c)| c.platform.is_some() || c.matrix.contains_key("platform"))
+                .map(|(id, _)| id.clone())
+                .collect(),
             variants: BTreeMap::new(),
         };
         selection.expand_declared(workspace)?;
@@ -47,6 +55,9 @@ impl Selection {
         loop {
             let before = self.targets.len();
             for id in self.targets.clone() {
+                if let Some(message) = workspace.build_variant_errors.get(&id) {
+                    bail!("{message}");
+                }
                 if let Some(target) = configuration.get(&id) {
                     for dependency in target
                         .depends_on
@@ -71,10 +82,26 @@ impl Selection {
         workspace: &Workspace,
         mapping: &super::variants::Mapping,
     ) -> Result<()> {
+        let explicit = self.explicit;
         self.targets = self
             .requested
             .iter()
-            .flat_map(|id| mapping[id].iter().cloned())
+            .flat_map(|id| {
+                let declared = self.declared_platforms.contains(id);
+                let inferred = mapping[id]
+                    .iter()
+                    .any(|concrete| workspace.targets[concrete].variant.contains_key("platform"));
+                mapping[id]
+                    .iter()
+                    .filter(move |concrete| {
+                        declared
+                            || ((!inferred || explicit)
+                                && !workspace.targets[*concrete]
+                                    .variant
+                                    .contains_key("platform"))
+                    })
+                    .cloned()
+            })
             .collect();
         self.all = mapping.values().flatten().cloned().collect();
         self.variants = mapping

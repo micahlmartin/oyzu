@@ -5,18 +5,18 @@ use anyhow::{bail, Result};
 use std::collections::BTreeMap;
 
 pub(super) fn requested(target: &Target) -> Result<Option<&str>> {
-    if target.variant.is_empty() {
-        return Ok(None);
-    }
-    let Some(version) = target
+    if target
         .variant
-        .get("node")
-        .filter(|_| target.variant.len() == 1)
-    else {
+        .keys()
+        .any(|axis| !matches!(axis.as_str(), "node" | "platform"))
+    {
         bail!(
             "{}: Node builder requires one node runtime axis",
             target.name
         );
+    }
+    let Some(version) = target.variant.get("node") else {
+        return Ok(None);
     };
     let components: Vec<_> = version.split('.').collect();
     if components.len() != 3

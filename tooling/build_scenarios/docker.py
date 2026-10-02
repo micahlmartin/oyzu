@@ -72,8 +72,58 @@ def verify_target_platform(root, base, invoke, validate, source_files, verified)
     verified.append('Docker arm64 assembly on amd64: distinct worker/target facts, native OCI bytes, snapshot/JUnit/quality, repeatability, mismatched base and foreign RUN rejection; no target application execution claimed')
 
 
+def verify_platform_matrix(root, base, invoke, validate, source_files, verified):
+    project = base/'docker-platform-matrix'
+    shutil.copytree(root/'examples/builds/docker-offline/project', project)
+    (project/'build.yaml').write_text('image:\n  uses: docker/image\n  matrix:\n    platform: [linux/amd64, linux/arm64]\n')
+    before = source_files(project)
+    tasks = invoke(project, 'run', 'list', '--json')
+    assert all(f'image:{stage}' in tasks for stage in ['build', 'test', 'lint', 'format-check'])
+    invoke(project, 'build', 'image')
+    manifest = validate(project/'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    assert len(manifest['artifacts']) == 2
+    targets = {t['variant']['platform']: t['id'] for t in manifest['targets']}
+    assert set(targets) == {'linux/amd64', 'linux/arm64'}
+    plan = json.loads((project/'dist/plan.json').read_text())
+    selection = plan['extensions']['oyzu.dev/selection']
+    assert selection['requested'] == ['image'] and set(selection['selected']) == set(targets.values())
+    for platform, target in targets.items():
+        artifact, = [a for a in manifest['artifacts'] if a['target'] == target]
+        assert artifact['kind'] == 'oci-image' and '-dev.g' in artifact['version']
+        assert artifact['variant'] == {'platform': platform}
+        digest, config, contents = image_contents(project/'dist'/artifact['path'])
+        assert digest == artifact['ociDigest']
+        assert f"{config['os']}/{config['architecture']}" == platform
+        assert contents['greeting.txt'] == (project/'greeting.txt').read_bytes()
+        for stage in ['build', 'test', 'lint', 'format-check', 'package']:
+            assert next(a for a in manifest['actions'] if a['id'] == f'{target}:{stage}')['status'] == 'succeeded'
+        assert next(r for r in manifest['reports'] if r['target'] == target and r['kind'] == 'test')['summary']['passed'] == 2
+        assert all(a['executionPlatform'] == {'os': 'linux', 'arch': 'amd64'} and
+                   a['targetPlatform'] == {'os': 'linux', 'arch': platform.split('/')[1]}
+                   for a in plan['actions'] if a['target'] == target)
+    invoke(project, 'inspect', 'dist')
+    repeated = invoke(project, 'build', 'image')
+    assert repeated['planDigest'] == manifest['planDigest']
+    assert [(a['target'], a['digest']) for a in repeated['artifacts']] == [(a['target'], a['digest']) for a in manifest['artifacts']]
+    # Target execution must not silently use the amd64 worker for ARM tests.
+    native = base/'go-platform-matrix-admission'
+    shutil.copytree(root/'examples/builds/container-variants/project', native)
+    invoke(native, 'build', 'image', success=False)
+    failed = validate(native/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert any('native target execution' in d['message'] for d in failed['diagnostics'])
+    (native/'build.yaml').write_text((native/'build.yaml').read_text().replace('  path: api\n', '  path: api\n  platform: windows/amd64\n'))
+    invoke(native, 'build', 'image', success=False)
+    failed = validate(native/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert any('conflicts with explicit producer api' in d['message'] for d in failed['diagnostics'])
+    verified.append('Docker platform matrix: separate amd64/arm64 native OCI snapshots, JUnit/quality, stable plans/content and unchanged sources; EX-027 rejects missing target execution and conflicting producer constraints; aggregate OCI index remains pending')
+
+
 def verify(root, base, invoke, validate, source_files, verified):
     verify_target_platform(root, base, invoke, validate, source_files, verified)
+    verify_platform_matrix(root, base, invoke, validate, source_files, verified)
     project = base / 'docker-offline'
     shutil.copytree(root / 'examples/builds/docker-offline/project', project)
     before = source_files(project)

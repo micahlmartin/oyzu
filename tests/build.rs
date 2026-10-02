@@ -725,6 +725,52 @@ fn cli_rejects_unknown_build_target_before_toolchain_resolution() {
 }
 
 #[test]
+fn cli_platform_binding_failures_precede_toolchain_resolution() {
+    let root = tempfile::tempdir().unwrap();
+    for name in ["image", "api", "library"] {
+        fs::create_dir(root.path().join(name)).unwrap();
+        fs::write(
+            root.path().join(name).join("package.json"),
+            r#"{"name":"demo","version":"1.0.0"}"#,
+        )
+        .unwrap();
+    }
+    let chain = "image: {uses: node/package, path: image, matrix: {platform: [linux/amd64, linux/arm64]}, materialize: [{from: api, to: input/api.tgz}]}\napi: {uses: node/package, path: api, materialize: [{from: library, to: input/library.tgz}]}\nlibrary: {uses: node/package, path: library, matrix: {platform: [linux/amd64, linux/arm64]}}\n";
+    for (yaml, target, expected) in [
+        (
+            chain.to_owned(),
+            "api",
+            "ambiguous runtime/platform variants",
+        ),
+        (
+            chain.replace("path: api,", "path: api, platform: windows/amd64,"),
+            "image",
+            "conflicts with explicit producer library",
+        ),
+    ] {
+        fs::write(root.path().join("build.yaml"), &yaml).unwrap();
+        let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+            .arg("-C")
+            .arg(root.path())
+            .args(["build", target, "--image", "npm=must-not-resolve:test"])
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(1));
+        let manifest: Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_eq!(manifest["status"], "failed");
+        assert_eq!(manifest["actions"], json!([]));
+        assert_eq!(manifest["artifacts"], json!([]));
+        let message = manifest["diagnostics"][0]["message"].as_str().unwrap();
+        assert!(message.contains(expected), "{message}");
+        assert_eq!(
+            fs::read_to_string(root.path().join("build.yaml")).unwrap(),
+            yaml
+        );
+        build::inspect(&root.path().join("dist")).unwrap();
+    }
+}
+
+#[test]
 fn inspector_binds_selection_to_the_frozen_plan() {
     let root = tempfile::tempdir().unwrap();
     let selection = json!({"mode":"explicit","requested":["api"],"selected":["api"],"excluded":[{"target":"other","reason":"outside-selection"}]});

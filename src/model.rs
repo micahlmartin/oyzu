@@ -68,6 +68,11 @@ pub struct Workspace {
     /// without replacing explicitly qualified task identities during expansion.
     #[serde(skip)]
     pub(crate) build_root_overrides: BTreeMap<String, String>,
+    /// An inferred family's standalone instance can lack a unique artifact
+    /// binding even when its explicit platform instances are valid. Selection
+    /// and planning must reject that instance before preparation/execution.
+    #[serde(skip)]
+    pub(crate) build_variant_errors: BTreeMap<String, String>,
     #[serde(skip)]
     pub configuration: BTreeMap<String, crate::config::resolve::EffectiveConfig>,
     #[serde(skip)]

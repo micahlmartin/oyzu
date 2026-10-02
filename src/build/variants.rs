@@ -1,5 +1,6 @@
-//! Expand captured runtime declarations into isolated target/task instances.
+//! Expand captured runtime/platform declarations into isolated target/task instances.
 //! Owns identity and edge matching, not native version checks or execution.
+mod platforms;
 use crate::{
     model::{Target, Task, Workspace},
     names, tasks,
@@ -25,8 +26,11 @@ fn root_name(name: &str) -> String {
     format!("{prefix}root-{rest}")
 }
 
-fn compatible(consumer: &Target, producer: &Target) -> bool {
+fn compatible(consumer: &Target, producer: &Target, match_platform: bool) -> bool {
     consumer.variant.iter().all(|(axis, value)| {
+        if axis == "platform" && !match_platform {
+            return true;
+        }
         producer
             .variant
             .get(axis)
@@ -39,19 +43,42 @@ fn matches(
     targets: &BTreeMap<String, Target>,
     owner: &Target,
     name: &str,
+    match_platform: bool,
 ) -> Result<Vec<String>> {
     let candidates = mapping
         .get(name)
         .with_context(|| format!("unknown target {name}"))?;
-    let selected: Vec<_> = candidates
-        .iter()
-        .filter(|id| compatible(owner, &targets[*id]))
-        .cloned()
+    let requested_platform = match_platform
+        .then(|| owner.variant.get("platform"))
+        .flatten();
+    let selected: Vec<_> = platform_candidates(candidates, targets, requested_platform)
+        .into_iter()
+        .filter(|id| compatible(owner, &targets[id], match_platform))
         .collect();
     if selected.is_empty() {
-        bail!("{}: no compatible runtime variant of {name}", owner.name);
+        bail!("{}: no compatible variant of {name}", owner.name);
     }
     Ok(selected)
+}
+
+fn platform_candidates(
+    candidates: &[String],
+    targets: &BTreeMap<String, Target>,
+    requested: Option<&String>,
+) -> Vec<String> {
+    // Ordering edges and unconstrained consumers prefer standalone instances;
+    // explicit artifact consumers require the matching demanded platform.
+    let has_default = candidates
+        .iter()
+        .any(|id| !targets[id].variant.contains_key("platform"));
+    candidates
+        .iter()
+        .filter(|id| match requested {
+            Some(platform) => targets[*id].variant.get("platform") == Some(platform),
+            None => !has_default || !targets[*id].variant.contains_key("platform"),
+        })
+        .cloned()
+        .collect()
 }
 
 fn task_dependencies(
@@ -83,9 +110,15 @@ fn task_dependencies(
             }
         } else {
             let candidates = if let Some(owner) = owner {
-                matches(mapping, targets, owner, &dependency.target)?
+                matches(
+                    mapping,
+                    targets,
+                    owner,
+                    &dependency.target,
+                    mapping[&dependency.target].contains(&owner.name),
+                )?
             } else {
-                mapping[&dependency.target].clone()
+                platform_candidates(&mapping[&dependency.target], targets, None)
             };
             dependencies.extend(
                 candidates
@@ -105,7 +138,8 @@ pub(super) fn expand(workspace: &mut Workspace) -> Result<Mapping> {
         .declarations
         .targets
         .values()
-        .any(|c| c.matrix.len() == 1 && !c.matrix.contains_key("platform"))
+        .any(|c| !c.matrix.is_empty() || c.platform.is_some())
+        || workspace.targets.values().any(|t| !t.variant.is_empty())
     {
         return Ok(workspace
             .targets
@@ -114,36 +148,65 @@ pub(super) fn expand(workspace: &mut Workspace) -> Result<Mapping> {
             .collect());
     }
     let original = workspace.clone();
+    let platforms = platforms::requirements(&original)?;
     let mut mapping = Mapping::new();
     let mut targets = BTreeMap::new();
     let mut identities = BTreeSet::new();
     for (name, target) in &original.targets {
-        let matrix = original.declarations.targets.get(name).map(|c| &c.matrix);
-        // Platform propagation is a separate capability; retain its declaration
-        // so selected-target admission rejects it rather than dropping an axis.
-        let runtime = matrix.filter(|m| m.len() == 1 && !m.contains_key("platform"));
-        let variants = if let Some(matrix) = runtime {
-            let (axis, values) = matrix.iter().next().unwrap();
-            if targets.len() + values.len() > MAX_INSTANCES {
-                bail!("runtime matrix exceeds {MAX_INSTANCES} target instances");
+        let config = original.declarations.targets.get(name);
+        let mut axes = config.map(|c| c.matrix.clone()).unwrap_or_default();
+        axes.remove("platform");
+        let explicit_platform =
+            config.is_some_and(|c| c.platform.is_some() || c.matrix.contains_key("platform"));
+        let renamed = config.is_some_and(|c| !c.matrix.is_empty());
+        let mut variants = vec![target.clone()];
+        for (axis, values) in axes {
+            if values.is_empty()
+                || variants.len().saturating_mul(values.len()) + targets.len() > MAX_INSTANCES
+            {
+                bail!("build matrix exceeds {MAX_INSTANCES} target instances");
             }
-            values
-                .iter()
-                .map(|value| {
-                    let mut variant = target.clone();
-                    variant.name = names::scoped(name, &format!("{axis}-{value}"));
+            let mut expanded = Vec::new();
+            for variant in variants {
+                for value in &values {
+                    let mut variant = variant.clone();
                     variant.variant.insert(axis.clone(), value.clone());
-                    variant
-                })
-                .collect::<Vec<_>>()
-        } else {
-            vec![target.clone()]
-        };
+                    expanded.push(variant);
+                }
+            }
+            variants = expanded;
+        }
+        let mut concrete = Vec::new();
+        for variant in variants {
+            if !explicit_platform {
+                concrete.push(variant.clone());
+            }
+            for platform in &platforms[name] {
+                let mut variant = variant.clone();
+                variant.variant.insert("platform".into(), platform.clone());
+                concrete.push(variant);
+                if targets.len() + concrete.len() > MAX_INSTANCES {
+                    bail!("build matrix exceeds {MAX_INSTANCES} target instances");
+                }
+            }
+        }
+        let variants = &mut concrete;
+        for variant in variants.iter_mut() {
+            if renamed || (!explicit_platform && variant.variant.contains_key("platform")) {
+                let suffix = variant
+                    .variant
+                    .iter()
+                    .map(|(axis, value)| format!("{axis}-{value}"))
+                    .collect::<Vec<_>>()
+                    .join("-");
+                variant.name = names::scoped(name, &suffix);
+            }
+        }
         if targets.len() + variants.len() > MAX_INSTANCES {
             bail!("runtime matrix exceeds {MAX_INSTANCES} target instances");
         }
         let mut ids = Vec::new();
-        for mut target in variants {
+        for mut target in concrete {
             if !identities.insert(target.name.to_lowercase()) {
                 bail!("runtime matrix target identity collision: {}", target.name);
             }
@@ -161,6 +224,7 @@ pub(super) fn expand(workspace: &mut Workspace) -> Result<Mapping> {
     let mut configuration = BTreeMap::new();
     let mut expanded_tasks = BTreeMap::new();
     let mut root_overrides = BTreeMap::new();
+    let mut variant_errors = BTreeMap::new();
     for (logical, ids) in &mapping {
         for id in ids {
             let target = &targets[id];
@@ -169,24 +233,33 @@ pub(super) fn expand(workspace: &mut Workspace) -> Result<Mapping> {
             }
             if let Some(config) = original.declarations.targets.get(logical) {
                 let mut config = config.clone();
-                if !target.variant.is_empty() {
-                    config.matrix.clear();
-                }
+                config.matrix.clear();
+                config.platform = target.variant.get("platform").cloned().or(config.platform);
                 config.depends_on = config
                     .depends_on
                     .iter()
-                    .map(|name| matches(&mapping, &targets, target, name))
+                    .map(|name| matches(&mapping, &targets, target, name, false))
                     .collect::<Result<Vec<_>>>()?
                     .into_iter()
                     .flatten()
                     .collect();
                 for input in &mut config.materialize {
-                    let candidates = matches(&mapping, &targets, target, &input.from)?;
+                    let candidates = matches(&mapping, &targets, target, &input.from, true)?;
                     if candidates.len() != 1 {
-                        bail!(
-                            "{id}: materialization from {} has ambiguous runtime variants",
+                        let message = format!(
+                            "{id}: materialization from {} has ambiguous runtime/platform variants",
                             input.from
                         );
+                        // Retaining a standalone instance must not prevent
+                        // valid demanded instances from being built. Do not
+                        // invent a binding; reject this instance if selected.
+                        if !target.variant.contains_key("platform")
+                            && !platforms[logical].is_empty()
+                        {
+                            variant_errors.insert(id.clone(), message);
+                            continue;
+                        }
+                        bail!(message);
                     }
                     input.from = candidates[0].clone();
                 }
@@ -245,243 +318,10 @@ pub(super) fn expand(workspace: &mut Workspace) -> Result<Mapping> {
     workspace.tasks = expanded_tasks;
     workspace.configuration = configuration;
     workspace.build_root_overrides = root_overrides;
+    workspace.build_variant_errors = variant_errors;
     workspace.declarations.targets = declarations;
     Ok(mapping)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{
-        build::{planning, selection::Selection, task_graph},
-        dependencies, discovery, executor, snapshot,
-    };
-    use serde_json::json;
-    use std::fs;
-
-    fn fixture(yaml: &str, toml: &str, paths: &[&str]) -> (tempfile::TempDir, Workspace) {
-        let root = tempfile::tempdir().unwrap();
-        for path in paths {
-            let path = root.path().join(path);
-            fs::create_dir_all(&path).unwrap();
-            fs::write(
-                path.join("package.json"),
-                r#"{"name":"fixture","version":"1.0.0","scripts":{"test":"node --test"}}"#,
-            )
-            .unwrap();
-        }
-        fs::write(root.path().join("build.yaml"), yaml).unwrap();
-        fs::write(root.path().join("oyzu.toml"), toml).unwrap();
-        let workspace = discovery::discover_with_shell(root.path(), Some("sh")).unwrap();
-        (root, workspace)
-    }
-
-    const MATRIX: &str = "app: {uses: node/package, matrix: {node: ['22.14.0', '24.14.1']}}\n";
-
-    #[test]
-    fn expanded_plan_preserves_root_and_qualified_tasks_and_separate_outputs() {
-        let (root, mut workspace) = fixture(MATRIX,
-            "[tasks.test]\nargv=['node','--test']\n[tasks.pre_test]\nargv=['echo','root-before']\n[tasks.post_test]\nargv=['echo','root-after']\n[tasks.\"app:pre_test\"]\nargv=['echo','qualified-before']\n[tasks.\"app:verify\"]\nargv=['echo','verify']\ndepends_on=['app:test']\n", &["."]);
-        let captured = tempfile::tempdir().unwrap();
-        let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
-        let mut selection = Selection::new(&workspace, &["app".into()]).unwrap();
-        let mapping = expand(&mut workspace).unwrap();
-        selection.expand_variants(&workspace, &mapping).unwrap();
-        assert_eq!(selection.record()["requested"], json!(["app"]));
-        assert_eq!(selection.record()["variants"]["app"], json!(mapping["app"]));
-        assert_eq!(mapping["app"].len(), 2);
-        let mut intents = BTreeMap::new();
-        let mut dependencies = BTreeMap::new();
-        let mut images = BTreeMap::new();
-        for id in &mapping["app"] {
-            let target = &workspace.targets[id];
-            assert_eq!(
-                workspace.tasks[&format!("{id}:verify")].depends_on,
-                [format!("{id}:test")]
-            );
-            assert_eq!(
-                task_graph::operation(&workspace, id, "test"),
-                format!("{id}:root-test")
-            );
-            assert_eq!(
-                task_graph::operation_name(&workspace, &format!("{id}:root-test")),
-                "test"
-            );
-            assert!(planning::intent(&workspace, id, &source, None)
-                .err()
-                .unwrap()
-                .to_string()
-                .contains("preflight evidence"));
-            // Synthetic preparation is only a pure-planner fixture; native
-            // runtime/engine evidence is independently tested through the CLI.
-            let dependency = dependencies::Prepared {
-                root: captured.path().into(),
-                digest: format!("sha256:{}", "2".repeat(64)),
-                record: json!({"extensions":{"oyzu.dev/npm":{"nodeVersion":target.variant["node"]}}}),
-            };
-            intents.insert(
-                id.clone(),
-                planning::intent(&workspace, id, &source, Some(&dependency)).unwrap(),
-            );
-            dependencies.insert(id.clone(), dependency);
-            images.insert(
-                id.clone(),
-                executor::Image {
-                    reference: format!("node:{}", target.variant["node"]),
-                    digest: format!("sha256:{}", "1".repeat(64)),
-                    os: "linux".into(),
-                    arch: "amd64".into(),
-                },
-            );
-        }
-        let plan =
-            planning::compile(&workspace, &source, &images, &dependencies, &intents).unwrap();
-        assert_eq!(plan["targets"].as_array().unwrap().len(), 2);
-        let artifacts = plan["artifacts"].as_array().unwrap();
-        assert_ne!(artifacts[0]["path"], artifacts[1]["path"]);
-        assert_ne!(artifacts[0]["variant"], artifacts[1]["variant"]);
-        let actions = plan["actions"].as_array().unwrap();
-        for id in &mapping["app"] {
-            let test = actions
-                .iter()
-                .find(|a| a["id"] == format!("{id}:root-test"))
-                .unwrap();
-            assert_eq!(test["operation"], "test");
-            assert!(test["argv"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|arg| arg == "--test-reporter=junit"));
-            assert!(actions
-                .iter()
-                .any(|a| a["id"] == format!("{id}:pre_root-test")));
-            assert!(actions
-                .iter()
-                .any(|a| a["id"] == format!("{id}:post_root-test")));
-            assert!(!actions.iter().any(|a| a["id"] == format!("{id}:pre_test")));
-        }
-    }
-
-    #[test]
-    fn matching_variants_own_dependency_edges_and_shared_producers_stay_single() {
-        let yaml = "app: {uses: node/package, path: app, matrix: {node: ['22.14.0','24.14.1']}, depends_on: [shared], materialize: [{from: lib, to: inputs/lib.tgz}]}\nlib: {uses: node/package, path: lib, matrix: {node: ['24.14.1','22.14.0']}}\nshared: {uses: node/package, path: shared}\n";
-        let (_root, mut workspace) = fixture(
-            yaml,
-            "[tasks.\"app:pre_test\"]\nargv=['echo','before']\ndepends_on=['lib:test']\n",
-            &["app", "lib", "shared"],
-        );
-        let mapping = expand(&mut workspace).unwrap();
-        assert_eq!(mapping["shared"], ["shared"]);
-        for id in &mapping["app"] {
-            let config = &workspace.declarations.targets[id];
-            assert_eq!(config.depends_on, ["shared"]);
-            let producer = &config.materialize[0].from;
-            assert_eq!(
-                workspace.targets[id].variant,
-                workspace.targets[producer].variant
-            );
-            assert_eq!(
-                workspace.tasks[&format!("{id}:pre_test")].depends_on,
-                [format!("{producer}:test")]
-            );
-        }
-        let mut again = workspace.clone();
-        expand(&mut again).unwrap();
-        assert_eq!(
-            again.targets.keys().collect::<Vec<_>>(),
-            workspace.targets.keys().collect::<Vec<_>>()
-        );
-    }
-
-    #[test]
-    fn ambiguous_artifact_variants_and_identity_collisions_are_rejected() {
-        let yaml = "app: {uses: node/package, path: app, materialize: [{from: lib, to: inputs/lib.tgz}]}\nlib: {uses: node/package, path: lib, matrix: {node: ['22.14.0','24.14.1']}}\n";
-        let (_root, mut workspace) = fixture(yaml, "", &["app", "lib"]);
-        assert!(expand(&mut workspace)
-            .unwrap_err()
-            .to_string()
-            .contains("ambiguous runtime variants"));
-        let collision = names::scoped("app", "node-22.14.0");
-        let yaml = format!("app: {{uses: node/package, path: app, matrix: {{node: ['22.14.0']}}}}\n{collision}: {{uses: node/package, path: other}}\n");
-        let (_root, mut workspace) = fixture(&yaml, "", &["app", "other"]);
-        assert!(expand(&mut workspace)
-            .unwrap_err()
-            .to_string()
-            .contains("identity collision"));
-    }
-
-    #[test]
-    fn expansion_is_bounded_and_never_discards_platform_axes() {
-        let (_root, mut workspace) = fixture(MATRIX, "", &["."]);
-        workspace
-            .declarations
-            .targets
-            .get_mut("app")
-            .unwrap()
-            .matrix
-            .insert(
-                "node".into(),
-                (0..257).map(|v| format!("22.0.{v}")).collect(),
-            );
-        assert!(expand(&mut workspace)
-            .unwrap_err()
-            .to_string()
-            .contains("256 target instances"));
-        workspace
-            .declarations
-            .targets
-            .get_mut("app")
-            .unwrap()
-            .matrix
-            .insert("platform".into(), vec!["linux/amd64".into()]);
-        expand(&mut workspace).unwrap();
-        assert!(workspace.declarations.targets["app"]
-            .matrix
-            .contains_key("platform"));
-        assert!(planning::target_order(&workspace, &BTreeSet::from(["app".into()])).is_err());
-    }
-
-    #[test]
-    fn selection_recomputes_the_variant_closure_instead_of_selecting_every_producer() {
-        let yaml = "app: {uses: node/package, path: app, matrix: {node: ['22.14.0']}, materialize: [{from: lib, to: inputs/lib.tgz}]}\nlib: {uses: node/package, path: lib, matrix: {node: ['22.14.0','24.14.1']}}\n";
-        let (_root, mut workspace) = fixture(yaml, "", &["app", "lib"]);
-        let mut selection = Selection::new(&workspace, &["app".into()]).unwrap();
-        let mapping = expand(&mut workspace).unwrap();
-        selection.expand_variants(&workspace, &mapping).unwrap();
-        assert_eq!(selection.targets.len(), 2);
-        assert!(selection
-            .targets
-            .iter()
-            .all(|id| workspace.targets[id].variant["node"] == "22.14.0"));
-        assert_eq!(selection.record()["excluded"].as_array().unwrap().len(), 1);
-    }
-
-    #[test]
-    fn runtime_admission_does_not_silently_fall_back_to_the_default_image() {
-        let (_root, mut workspace) = fixture(MATRIX, "", &["."]);
-        let mapping = expand(&mut workspace).unwrap();
-        let mut target = workspace.targets[&mapping["app"][0]].clone();
-        let builder = crate::builders::get(&target.builder).unwrap();
-        assert!(builder
-            .variant_toolchain(&target)
-            .unwrap()
-            .ends_with(&format!("-node{}", target.variant["node"])));
-        for invalid in [
-            "22",
-            "^22.14.0",
-            "22.014.0",
-            "../../other",
-            "999999999999.0.0",
-        ] {
-            target.variant.insert("node".into(), invalid.into());
-            assert!(builder
-                .variant_toolchain(&target)
-                .unwrap_err()
-                .to_string()
-                .contains("exact major.minor.patch"));
-        }
-        target.variant.insert("node".into(), "24.14.1".into());
-        target.manager = "unknown".into();
-        assert!(builder.variant_toolchain(&target).is_err());
-    }
-}
+mod tests;

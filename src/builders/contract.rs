@@ -78,8 +78,10 @@ pub(crate) trait Builder: Sync {
     /// Select an already provisioned image for concrete runtime axes. Adapters
     /// admitting variants must verify the actual runtime during preparation;
     /// an image reference alone is not runtime-version evidence.
+    /// Platform-only variants keep the default image; target_platform must
+    /// separately admit the artifact target against that resolved execution.
     fn variant_toolchain(&self, target: &Target) -> Result<String> {
-        if !target.variant.is_empty() {
+        if target.variant.keys().any(|axis| axis != "platform") {
             bail!(
                 "{}: runtime matrix integration is not implemented for {}",
                 target.name,
