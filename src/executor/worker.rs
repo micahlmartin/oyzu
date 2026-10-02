@@ -1,5 +1,5 @@
 //! Private rootless BuildKit worker. Application RUN never receives a host socket.
-use super::files::{file, output_file};
+use super::files::{file, input, output_file};
 use super::{docker_path, run, Execution, Mode, Request};
 use crate::snapshot;
 use anyhow::{bail, Context, Result};
@@ -51,6 +51,64 @@ fn copy(root: &Path, relative: &str, destination: &Path, total: &mut u64) -> Res
     fs::create_dir_all(target.parent().context("missing context parent")?)?;
     if fs::copy(source, target)? != size {
         bail!("context input changed while copied");
+    }
+    Ok(())
+}
+
+/// Assemble already selected source files and explicit artifact inputs. Native
+/// ignore rules apply only to source selection, never to artifact descendants.
+fn capture_context(
+    root: &Path,
+    destination: &Path,
+    cwd: &str,
+    context_files: &[String],
+    materialized: &[String],
+) -> Result<()> {
+    let paths: BTreeSet<_> = context_files.iter().collect();
+    let mut entries = paths.len();
+    let mut total = 0;
+    if entries > 100000 {
+        bail!("materialized image context exceeds entry limit");
+    }
+    for path in paths {
+        copy(root, path, destination, &mut total)?;
+    }
+    for artifact in materialized {
+        let relative = if cwd == "." {
+            artifact.as_str()
+        } else {
+            artifact
+                .strip_prefix(&format!("{cwd}/"))
+                .context("materialization is outside image context")?
+        };
+        let source = input(root, relative)?;
+        let target = destination.join(relative);
+        if target.symlink_metadata().is_ok() {
+            bail!("materialized image context collides with another input");
+        }
+        if source.is_dir() {
+            let tree = snapshot::inspect_tree(&source)?;
+            entries = entries
+                .checked_add(tree.entries.len() + 1)
+                .context("context entry count overflow")?;
+            total = total
+                .checked_add(tree.entries.iter().map(|entry| entry.size).sum::<u64>())
+                .context("context size overflow")?;
+            if entries > 100000 || total > 10 * 1024 * 1024 * 1024 {
+                bail!("materialized image context exceeds entry or byte limit");
+            }
+            fs::create_dir_all(target.parent().context("missing context parent")?)?;
+            let copied = snapshot::capture_prepared(&source, &target)?;
+            if copied.digest != tree.digest {
+                bail!("materialized directory changed while copied");
+            }
+        } else {
+            entries += 1;
+            if entries > 100000 {
+                bail!("materialized image context exceeds entry limit");
+            }
+            copy(root, relative, destination, &mut total)?;
+        }
     }
     Ok(())
 }
@@ -160,27 +218,7 @@ pub(super) fn execute(
     for path in [&context, &definition, &exported] {
         fs::create_dir(path)?;
     }
-    let mut paths: BTreeSet<_> = context_files.iter().cloned().collect();
-    for input in materialized {
-        let relative = if cwd == "." {
-            input.as_str()
-        } else {
-            input
-                .strip_prefix(&format!("{cwd}/"))
-                .context("materialization is outside image context")?
-        };
-        if !snapshot::portable(relative) {
-            bail!("invalid materialized context path");
-        }
-        paths.insert(relative.to_owned());
-    }
-    if paths.len() > 100000 {
-        bail!("materialized image context exceeds entry limit");
-    }
-    let mut total = 0;
-    for path in paths {
-        copy(&root, &path, &context, &mut total)?;
-    }
+    capture_context(&root, &context, cwd, context_files, materialized)?;
     let dockerfile = file(&root, "Dockerfile")?;
     if snapshot::file_digest(&dockerfile)? != *dockerfile_digest {
         bail!("Dockerfile changed after preflight; replan the captured definition");
@@ -350,6 +388,99 @@ mod tests {
         );
         binding.store = "images/base-0/../../../outside".into();
         assert!(capture_image_store(root.path(), &binding, &output.path().join("escape")).is_err());
+    }
+
+    #[test]
+    fn context_includes_complete_directory_artifacts_and_file_inputs() {
+        let source = tempfile::tempdir().unwrap();
+        let destination = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join("site/dist/empty")).unwrap();
+        fs::write(source.path().join("site/dist/index.html"), "frontend").unwrap();
+        fs::write(source.path().join("site/.hidden"), "included").unwrap();
+        fs::write(source.path().join("Dockerfile"), "FROM scratch").unwrap();
+        fs::write(source.path().join("binary"), "executable bytes").unwrap();
+        fs::write(source.path().join("unselected"), "not a context input").unwrap();
+        capture_context(
+            source.path(),
+            destination.path(),
+            "image",
+            &["Dockerfile".into()],
+            &["image/site".into(), "image/binary".into()],
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(destination.path().join("site/dist/index.html")).unwrap(),
+            b"frontend"
+        );
+        assert!(destination.path().join("site/dist/empty").is_dir());
+        assert!(destination.path().join("site/.hidden").is_file());
+        assert!(destination.path().join("binary").is_file());
+        assert!(!destination.path().join("unselected").exists());
+        assert_eq!(
+            snapshot::inspect_tree(&source.path().join("site"))
+                .unwrap()
+                .digest,
+            snapshot::inspect_tree(&destination.path().join("site"))
+                .unwrap()
+                .digest
+        );
+        fs::write(
+            destination.path().join("site/dist/index.html"),
+            "private copy",
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read(source.path().join("site/dist/index.html")).unwrap(),
+            b"frontend"
+        );
+        for paths in [
+            vec!["elsewhere/site".into()],
+            vec!["image/../site".into()],
+            vec!["image/site".into(), "image/site".into()],
+        ] {
+            let output = tempfile::tempdir().unwrap();
+            assert!(capture_context(source.path(), output.path(), "image", &[], &paths).is_err());
+        }
+        let output = tempfile::tempdir().unwrap();
+        assert!(capture_context(
+            source.path(),
+            output.path(),
+            ".",
+            &["site/dist/index.html".into()],
+            &["site".into()]
+        )
+        .is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn directory_context_rejects_links_and_retains_executable_intent() {
+        use std::os::unix::{fs::symlink, fs::PermissionsExt};
+        let source = tempfile::tempdir().unwrap();
+        let output = tempfile::tempdir().unwrap();
+        fs::create_dir(source.path().join("site")).unwrap();
+        fs::write(source.path().join("site/run"), "executable").unwrap();
+        fs::set_permissions(
+            source.path().join("site/run"),
+            fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+        capture_context(source.path(), output.path(), ".", &[], &["site".into()]).unwrap();
+        assert_ne!(
+            fs::metadata(output.path().join("site/run"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o111,
+            0
+        );
+        symlink("run", source.path().join("site/link")).unwrap();
+        let linked = tempfile::tempdir().unwrap();
+        assert!(capture_context(source.path(), linked.path(), ".", &[], &["site".into()]).is_err());
+        symlink("site", source.path().join("alias")).unwrap();
+        assert!(
+            capture_context(source.path(), linked.path(), ".", &[], &["alias".into()]).is_err()
+        );
     }
 
     #[test]
