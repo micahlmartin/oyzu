@@ -1268,3 +1268,16 @@ The authored override example and Python acceptance group now require actual cus
 Local Windows verification passed all Rust tests (140 library and 90 integration tests; four intentional infrastructure-dependent ignores), all-target Clippy, formatting and CLI compilation. The configuration CLI regression exposed and fixed Serde's empty-sequence-as-default-struct behavior: container options now explicitly require a mapping or boolean. Positive options and malformed/unknown/null/escaped values are exercised through `config validate`, without Docker. Documentation validation (158 pages), 58-example structural checks, changed Python syntax, provisioner shell syntax and eight-suite/25-group inventory passed. No local Docker engine was started. The prior Python-container revision 9b84d6a passed CLI builds on Windows/macOS/Linux in run 37021975506; its Python captured job 110889424053 remains live when checked, and was not restarted.
 
 All nine compiled CLI development-task checks also passed after the final build.
+
+
+## Checkpoint 95: complete generated report declarations
+
+The first captured Python-container run at 9b84d6a failed in [job 110889424053](https://github.com/micahlmartin/oyzu/actions/runs/37021975506/job/110889424053): native image assembly and report collection succeeded, but schema validation rejected the generated image assertion report's missing `required` and `subject` fields. The fixture stopped there, before repeated-build and failed-test cases. This supersedes the preceding pending status with an observed serialization defect; it is not successful full scenario acceptance.
+
+Retained CI evidence was downloaded without changing the original bundle. Inspection verified exact application archive bytes in the OCI image, expected nonroot user/workdir/entrypoint, application test/coverage results and image assertion JUnit. Adding only the two missing declaration fields to an in-memory plan made the complete plan schema validate. It did not rerun execution or repair the recorded bundle.
+
+Mandatory report intents now have one typed owner in `reports/contract`. Native builder bindings, explicit task report declarations and generated container assertions serialize that contract instead of independently assembling JSON fields. A regression checks required and allowed keys against the checked-in plan schema, plus target identity, mandatory status and report kind. The current reference records the failed job and remaining native acceptance honestly. The existing 489d54d CI run remains live; it predates this correction and was not restarted.
+
+Local verification passed all Rust tests (141 library and 90 integration tests; four infrastructure-dependent ignores), all-target Clippy, formatting and CLI compilation. Documentation checks (158 pages), 58-example structural checks and changed scenario syntax passed. The custom entrypoint fixture now includes a distinct `-I` argument so the native assertion detects an ignored override rather than comparing the default to itself. This fixes the declaration defect and strengthens the pending acceptance check; it does not establish full native acceptance or complete the wider goal.
+
+All nine compiled CLI development-task checks passed after the final build.

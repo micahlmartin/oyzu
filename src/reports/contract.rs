@@ -46,6 +46,30 @@ pub struct Declaration {
     pub path: String,
 }
 
+/// A mandatory report obligation in a frozen plan. Native tasks, explicit
+/// report declarations and derived packaging actions share this wire contract.
+/// Keep all required schema fields together rather than assembling partial JSON.
+#[derive(Serialize)]
+pub(crate) struct Intent {
+    id: String,
+    kind: &'static str,
+    format: Format,
+    required: bool,
+    subject: String,
+}
+
+impl Intent {
+    pub(crate) fn required(id: impl Into<String>, subject: &str, format: Format) -> Self {
+        Self {
+            id: id.into(),
+            kind: format.kind(),
+            format,
+            required: true,
+            subject: subject.into(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum Root {
@@ -198,6 +222,38 @@ fn select(root: &Path, value: &str, required: bool) -> Result<Vec<String>> {
 #[cfg(test)]
 mod freshness_tests {
     use super::*;
+
+    #[test]
+    fn report_intents_satisfy_required_plan_schema_fields() {
+        let schema: serde_json::Value = serde_json::from_str(include_str!(
+            "../../docs/contracts/v1alpha1/plan.schema.json"
+        ))
+        .unwrap();
+        let contract = &schema["$defs"]["reportIntent"];
+        for (format, kind) in [
+            (Format::Junit, "test"),
+            (Format::Cobertura, "coverage"),
+            (Format::Lcov, "coverage"),
+            (Format::GoCover, "coverage"),
+            (Format::Jacoco, "coverage"),
+        ] {
+            let value = serde_json::to_value(Intent::required(
+                "api-container/tests",
+                "api-container",
+                format,
+            ))
+            .unwrap();
+            for key in contract["required"].as_array().unwrap() {
+                assert!(value.get(key.as_str().unwrap()).is_some(), "missing {key}");
+            }
+            for key in value.as_object().unwrap().keys() {
+                assert!(contract["properties"].get(key).is_some(), "unknown {key}");
+            }
+            assert_eq!(value["subject"], "api-container");
+            assert_eq!(value["required"], true);
+            assert_eq!(value["kind"], kind);
+        }
+    }
 
     #[test]
     fn stale_literals_and_globs_fail_but_missing_prefixes_and_empty_globs_are_fresh() {

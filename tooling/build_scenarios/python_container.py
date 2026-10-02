@@ -53,7 +53,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     _, custom_config, custom_contents = image_contents(project / 'dist' / custom_image['path'])
     assert custom_config['config']['User'] == '1000:1001'
     assert custom_config['config']['WorkingDir'] == '/srv/api'
-    assert custom_config['config']['Entrypoint'] == ['python', '/app/application.pyz']
+    assert custom_config['config']['Entrypoint'] == ['python', '-I', '/app/application.pyz']
     assert custom_contents['app/application.pyz'] == (project / 'dist' / custom_app['path']).read_bytes()
     captured = json.loads((project / 'dist/dependencies/api-container.json').read_text())
     assert captured['extensions']['oyzu.dev/container']['runtime']['reference'] == 'oyzu-fixture/python-runtime:3.12'

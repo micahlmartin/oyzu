@@ -194,7 +194,11 @@ pub(super) fn augment(
                 &platform,
             ),
         );
-        test["reports"] = json!([{"id":report_id,"kind":"test","format":"junit"}]);
+        test["reports"] = json!([crate::reports::Intent::required(
+            &report_id,
+            &id,
+            crate::reports::Format::Junit
+        )]);
         test["extensions"]["oyzu.dev/report-paths"] = json!({report_id.clone():report_path});
         test["extensions"]["oyzu.dev/report-sources"] = json!({report_id:"file"});
         test["extensions"]["oyzu.dev/collect-after"] = json!(format!("{id}:test"));

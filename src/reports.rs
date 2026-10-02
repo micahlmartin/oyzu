@@ -3,7 +3,7 @@ pub(crate) mod bindings;
 pub(crate) mod collection;
 mod contract;
 use anyhow::{bail, Result};
-pub(crate) use contract::{ensure_fresh, matches, validate_declarations, Input, Root};
+pub(crate) use contract::{ensure_fresh, matches, validate_declarations, Input, Intent, Root};
 pub use contract::{Declaration, Format};
 use serde_json::{json, Value};
 use std::{

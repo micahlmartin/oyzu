@@ -5,12 +5,11 @@ use crate::{
     reports::{self, Input, Root},
 };
 use anyhow::{bail, Context, Result};
-use serde_json::{json, Value};
 use std::{collections::BTreeMap, path::Path};
 
 #[derive(Default)]
 pub(crate) struct Bindings {
-    pub intents: Vec<Value>,
+    pub intents: Vec<reports::Intent>,
     pub paths: BTreeMap<String, String>,
     pub inputs: BTreeMap<String, Input>,
     pub sources: BTreeMap<String, reports::ReportSource>,
@@ -78,7 +77,9 @@ pub(crate) fn bind(
                     },
                 );
             }
-            result.intents.push(json!({"id":id,"kind":kind,"format":report.format.name(),"required":true,"subject":target}));
+            result
+                .intents
+                .push(reports::Intent::required(&id, target, report.format));
             if !destination.contains(['*', '?'])
                 && contract
                     .reports
@@ -107,7 +108,9 @@ pub(crate) fn bind(
             destination.push('.');
             destination.push_str(report.format.extension());
         }
-        result.intents.push(json!({"id":id,"kind":report.kind,"format":report.format.name(),"required":true,"subject":target}));
+        result
+            .intents
+            .push(reports::Intent::required(&id, target, report.format));
         result.paths.insert(id.clone(), destination);
         result
             .sources
