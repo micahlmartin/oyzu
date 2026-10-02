@@ -1,6 +1,22 @@
-# Node frontend directory artifacts
+# Node application directory artifacts
 
-The experimental `node/app` builder recognizes a conventional Vite build script and declares its native output as a versioned directory artifact. No output section or new Oyzu setting is required. This increment supports standalone package roots, including native Vite 8 configurations; npm workspace application outputs, arbitrary custom-script output inference and platform matrices remain unfinished.
+The experimental `node/app` builder declares a versioned directory artifact for a recognized Vite build or an explicitly selected application with a custom native build script. No output section or new Oyzu setting is required. This supports standalone package roots, including native Vite 8 configurations and the conventional `dist/` contract below; native workspace application outputs, automatic custom-script output inference and platform matrices remain unfinished.
+
+## Custom build scripts and the dist convention
+
+For a project whose native script writes `dist/`, application intent is sufficient:
+
+```yaml
+frontend:
+  uses: node/app
+  path: frontend
+```
+
+The [authored directory example](../../examples/builds/materialize-directory/project/) uses `"build": "node build.mjs"`. Oyzu runs the native script through its selected manager, then stages the contents of `frontend/dist/` as the primary directory artifact `application-<snapshot-version>`. A consumer using `materialize: [{from: frontend, to: site}]` receives `site/index.html`, without a nested `dist` directory. This is a documented convention selected by explicit application intent, not static interpretation of arbitrary JavaScript. Custom scripts retain native lifecycle semantics and can use compound commands supported by their manager.
+
+The output must be a freshly produced contained directory. Missing output, a file in place of the directory, linked entries or special files fail packaging; previous bundle contents cannot satisfy the new build. Build/test/lint/read-only format gates still apply, and the default quality checks exclude the generated `dist`. Browser globals are not inferred merely from the application selection. Static content alone does not prove platform independence: the current artifact retains its execution platform, and multi-platform reuse remains unimplemented.
+
+Discovery exposes `builder_selection: explicit` and the `dist-application` output profile. A recognized framework such as Vite has stronger output evidence and keeps its native adapter and validation. Explicit `node/package` retains native archive packaging. For compatibility, an automatically inferred Node target with an unknown custom script still uses native package output; add `uses: node/app` only when the script follows this directory convention. A custom non-dist output requires further native output integration; no new general-purpose output configuration is introduced here. Node workspaces continue to use native workspace package planning rather than this single-root application profile.
 
 ## Minimal project and native customization
 
@@ -24,7 +40,7 @@ The executor assembles the private BuildKit context from selected source files p
 
 For a different directory, use the native script `vite build --outDir public-site`. The currently recognized grammar is exactly `vite build` with an optional literal `--outDir <path>`. Paths must be contained, portable and use ASCII letters/digits, slash, underscore, hyphen or dot; parent/dot segments, absolute paths, shell expansion, quoting and compound commands are not interpreted. Vite defines the [native default and outDir option](https://vite.dev/config/build-options.html#build-outdir); Oyzu does not assume that every Node build script follows that convention.
 
-Static discovery records the output profile and configuration-file evidence without executing project code. Unsupported flags still fail captured planning with an explicit diagnostic. Unknown custom scripts retain current native package behavior, and explicit `node/package` retains a package archive even with a Vite script. These are compatibility limits, not complete application packaging support.
+Static discovery records the output profile and configuration-file evidence without executing project code. Unsupported Vite flags still fail captured planning with an explicit diagnostic. Unknown custom scripts follow the intent/convention rules above, and explicit `node/package` retains a package archive even with a Vite script. These are compatibility limits, not complete application packaging support.
 
 ## Native Vite configuration
 
@@ -48,6 +64,8 @@ The manifest records `kind: directory`, version, producing action, complete inve
 
 Tool installation is not implemented. Development tasks require a compatible provisioned Node/npm, installed native project dependencies and [quality tooling](node-quality.md). The authored variant pins Vite 8.3.2 and npm 11.11.0, with Node >=22.12. Captured acceptance uses the provisioned Node 22/npm image, the quality image, Docker metadata tooling and the isolated BuildKit worker described in [builder verification](build-verification.md). CI provisions those tools explicitly before invoking the already compiled CLI.
 
-Dependencies are acquired through the selected native manager's existing broker/capture flow before isolated execution. Build actions replay prepared dependencies offline; this output integration introduces no new download route or credential channel. Native project build scripts remain executable project code and receive the existing sandbox restrictions. SSR/library modes, compound build commands, native workspace application output and cross-platform directory reuse need further integration. Windows transfer of Unix executable directory metadata retains the shared directory limitation.
+Dependencies are acquired through the selected native manager's existing broker/capture flow before isolated execution. Build actions replay prepared dependencies offline; this output integration introduces no new download route or credential channel. Native project build scripts remain executable project code and receive the existing sandbox restrictions. Vite SSR/library modes and compound Vite-command recognition, native workspace application output and cross-platform directory reuse need further integration. Windows transfer of Unix executable directory metadata retains the shared directory limitation.
+
+`python tooling/test-node-conventional-application.py --cli <compiled-oyzu-path>` exercises the custom script's actual native build/test/quality tasks and directory staging on the host, including missing/wrong-kind output failures. The captured Node suite also builds the authored `frontend` target, then a single-platform consumer variant, checks versioned directory and OCI contents, repeatability and missing-output failure. These are separate scopes: host staging does not prove isolated execution, and the single-platform variant does not establish full EX-050 matrix acceptance. See [implementation status](../implementation-status.md) for revision-specific results.
 
 Rust checks cover non-executing discovery, literal output arguments, package/application distinction and configured output declarations. `tooling/test-node-application.py --cli <compiled-path>` executes native Vite development tasks and staging, including browser lint, native configuration/plugin assets, npm lifecycle hooks, output overrides, quality exclusions and rejected failures. CI runs that probe on Windows, macOS and Linux. The Docker acceptance suite builds the plain and configured variants, verifies actual image bytes against the directory manifest, JUnit/coverage, repeatability, custom outDir, metadata, tampering and failed-producer rejection. The configured native probe uses Vite 8.3.2 with an ESM config; every supported native loader form and package manager still needs equivalent qualification. See [implementation status](../implementation-status.md) for checks actually completed; test registration alone does not establish acceptance. EX-050's original custom script and two-platform matrix remain pending.

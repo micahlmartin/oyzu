@@ -34,12 +34,24 @@ impl Task {
 pub struct Target {
     pub name: String,
     pub builder: String,
+    #[serde(default)]
+    pub builder_selection: BuilderSelection,
     pub manager: String,
     pub path: PathBuf,
     pub version: String,
     pub tasks: BTreeMap<String, Task>,
     #[serde(default)]
     pub discovery: BTreeMap<String, crate::discovery::Resolution>,
+}
+
+/// Whether a target's builder is selected by project intent or inferred from
+/// native files. Adapters may use explicit intent to resolve output ambiguity.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum BuilderSelection {
+    #[default]
+    Inferred,
+    Explicit,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -13,23 +13,32 @@ pub(super) fn configure(target: &Target, package: &Value, plan: &mut BuilderPlan
         || target
             .discovery
             .get("output-profile")
-            .is_none_or(|profile| profile.selected() != "vite-application")
+            .is_none_or(|profile| {
+                !["vite-application", "dist-application"].contains(&profile.selected())
+            })
     {
         return Ok(());
     }
-    if !["dependencies", "devDependencies", "optionalDependencies"]
-        .iter()
-        .any(|field| package[*field].get("vite").is_some())
+    let vite = target.discovery["output-profile"].selected() == "vite-application";
+    if vite
+        && !["dependencies", "devDependencies", "optionalDependencies"]
+            .iter()
+            .any(|field| package[*field].get("vite").is_some())
     {
         bail!(
             "{}: Vite application output requires a declared, captured vite dependency",
             target.name
         );
     }
-    let configured = super::detection::output_configuration_files()
-        .iter()
-        .any(|file| target.path.join(file).exists());
-    let output = output_directory(package)?;
+    let configured = vite
+        && super::detection::output_configuration_files()
+            .iter()
+            .any(|file| target.path.join(file).exists());
+    let output = if vite {
+        output_directory(package)?
+    } else {
+        "dist"
+    };
     // The ordinary package operation is replaced by a directory output, while
     // native build/test/quality tasks and their required reports stay intact.
     let filename = format!("application-{}", plan.version);
@@ -184,6 +193,27 @@ mod tests {
             .unwrap_err()
             .to_string()
             .contains("declared, captured"));
+    }
+
+    #[test]
+    fn explicit_custom_application_uses_dist_without_claiming_platform_independence() {
+        let root = tempfile::tempdir().unwrap();
+        let package = json!({"name":"site", "scripts":{"build":"node build.mjs"}});
+        fs::write(root.path().join("package.json"), package.to_string()).unwrap();
+        fs::write(root.path().join("build.yaml"), "site:\n  uses: node/app\n").unwrap();
+        let workspace = discovery::discover(root.path()).unwrap();
+        let mut plan = BuilderPlan::new(
+            "1.0.0-dev.g1234".into(),
+            CommandSpec::new("package", &["npm", "pack"]),
+        );
+        configure(&workspace.targets["site"], &package, &mut plan).unwrap();
+        assert_eq!(plan.package.argv[2], "dist");
+        assert_eq!(plan.artifacts[0].name, "primary");
+        assert!(matches!(plan.artifacts[0].kind, ArtifactKind::Directory));
+        assert_eq!(plan.artifacts[0].filename, "application-1.0.0-dev.g1234");
+        assert_eq!(plan.fixed_env["OYZU_NODE_QUALITY_EXCLUDE"], "[\"dist\"]");
+        assert!(plan.prepare.is_empty());
+        assert!(!plan.env.contains_key("OYZU_NODE_BROWSER"));
     }
 
     #[test]

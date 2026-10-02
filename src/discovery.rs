@@ -29,6 +29,11 @@ pub fn discover_target(name: &str, path: &Path, explicit: Option<&str>) -> Resul
     let mut target = Target {
         name: name.into(),
         builder: builder.clone(),
+        builder_selection: if explicit.is_some() {
+            crate::model::BuilderSelection::Explicit
+        } else {
+            crate::model::BuilderSelection::Inferred
+        },
         manager: builder.clone(),
         path: path.into(),
         version: "0.0.0".into(),

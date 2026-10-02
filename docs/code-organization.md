@@ -50,6 +50,8 @@ The task graph explicitly sequences all newly selected local prerequisites, incl
 
 Existing broad public modules, dynamic records and partially combined responsibilities are migration work, not a pattern to copy blindly. Improve the relevant boundary with the feature being changed; preserve observable behavior and avoid unrelated repository-wide rewrites.
 
+`model::BuilderSelection` records inferred versus explicit builder selection at discovery's construction boundary. Node's conventional application detector consumes that intent and the native build-script evidence; the shared discovery engine does not select Node output directories. `node/application` owns the dist convention and framework-specific output precedence, reusing the same staging runtime and shared directory inventory/materialization as Vite. Configuration, execution and collection retain their existing owners.
+
 ## Interfaces that earn their place
 
 Node's `mocha` module owns exact invocation adaptation; its runtime composes native Mocha reporters and invokes native c8. Framework detection remains in `node/detection/frameworks`, manager lifecycle behavior stays native, and shared report collection remains engine-owned. The common Node toolchain image provisions c8 alongside quality tools, but coverage integration stays with reporting rather than the lint/format adapter.

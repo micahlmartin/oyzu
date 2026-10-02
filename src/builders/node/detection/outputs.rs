@@ -40,6 +40,31 @@ impl Detector<ContextData> for Vite {
     }
 }
 struct Package;
+struct ConventionalApplication;
+impl Detector<ContextData> for ConventionalApplication {
+    fn id(&self) -> &'static str {
+        "node/output-conventional-application"
+    }
+    fn detect(&self, context: &ContextData) -> Result<Vec<Finding>> {
+        if context.application_intent
+            && context.package.get("workspaces").is_none()
+            && context.package["scripts"]["build"]
+                .as_str()
+                .is_some_and(|s| !s.trim().is_empty())
+        {
+            Ok(vec![Finding::conventional(
+                "dist-application",
+                vec![context
+                    .source
+                    .evidence("package.json", "/scripts/build")
+                    .unwrap()],
+            )])
+        } else {
+            Ok(vec![])
+        }
+    }
+}
+
 impl Detector<ContextData> for Package {
     fn id(&self) -> &'static str {
         "node/output-package"
@@ -48,4 +73,5 @@ impl Detector<ContextData> for Package {
         Ok(vec![Finding::fallback("native-package")])
     }
 }
-pub(super) static DETECTORS: &[&dyn Detector<ContextData>] = &[&Vite, &Package];
+pub(super) static DETECTORS: &[&dyn Detector<ContextData>] =
+    &[&Vite, &ConventionalApplication, &Package];
