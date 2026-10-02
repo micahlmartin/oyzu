@@ -44,7 +44,7 @@ Native tools must already be installed. This implementation does not install too
 - [Proposals](docs/proposals/README.md): detailed Oyzu Enhancement Proposals (OEPs).
 - [Examples](examples/README.md): 58 checked-in design-contract scenarios with source, configuration, expected behavior, and failures.
 - [Example catalog](docs/examples.md): acceptance-criteria traceability.
-- [Reference](docs/reference/README.md): reserved for verified implemented contracts.
+- [Reference](docs/reference/README.md): current functionality and verified limits, maintained with each change under the [documentation standard](docs/documentation.md).
 - `.github/`: contribution templates and CLI compilation, task and initial build-scenario workflows.
 
 All designs remain drafts for maintainer review. Run `cargo test --locked`, `cargo clippy --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check` for the current Rust implementation. `python tooling/test-task-scenarios.py --cli <compiled-oyzu-path>` tests the CLI against real native task scenarios. Run `node tooling/check-docs.mjs` separately for documentation structure.

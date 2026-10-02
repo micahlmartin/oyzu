@@ -22,6 +22,12 @@ Pull requests should explain the intended behavior, reference related issues or 
 
 For code changes, briefly identify the AI tool used, how you directed/reviewed the change, and the subsystem/interface affected. A short summary is enough; full chat logs, private prompts and credentials are not required. Keep changes reviewable and scoped to one coherent outcome. Do not weaken an acceptance criterion merely to make generated code pass.
 
+## Documentation with every functionality change
+
+Documentation is part of implementation and review, not a later task. Follow the [documentation maintenance standard](docs/documentation.md) for every feature, changed behavior, deprecation or removal. Update the owning reference page in the same PR, with practical usage, defaults, outputs, failure/recovery behavior and verified limits. Add a new page to the [reference index](docs/reference/README.md) when no existing page owns the feature. Implementation checkpoints and draft OEPs supplement this reference; they do not replace it.
+
+Reviewers should compare the documentation to the changed code and verification evidence before considering a change complete. The PR must link the updated pages or explain specifically why an internal-only change has no documentation impact. Missing documentation for older behavior should be corrected when that behavior is touched; unrelated gaps should be recorded in implementation status with their owning subsystem, rather than silently described as covered.
+
 ## Local verification
 
 Use the Rust toolchain pinned in `rust-toolchain.toml`. The public CLI builds without a platform account:

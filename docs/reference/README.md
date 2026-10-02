@@ -1,5 +1,12 @@
 # Implemented reference
 
+This is the entry point for current functionality documentation. Maintain feature pages in place as behavior evolves, following the [documentation maintenance standard](../documentation.md); the [implementation status](../implementation-status.md) records measured support and remaining work. This index is not a claim that every implemented subsystem already has a complete guide.
+
+| Reference | Coverage |
+| --- | --- |
+| [Configuration](configuration.md) | Cascades, profiles, inspection/editing, administrative enforcement and policy-cache boundaries |
+| CLI overview below | Discovery, development tasks and initial build/bundle usage; detailed subsystem coverage remains to be expanded as those features are touched |
+
 The experimental CLI supports `oyzu discover`, `oyzu run list`, `oyzu run <task>`, `oyzu build`, `oyzu build --plan` and `oyzu inspect <bundle>`. Global `-C <directory>` selects the project and `--json` emits structured discovery or task outcomes. The implementation is not a stable API release.
 
 Static discovery covers the initial native builder families. Task execution uses already installed native tools in the development environment. TOML overrides and success-only pre_/post_ hooks are executed; native npm lifecycle hooks remain owned by npm. Missing configured tools fail with an error. Unavailable lint/format integrations are listed with a reason rather than silently advertised as successful checks.
