@@ -12,6 +12,27 @@ use std::path::Path;
 
 pub(super) struct Go;
 
+impl crate::dependencies::context::Provider for Go {
+    fn id(&self) -> &'static str {
+        "go/modules"
+    }
+    fn tools(&self) -> &'static [&'static str] {
+        &["go"]
+    }
+    fn detect(&self, source: &Path) -> bool {
+        source.join("go.mod").is_file() || source.join("go.work").is_file()
+    }
+    fn store(&self) -> &'static str {
+        "modules"
+    }
+    fn prepare(
+        &self,
+        context: super::PreparationContext<'_>,
+    ) -> Result<crate::dependencies::Prepared> {
+        preparation::prepare_context(context)
+    }
+}
+
 static RUNTIME: &[super::RuntimeFile] = &[
     super::RuntimeFile {
         name: "go-metadata.go",
@@ -28,6 +49,11 @@ static RUNTIME: &[super::RuntimeFile] = &[
 ];
 
 impl Builder for Go {
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        &[&Go]
+    }
     fn development_test(
         &self,
         target: &Target,

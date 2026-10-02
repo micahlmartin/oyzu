@@ -107,6 +107,10 @@ fn provider_selection_preserves_ambiguity_and_managed_admission_before_effects()
     assert!(select(&context).is_err());
     context.dependency_selector = Some("node/pnpm");
     assert_eq!(select(&context).unwrap().id(), "node/pnpm");
+    context.dependency_selector = Some("go/modules");
+    assert!(select(&context).is_err());
+    fs::write(root.path().join("go.mod"), "module example.test/fixture\n").unwrap();
+    assert_eq!(select(&context).unwrap().id(), "go/modules");
     fs::write(root.path().join("requirements.txt"), "six==1.17.0\n").unwrap();
     context.dependency_selector = Some("python/pip");
     assert_eq!(select(&context).unwrap().id(), "python/pip");

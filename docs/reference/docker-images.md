@@ -108,7 +108,7 @@ Provisioned image capture is shared through `dependencies/images`; Dockerfile pa
 The first application `container: true` integration is [Python application packaging](python-containers.md), whose default and override profiles passed Linux CI. It uses the internal [typed assembly boundary](../container-assembly.md) and shared captured-base acquisition. Additional runtime profiles, application-container matrices and startup smoke tests remain unfinished. Existing Dockerfile builds continue to use their captured source definition. The worker verifies the bytes actually staged for BuildKit against the planned digest, so a definition changed during copying is rejected rather than executed.
 
 
-The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The Docker package-manager integrations are the experimental Python, npm, pnpm and Yarn Classic profiles below; their end-to-end native CI results are pending. Other ecosystems, private sources and full EX-058 credential-policy acceptance remain unfinished.
+The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The Docker package-manager integrations are the experimental Python, Node-manager and Go-module profiles below; their end-to-end native CI results are pending. Other ecosystems, private sources and full EX-058 credential-policy acceptance remain unfinished.
 
 ## Offline pip dependency context (experimental)
 
@@ -246,3 +246,28 @@ The profile retains existing single-project registry and source-patch support. F
 Stale locks, altered archive integrity, missing native tools or unqualified store metadata fail preparation and produce no action artifacts. Correct the inputs or provisioned toolchain and rebuild. Build actions have no registry access: an incomplete/corrupt offline store fails instead of being replenished from the internet. Existing context/base identity checks, versioned OCI artifacts, JUnit and quality gates apply. No credential is placed in the store by Oyzu; package content integrity is not provenance or release authorization.
 
 Windows native checks using pnpm 10.11.0/Node 24.14.1 passed ordinary, patched and empty-graph preparation, repeated export identities, fresh offline consumption, tests after temporary-store removal, unchanged source locks and rejection of tampered store content. A Yarn selective-resolution mirror check also passed after the shared export-callback update. Both generated pnpm Dockerfiles passed native Hadolint and read-only dockerfmt checks. The registered Linux `docker-pnpm-context` group requires actual compiled-CLI capture/builds for ordinary and patched projects, exact image files/patch evidence, offline imports, snapshot OCI/JUnit/quality, repeatability and pre-action lock-integrity rejection. Those container results remain pending; the host probes use a fixture spool and do not qualify the production broker or full EX-058.
+
+## Offline Go module context (experimental)
+
+`go/modules` exposes the Go builder's native, checksum-verified module cache through `dependencies`. A Docker target containing `go.mod` or `go.work` can infer this provider; mixed ecosystems require `dependencies: go/modules`. Native metadata resolves contained workspace members, local replacements and test imports using the original source/checksum files. The existing public Go proxy broker obtains required module inputs, and native Go verifies `go.sum`. Preparation must leave manifests and checksum files unchanged.
+
+The consumer base must already contain Go and a POSIX shell; projects using cgo also require the configured C compiler. The CI profile uses the standard `golang:1.24-bookworm` image. Context preparation compiles the owned metadata helper with that provisioned Go compiler using only the standard library. It does **not** require `oyzu-go-modulezip`, project snapshot version projection or module artifact packaging. Those remain responsibilities of ordinary `go/app`/`go/library` builds. Toolchain auto-download, VCS access and user Go configuration are disabled during preparation.
+
+For a pure-Go command with a complete `go.sum`:
+
+```dockerfile
+FROM golang:1.24-bookworm AS build
+WORKDIR /src
+COPY . .
+RUN --mount=type=bind,from=dependencies,target=/dependencies \
+    GOMODCACHE=/dependencies GOPROXY=off GOSUMDB=off GOTOOLCHAIN=local CGO_ENABLED=0 go build -mod=readonly -trimpath -buildvcs=false -o /app .
+FROM scratch
+COPY --from=build /app /app
+ENTRYPOINT ["/app"]
+```
+
+The complete prepared module subtree is mounted read-only. The build uses native cache lookup with registry access disabled; it does not receive a broker, credentials or Go acquisition metadata as files. Native metadata, observed Go version/platform, lock/source digests and used module archive identities remain in the dependency evidence. The context's module-artifact list is empty because dependency preparation does not publish the project's own module. Compiler output/cache stays in the private build stage, and the final scratch stage contains only the copied binary. Use a suitable runtime instead of scratch for cgo or other runtime-library requirements; arbitrary Dockerfile commands remain responsible for compatible compilation and reproducibility.
+
+Missing checksums, stale manifests, escaping workspace/replacement paths, failed native metadata or incompatible tools fail preparation before action artifacts. Update and commit native metadata or provision the correct image, then rebuild. The shared provider policy/platform rules still apply, including managed acquisition rejection until approved connector bindings exist. Private module routes, direct VCS sources, checksum-database service integration and persistent acquisition caches remain unfinished. Current verification uses committed `go.sum`; it does not claim independent checksum-database attestation or production release authority.
+
+Windows Go 1.24.13 native checks passed existing workspace/cgo and checksum cases, plus two detached module-store copies compiled offline into identical binaries that both ran with expected output. Source and store bytes remained unchanged, and no extra fixture broker requests occurred during replay. The exact Dockerfile passed native Hadolint/read-only dockerfmt. The Linux `docker-go-context` group requires real compiled-CLI preparation in a standard Go image, read-only cache compilation and execution in the build stage, exact final binary contents, snapshot OCI/JUnit/quality, repeatability and checksum rejection. Container results remain pending. Docker integrity JUnit does not replace source tests or coverage; use a separately built Go producer when those language-builder reports are required. The check does not claim it starts the final image.

@@ -26,6 +26,8 @@ The image extends `golang:1.24-bookworm` with the owned module packaging adapter
 
 This changes the default Go image from the base Go distribution. Custom `--image go=<image>` profiles must now include `oyzu-go-modulezip` as well as the existing compiler/native tools. Oyzu never downloads a missing image or adapter. Image content identity enters the build evidence. A missing executable fails preparation; it does not disable library packaging silently.
 
+Docker consumers can separately request the experimental [Go module dependency context](docker-images.md#offline-go-module-context-experimental). It reuses native metadata/acquisition but only exports the captured module cache; the consumer's standard Go image does not need the module packaging helper. This exception applies to dependency preparation, not ordinary Go artifact builds or their report obligations.
+
 ## Direct test evidence
 
 `oyzu run test` instruments the implicit `go test ./...` command with `-json`, a fresh `-coverprofile` destination and `-count=1`. Native Go owns test discovery and compilation. Oyzu converts its JSON events to JUnit and retains the native coverage profile under `dist/`, with digests and summaries in the manifest. Statement coverage does not claim branch or line coverage. Packages with no tests retain an honest zero-test summary; native Go may succeed in that case. Missing/malformed reports and configured coverage thresholds can still fail the invocation.
