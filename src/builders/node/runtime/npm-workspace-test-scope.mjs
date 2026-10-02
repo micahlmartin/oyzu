@@ -4,13 +4,13 @@ import {createRequire} from 'node:module';
 import {dirname, resolve} from 'node:path';
 
 export function frameworkCommand(framework, root) {
-  if (!['jest', 'vitest'].includes(framework)) throw new Error(`Unsupported native test entrypoint: ${framework}`);
+  if (!['jest', 'vitest', 'mocha'].includes(framework)) throw new Error(`Unsupported native test entrypoint: ${framework}`);
   const native = createRequire(resolve(root, 'package.json'));
   const metadata = native.resolve(`${framework}/package.json`);
   const pkg = JSON.parse(readFileSync(metadata, 'utf8'));
   const bin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.[framework];
   if (typeof bin !== 'string' || !bin) throw new Error(`Missing native ${framework} bin declaration`);
-  return [process.execPath, resolve(dirname(metadata), bin), framework === 'jest' ? '--ci' : 'run'];
+  return [process.execPath, resolve(dirname(metadata), bin), ...(framework === 'jest' ? ['--ci'] : framework === 'vitest' ? ['run'] : ['--watch=false'])];
 }
 
 export function nodeTests(root, modules) {
@@ -32,6 +32,7 @@ export function nodeTests(root, modules) {
 export function frameworkArguments(framework, root, modules, version) {
   const paths = ['.oyzu', '.oyzu-build', ...modules.map(m => m.path)];
   if (framework === 'vitest') return paths.map(path => `--exclude=${path}/**`);
+  if (framework === 'mocha') return paths.map(path => `--ignore=${path}/**`);
   if (framework === 'jest') {
     const major = Number(version?.split('.')[0]);
     if (!Number.isSafeInteger(major) || major < 1) throw new Error('Missing native Jest version for workspace scope');

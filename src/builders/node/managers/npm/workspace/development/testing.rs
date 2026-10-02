@@ -23,7 +23,7 @@ pub(super) fn steps(task: &Task, metadata: &Metadata) -> Result<Vec<Step>> {
             }
         } else {
             let framework = profile.framework.selected();
-            if !["node-test", "jest", "vitest"].contains(&framework) {
+            if !["node-test", "jest", "vitest", "mocha"].contains(&framework) {
                 bail!("{path}: implicit {framework} workspace test integration is not implemented yet");
             }
             Operation::Test {

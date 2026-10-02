@@ -55,6 +55,8 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             insert(target, "test", super::jest::DEFAULT, true);
         } else if framework == "vitest" {
             insert(target, "test", super::vitest::DEFAULT, true);
+        } else if framework == "mocha" {
+            insert(target, "test", super::mocha::DEFAULT, true);
         } else {
             super::super::unavailable(target, "test", &format!("Detected {framework}; its implicit runner/report integration is not implemented yet"));
         }

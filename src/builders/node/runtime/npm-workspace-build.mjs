@@ -60,13 +60,13 @@ if (mode === 'project') {
       let command;
       if (member.scripts.test) command = script('test', member.name ? member : undefined);
       else if (member.framework === 'node-test') command = [process.execPath, '--test'];
-      else if (['jest', 'vitest'].includes(member.framework)) {
+      else if (['jest', 'vitest', 'mocha'].includes(member.framework)) {
         command = frameworkCommand(member.framework, cwd);
       } else throw new Error(`No native test command for ${member.name}`);
       if (member.framework === 'node-test') {
         command.push(...spec.nodeTestArguments.map(v => v.replace('__OYZU_TEST_REPORT__', env.OYZU_TEST_REPORT).replace('__OYZU_COVERAGE_REPORT__', env.OYZU_COVERAGE_REPORT)));
         if (!member.scripts.test) command.push(...nodeTests(cwd, excludes));
-      } else if (['jest', 'vitest'].includes(member.framework)) {
+      } else if (['jest', 'vitest', 'mocha'].includes(member.framework)) {
         if (!member.scripts.test) {
           const native = createRequire(join(cwd, 'package.json'));
           const version = member.framework === 'jest' ? native('jest/package.json').version : undefined;
@@ -74,7 +74,9 @@ if (mode === 'project') {
         }
         command = [process.execPath, join(runtime, `${member.framework}.mjs`), ...command];
       }
-      const status = invoke(command, member.scripts.test ? root : cwd, env);
+      // Mocha/c8 resolve native config and reporting dependencies from the
+      // package they test, including when npm dispatches a member script.
+      const status = invoke(command, member.scripts.test && member.framework !== 'mocha' ? root : cwd, env);
       if (status) process.exitCode = 1;
     }
   } else if (['lint', 'format-check', 'format:check'].includes(mode)) {

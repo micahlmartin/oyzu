@@ -963,3 +963,307 @@ supersedes that exploratory archive for review. This illustrates why candidate
 filename observations cannot substitute for actual content/obligation review.
 The native run predates Node resolution/checksum metadata; it does not qualify
 those later library increments or the eventual shipping graph.
+
+## Mise integration checkpoint 84: repeatable retained-notice verification
+
+The first-party `tooling/mise-upstream/verify_notices.py` now reproduces candidate
+notice evidence checks against the checked-in target/hash index. It verifies all
+three retained native archives from run 36985298309 on Windows, including exact
+embedded report bytes, raw and normalized notice hashes, package/path correspondence,
+clean source identity, missing-notice identities and totals. It reads without
+extracting or acquiring anything and never changes approval status.
+
+Two regression tests with ten negative subcases pass, covering external tampering
+and internally inconsistent archives even when the archive hash is updated. The
+existing upstream workflow discovers the new tests. This is evidence integrity,
+not a source import approval, release audit or completed TM-02/TM-12. The maintenance
+reference documents invocation, bounds, trust inputs and failure recovery.
+## Mise integration checkpoint 85: candidate Go checksum metadata
+
+The candidate fork exposes `Session::go_archive_metadata` using its existing Go
+archive facts and target-specific checksum URL. Backend/version/target admission
+precedes transport access. It accepts only a bounded single SHA-256 digest and
+returns declared metadata without artifact acquisition or execution. The owning
+maintenance reference documents response limits, offline requirements and the
+remaining catalog, publisher-verification and worker-integration gaps.
+
+A thirteenth fresh-process conformance scenario exercises all three initial target
+URLs, case normalization, malformed/multiple/oversized checksums and invalid inputs.
+Existing scenarios now check explicit transport denial and session admission for
+this method. Windows compliance tests passed (22 plus two symlink skips), and the
+factual dependency/notice inventory remained unchanged. Linux library/example
+Clippy and all thirteen executable conformance scenarios passed. Native
+Windows/macOS execution of this increment remains pending. This does not complete
+TM-03/TM-06 or authorize a production source import.
+## Mise integration checkpoint 86: candidate Go constrained catalog resolution
+
+The fork now exposes admitted Go version selection using upstream tag parsing,
+Go version filtering/ordering and the shared Node/Go constrained selector. Embedded
+Go uses supplied HTTP pagination instead of its ordinary Git subprocess path.
+It requires exact-pin catalog membership and rejects partial/absent metadata,
+conflicting constraints, repeated/foreign-origin pagination and oversized catalogs.
+The bounded tag API is separate from ordinary upstream callers, whose pagination
+behavior is retained. No dependency or preserved notice changed.
+
+Six new fresh-process scenarios cover successful selection/cache and missing
+transport, cycles, foreign origins, 1,000-page and 100,000-tag bounds. Strict Linux
+library/example and utility-library Clippy passed after correcting an owned-handle
+compile error. All nineteen executable Linux conformance scenarios passed. Windows compliance tests
+passed with two platform symlink skips; inventory remains consistent. Native
+Windows/macOS results for this increment remain pending. Native constraint discovery,
+publisher verification, production worker wiring and full OEP acceptance remain
+outstanding. The maintenance reference documents inputs, limits, offline behavior
+and unsupported older Go version spellings.
+## Mise integration checkpoint 87: Go catalog source correction
+
+Review against the acquisition contract found that checkpoint 86's GitHub-tag
+adapter did not implement the specified initial Go release JSON source. The
+candidate now uses the official `go.dev/dl/?mode=json&include=all` catalog through
+supplied transport, retains the shared selector/upstream comparator and returns
+`GoVersionResolution` with the selected version and exact catalog-byte SHA-256.
+The added GitHub pagination API was removed; ordinary upstream behavior is restored.
+This corrects implementation alignment without changing the OEP requirement.
+
+The adapter bounds response bytes before JSON parsing, requires valid UTF-8,
+checks record counts/version lengths and rejects duplicate release identities.
+A process-private cache stores only successfully parsed snapshots. New workers need
+supplied metadata; no disk cache, Git or alternate catalog fallback is added.
+Seven catalog scenarios replace the earlier tag scenarios, including exact digest,
+constraint/cache behavior, duplicate/malformed/invalid-UTF-8 records and byte/count
+limits. All twenty Linux conformance scenarios and final strict library/example
+and utility-library Clippy checks passed; compliance inventory/tests pass
+on Windows with the two existing symlink skips. Artifact-file parity, publisher
+verification, native directives and production worker integration remain missing.
+The earlier Go checksum increment passed all three native hosts in run 36988631019;
+that evidence does not qualify this catalog correction.
+## Mise integration checkpoint 88: Go target records bound to catalog evidence
+
+The candidate fork's Go target metadata now requires the official stable release
+and exact upstream-derived archive filename, matching file OS/architecture/version,
+archive kind, positive declared size and valid hash. It then requires the checksum
+sidecar to agree with that catalog hash. Results include size and catalog digest;
+missing or contradictory catalog records fail before sidecar access. This replaces
+the prior checksum-only metadata acceptance without enabling archive acquisition.
+
+The Go embedding adapter owns decoding and matching; upstream URL/layout rules stay
+in the parent backend. Canonical stable releases reject duplicate/invalid filenames
+and more than 4,096 file records. Conformance now exercises all target fields, absent
+release/target, hash disagreement, malformed sidecars and duplicate/excessive file
+lists. Linux Rust 1.95 strict library/example Clippy, formatting and all twenty-two
+fresh-process conformance scenarios passed. Windows compliance tests pass with two existing
+symlink skips and unchanged inventory; documentation checks pass. Native execution,
+real archive qualification, source approval and production integration remain
+outstanding, so TM-03/TM-06 and the overall OEP remain incomplete.
+## Mise integration checkpoint 89: native official-catalog correction checks
+
+Inspection of run 36990464407 at fork head
+`32db610a7cc3e460bf678dbd9e2761c5fedb3dad` confirms successful library/example
+Clippy, shared utility-library Clippy and fresh-process conformance steps on
+Windows, macOS and Linux. These steps cover the twenty scenarios at that revision,
+including official Go catalog selection and its byte-identity/error cases.
+Windows/macOS jobs were still finishing post-check work when inspected; this
+records specific successful steps rather than claiming the whole workflow passed.
+
+This supersedes checkpoint 87's pending native runtime checks. It does not apply
+to checkpoint 88's later target-file binding at `0d58ad7c1`; its run 36991065278
+was independently confirmed live and still preparing native jobs. Production
+installation, source approval and the remaining OEP gates stay outstanding.
+## Mise integration checkpoint 90: real Go metadata captured and replayed offline
+
+The first-party fixture provisioner captured official metadata for Go 1.24.13 and
+1.25.0 on Linux amd64 GNU, Darwin arm64 and Windows amd64 MSVC: six expected archive
+records and seven exact response bodies. The fork's optional fresh-worker replay
+passed all six cases and the twenty-two existing scenarios on Linux Rust 1.95 with
+Docker networking disabled. A changed expected size failed the actual library-result
+comparison. No Go archive was downloaded or executed.
+
+The capture's 2,527,192-byte fixture is retained outside the repository; its hash,
+source, case identities and limitations are recorded in
+[the replay evidence index](proposals/OEP-0003-mise-integration/go-metadata-replay-evidence.json).
+Eight upstream-tooling tests, strict library/example Clippy, formatting, compliance
+inventory/tests and documentation checks passed. The maintenance reference and code
+map describe the independent fixture oracle and optional fork replay. Native replay,
+archive/layout qualification, licensing approval and production wiring remain
+outstanding. Fixture capture/replay does not complete TM-06 or the OEP.
+## Mise integration checkpoint 91: native catalog-file checks and fixture limits
+
+Run 36991065278 at fork revision `0d58ad7c135d5be63d96b356dbf4ca94708566b9`
+passed the strict library/example Clippy and twenty-two-scenario conformance steps
+on Windows, macOS and Linux. Windows/macOS jobs were still finishing post-check
+work at inspection. This supersedes checkpoint 88's pending native checks, but does
+not claim native optional real-metadata replay or full installation qualification.
+
+The capture writer now bounds serialized fixture output to the replay reader's
+32 MiB limit before creating a file. This accounts for JSON escaping expansion,
+which can exceed the limit even with an input body below 16 MiB. Regression tests
+confirm the written digest, refusal to replace an existing fixture, preservation
+of its bytes and no output for oversized serialization. All nine upstream-tooling
+tests and documentation checks passed. Product Rust sources were unchanged.
+## Mise integration checkpoint 92: native real-metadata replay CI
+
+The fork workflow now captures and replays real Go metadata for two versions and
+three targets on each native host, in addition to baseline conformance. The
+first-party capture helper is pinned by full Git revision and verified SHA-256
+before execution. Fixtures remain outside the fork checkout and are retained with
+capture reports in target/revision artifacts for 30 days. Live source failures
+fail qualification; no synthetic fallback is introduced.
+
+A malformed combined example-path filter was corrected into separate entrypoint
+and directory patterns, restoring triggers for future example-only edits. Workflow
+syntax/path assertions and the exact pinned capture step passed on Windows,
+producing all six cases and seven responses. Compliance inventory/tests passed
+with the two existing Windows symlink skips. New native workflow execution is
+pending; CI configuration alone does not establish platform replay support.
+No product Rust implementation changed. The maintenance reference documents
+provisioning, evidence retention, failure behavior and the offline-test distinction.
+## Mise integration checkpoint 93: real Go ZIP store qualification
+
+The real Go 1.24.13 Windows amd64 ZIP (87,295,983 bytes; digest recorded in the
+maintenance fixture evidence) was independently inventoried and exercised through
+verified blob caching, ZIP staging, receipt/publication, leased native version
+execution and changed-lock denial/recovery. All 15,738 payload entries matched on
+Windows. The real Node regression also passed with its original 3,016-entry manifest.
+
+The first Go attempt failed the default 200:1 per-file expansion guard: three
+upstream test files exceed it, with a maximum about 799.21:1. The OEP explicitly
+allows reviewed descriptor bounds larger than defaults. Runtime and schema now
+retain default 200:1 but allow an explicit, layout-identity-bound ratio up to 1024:1;
+the synthetic Go qualification plan requests 800:1. Entry, byte, per-file and depth
+ceilings remain unchanged. This is not production Go descriptor approval. Runtime
+and shared schema cases reject 1025:1; boundary tests cover 0, 1, 200, 800 and 1024.
+
+The shared Python ZIP oracle includes implicit directories and reproduces the
+original Node manifest exactly. Each native CI archive step now provisions and
+selects its own exact test. The full Windows locked test suite, strict all-target
+Clippy, formatting and all nine compiled CLI task scenarios passed. Linux layout
+tests, both real archive parity/publication/changed-lock cases and strict all-target
+Clippy passed with container networking disabled. Linux did not execute the Windows
+payloads. Updated native CI, Go environment/build integration, other native Go
+archives, publisher verification and production source admission remain
+outstanding. The reference and code map describe bounds, migration and test scope.
+## Mise integration checkpoint 94: native real Go metadata evidence
+
+Fork run `36992169356` completed successfully on Windows, macOS and Linux at
+head `b71e447bc10acfbce3627b5f4c8baeb4a0f2f6fb`, tested merge
+`58fa4ec749d3af8638bd5aa582fb2928595f2739`. All three jobs passed strict
+library/example and utility Clippy, ordinary boundary scenarios, live capture and
+six-case real Go replay. This supersedes checkpoint 92's pending native execution.
+
+All three fixture/report artifacts were downloaded before expiry. Independent
+checks matched report-to-fixture digests, every response's UTF-8 byte hash/size,
+and all six expected target records reconstructed from the retained official
+catalog and checksum sidecars. Each fixture contains seven responses and 2,527,192
+bytes; hashes and tested revisions are in the Go metadata replay evidence index.
+The native runner network was available; only the earlier Linux Docker replay
+provides OS-level network-disabled evidence. No product implementation changed in
+this checkpoint, and no legal or production admission gate was approved.
+## Mise integration checkpoint 95: reconcile current main for native CI
+
+The draft integration branch conflicted with main at `9cc731abdc883810c3ee0455fca0c6a8cbe92a2f`,
+preventing pull-request CLI workflows from starting. The merge preserves both
+independent implementation-status histories and all incoming builder, acquisition
+and executor changes. Node/Go real ZIP qualification steps remain in the combined
+workflow. The combined Windows locked suite passed (120 library tests, two explicit
+library ignores, plus integration suites), as did strict all-target Clippy,
+formatting, all nine real CLI task scenarios and documentation checks. Native
+CI on the merged revision remains pending; prior backend evidence is not broadened
+to the newly merged behavior. No mise source admission or legal approval changed.
+## Mise integration checkpoint 96: published Go compiler execution
+
+The real Go ZIP qualification now declares installation-relative GOROOT in its
+synthetic layout and holds its verified installation lease through native version
+lookup, `go env GOROOT`, a real standard-library module build, and execution of
+the resulting program. On Windows, the published Go 1.24.13 compiler completed
+these steps with inherited environment cleared, private build caches and temporary
+paths, `GOTOOLCHAIN=local`, `GOENV=off`, `GOWORK=off`, `GOPROXY=off`,
+`GOSUMDB=off` and cgo disabled. All 15,738 inventory entries and the subsequent
+changed-lock denial/recovery still passed. These settings prevent Go's ordinary
+download paths; they are not OS-level network containment.
+
+The Windows locked regression suite, strict all-target Clippy, formatting and all
+nine CLI task scenarios passed. The existing native CI Go step selects this same
+test, but execution of this increment in CI remains pending. Foreign hosts still
+only materialize the Windows archive. This establishes real compiler use from a
+verified published payload, not production environment projection, builder handoff,
+source admission, publisher signatures or full OEP completion.
+## Mise integration checkpoint 97: dependency alias provenance checks
+
+The upstream observer now inspects renamed `package = "mise"` dependencies and
+normal/build/development declarations in root and target tables. Every inspected
+declaration must name the public fork, disable default features and agree on the
+exact revision matched by Cargo.lock. Workspace inheritance and mise patch/replace
+overrides fail explicitly until the observer can verify their provenance; an
+unaccounted mise lock entry cannot be reported as absent integration. This closes
+a false-negative observation path without importing mise or conferring admission.
+
+Six maintenance regression tests passed, including alias/target wrong-source
+rejection, conflicting pins, unsupported overrides and orphan lock records.
+Detailed behavior and recovery are documented in the maintenance reference.
+## Mise integration checkpoint 98: native Go ZIP matrix confirmation
+
+Run `36993866491` at `ca32f4b82efd330b3b01911e643208a550189bbc` passed
+the full locked Rust test and strict Clippy steps plus both real Node and Go ZIP
+qualification steps on Windows, macOS and Linux. This resolves the native archive
+matrix uncertainty in checkpoint 93: all three hosts matched the 15,738 Go entries,
+published/verified the installation, and rejected the changed lock identity;
+Windows additionally ran the native version command. macOS/Linux tested the
+Windows payload as foreign-target data, not a native Go installation.
+
+This run predates checkpoint 96's GOROOT/compiler additions. Its remaining job
+steps were still running when checked, so the complete workflow is not claimed
+passing. The current reference now distinguishes this native archive evidence
+from later compiler tests and from still-missing production backend admission.
+## Mise integration checkpoint 99: raw single-file materialization
+
+TM-04 now supports `raw` layouts: exactly one required file supplies the portable
+payload destination, with null strip-prefix and dot payload subtree. The verified
+private blob is copied unchanged through the existing anchored filesystem layer;
+implicit parents consume shared entry/depth budgets and total/per-file limits are
+enforced. Existing receipt, layout identity, executable transform and publication
+checks remain in force. No backend or executable is admitted by this operation.
+
+Windows full locked tests, strict all-target Clippy, formatting and all nine CLI
+task scenarios passed. New tests verify byte parity and leased publication and
+reject ambiguous/missing/non-file destinations, escapes and exhausted bounds
+without a receipt. Raw schema fixtures cover one valid and four invalid shapes.
+Linux initially rejected the positive fixture because a raw Unix entrypoint needs
+an explicit executable transform; adding that fixture declaration preserved the
+runtime permission gate. All 12 Linux layout tests then passed with networking
+disabled, and strict all-target Linux Clippy passed. The corrected fixture also
+passed all 11 Windows layout tests and formatting; native macOS CI remains pending. The
+reference, contract index, schema, code map and draft acquisition rule now describe
+the exact mapping. Real jq/Aqua qualification remains outstanding.
+## Mise integration checkpoint 100: real jq raw store qualification
+
+The shared artifact harness now qualifies jq 1.8.1's original Windows amd64 raw
+binary (1,026,560 bytes, SHA-256 recorded in the reference). Downloaded bytes match
+both the release API digest and published checksum manifest. Original artifact,
+checksum manifest and release COPYING are retained outside the checkout. The
+synthetic Aqua layout preserves the binary bytes as jq.exe; no upstream code or
+artifact is added to the repository or release package.
+
+Windows verified caching, raw staging, receipt publication, held-lease jq version
+execution and changed-lock denial/recovery. Linux passed the same materialization
+case without executing the Windows binary, with Docker networking disabled, plus
+strict all-target Clippy. Native CI now provisions and tests jq independently of
+Node/Go, retaining release COPYING in runner temporary storage. Full Windows
+locked regression, strict Clippy, formatting and all nine CLI scenarios passed.
+All three real-artifact cases passed together, including Go GOROOT, compilation
+and native program execution; updated native CI remains pending. This is store
+qualification, not Aqua registry interpretation, publisher verification, legal
+approval or production backend admission.
+
+## Checkpoint 101: integration with current Node reporting work
+
+Merged main through `fdd4dad` while preserving its native Mocha/report changes and
+all tool-store changes. The only textual conflict was independent status-history
+appends. Checkpoints 84–100 now live on this dedicated tool-management page beside
+1–83; all 17 moved sections were verified unchanged apart from surrounding
+whitespace. The general implementation-status index already links here. Future
+tool-management evidence should be recorded here to avoid repeated conflicts with
+unrelated implementation histories.
+
+The combined Windows locked suite passed (122 library tests plus integrations;
+two explicitly ignored library cases), as did strict all-target Clippy, formatting,
+all nine CLI task scenarios and documentation checks. This merge does not broaden
+backend qualification or claim complete captured-build/native CI success.

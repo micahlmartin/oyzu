@@ -3,6 +3,7 @@ mod detection;
 mod discovery;
 mod jest;
 mod managers;
+mod mocha;
 mod planning;
 mod quality;
 mod reporting;
@@ -17,6 +18,14 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "mocha.mjs",
+        contents: include_str!("runtime/mocha.mjs"),
+    },
+    RuntimeFile {
+        name: "mocha-reporter.cjs",
+        contents: include_str!("runtime/mocha-reporter.cjs"),
+    },
     RuntimeFile {
         name: "node-vite.mjs",
         contents: include_str!("runtime/vite.mjs"),
@@ -170,24 +179,30 @@ impl Builder for Node {
                 .tasks
                 .get("test")
                 .is_some_and(|t| t.argv == [&target.manager, "run", "test"]);
-        let jest_script = target
-            .discovery
-            .get("test-framework")
-            .is_some_and(|p| p.selected() == "jest")
-            && crate::records::read(&target.path.join("package.json"))
-                .ok()
-                .and_then(|p| p["scripts"]["test"].as_str().map(jest::recognized))
-                .unwrap_or(false);
-        let vitest_script = target
-            .discovery
-            .get("test-framework")
-            .is_some_and(|p| p.selected() == "vitest")
-            && crate::records::read(&target.path.join("package.json"))
-                .ok()
-                .and_then(|p| p["scripts"]["test"].as_str().map(vitest::recognized))
-                .unwrap_or(false);
+        let package = crate::records::read(&target.path.join("package.json")).ok();
+        let script = package.as_ref().and_then(|p| p["scripts"]["test"].as_str());
+        let recognized = |framework: &str, accepts: fn(&str) -> bool| {
+            target
+                .discovery
+                .get("test-framework")
+                .is_some_and(|p| p.selected() == framework)
+                && script.is_some_and(accepts)
+        };
         reporting::instrument_override(task, env, native_script, &target.manager)
-            .or_else(|| jest::instrument_override(task, jest_script))
-            .or_else(|| vitest::instrument_override(task, vitest_script, &target.manager))
+            .or_else(|| jest::instrument_override(task, recognized("jest", jest::recognized)))
+            .or_else(|| {
+                vitest::instrument_override(
+                    task,
+                    recognized("vitest", vitest::recognized),
+                    &target.manager,
+                )
+            })
+            .or_else(|| {
+                mocha::instrument_override(
+                    task,
+                    recognized("mocha", mocha::recognized),
+                    &target.manager,
+                )
+            })
     }
 }
