@@ -26,6 +26,16 @@ Existing broad public modules, dynamic records and partially combined responsibi
 
 ## Interfaces that earn their place
 
+### Dependency direction
+
+Entry points call application operations. Operations coordinate subsystem contracts; concrete adapters implement those contracts and are selected at composition/registration points. Contract definitions must not depend on their implementations. Shared scheduling, task hooks and report collection must not import ecosystem-specific behavior. An ecosystem may reuse another subsystem's public internal API, but never its private implementation.
+
+For example, a Python framework detector returns evidence through the discovery contract; the resolver selects the framework, and the Python builder declares test commands and report intent. The task engine owns hooks and ordering, execution owns process capabilities, and collection owns retaining and validating reports. Adding a Python framework should not duplicate those engine responsibilities inside Python.
+
+Pass the smallest typed context an operation needs. Avoid a universal application context, service locator or shared mutable state that lets every subsystem reach every other one. OS-specific process, path and credential behavior belongs behind its owning boundary, with portable callers and applicable platform checks. Modules provide these boundaries today; a crate split is a separate decision.
+
+### Choosing the interface
+
 Use a trait when several implementations provide one capability or when a real I/O boundary needs substitution. Existing examples are `Builder`, `Detector<C>` and the Node `Manager`. The consumer-facing contract belongs beside the subsystem that defines the capability, and implementations stay with their ecosystem or backend. Registration happens at a composition boundary; it must not spread tool-name switches through the engine.
 
 Use a concrete function for a pure transformation with one implementation. Use an enum when the engine owns a finite set of choices, such as artifact kinds or executor modes. Prefer composition to inheritance-like trait hierarchies. An internal trait is not automatically a stable public plugin API; dynamic loading and external compatibility require a separate design.
@@ -65,6 +75,7 @@ For a new subsystem, a short module-level responsibility/invariant comment, a na
 These sources inform our engineering choices; their contribution policies are not Oyzu's AI-authorship policy.
 
 - [rust-analyzer architecture](https://rust-analyzer.github.io/book/contributing/architecture.html) documents a code map, explicit API boundaries and architectural invariants. Oyzu adopts that clarity about ownership and permitted dependencies, without reproducing its crate count.
+- [uv's contribution guide](https://github.com/astral-sh/uv/blob/main/CONTRIBUTING.md#crate-structure) makes its crate dependency hierarchy inspectable. Oyzu likewise makes ownership and dependency direction visible in this map, starting with modules rather than adopting another project's crate layout.
 - [Cargo's library architecture](https://doc.rust-lang.org/stable/nightly-rustc/src/cargo/lib.rs.html) separates command wrappers from reusable operations. Oyzu keeps presentation at its entry points so operations can serve CLI, CI and later agent/UI consumers.
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/future-proofing.html) and [rust-analyzer's style guide](https://rust-analyzer.github.io/book/contributing/style.html) inform narrow visibility, invariant-preserving types and deliberate API commitments. Traits serve actual boundaries rather than becoming a universal abstraction layer.
 - [Bazel rules](https://bazel.build/extending/rules) distinguish analysis, declared actions and execution. Oyzu applies that separation to builder intent and shared execution while keeping project configuration minimal.
