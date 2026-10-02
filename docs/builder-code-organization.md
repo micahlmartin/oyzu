@@ -61,6 +61,7 @@ src/
       ant/metadata.rs         # Typed native Ant output metadata and containment
       ant/preparation.rs      # Sandboxed native project evaluation
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
+      ant/reporting.rs        # Exact native test-target adaptation and required report contracts
       ant/runtime/            # Native Ant metadata and JDK archive integration
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
     docker/                   # Container builder

@@ -2,6 +2,7 @@
 import shutil
 import subprocess
 import zipfile
+import xml.etree.ElementTree as ET
 
 
 def verify(root, base, invoke, validate, source_files, verified):
@@ -17,7 +18,11 @@ def verify(root, base, invoke, validate, source_files, verified):
         manifest = validate(project/'dist')
         assert source_files(project) == before
         invoke(project, 'inspect', 'dist')
-        assert not manifest['reports'], 'plain Java assertions must not become fabricated JUnit/coverage'
+        assert any(r['kind']=='test' and r['summary']['passed']==1 for r in manifest['reports'])
+        coverage, = [r for r in manifest['reports'] if r['kind']=='coverage']
+        measured = ET.parse(project/'dist'/coverage['path'])
+        assert [c.attrib['name'] for c in measured.findall('.//class')] == ['example/Greeting']
+        assert int(measured.find("./counter[@type='INSTRUCTION']").attrib['covered']) > 0
         artifact, = manifest['artifacts']
         assert '-dev.g' in artifact['version']
         with zipfile.ZipFile(project/'dist'/artifact['path']) as archive:
@@ -35,9 +40,16 @@ def verify(root, base, invoke, validate, source_files, verified):
         assert next(a for a in manifest['actions'] if a['id']==test_id)['status']=='succeeded'
         repeated = invoke(project, 'build')
         assert repeated['artifacts'][0]['digest'] == artifact['digest']
-        verified.append(f'Ant {name}: native metadata, compile/test/jar, versioned executable JAR content, repeatability and unchanged source')
+        verified.append(f'Ant {name}: native Java assertion JUnit, measured application JaCoCo coverage, versioned JAR content, repeatability and unchanged source')
 
         if name=='conventional':
+            config = project/'oyzu.toml'
+            config.write_text('[tasks.test]\nargv=["sh","-c","true"]\n')
+            invoke(project, 'build', success=False)
+            missing = validate(project/'dist')
+            assert not missing['artifacts']
+            assert next(a for a in missing['actions'] if a['id']=='test')['status']=='failed'
+            config.unlink()
             test = project/'test/example/GreetingCheck.java'
             test.write_text(test.read_text().replace('Hello, Oyzu!', 'intentional failure'))
         else:
@@ -50,6 +62,11 @@ def verify(root, base, invoke, validate, source_files, verified):
         assert source_files(project) == before
         assert next(a for a in failed['actions'] if a['id']==test_id)['status']=='failed'
         assert next(a for a in failed['actions'] if a['id']=='project:package')['status']=='blocked'
+        if name=='conventional':
+            assert any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
+            assert any(r['kind']=='coverage' and r['status']=='collected' for r in failed['reports'])
+        else:
+            assert any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
     verified.append('Ant assertion failure and missing custom target retain native diagnostics and block artifacts')
 
     project = base/'ant-version-property'

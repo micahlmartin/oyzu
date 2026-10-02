@@ -2,6 +2,7 @@ use crate::builders::task::insert;
 mod metadata;
 mod planning;
 mod preparation;
+mod reporting;
 #[cfg(test)]
 mod tests;
 use crate::builders::{
@@ -24,6 +25,18 @@ const RUNTIME: &[RuntimeFile] = &[
         name: "JarPackaging.java",
         contents: include_str!("runtime/JarPackaging.java"),
     },
+    RuntimeFile {
+        name: "AntTesting.java",
+        contents: include_str!("runtime/AntTesting.java"),
+    },
+    RuntimeFile {
+        name: "AntCoverage.java",
+        contents: include_str!("runtime/AntCoverage.java"),
+    },
+    RuntimeFile {
+        name: "ant-test.sh",
+        contents: include_str!("runtime/testing.sh"),
+    },
 ];
 
 impl Builder for Ant {
@@ -38,6 +51,14 @@ impl Builder for Ant {
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)
+    }
+    fn instrument_override(
+        &self,
+        _target: &Target,
+        task: &crate::model::Task,
+        env: &std::collections::BTreeMap<String, String>,
+    ) -> Option<Vec<String>> {
+        reporting::instrument(task, env)
     }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
