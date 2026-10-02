@@ -1849,3 +1849,18 @@ documentation and diff checks pass. No wire-format, dependency or CLI change.
 Native spawning, image/channel authentication, OS deadlines, capability admission
 and backend dispatch remain open. Exposing syntactically valid identifiers is not
 a replacement for those checks and does not complete TM-05 or OEP-0003.
+
+## Checkpoint 129: targeted selection passes all native CI hosts
+
+Fork run 37008019904 completed successfully on Windows amd64, macOS arm64 and
+Linux amd64 at c3c9ca73dde45ad7e497ca25536ba8aec91c04b8. This supersedes the
+pending-native-CI note in checkpoint 125. All three jobs ran the embedding
+library checks and captured Go/Java replay, including targeted Java selection,
+constraint intersection and invalid-input rejection. Windows cache cleanup also
+completed; the workflow conclusion is now success rather than inferred from
+individual test steps. The owning reference links the exact run and revision.
+
+This is qualification evidence for the experimental library boundary. It does
+not establish the missing full resolver, native worker supervision, production
+import, license approval or end-to-end tool-management commands. Documentation
+and diff checks pass; no runtime code changed in this checkpoint.

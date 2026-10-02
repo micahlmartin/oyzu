@@ -645,3 +645,12 @@ or conflicting constraints fail without an installed-version fallback. This API
 does not yet implement native builder range languages, explicit prereleases,
 ambiguous-record rejection or a provenance result for lock proposals. It does
 not qualify Java for production admission or complete OEP-0003 resolution.
+
+The selection seam at fork revision
+`c3c9ca73dde45ad7e497ca25536ba8aec91c04b8` passed the full embedding workflow
+on Windows amd64, macOS arm64 and Linux amd64 in
+[run 37008019904](https://github.com/oyzuai/mise/actions/runs/37008019904).
+Each host ran the library checks and captured Go/Java replay, including Java
+selection/intersection and invalid-input cases. This verifies the experimental
+library boundary on those hosts, not production worker dispatch or the remaining
+native range-language and admission obligations above.
