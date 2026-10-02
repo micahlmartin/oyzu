@@ -189,6 +189,11 @@ fn run() -> Result<i32> {
         .or(cli.root.as_ref())
         .cloned()
         .unwrap_or_else(|| PathBuf::from("."));
+    // Resolve the user-selected directory before deriving the default tool
+    // store. macOS temporary paths commonly include /var -> /private/var;
+    // the store's no-follow traversal requires the physical project path.
+    #[cfg(feature = "mise-integration")]
+    let directory = directory.canonicalize()?;
     let options = config::session::Options {
         root: cli.root.clone(),
         profile: cli.profile.clone(),

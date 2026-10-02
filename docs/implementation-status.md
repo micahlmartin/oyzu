@@ -45,6 +45,12 @@ installed locked Node through native shims and deactivated. Repeated installatio
 refusal to overwrite edited blocks and byte-exact restoration passed. Native
 macOS/PowerShell profile acceptance remains pending; wider shell lifecycle work
 remains open.
+The profile CI run at `efefc93` exposed a macOS default-store failure when `-C`
+included a symlinked ancestor. The feature-enabled CLI now resolves the project
+directory before deriving relative paths. Linux Bash/Zsh profile acceptance
+passed through an explicit directory symlink, including real installation,
+activation, locked Node execution and byte-exact removal. Native macOS replay
+of this correction remains pending.
 Development `exec` now also accepts explicit executable paths with the frozen
 Node environment while rejecting unknown bare commands. Linux acceptance with
 networking disabled ran a real interpreter, selected locked Node in its child,

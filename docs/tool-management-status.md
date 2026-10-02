@@ -2756,3 +2756,25 @@ build, strict all-target Clippy and formatting passed. Documentation and diff
 checks passed. Native mixed acceptance is added to the three-host workflow but
 has not yet passed CI. Scoped/profile/multi-platform updates, other backends and
 the remaining OEP functional requirements remain open. Hardening is deferred.
+
+## Checkpoint 171 - physical project paths for default stores (2026-10-02)
+
+CI run 37054415913 at efefc93 failed macOS profile acceptance during real install:
+open blob store root returned ENOTDIR. The selected temporary project path had
+an OS symlink ancestor, which was passed into the store's no-follow traversal.
+The feature-enabled CLI now canonicalizes the selected directory before deriving
+relative paths, including the default .oyzu/tools store. Explicit store contents
+and profile-file symlink rules are unchanged.
+
+The Unix profile runner now deliberately selects a directory symlink. Linux
+Bash and Zsh passed the full real Node installation, profile activation and
+execution, repeated installation, edited-block refusal and byte-exact removal.
+Native macOS verification of this correction remains pending. The prior Windows
+profile failure uses the already-corrected .pwsh fixture; its .ps1 replay remains
+in the newer CI run and is not claimed successful here.
+
+The Linux feature build, strict all-target Clippy and formatting passed. Default
+Windows locked tests with two test threads, strict all-target Clippy, formatting
+and all nine real task scenarios passed. Documentation and diff checks passed.
+This fixes a demonstrated end-to-end usability failure; the full OEP scope
+remains active and hardening remains deferred.

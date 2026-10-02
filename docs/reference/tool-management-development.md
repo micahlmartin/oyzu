@@ -70,7 +70,12 @@ than dropping their selections. Other projects sharing the store keep their own
 locks and versions. Updates across multiple scopes/profiles/platforms remain to
 be implemented.
 
-The default store is `.oyzu/tools` relative to the invocation directory. For two
+The default store is `.oyzu/tools` relative to the invocation directory. The
+feature-enabled CLI resolves `-C` to the physical directory before deriving
+relative paths, so projects reached through directory symlinks (including macOS
+temporary paths under `/var`) use the same physical default store. This does not
+permit symlinks inside the installation store or a symlinked profile file.
+For two
 projects sharing installations, pass the same absolute `--store PATH` to both
 `install`, `which` and `exec` (before `--` for exec). Commit `oyzu.lock`; keep the store out
 of version control. Each project selects its own locked version when executed.

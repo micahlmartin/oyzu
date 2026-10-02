@@ -17,6 +17,13 @@ def main():
     verified = []
     with tempfile.TemporaryDirectory(prefix="oyzu-shell-profile-") as temporary:
         root = Path(temporary)
+        if os.name != "nt":
+            # Exercise -C through a directory symlink, like macOS /var paths.
+            physical = root / "physical-project"
+            physical.mkdir()
+            linked = root / "linked-project"
+            linked.symlink_to(physical, target_is_directory=True)
+            root = linked
         (root / "oyzu.toml").write_text('[tools]\nnode = "22.15.0"\n', encoding="utf-8")
 
         def run(arguments, expected=0):
