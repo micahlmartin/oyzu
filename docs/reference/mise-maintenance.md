@@ -214,6 +214,20 @@ not archive content, publisher signatures, installation, native Go execution or
 legal approval. Native Windows/macOS replay remains pending. Retain the fixture
 outside the checkout; a later catalog capture can have a different digest.
 
+The fork's native CI now captures and replays these same two versions on each
+initial host, after running the ordinary suite. It downloads the provisioner from
+Oyzu commit `f35c01d5bc8348b4ee6efee8e52c5352e0003dfd` and checks its fixed
+SHA-256 before execution. Updating that helper requires an explicit workflow
+revision/hash change. Fixture files stay in runner temporary storage, outside the
+fork's source and notice inventory. Target/revision artifacts retain the fixture
+and capture report for 30 days, including after replay failure when capture succeeded.
+Preserve needed evidence before expiry. Publisher outages, changed metadata and
+missing cases fail the job; synthetic data is never substituted. This native CI
+replay uses the supplied-response boundary; it does not claim the runner's network
+is disabled. The separate Linux `--network none` result above proves that narrower
+offline case. Workflow syntax, path filters and the exact pinned capture step were
+verified locally on Windows; execution of the new native jobs remains pending.
+
 ### Target metadata API
 
 The fork exposes async `session.go_archive_metadata("1.24.13", target)`.

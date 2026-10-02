@@ -1072,3 +1072,21 @@ which can exceed the limit even with an input body below 16 MiB. Regression test
 confirm the written digest, refusal to replace an existing fixture, preservation
 of its bytes and no output for oversized serialization. All nine upstream-tooling
 tests and documentation checks passed. Product Rust sources were unchanged.
+
+## Mise integration checkpoint 92: native real-metadata replay CI
+
+The fork workflow now captures and replays real Go metadata for two versions and
+three targets on each native host, in addition to baseline conformance. The
+first-party capture helper is pinned by full Git revision and verified SHA-256
+before execution. Fixtures remain outside the fork checkout and are retained with
+capture reports in target/revision artifacts for 30 days. Live source failures
+fail qualification; no synthetic fallback is introduced.
+
+A malformed combined example-path filter was corrected into separate entrypoint
+and directory patterns, restoring triggers for future example-only edits. Workflow
+syntax/path assertions and the exact pinned capture step passed on Windows,
+producing all six cases and seven responses. Compliance inventory/tests passed
+with the two existing Windows symlink skips. New native workflow execution is
+pending; CI configuration alone does not establish platform replay support.
+No product Rust implementation changed. The maintenance reference documents
+provisioning, evidence retention, failure behavior and the offline-test distinction.
