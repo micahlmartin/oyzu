@@ -141,6 +141,7 @@ fn run_selection(
     affected: Option<&str>,
     log: &Log,
 ) -> Result<Value> {
+    log.phase("Preflight");
     log.scope("preflight")
         .progress("Resolving workspace and configuration");
     let root = crate::config::session::workspace_root(root, options.root.as_deref())?;
@@ -195,6 +196,7 @@ fn run_selection(
             task.cwd = source_path.join(task.cwd.strip_prefix(&root)?);
         }
         workspace.root = source_path.clone();
+        log.phase("Dependencies");
         let mut resolved = BTreeMap::new();
         let mut dependencies = BTreeMap::new();
         let mut intents = BTreeMap::new();
@@ -277,6 +279,7 @@ fn run_selection(
                 break;
             }
         }
+        log.phase("Plan");
         log.scope("plan")
             .progress("Resolving actions, dependencies and artifact names");
         let mut plan = planning::compile(&workspace, &source, &resolved, &dependencies, &intents)?;
@@ -298,6 +301,7 @@ fn run_selection(
             plan["actions"].as_array().map_or(0, Vec::len),
             plan["artifacts"].as_array().map_or(0, Vec::len)
         ));
+        log.plan(&plan);
         if plan_only {
             return Ok(plan);
         }
@@ -318,6 +322,7 @@ fn run_selection(
         }
         let work = temp.path().join("work");
         snapshot::capture(&source_path, &work)?;
+        log.phase("Execute");
         let ExecutionRecords {
             actions,
             reports,
@@ -353,12 +358,14 @@ fn run_selection(
         log.progress(&format!("ERROR: {error:#}"));
         manifest["status"] = json!("failed");
         manifest["diagnostics"].as_array_mut().unwrap().push(json!({"code":"build-failed","phase":"build","severity":"error","message":format!("{error:#}")}));
+    } else {
+        log.phase("Collect");
     }
-    log.finished(manifest["status"].as_str().unwrap_or("failed"), None, None);
     log.close_journal();
     records::write(&bundle.join("envelope.json"), &envelope)?;
     manifest["envelopeDigest"] = json!(snapshot::file_digest(&bundle.join("envelope.json"))?);
     records::write(&bundle.join("manifest.json"), &manifest)?;
     transaction.publish(&run_id)?;
+    log.finished(manifest["status"].as_str().unwrap_or("failed"), None, None);
     Ok(manifest)
 }

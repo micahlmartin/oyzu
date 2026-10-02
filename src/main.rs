@@ -1,7 +1,7 @@
 mod config_args;
 mod presentation;
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use oyzu::{build, config, discovery, tasks};
 use std::{io::IsTerminal, path::PathBuf};
 
@@ -22,6 +22,13 @@ struct Cli {
     local_overrides: bool,
     #[command(subcommand)]
     command: Commands,
+}
+
+#[derive(Clone, Copy, ValueEnum)]
+enum BuildOutput {
+    Auto,
+    Plain,
+    Interactive,
 }
 
 #[derive(Subcommand)]
@@ -118,6 +125,9 @@ enum Commands {
     Discover,
     /// Build captured source with a provisioned container toolchain.
     Build {
+        /// Presentation only; auto uses a dashboard in terminals and plain logs in CI.
+        #[arg(long, value_enum, default_value = "auto")]
+        output: BuildOutput,
         /// Target IDs; omitted means all targets. Required dependencies are included.
         targets: Vec<String>,
         /// Build targets affected since a local Git ref, including dependents.
@@ -353,6 +363,7 @@ fn run() -> Result<i32> {
             return Ok(0);
         }
         Commands::Build {
+            output,
             plan,
             image,
             targets,
@@ -363,6 +374,46 @@ fn run() -> Result<i32> {
             } else {
                 oyzu::logging::Format::Text
             });
+            let ci = oyzu::config::sources::detected_ci();
+            let interactive = !cli.json
+                && match output {
+                    BuildOutput::Auto => {
+                        !ci && std::io::stdout().is_terminal()
+                            && oyzu::logging::Terminal::available()
+                    }
+                    BuildOutput::Plain => false,
+                    BuildOutput::Interactive => {
+                        anyhow::ensure!(oyzu::logging::Terminal::available(), "interactive output requires a supported terminal on stdin and stderr; use --output plain");
+                        true
+                    }
+                };
+            let receipt_root = config::session::workspace_root(&directory, options.root.as_deref())
+                .unwrap_or_else(|_| directory.clone());
+            let started = std::time::Instant::now();
+            let title = format!(
+                "{} · {}",
+                receipt_root
+                    .file_name()
+                    .map(|s| s.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| presentation::path_label(&receipt_root)),
+                presentation::environment()
+            );
+            log.github_groups(
+                !cli.json
+                    && !interactive
+                    && std::env::var("GITHUB_ACTIONS").is_ok_and(|v| v == "true"),
+            );
+            let view = match oyzu::logging::Terminal::start(&log, interactive, title.clone()) {
+                Ok(view) => view,
+                Err(error) if matches!(output, BuildOutput::Auto) => {
+                    log.progress(&format!(
+                        "Interactive view unavailable ({error}); using plain logs"
+                    ));
+                    oyzu::logging::Terminal::start(&log, false, title.clone())?
+                }
+                Err(error) => return Err(error.into()),
+            };
+            log.progress(&format!("OYZU BUILD | {title}"));
             let selection = if let Some(reference) = affected {
                 build::Targets::Affected(reference)
             } else {
@@ -373,13 +424,25 @@ fn run() -> Result<i32> {
                     Ok(result) => result,
                     Err(error) => {
                         log.progress(&format!("ERROR: {error:#}"));
+                        drop(view);
+                        log.finish_console();
+                        if !cli.json {
+                            eprintln!("Oyzu build failed: {error:#}");
+                        }
                         return Ok(2);
                     }
                 };
+            drop(view);
+            log.finish_console();
+            let receipt =
+                presentation::build_receipt(&result, *plan, &receipt_root, started.elapsed());
+            if let Err(error) = presentation::github_summary(&receipt) {
+                log.progress(&format!("WARNING: could not write CI summary: {error}"));
+            }
             if cli.json {
                 println!("{}", serde_json::to_string_pretty(&result)?);
             } else {
-                presentation::build_result(&result, *plan, &directory);
+                print!("{receipt}");
             }
             return Ok(if *plan || result["status"] == "succeeded" {
                 0

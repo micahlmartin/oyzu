@@ -1,6 +1,7 @@
 """Real CLI logging proof: parallel Rust snapshots, live streams and failed stages."""
 import argparse
 import json
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -30,7 +31,9 @@ def run(name, json_mode=False):
     command = [str(cli), '--root', str(project), *(['--json'] if json_mode else []), 'build']
     (evidence / f'{name}.command.json').write_text(json.dumps(command, indent=2)+'\n', encoding='utf-8', newline='\n')
     with (evidence / f'{name}.stdout').open('w', encoding='utf-8', newline='\n') as out:
-        process = subprocess.Popen(command, stdout=out, stderr=subprocess.PIPE, text=True, encoding='utf-8')
+        env = os.environ.copy()
+        env.update(GITHUB_ACTIONS='true', GITHUB_STEP_SUMMARY=str(evidence/f'{name}.summary.md'))
+        process = subprocess.Popen(command, stdout=out, stderr=subprocess.PIPE, text=True, encoding='utf-8', env=env)
         lines = []
         live = set()
         def consume():
@@ -56,6 +59,7 @@ def run(name, json_mode=False):
                 process.kill()
                 process.wait()
             reader.join(timeout=10)
+    assert code in [0, 1], (code, ''.join(lines))
     journal = [json.loads(line) for line in (project/'dist/logs/events.jsonl').read_text(encoding='utf-8').splitlines()]
     assert all(e['sequence'] < f['sequence'] for e, f in zip(journal, journal[1:]))
     manifest = json.loads((project/'dist/manifest.json').read_text(encoding='utf-8'))
@@ -69,6 +73,13 @@ assert code == 0 and manifest['status'] == 'succeeded', text
 assert live == {'alpha', 'beta'}, live
 assert len(manifest['artifacts']) == 4
 assert 'Oyzu build: succeeded' in (evidence/'success.stdout').read_text(encoding='utf-8')
+assert '\x1b' not in text
+assert 'BUILD PLAN' in text and 'START' in text and 'PASS' in text
+assert text.count('::group::') == text.count('::endgroup::') == 3
+assert text.rfind('::endgroup::') < text.index('PHASE  Execute')
+assert '2 passed' in (evidence/'success.summary.md').read_text(encoding='utf-8')
+inventory = next(e['event']['plan'] for e in events if e['event']['type']=='plan')
+assert all(set(a) == {'id', 'target', 'dependsOn'} for a in inventory['actions'])
 for target in ['alpha','beta']:
     scope = f'{target}:pre_build'
     output = [e for e in events if e['scope'] == scope and e['event']['type'] == 'output']

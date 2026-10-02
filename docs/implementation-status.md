@@ -1,5 +1,13 @@
 # Implementation status
 
+## Build pipeline presentation
+
+The build CLI now has an automatic persistent terminal dashboard, explicit plain/interactive selection and a structured CI timeline. Phase/plan/task events feed a bounded target overview, independently streaming task panels, task selection, scrollback, resizing and automatic failure focus. Native command failure is shown immediately; final action outcomes remain gated by report/artifact collection. The permanent receipt reports target results, action time, collected tests/coverage and output paths. GitHub gets non-overlapping setup/planning groups and an escaped job summary; provider detection remains unverified context.
+
+The connected Windows proof has exercised real two-target Rust builds, four snapshot artifacts, report collection, parallel live output, navigation, resize, failure focus, hiding/restoring the terminal, blocked packaging and inspected bundles. CI-mode output and JSON failure events also passed against the actual CLI. After rebasing onto the tool-management merge `fe173f4`, the final compiled Windows CLI passed both success/failure probes again, including independent stdout observed in both active panels, not merely command text. The default Rust suite passed 383 tests with 14 intentionally ignored native tests; five focused logging tests, the receipt test, all-target Clippy, formatting and all nine development-task checks also passed. Documentation, changed Python syntax and the nine-suite/39-group CI inventory passed. Linux/macOS terminal acceptance remains pending CI. `tooling/test-build-terminal.py` retains actual terminal transcripts and screen frames; it is registered alongside the CI logging proof. Windows uses ConPTY, Unix uses a pseudo-terminal. No local Docker engine was started.
+
+The terminal dependencies exposed an import-table startup failure with the older bundled Windows GNU linker; the provisioned LLVM MinGW linker resolves it. Cross-host CI acceptance remains pending. Artifact upload integration, additional provider-specific summaries, reliable source annotations, graceful cancellation and additional stress/performance qualification are separate work. See [build logging](reference/build-logging.md) for current behavior and limits.
+
 ## Tool-management objective
 
 Full OEP-0003 implementation is authorized and in progress. Initial lock/store

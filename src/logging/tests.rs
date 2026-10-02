@@ -74,3 +74,13 @@ fn output_is_live_keeps_split_utf8_and_flushes_final_partial_line() {
     assert_eq!(events[2]["event"]["text"], "last");
     assert_eq!(fs::read(path).unwrap(), b"first\n\xc3\xa9\nlast");
 }
+
+#[test]
+fn plan_events_exclude_execution_environments_and_keep_dependencies() {
+    let bytes = Arc::new(Mutex::new(Vec::new()));
+    let log = Log::new(Some((Format::Json, Box::new(Buffer(bytes.clone())))));
+    log.plan(&serde_json::json!({"targets":[{"id":"api","builder":"rust/app"}],"actions":[{"id":"api:build","target":"api","dependsOn":["api:prepare"],"env":{"SECRET":"never-log-this"}}]}));
+    let text = String::from_utf8(bytes.lock().unwrap().clone()).unwrap();
+    assert!(!text.contains("never-log-this"));
+    assert!(text.contains("api:prepare"));
+}

@@ -919,3 +919,44 @@ fn json_build_keeps_discovery_warnings_in_structured_events() {
     let manifest: Value = serde_json::from_slice(&result.stdout).unwrap();
     assert_eq!(manifest["status"], "failed");
 }
+
+#[test]
+fn ci_failure_has_plain_timeline_and_a_summary_without_terminal_controls() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    let summary = root.path().join("summary.md");
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("--root")
+        .arg(root.path())
+        .args(["build", "missing"])
+        .env("GITHUB_ACTIONS", "true")
+        .env("GITHUB_STEP_SUMMARY", &summary)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let stderr = String::from_utf8(result.stderr).unwrap();
+    assert!(stderr.contains("GitHub Actions (unverified)"));
+    assert_eq!(
+        stderr.matches("::group::").count(),
+        stderr.matches("::endgroup::").count()
+    );
+    assert!(!stderr.contains('\x1b'));
+    assert!(fs::read_to_string(summary)
+        .unwrap()
+        .contains("Oyzu build: failed"));
+    let explicit = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("--root")
+        .arg(root.path())
+        .args(["build", "--output", "interactive"])
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(explicit.status.code(), Some(2));
+    assert!(String::from_utf8(explicit.stderr)
+        .unwrap()
+        .contains("requires a supported terminal"));
+}

@@ -1,6 +1,6 @@
 use super::Event;
 
-fn clean(value: &str) -> String {
+pub(super) fn clean(value: &str) -> String {
     value
         .chars()
         .flat_map(|c| {
@@ -32,6 +32,17 @@ pub(super) fn line(elapsed: u64, scope: &str, event: &Event<'_>) -> String {
         clean(scope)
     );
     let detail = match event {
+        Event::Phase { name } => format!("PHASE {}", clean(name)),
+        Event::Plan { plan } => format!(
+            "PLAN {} actions",
+            plan["actions"].as_array().map_or(0, Vec::len)
+        ),
+        Event::Task { state, reason } => format!(
+            "{state:?}{}",
+            reason
+                .map(|r| format!(": {}", clean(r)))
+                .unwrap_or_default()
+        ),
         Event::Progress { message } => clean(message),
         Event::Command { argv, cwd } => format!(
             "$ {}  (cwd: {})",

@@ -1,5 +1,6 @@
 //! Execute a resolved plan and collect outcome records without ecosystem dispatch.
 use super::{bundle::capture_output, directory, materialization};
+use crate::logging::TaskState;
 use crate::{builders, dependencies, executor, records, reports::collection, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
@@ -24,6 +25,7 @@ impl ExecutionRecords {
         &mut self,
         collector: &mut collection::Collector<'_>,
         boundary: &str,
+        log: &crate::logging::Log,
     ) -> Result<bool> {
         let mut failed = false;
         for (index, reports) in collector.finish(boundary)? {
@@ -34,8 +36,18 @@ impl ExecutionRecords {
                     if self.actions[index]["exitCode"] == 0 {
                         self.actions[index]["exitCode"] = json!(1);
                     }
+                    let action = &self.actions[index];
+                    log.scope(action["id"].as_str().unwrap_or(boundary))
+                        .finished(
+                            "failed",
+                            action["exitCode"].as_i64().map(|c| c as i32),
+                            action["durationMs"].as_u64(),
+                        );
                 }
                 if let Some(diagnostic) = report.diagnostic {
+                    if let Some(message) = diagnostic["message"].as_str() {
+                        log.scope(boundary).progress(message);
+                    }
                     self.diagnostics.push(diagnostic);
                 }
                 self.reports.push(report.record);
@@ -150,11 +162,6 @@ pub(super) fn execute_plan(
         "Scheduling {} actions with up to {jobs} parallel targets",
         actions.len()
     ));
-    for action in actions {
-        run.log
-            .scope(action["id"].as_str().unwrap_or("action"))
-            .progress("QUEUED");
-    }
     let schedule = super::scheduling::Schedule::new(actions, jobs)?;
     records.actions = actions.iter().map(|a| json!({"id":a["id"],"target":a["target"],"required":true,"status":"pending","producerEvidence":[],"enforced":[]})).collect();
     let context = LaunchContext {
@@ -175,10 +182,13 @@ pub(super) fn execute_plan(
                 if !schedule.permitted(index, &records.actions) {
                     records.actions[index]["status"] = json!("blocked");
                     records.actions[index]["reason"] = json!("a required platform image failed");
+                    run.log
+                        .scope(a["id"].as_str().unwrap_or("index"))
+                        .task(TaskState::Blocked, Some("a required platform image failed"));
                     continue;
                 }
                 let index_log = run.log.scope(a["id"].as_str().unwrap_or("index"));
-                index_log.progress("RUNNING: assembling OCI index");
+                index_log.task(TaskState::Running, None);
                 let started = std::time::Instant::now();
                 let result =
                     super::indices::execute(a, plan, bundle, &records.artifacts, &records.actions);
@@ -212,15 +222,29 @@ pub(super) fn execute_plan(
             let target = a["target"].as_str().context("missing action target")?;
             let mut outcome = records.actions[index].clone();
             if !schedule.permitted(index, &records.actions) {
+                let failed: Vec<_> = a["dependsOn"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|v| v.as_str())
+                    .filter(|dependency| {
+                        records
+                            .actions
+                            .iter()
+                            .any(|r| r["id"] == *dependency && r["status"] != "succeeded")
+                    })
+                    .collect();
+                let reason = format!("Required tasks did not succeed: {}", failed.join(", "));
                 outcome["status"] = json!("blocked");
-                outcome["reason"] = json!("a prerequisite failed");
-                run.log.scope(id).progress("BLOCKED: a prerequisite failed");
+                outcome["reason"] = json!(reason);
+                run.log.scope(id).task(TaskState::Blocked, Some(&reason));
                 records.actions[index] = outcome;
                 records.collect_due(
                     collectors
                         .get_mut(target)
                         .context("missing report collector")?,
                     id,
+                    run.log,
                 )?;
                 continue;
             }
@@ -256,6 +280,8 @@ pub(super) fn execute_plan(
                     outcome["exitCode"] = json!(1);
                     records.diagnostics.push(json!({"code":"materialization-failed","phase":"execute","severity":"error","message":error.to_string(),"action":id,"target":target}));
                     records.actions[index] = outcome;
+                    run.log.scope(id).progress(&error.to_string());
+                    run.log.scope(id).finished("failed", Some(1), None);
                     continue;
                 }
             }
@@ -330,7 +356,7 @@ pub(super) fn execute_plan(
                 outcome["enforced"] = json!(executed.mode.enforced());
             }
             records.actions[index] = outcome;
-            records.collect_due(collector, id)?;
+            records.collect_due(collector, id, run.log)?;
             run.log.scope(id).finished(
                 records.actions[index]["status"]
                     .as_str()
@@ -382,7 +408,7 @@ fn launch(a: &Value, index: usize, context: &LaunchContext<'_>) -> Result<Execut
     let env: BTreeMap<String, String> = serde_json::from_value(a["env"].clone())?;
     let cwd = format!("/workspace/{}", a["cwd"].as_str().context("missing cwd")?);
     let log = run.log.scope(id);
-    log.progress("RUNNING");
+    log.task(TaskState::Running, None);
     let mut mounts = Vec::new();
     if let Some(prepared) = dependencies.get(target) {
         mounts.push(executor::Mount {
@@ -486,7 +512,11 @@ mod tests {
             ..Default::default()
         };
         assert!(records
-            .collect_due(&mut collector, "app:post_test")
+            .collect_due(
+                &mut collector,
+                "app:post_test",
+                &crate::logging::Log::default()
+            )
             .unwrap());
         assert!(records
             .actions
