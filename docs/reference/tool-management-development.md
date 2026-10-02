@@ -44,8 +44,7 @@ oyzu exec -- node -e 'console.log(process.env.APP_MODE)'
 
 The shell quoting in the last example is suitable for Bash and PowerShell.
 `-C DIRECTORY`, explicit root and profile selection use the existing configuration
-resolver. Initial installation supports the workspace root and exactly one tool
-(`tools.node` for this flow, or `tools.go` as described below).
+resolver. Initial installation supports Node, Go or both at the workspace root.
 The Node selector is interpreted by mise against the actual Node catalog. Existing
 locks retain the exact version unless an update is explicitly requested.
 
@@ -56,7 +55,7 @@ oyzu install --update node
 oyzu exec -- node --version
 ```
 
-Bare `--update` and `--update core:node` select the same configured Node root.
+For a Node-only project, bare `--update` and `--update core:node` select the same root.
 The command resolves through mise, prints the previous and proposed exact version,
 installs the result and then commits the lock using the existing compare-and-swap
 transaction. It never edits TOML. Ordinary install rejects changed requirements
@@ -64,11 +63,12 @@ with `TOOL_LOCK_STALE` and an update remedy. `--update` conflicts with `--frozen
 and `--offline`; unsupported tool names fail. A failed update leaves the previous
 lock intact. An unchanged resolution preserves lock bytes.
 
-This first update path supports a single Node selection at the workspace root for
+This update path supports the configured Node/Go roots at the workspace root for
 the selected profile and host. Locks containing additional environments or target
 platforms are refused rather
 than dropping their selections. Other projects sharing the store keep their own
-locks and versions. Multi-tool and scoped updates remain to be implemented.
+locks and versions. Updates across multiple scopes/profiles/platforms remain to
+be implemented.
 
 The default store is `.oyzu/tools` relative to the invocation directory. For two
 projects sharing installations, pass the same absolute `--store PATH` to both
@@ -143,7 +143,7 @@ Native Windows/macOS explicit-path execution acceptance remains pending in CI.
 
 ## Go installation and execution
 
-Use a separate single-tool project with:
+For a Go project, configure:
 
 ```toml
 [tools]
@@ -175,8 +175,8 @@ compiler is not yet managed module routing or hermetic build integration.
 `install --update go`, `--update core:go` and bare `--update` explicitly resolve
 the configured Go request again. Stale ordinary requests fail and frozen/offline
 commands do not resolve new versions. Node and Go projects can share an explicit
-store, but a project declaring both is not supported yet. Native `go.mod` constraint
-discovery, multi-tool locks, `gofmt` launch descriptors and builder handoff remain
+store; a project can also declare both tools as described below. Native `go.mod` constraint
+discovery, `gofmt` launch descriptors and builder handoff remain
 unfinished. Supported target tuples remain Linux amd64 GNU, Windows amd64 and
 macOS arm64; native qualification is recorded separately below.
 
@@ -210,10 +210,72 @@ networking. Use `--shell pwsh` on Windows or `--shell zsh` where available.
 
 Linux amd64 passed real acquisition, frozen reuse, version/GOROOT checks, actual
 compiler execution and Bash shim activation on 2026-10-02. Windows/macOS Go
-acceptance remains pending in CI. This does not qualify mixed Node/Go projects,
-native module constraints or corporate Go proxy behavior.
+acceptance remains pending in CI. This does not qualify native module constraints
+or corporate Go proxy behavior. Mixed-project evidence is separate below.
 The same Linux workspace then passed restoration from cached bytes and real
 compiler execution with container networking disabled, preserving lock bytes.
+
+## Mixed projects and selective updates
+
+A project can request both tools in the same TOML file:
+
+```toml
+[tools]
+node = "22.15.0"
+go = "1.24.13"
+```
+
+```sh
+oyzu install
+oyzu which node
+oyzu which go
+oyzu exec -- node --version
+oyzu exec -- go version
+oyzu install --update node
+```
+
+Installation resolves the configured roots, prepares missing installations and
+publishes one format-2 lock only after the complete selection is available. Existing
+content-addressed installations can be reused across single-tool and mixed projects.
+Failure leaves the previous lock intact; acquired cache entries may remain for reuse.
+
+`--update node` or `--update core:node` resolves only Node and retains Go's exact
+record, version and artifact identity. The equivalent Go names preserve Node.
+Multiple update names select those roots; bare `--update` selects all configured
+roots. Adding a tool requires an update that includes it. Removing a tool from
+TOML requires bare `--update`. Changing an unselected request fails with
+`TOOL_LOCK_STALE`; include that tool in the update or restore its requirement.
+The command never edits TOML. Unchanged requests/records retain their existing
+text through the lock-edit contract.
+
+Exec and shell activation acquire one verified lease for the complete selection.
+Both bin directories are prepended in deterministic configuration-key order, and
+each backend adds its environment. A Node process can therefore launch the selected
+Go, and vice versa. An incomplete or stale environment fails as a whole; execution
+does not silently use one valid tool while replacing another from ambient PATH.
+Shell selection identity includes every selected executable, so changing either
+locked tool causes the next hook to recompute the environment.
+
+`env --json` now includes `tools` (canonical IDs to executables) and `executables`
+(command names to executables). The existing `tool` and `executable` fields remain
+for single-tool projects; mixed projects use the maps. Environment values remain
+redacted. `which` accepts either selected command and still returns its path.
+
+The real runner installs both tools, changes only Node, verifies the complete Go
+record is unchanged, and runs Node with a Go child under the composed environment:
+
+```sh
+python tooling/test-tool-mixed.py --cli PATH_TO_FEATURE_ENABLED_OYZU --workspace PATH
+```
+
+Use `--store PATH` to reuse an existing shared store. Retain the workspace and
+repeat with `--offline-check` under externally disabled networking to verify
+frozen reuse and both tools without acquisition. Scoped/profile/multi-platform
+updates and native manifest constraints remain unsupported.
+Add `--shell bash`, `--shell zsh` or `--shell pwsh` to exercise both commands
+through an activated shell. Linux frozen replay, Node-to-Go child execution,
+redacted inspection and mixed Bash activation passed with networking disabled
+on 2026-10-02. Native Windows/macOS mixed-project acceptance remains pending.
 
 ## Standalone proxy acquisition
 
@@ -526,8 +588,10 @@ This complete update scenario passed on Linux amd64 with Rust 1.95 on 2026-10-02
 and Windows amd64 at `1acb16f` in CI run `37048375166`. Native macOS update
 acceptance passed at `e335d70` in run `37051685318`.
 
+The complete Linux mixed runner also passed from a fresh project on 2026-10-02: initial installation, Node-only update preserving the exact Go record, rejection of a changed unselected requirement, frozen reuse and cross-tool execution. This extends the offline replay evidence above; native mixed CI remains pending.
+
 Remaining functional work includes other tools, aliases/native constraints,
-multi-tool and scoped updates, managed connector grants and selection, npm
+scoped/profile/multi-platform updates, managed connector grants and selection, npm
 entrypoints, full shim/shell lifecycle qualification and build handoff.
 Managed configuration is explicitly rejected by this standalone proof. Child
 stdio currently carries internal metadata; authenticated worker IPC, full process

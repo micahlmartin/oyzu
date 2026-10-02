@@ -55,6 +55,7 @@ fn complete(value: &impl Serialize) -> Result<()> {
 
 #[derive(Serialize, Deserialize)]
 enum WorkerRequest {
+    Aliases,
     Hooks {
         shell: String,
         activate: bool,
@@ -91,7 +92,6 @@ struct Metadata {
     archive: Archive,
     declared_sha256: Option<String>,
     declared_size: Option<u64>,
-    aliases: BTreeMap<String, String>,
 }
 
 fn identity() -> Result<String> {
@@ -156,6 +156,14 @@ pub fn worker() -> Result<i32> {
     })
     .map_err(|error| anyhow::anyhow!("{error:#}"))?;
     let request = match operation {
+        WorkerRequest::Aliases => {
+            complete(
+                &session
+                    .tool_aliases()
+                    .map_err(|error| anyhow::anyhow!("{error:#}"))?,
+            )?;
+            return Ok(0);
+        }
         WorkerRequest::Hooks { shell, activate } => {
             let kind = shell_kind(&shell)?;
             let renderer = kind.as_shell();
@@ -222,9 +230,6 @@ pub fn worker() -> Result<i32> {
             return Ok(0);
         }
     };
-    let aliases = session
-        .tool_aliases()
-        .map_err(|error| anyhow::anyhow!("{error:#}"))?;
     let result = if let Some(version) = request.exact {
         let archive = match request.tool {
             Tool::Node => serde_json::to_value(
@@ -242,7 +247,6 @@ pub fn worker() -> Result<i32> {
             archive: serde_json::from_value(archive)?,
             declared_sha256: None,
             declared_size: None,
-            aliases,
         }
     } else {
         let runtime = tokio::runtime::Builder::new_current_thread()
@@ -280,7 +284,6 @@ pub fn worker() -> Result<i32> {
             archive: serde_json::from_value(metadata["archive"].clone())?,
             declared_sha256: metadata["declared_sha256"].as_str().map(str::to_owned),
             declared_size: metadata["declared_size"].as_u64(),
-            aliases,
         }
     };
     complete(&result)?;
@@ -357,44 +360,47 @@ fn worker_call<T: serde::de::DeserializeOwned>(
     result
 }
 
-fn configuration(
-    directory: &Path,
-    options: &config::session::Options,
-) -> Result<(
-    config::session::Session,
-    config::resolve::EffectiveConfig,
-    Tool,
-    String,
-)> {
+struct Configuration {
+    session: config::session::Session,
+    effective: config::resolve::EffectiveConfig,
+    tools: Vec<(Tool, String)>,
+}
+
+fn configuration(directory: &Path, options: &config::session::Options) -> Result<Configuration> {
     let session = config::session::Session::open(directory, options)?;
     let effective = session.resolve(directory, false)?;
-    let tool = if effective.get("tools.node").is_some() {
-        Tool::Node
-    } else {
-        Tool::Go
-    };
-    config::enforcement::tool_eligibility(&effective, &[tool.name()])?;
-    Acquisition::new(&effective, None, tool)?;
     ensure!(
         effective.management.is_none(),
         "managed tool integration is not available in this standalone development proof"
     );
-    ensure!(
-        effective
-            .values()
-            .keys()
-            .filter(|key| key.starts_with("tools.")
-                && !matches!(key.as_str(), "tools.allowed" | "tools.catalogs"))
-            .count()
-            == 1,
-        "development install currently requires exactly one Node or Go request"
-    );
-    let request = effective
-        .get(&format!("tools.{}", tool.name()))
-        .and_then(|value| value.as_str())
-        .context("configure [tools] node or go in Oyzu TOML")?
-        .to_owned();
-    Ok((session, effective, tool, request))
+    let mut configured = Vec::new();
+    for (key, value) in effective.values() {
+        let Some(name) = key.strip_prefix("tools.") else {
+            continue;
+        };
+        let tool = match name {
+            "allowed" | "catalogs" => continue,
+            "node" => Tool::Node,
+            "go" => Tool::Go,
+            _ => anyhow::bail!("development integration supports tools.node and tools.go"),
+        };
+        Acquisition::new(&effective, None, tool)?;
+        configured.push((
+            tool,
+            value
+                .as_str()
+                .context("tool request must be a string")?
+                .to_owned(),
+        ));
+    }
+    ensure!(!configured.is_empty(), "configure Node or Go in Oyzu TOML");
+    let names: Vec<_> = configured.iter().map(|(tool, _)| tool.name()).collect();
+    config::enforcement::tool_eligibility(&effective, &names)?;
+    Ok(Configuration {
+        session,
+        effective,
+        tools: configured,
+    })
 }
 
 fn plan(tool: Tool, archive: &Archive, digest: &str, backend: &str) -> serde_json::Value {
@@ -407,309 +413,30 @@ fn plan(tool: Tool, archive: &Archive, digest: &str, backend: &str) -> serde_jso
         "executable_paths":if cfg!(windows) { Vec::<String>::new() } else { vec![archive.executable_relative_path.clone()] }})
 }
 
-/// Resolve and install a standalone core tool selection, or reuse an exact existing lock.
-pub fn install(
-    directory: &Path,
-    options: &config::session::Options,
-    store: &Path,
-    frozen: bool,
-    offline: bool,
-    update: Option<&[String]>,
-    bindings: Option<&Path>,
-) -> Result<i32> {
-    ensure!(
-        update.is_none() || !(frozen || offline),
-        "update conflicts with frozen/offline installation"
-    );
-    let directory = directory.canonicalize()?;
-    let (session, effective, tool, request) = configuration(&directory, options)?;
-    if let Some(tools) = update {
-        ensure!(
-            tools
-                .iter()
-                .all(|name| name == tool.name() || name == tool.id()),
-            "update must name the configured tool or its canonical ID"
-        );
-    }
-    let mut acquisition = Acquisition::new(&effective, bindings, tool)?;
-    ensure!(
-        directory == session.root,
-        "initial tool install supports the workspace root scope"
-    );
-    let lock_path = session.root.join("oyzu.lock");
-    ensure!(
-        !(frozen || offline) || lock_path.exists(),
-        "frozen/offline install requires an existing oyzu.lock; run oyzu install online first"
-    );
-    let edit = super::ToolLockEdit::capture(&lock_path)?;
-    let captured = if lock_path.exists() {
-        Some(lock::parse(&super::read_record(
-            &lock_path,
-            lock::MAX_BYTES,
-        )?)?)
-    } else {
-        None
-    };
-    if let Some(lock) = &captured {
-        ensure!(
-            lock.tool.len() == 1 && lock.tool[0].id == tool.id(),
-            "existing lock is outside the single-tool integration scope"
-        );
-        if update.is_some() {
-            ensure!(lock.environment.len() == 1 && lock.environment[0].scope == "." && lock.environment[0].profile == effective.profile.as_deref().unwrap_or("default"), "initial update requires a single matching root/profile; other selections are preserved by refusing this unsupported update");
-            ensure!(lock.tool[0].distribution.len() == 1 && lock.tool[0].distribution[0].platform == platform()?, "initial update supports only the current host; use a future multi-platform update to preserve other target selections");
-        }
-    }
-    let previous = captured.as_ref().filter(|_| update.is_none());
-    let metadata = metadata(
-        &Request {
-            tool,
-            request,
-            exact: previous.as_ref().map(|lock| lock.tool[0].version.clone()),
-            target: platform()?.into(),
-        },
-        Some(&mut acquisition),
-    )?;
-    let requests =
-        super::project_tool_requests(&effective, &metadata.aliases, &BTreeMap::new(), &[])?;
-    let profile = effective.profile.as_deref().unwrap_or("default");
-    let backend = identity()?;
-    if let Some(lock) = &previous {
-        let selection = super::select_for_tool_requests(
-            &session.root,
-            &directory,
-            profile,
-            &requests,
-            platform()?,
-        )
-        .context("TOOL_LOCK_STALE: run oyzu install --update to resolve changed requirements")?;
-        ensure!(
-            lock.tool[0].backend_digest == backend,
-            "locked backend differs; explicit relocking required"
-        );
-        let installation = &selection.installation_keys[&lock.tool[0].key];
-        if store.join("installs").join(&installation[7..]).exists() {
-            let _lease = super::lease_installation_selection(
-                &lock_path,
-                store,
-                None,
-                ".",
-                profile,
-                platform()?,
-                &backend,
-            )?;
-            println!(
-                "Already installed {} {}",
-                tool.name(),
-                metadata.archive.version
-            );
-            super::shims::prepare(store, false)?;
-            return Ok(0);
-        }
-    }
-    let digest = match &previous {
-        Some(lock) => lock.tool[0]
-            .distribution
-            .iter()
-            .find(|d| d.platform == platform().unwrap())
-            .context("locked host platform unavailable")?
-            .digest
-            .clone(),
-        None => metadata
-            .declared_sha256
-            .clone()
-            .context("tool checksum missing")?,
-    };
-    let layout = plan(tool, &metadata.archive, &digest, &backend);
-    let layout_digest = records::digest("oyzu.archive-layout.v1", &layout)?;
-    std::fs::create_dir_all(store)?;
-    let cached = if let Some(lock) = &previous {
-        let host = platform()?;
-        let distribution = lock.tool[0]
-            .distribution
-            .iter()
-            .find(|d| d.platform == host)
-            .context("locked host platform unavailable")?;
-        ensure!(
-            distribution.layout_digest == layout_digest,
-            "locked layout differs from current adapter"
-        );
-        super::store::cached(&std::path::absolute(store)?, &digest, distribution.size)?
-    } else {
-        None
-    };
-    let acquired = if cached.is_none() {
-        ensure!(
-            !offline,
-            "locked tool archive is not cached; run oyzu install online to acquire it"
-        );
-        let response = acquisition.fetch(&metadata.archive.archive_url)?;
-        ensure!(
-            response.status == 200,
-            "tool archive acquisition returned {}",
-            response.status
-        );
-        ensure!(
-            metadata
-                .declared_size
-                .is_none_or(|size| size == response.body.len() as u64),
-            "archive length differs from catalog"
-        );
-        response.body
-    } else {
-        Vec::new()
-    };
-    let key = records::digest(
-        "oyzu.tool-record.v2",
-        &json!({"id":tool.id(),"version":metadata.archive.version,"backend_digest":backend,"options":{}}),
-    )?;
-    let bytes = if previous.is_some() {
-        super::read_record(&lock_path, lock::MAX_BYTES)?
-    } else {
-        let document = lock::Lock {
-            format: 2,
-            selections: vec![],
-            environment: vec![lock::Environment {
-                scope: ".".into(),
-                profile: profile.into(),
-                request_digest: requests.digest().into(),
-                roots: vec![key.clone()],
-                requests: requests.requests().clone(),
-            }],
-            tool: vec![lock::Tool {
-                key: key.clone(),
-                id: tool.id().into(),
-                version: metadata.archive.version.clone(),
-                backend_digest: backend.clone(),
-                options: BTreeMap::new(),
-                distribution: vec![lock::Distribution {
-                    platform: platform()?.into(),
-                    digest: digest.clone(),
-                    size: acquired.len() as u64,
-                    source_id: tool.source().into(),
-                    artifact_id: metadata
-                        .archive
-                        .archive_url
-                        .rsplit('/')
-                        .next()
-                        .context("tool artifact filename missing")?
-                        .into(),
-                    layout_digest: layout_digest.clone(),
-                    dependencies: vec![],
-                    package_closure_digest: None,
-                    verification: lock::Verification {
-                        kind: lock::VerificationKind::DigestOnly,
-                        evidence_digest: digest.clone(),
-                        verifier_digest: backend.clone(),
-                        subject_digest: digest.clone(),
-                    },
-                }],
-            }],
-        };
-        toml::to_string(&document)?.into_bytes()
-    };
-    let proposal = if frozen {
-        None
-    } else {
-        Some(edit.propose(&bytes)?)
-    };
-    if update.is_some() {
-        let before = captured
-            .as_ref()
-            .map(|lock| lock.tool[0].version.as_str())
-            .unwrap_or("(unlocked)");
-        println!("{}: {before} -> {}", tool.name(), metadata.archive.version);
-    }
-    let parsed = lock::parse(&bytes)?;
-    let distribution = &parsed.tool[0].distribution[0];
-    ensure!(
-        distribution.layout_digest == layout_digest,
-        "locked layout differs from current adapter"
-    );
-    let blob = match cached {
-        Some(blob) => blob,
-        None => super::cache_tool_blob(
-            store,
-            &mut std::io::Cursor::new(acquired),
-            &digest,
-            distribution.size,
-        )?,
-    };
-    // Publication renames candidates atomically, so staging must share the
-    // installation store's filesystem (including externally mounted stores).
-    let staging_root = store.join("staging");
-    std::fs::create_dir_all(&staging_root)?;
-    let staging = tempfile::tempdir_in(staging_root.canonicalize()?)?;
-    let candidate_lock = staging.path().join("oyzu.lock");
-    std::fs::write(&candidate_lock, &bytes)?;
-    let installation = &parsed.selections[0].installation_keys[&key];
-    let candidate = staging.path().join("installs").join(&installation[7..]);
-    std::fs::create_dir_all(&candidate)?;
-    super::stage_tool_candidate(
-        ToolCandidateRequest {
-            lock_path: &candidate_lock,
-            staging: &candidate,
-            scope: ".",
-            profile,
-            platform: platform()?,
-            tool_key: &key,
-            installer_release_digest: &backend,
-            admitted_layout_digest: &layout_digest,
-        },
-        &serde_json::to_vec(&layout)?,
-        blob,
-    )?;
-    let _lease = super::lease_installation_selection(
-        &candidate_lock,
-        store,
-        Some(staging.path()),
-        ".",
-        profile,
-        platform()?,
-        &backend,
-    )?;
-    if let Some(proposal) = proposal {
-        proposal.commit()?;
-    }
-    println!("Installed {} {}", tool.name(), metadata.archive.version);
-    super::shims::prepare(store, false)?;
-    Ok(0)
-}
+mod installation;
+pub use installation::install;
 
-pub(super) struct InstalledCommand {
-    tool: Tool,
+pub(super) struct InstalledEnvironment {
     lease: super::InstallationLease,
-    pub(super) executable: PathBuf,
-    bin: PathBuf,
+    pub(super) executables: BTreeMap<String, PathBuf>,
+    bins: Vec<(Tool, PathBuf)>,
     pub(super) effective: config::resolve::EffectiveConfig,
 }
 
-// Shared frozen lookup for execution and executable discovery. The returned
-// lease keeps the verified installation available for the caller's operation.
-pub(super) fn installed_command(
+// Shared frozen lookup. One lease covers all configured tools for the operation.
+pub(super) fn installed_environment(
     directory: &Path,
     options: &config::session::Options,
     store: &Path,
-) -> Result<InstalledCommand> {
+) -> Result<InstalledEnvironment> {
     let directory = directory.canonicalize()?;
-    let (session, effective, tool, request) = configuration(&directory, options)?;
-    let lock_path = session.root.join("oyzu.lock");
-    let document = lock::parse(&super::read_record(&lock_path, lock::MAX_BYTES)?)?;
-    ensure!(
-        document.tool.len() == 1 && document.tool[0].id == tool.id(),
-        "exec requires a matching single-tool lock"
-    );
-    let metadata = metadata(
-        &Request {
-            tool,
-            request,
-            exact: Some(document.tool[0].version.clone()),
-            target: platform()?.into(),
-        },
-        None,
-    )?;
-    let requests =
-        super::project_tool_requests(&effective, &metadata.aliases, &BTreeMap::new(), &[])?;
+    let Configuration {
+        session,
+        effective,
+        tools: configured,
+    } = configuration(&directory, options)?;
+    let aliases: BTreeMap<String, String> = worker_call(&WorkerRequest::Aliases, None)?;
+    let requests = super::project_tool_requests(&effective, &aliases, &BTreeMap::new(), &[])?;
     let profile = effective.profile.as_deref().unwrap_or("default");
     let selection = super::select_for_tool_requests(
         &session.root,
@@ -719,7 +446,7 @@ pub(super) fn installed_command(
         platform()?,
     )?;
     let lease = super::lease_installation_selection(
-        &lock_path,
+        &session.root.join("oyzu.lock"),
         store,
         None,
         &selection.scope,
@@ -727,28 +454,41 @@ pub(super) fn installed_command(
         platform()?,
         &identity()?,
     )?;
-    let selected = lease.command(tool.name())?;
-    let ToolLaunch::Native {
-        payload_relative_path,
-        prefix_args,
-    } = selected.launch
-    else {
-        anyhow::bail!("core tool requires a native launch descriptor")
-    };
-    ensure!(
-        prefix_args.is_empty(),
-        "unexpected core tool prefix arguments"
-    );
-    let payload = std::path::absolute(store)?
-        .join("installs")
-        .join(&selected.installation_key[7..])
-        .join("payload");
-    let executable = payload.join(payload_relative_path);
-    Ok(InstalledCommand {
-        tool,
+    let mut executables = BTreeMap::new();
+    let mut bins = Vec::new();
+    for (tool, _) in configured {
+        let selected = lease.command(tool.name())?;
+        let ToolLaunch::Native {
+            payload_relative_path,
+            prefix_args,
+        } = selected.launch
+        else {
+            anyhow::bail!("core tool requires a native launch descriptor");
+        };
+        ensure!(
+            prefix_args.is_empty(),
+            "unexpected core tool prefix arguments"
+        );
+        let payload = std::path::absolute(store)?
+            .join("installs")
+            .join(&selected.installation_key[7..])
+            .join("payload");
+        let executable = payload.join(payload_relative_path);
+        // Both admitted core backends place the primary command in their bin
+        // directory (the payload root for Node on Windows).
+        bins.push((
+            tool,
+            executable
+                .parent()
+                .context("tool bin directory unavailable")?
+                .to_path_buf(),
+        ));
+        executables.insert(tool.name().into(), executable);
+    }
+    Ok(InstalledEnvironment {
         lease,
-        executable,
-        bin: payload.join(&metadata.archive.bin_relative_path),
+        executables,
+        bins,
         effective,
     })
 }
@@ -760,12 +500,12 @@ pub fn which(
     store: &Path,
     name: &str,
 ) -> Result<i32> {
-    let selected = installed_command(directory, options, store)?;
-    ensure!(
-        name == selected.tool.name(),
-        "command is not in the selected closure"
-    );
-    println!("{}", selected.executable.display());
+    let selected = installed_environment(directory, options, store)?;
+    let executable = selected
+        .executables
+        .get(name)
+        .context("command is not in the selected closure")?;
+    println!("{}", executable.display());
     Ok(0)
 }
 
@@ -778,9 +518,12 @@ pub fn exec(
     arguments: &[OsString],
 ) -> Result<i32> {
     let requested = arguments.first().context("exec requires a command")?;
-    let selected = installed_command(directory, options, store)?;
-    let executable = if requested == selected.tool.name() {
-        selected.executable.clone()
+    let selected = installed_environment(directory, options, store)?;
+    let executable = if let Some(executable) = requested
+        .to_str()
+        .and_then(|name| selected.executables.get(name))
+    {
+        executable.clone()
     } else {
         let path = Path::new(requested);
         ensure!(
@@ -814,12 +557,12 @@ pub fn exec(
 }
 
 // Execution and shell output share one environment composition contract.
-fn command_environment(selected: &InstalledCommand) -> Result<BTreeMap<String, OsString>> {
+fn command_environment(selected: &InstalledEnvironment) -> Result<BTreeMap<String, OsString>> {
     compose_environment(selected, std::env::var_os("PATH").as_deref())
 }
 
 pub(super) fn compose_environment(
-    selected: &InstalledCommand,
+    selected: &InstalledEnvironment,
     path: Option<&std::ffi::OsStr>,
 ) -> Result<BTreeMap<String, OsString>> {
     let mut environment = BTreeMap::new();
@@ -833,13 +576,15 @@ pub(super) fn compose_environment(
     let mut paths = path
         .map(|path| std::env::split_paths(&path).collect::<Vec<_>>())
         .unwrap_or_default();
-    if paths.first() != Some(&selected.bin) {
-        paths.insert(0, selected.bin.clone());
+    for (_, bin) in selected.bins.iter().rev() {
+        if paths.first() != Some(bin) {
+            paths.insert(0, bin.clone());
+        }
     }
     environment.insert("PATH".into(), std::env::join_paths(paths)?);
-    selected
-        .tool
-        .apply_environment(&selected.bin, &mut environment)?;
+    for (tool, bin) in &selected.bins {
+        tool.apply_environment(bin, &mut environment)?;
+    }
     Ok(environment)
 }
 
@@ -857,7 +602,7 @@ pub fn environment(
         !(shell.is_some() && json_output),
         "--shell conflicts with --json"
     );
-    let selected = installed_command(directory, options, store)?;
+    let selected = installed_environment(directory, options, store)?;
     let environment = command_environment(&selected)?;
     if let Some(shell) = shell {
         let desired = environment
@@ -888,18 +633,22 @@ pub fn environment(
     } else {
         let values: BTreeMap<_, _> = environment.keys().map(|key| (key, "<redacted>")).collect();
         if json_output {
-            println!(
-                "{}",
-                serde_json::to_string_pretty(
-                    &json!({"tool":selected.tool.id(), "executable":selected.executable, "environment":values})
-                )?
-            );
+            let tools: BTreeMap<_, _> = selected
+                .bins
+                .iter()
+                .map(|(tool, _)| (tool.id(), &selected.executables[tool.name()]))
+                .collect();
+            let mut output =
+                json!({"tools":tools, "executables":selected.executables, "environment":values});
+            if let [(tool, _)] = selected.bins.as_slice() {
+                output["tool"] = json!(tool.id());
+                output["executable"] = json!(selected.executables[tool.name()]);
+            }
+            println!("{}", serde_json::to_string_pretty(&output)?);
         } else {
-            println!(
-                "{}: {}",
-                selected.tool.name(),
-                selected.executable.display()
-            );
+            for (name, executable) in &selected.executables {
+                println!("{name}: {}", executable.display());
+            }
             for (name, value) in values {
                 println!("{name}={value}");
             }

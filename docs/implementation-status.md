@@ -14,7 +14,7 @@ lock creation, installation, frozen/repeat reuse and `exec`/`which`. Two real No
 versions sharing a mounted store pass Linux user acceptance, including restoration
 from cached archives with networking disabled. Explicit Node updates now pass
 Linux version-switch/switch-back acceptance and preserve the other project's
-selection and lock; multi-tool/scoped updates remain open. The original install/exec scenario
+selection and lock; scoped/profile/multi-platform updates remain open. The original install/exec scenario
 also passed Windows and macOS at `73bb33d`; offline/which restoration subsequently
 passed Windows at `1acb16f` and macOS at `01e81be`. Explicit updates also passed
 Windows at `1acb16f`; macOS updates, environment application and native shim
@@ -56,11 +56,19 @@ official catalog/checksum adapter. Linux Go 1.24.13 acquisition, frozen reuse,
 which/exec, GOROOT/local toolchain configuration, real program compilation and
 Bash native shim activation passed. Official Go tar files required bounded local
 PAX filename support in the existing extractor. Node explicit exec and Bash
-activation replay still pass. Native Windows/macOS Go qualification, mixed-tool
-projects and native module constraints remain unfinished.
+activation replay still pass. Native Windows/macOS Go qualification and native
+module constraints remain unfinished.
 The Go installation was also moved aside and restored from cached bytes with
 container networking disabled; actual compilation/execution and unchanged locks
 passed again.
+Mixed Node/Go projects now use one format-2 environment and one verified lease.
+A Node-only update preserved the exact Go record, and an unselected changed Go
+requirement failed without lock mutation. After correcting the all-installed
+staging-directory assumption, Linux frozen replay and Node-to-Go child execution
+passed with networking disabled, as did mixed Bash activation and the existing
+two-project Node regression flow. Multi-tool JSON inspection retains redaction
+and preserves the singular fields for single-tool projects. Full native CI for
+this extension remains pending.
 
 ## Builder objective
 

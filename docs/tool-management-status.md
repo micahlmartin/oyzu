@@ -2729,3 +2729,30 @@ The final Go replay moved installations aside and restored them from cached byte
 with container networking disabled. Which/exec, GOROOT, local toolchain and actual
 compilation/execution passed again; lock bytes stayed unchanged. Documentation
 and diff checks passed. Full OEP-0003 scope remains active, with hardening deferred.
+
+## Checkpoint 170 - mixed Node/Go selection and selective updates (2026-10-02)
+
+The product now installs both configured roots into one format-2 environment,
+leases the complete selection for exec/which/env and shell hooks, and composes
+both backend environments. Installation orchestration lives under
+src/tools/development/installation.rs and uses the existing request projector,
+lock transaction and store publication contracts. A selected update retains
+unselected tool records exactly; a changed unselected requirement fails without
+changing the lock. Single-tool JSON inspection retains its existing fields.
+
+The complete Linux runner tooling/test-tool-mixed.py passed from a fresh project:
+Node 22.15.0 with Go 1.24.13, Node-only update to 22.14.0, exact Go-record
+preservation, stale/unselected-request rejection, frozen reuse, both executables,
+Node launching the selected Go, redacted environment inspection and unchanged
+frozen lock bytes. The initial run exposed an absent staging installs directory
+when every payload was already installed; creating the required empty directory
+fixed that actual integration failure, and the complete runner then passed.
+Separate mixed replay and Bash activation passed with networking disabled, as
+did the existing two-project Node offline regression flow.
+
+Default Windows locked tests (two test threads), strict all-target Clippy,
+formatting and nine real task scenarios passed. Final Linux feature-enabled
+build, strict all-target Clippy and formatting passed. Documentation and diff
+checks passed. Native mixed acceptance is added to the three-host workflow but
+has not yet passed CI. Scoped/profile/multi-platform updates, other backends and
+the remaining OEP functional requirements remain open. Hardening is deferred.

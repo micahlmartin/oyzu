@@ -196,11 +196,11 @@ pub fn transition(directory: &Path, shell: &str, deactivate: bool) -> Result<i32
         let shim_path = std::env::join_paths(paths)?
             .into_string()
             .map_err(|_| anyhow::anyhow!("shell PATH requires UTF-8"))?;
-        match development::installed_command(directory, &options, &store) {
+        match development::installed_environment(directory, &options, &store) {
             Ok(selected) => {
                 identity = crate::records::digest(
                     "oyzu.shell-selection.v1",
-                    &serde_json::json!({"directory":std::path::absolute(directory)?, "executable":selected.executable, "configuration":selected.effective.values()}),
+                    &serde_json::json!({"directory":std::path::absolute(directory)?, "executables":selected.executables, "configuration":selected.effective.values()}),
                 )?;
                 if identity == state.identity {
                     return Ok(0);

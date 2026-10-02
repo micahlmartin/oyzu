@@ -15,6 +15,7 @@ on:
       - 'tooling/test-tool-proxy.py'
       - 'tooling/test-tool-exec.py'
       - 'tooling/test-tool-go.py'
+      - 'tooling/test-tool-mixed.py'
       - 'tooling/test-shell-profile.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
@@ -25,7 +26,7 @@ permissions:
 jobs:
   node-user-flow:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -106,6 +107,10 @@ jobs:
       - name: Go shell shim on Windows
         if: runner.os == 'Windows'
         run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance" --offline-check --shell pwsh
+      - name: Mixed Node and Go selective update
+        run: python tooling/test-tool-mixed.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-mixed-acceptance" --store "${{ runner.temp }}/oyzu-go-acceptance/store"
+      - name: Mixed frozen offline reuse
+        run: python tooling/test-tool-mixed.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-mixed-acceptance" --store "${{ runner.temp }}/oyzu-go-acceptance/store" --offline-check --shell ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
       - name: Check feature-enabled code after acceptance
         run: cargo clippy --locked --features mise-integration --all-targets -- -D warnings
       - name: Formatting
