@@ -1,0 +1,73 @@
+{
+  "package": "pep440_rs",
+  "version": "0.7.3",
+  "archive_url": "https://crates.io/api/v1/crates/pep440_rs/0.7.3/download",
+  "archive_sha256": "31095ca1f396e3de32745f42b20deef7bc09077f918b085307e8eab6ddd8fb9c",
+  "archive_size": 44342,
+  "license_expression": "Apache-2.0 OR BSD-2-Clause",
+  "rust_version": null,
+  "dependencies": {
+    "once_cell": {
+      "version": "1.20.2"
+    },
+    "rkyv": {
+      "version": "0.8.9",
+      "optional": true
+    },
+    "serde": {
+      "version": "1.0.210",
+      "features": [
+        "derive"
+      ]
+    },
+    "tracing": {
+      "version": "0.1.40",
+      "optional": true
+    },
+    "unicode-width": {
+      "version": "0.2.0"
+    },
+    "unscanny": {
+      "version": "0.1.0"
+    },
+    "version-ranges": {
+      "version": "0.1.1",
+      "optional": true
+    }
+  },
+  "features": null,
+  "retained_files": [
+    {
+      "path": "Cargo.toml",
+      "bytes": 1477,
+      "sha256": "523e88c684a452d8ee19a06699f9e82c52e9ecc74b28e959faecfb26dd8ef371"
+    },
+    {
+      "path": "Cargo.toml.orig",
+      "bytes": 936,
+      "sha256": "9511c08552bb0d89845842058bf7e2f60219656461dcaa55d12f2e4df074b38c"
+    },
+    {
+      "path": "License-Apache",
+      "bytes": 10173,
+      "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9"
+    },
+    {
+      "path": "License-BSD",
+      "bytes": 1293,
+      "sha256": "349881bddbe385d3febd5ab50e36ea781aefee73bda4b0610918fe73fda29322"
+    },
+    {
+      "path": ".cargo_vcs_info.json",
+      "bytes": 94,
+      "sha256": "cf3b951cacbf825afa02b1c8b48f929af747843d462aab1de81cbcb90b0204cb"
+    }
+  ],
+  "legal_approval": false,
+  "release_ready": false,
+  "registry_checksum_matches": true,
+  "registry_yanked": false,
+  "source_revision": "f8b2449a43ed81d7f14a163c34624d2486ef1e81",
+  "status": "candidate-only; no dependency added or license alternative selected",
+  "observed_at": "2026-10-02"
+}

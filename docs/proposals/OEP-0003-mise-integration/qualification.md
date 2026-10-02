@@ -416,3 +416,13 @@ Before adoption, retain the exact package checksum, original notices and feature
 dependency graph; qualify Python-specific operators, exclusions, malformed inputs
 and the admitted stable-CPython policy. Package-version API documentation should
 be used instead of assuming the repository's older README matches the release.
+
+The [candidate package evidence](python-constraint-candidate.json) records the
+0.7.3 archive checksum matched against crates.io, package-declared license
+expression, source revision, direct dependency requirements and original notice
+hashes. The archive and both unmodified license texts were retained outside Git.
+No code was executed or adopted during this read-only package inspection. The
+package declares `Apache-2.0 OR BSD-2-Clause`; neither alternative has been chosen.
+Its required direct dependencies are once_cell, serde, unicode-width and unscanny;
+optional dependencies are not an audited shipping graph. Compiler compatibility,
+resolved dependency notices and semantic conformance remain unverified.
