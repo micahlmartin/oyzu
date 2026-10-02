@@ -366,3 +366,21 @@ attestation validation and full archive/runtime qualification remain outstanding
 The root CLI still imports no mise dependency. The fork inventory is consistent,
 but its separate sensitive-change review gate requires current-head approval
 from @micahlmartin; owner assignment and passing tests do not supply that approval.
+
+### Embedded Python locked-artifact retention
+
+Fork revision `4595732a494af3afc442945d671844210c41e627` rejects a missing or
+substituted locked filename in the explicit-target precompiled catalog path when
+an embedding context is active. It reuses upstream selection and checks the
+returned filename against the exact locked identity. Unlocked selection retains
+upstream ordering; ordinary nonembedded refresh retains upstream fallback.
+Attestation enforcement is unchanged. Direct locked-URL installation and the
+future Oyzu worker path still require separate qualification.
+
+Both Python catalog regressions pass locally on Linux, including exact older-build
+retention, unlocked newer-build selection, missing/empty/wrong-version denial and
+ordinary fallback compatibility. Scoped strict library/example Clippy, formatting,
+22 existing embedding scenarios and compliance guard checks also pass. Native
+validation is [run 37020409067](https://github.com/oyzuai/mise/actions/runs/37020409067),
+pending at this observation. These tests do not establish a complete Python
+resolver, publisher verification, production admission or distribution approval.

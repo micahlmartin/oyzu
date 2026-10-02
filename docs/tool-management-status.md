@@ -2019,3 +2019,16 @@ The separate sensitive-change human-review gate remains unresolved. These result
 do not approve distribution, establish Python selection/archive qualification or
 complete production integration. No root implementation changed. Documentation
 and diff checks pass; full OEP-0003 work remains active.
+
+## Checkpoint 139: embedded Python locked-artifact substitution denial
+
+Fork commit 4595732a494af3afc442945d671844210c41e627 now rejects upstream's
+replacement artifact when an embedded explicit-target query supplied a locked
+filename. The qualification companion documents its exact scope and passing local
+regressions, Clippy, formatting and existing harness checks. Native embedding
+run 37020409067 is pending. The ordinary upstream refresh behavior is preserved.
+
+This is a frozen-identity safeguard for TM-03/TM-06, not a complete Python adapter
+or worker implementation. Direct locked-URL acquisition, provenance and admission
+remain separate requirements. No root Rust implementation changed. Documentation
+and diff checks pass; OEP-0003 remains in progress.
