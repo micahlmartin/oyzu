@@ -1765,3 +1765,29 @@ hosts, OS network containment or production backend admission. Java vendor/build
 identities cannot use the current canonical-semver-only Node/Go selector unchanged.
 Legal/release approval remains false; production integration and the other OEP
 requirements remain incomplete.
+
+## Checkpoint 125: targeted Temurin version selection
+
+Fork c3c9ca73d adds Session::resolve_java_version for explicit Linux amd64 GNU,
+macOS arm64 and Windows amd64 MSVC targets. It reuses Java's existing ordering
+and fuzzy matcher, admitting GA Temurin HotSpot JDK metadata with no extra
+features. Numeric/vendor prefixes, exact versions and latest intersect all
+constraints; full vendor/build identity is preserved. Unsupported selectors,
+other vendors, unknown targets and excessive constraints fail before acquisition.
+The same ordering helper serves ordinary Java listing and embedded selection;
+feature preference saturates at zero instead of underflowing on overlong lists.
+
+Linux strict library/example Clippy, formatting and library-only build pass.
+Network-disabled replay passed all 22 ordinary scenarios plus real Go and Java
+fixtures. Java exercised exact/prefix/latest with exact constraints, preserved
+catalog identity, conflicts, absent versions, invalid request/target syntax and
+257-constraint rejection, including no transport calls for invalid inputs.
+Compliance inventory is unchanged; 24 tests pass with two Windows symlink skips.
+The owning reference and fork change record document the API and its limits.
+Documentation checks pass. Native CI for this new selection seam is pending;
+the preceding bounded-reader run 37005919694 completed successfully on all hosts.
+
+This does not complete the resolver: native builder range languages, explicit
+prereleases, ambiguous-catalog rejection, returned metadata provenance and the
+full target matrix remain open. Production import, admission, worker/broker
+integration, legal approval and all other outstanding OEP work remain required.

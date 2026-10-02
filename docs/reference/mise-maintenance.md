@@ -630,3 +630,18 @@ strict utility/library/example Clippy and combined real Go/Java replay pass on
 Linux with replay networking disabled. The same utility tests, strict checks and
 Go/Java replay steps also passed on all three native CI hosts in run 37005919694.
 Native CI transport replay is not evidence of OS-level network containment.
+
+The fork's experimental `Session::resolve_java_version(request, constraints,
+target)` seam reuses Java's catalog ordering and prefix matcher. It admits GA
+Temurin HotSpot JDKs for the same three target keys. Numeric prefixes (`21`),
+vendor prefixes (`temurin-21`), exact catalog versions and `latest` are intersected
+with every additional constraint; returned identities retain vendor and build
+information, including `temurin-21.0.6+7.0.LTS`. No installation takes place.
+
+Selectors are limited to 128 ASCII letters/digits/period/plus/hyphen bytes and
+256 additional constraints. Other vendors, range operators, path/system/ref
+requests and unknown targets fail before metadata acquisition. Catalog absence
+or conflicting constraints fail without an installed-version fallback. This API
+does not yet implement native builder range languages, explicit prereleases,
+ambiguous-record rejection or a provenance result for lock proposals. It does
+not qualify Java for production admission or complete OEP-0003 resolution.
