@@ -7,6 +7,7 @@ mod materialization;
 mod planning;
 mod reporting;
 mod scheduling;
+mod task_graph;
 
 use crate::{builders, discovery, records, snapshot};
 use anyhow::{bail, Context, Result};

@@ -44,6 +44,14 @@ pub(crate) fn post_hook(task: &Task) -> String {
     hook(task, "post")
 }
 
+pub(crate) fn pre_hook(task: &Task) -> String {
+    hook(task, "pre")
+}
+
+pub(crate) fn is_hook(task: &Task) -> bool {
+    task.name.starts_with("pre_") || task.name.starts_with("post_")
+}
+
 pub(crate) fn hook_owner(task: &Task) -> Option<String> {
     let name = task
         .name
@@ -87,16 +95,15 @@ fn visit(
             order,
         )?;
     }
-    let is_hook = task.name.starts_with("pre_") || task.name.starts_with("post_");
-    if include_hooks && !is_hook {
-        let pre = hook(task, "pre");
+    if include_hooks && !is_hook(task) {
+        let pre = pre_hook(task);
         if workspace.tasks.contains_key(&pre) {
             visit(workspace, &pre, false, native, active, emitted, order)?;
         }
     }
     order.push(id.into());
     emitted.insert(id.into());
-    if include_hooks && !is_hook {
+    if include_hooks && !is_hook(task) {
         let post = hook(task, "post");
         if workspace.tasks.contains_key(&post) {
             visit(workspace, &post, false, native, active, emitted, order)?;

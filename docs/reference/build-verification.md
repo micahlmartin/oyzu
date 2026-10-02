@@ -30,7 +30,7 @@ Omitting `--suite` selects `all` and retains the original full-run ordering. Pro
 
 | Suite | Included checks and toolchain dependencies |
 | --- | --- |
-| `core` | Concurrency, Go-to-Node materialization, baseline Node/Go/Python artifacts, repeatability, hooks and isolation; includes npm, Go, pip, uv and Poetry tooling |
+| `core` | Concurrency, cross-target task prerequisites and hook failures, Go-to-Node materialization, baseline Node/Go/Python artifacts, repeatability and isolation; includes npm, Go, pip, uv and Poetry tooling |
 | `node` | Native overrides, dependency/preflight failures, npm/pnpm/Yarn, workspaces, lint/format, Jest, Vitest and Mocha |
 | `python` | Test/report defaults, application archives, legacy packaging and quality selection; includes native Python adapter probes |
 | `go` | Libraries, workspace/cgo, registry modules and selected multi-binary image assembly; includes Docker tooling |

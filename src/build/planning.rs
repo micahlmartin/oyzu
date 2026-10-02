@@ -91,10 +91,23 @@ pub(super) fn plan_with_dependencies(
     let mut artifacts = Vec::new();
     let mut tools = Vec::new();
     let builder_digest = snapshot::file_digest(&std::env::current_exe()?)?;
-    let mut emitted = BTreeSet::new();
     let configs = config::targets(&workspace.root)?.unwrap_or_default();
     let mut materialized = BTreeMap::new();
-    for id in target_order(workspace)? {
+    let order = target_order(workspace)?;
+    let mut intents = BTreeMap::new();
+    for (id, target) in &workspace.targets {
+        let intent = builders::get(&target.builder)?.plan(builders::PlanningContext {
+            target,
+            source,
+            dependencies: dependencies.get(id),
+        })?;
+        intent
+            .validate()
+            .with_context(|| format!("{id}: invalid builder output contract"))?;
+        intents.insert(id.clone(), intent);
+    }
+    let task_graph = super::task_graph::TaskGraph::new(workspace, &intents)?;
+    for id in order {
         let target = &workspace.targets[&id];
         let image = images
             .get(&id)
@@ -109,14 +122,7 @@ pub(super) fn plan_with_dependencies(
         if let Some(config) = workspace.configuration.get(&id) {
             crate::config::enforcement::execution_preflight(config, builder.descriptor().tools)?;
         }
-        let intent = builder.plan(builders::PlanningContext {
-            target,
-            source,
-            dependencies: dependencies.get(&id),
-        })?;
-        intent
-            .validate()
-            .with_context(|| format!("{id}: invalid builder output contract"))?;
+        let intent = &intents[&id];
         let cwd = relative(&workspace.root, &target.path)?;
         let projection = intent
             .source_files
@@ -164,126 +170,82 @@ pub(super) fn plan_with_dependencies(
                 (image, &source.digest, &command.execution),
             ));
         }
-        let operation_id = |stage: &str| {
-            if workspace.targets.len() == 1 && workspace.tasks.contains_key(stage) {
-                stage.to_string()
-            } else {
-                format!("{id}:{stage}")
-            }
-        };
         let operation_contracts: BTreeMap<_, _> = intent
             .tasks
             .iter()
-            .map(|(name, plan)| (operation_id(name), plan))
+            .map(|(name, plan)| (super::task_graph::operation(workspace, &id, name), plan))
             .collect();
-        let native_operations: BTreeSet<_> = operation_contracts
-            .keys()
-            .filter(|id| {
-                workspace
-                    .tasks
-                    .get(*id)
-                    .is_some_and(|task| task.provider == target.manager)
-            })
-            .cloned()
-            .collect();
-        for stage in &intent.stages {
-            // Match public task lookup for a single-target workspace: explicit
-            // root tasks own unqualified operations. Never fan a root override
-            // out across multiple targets.
-            let root_override =
-                workspace.targets.len() == 1 && workspace.tasks.contains_key(*stage);
-            let task_id = operation_id(stage);
-            let Some(task) = workspace.tasks.get(&task_id) else {
-                continue;
-            };
-            let provided = native_operations.contains(&task_id);
-            if (task.availability.is_some() && !provided)
-                || (!task.build_stage
-                    && !root_override
-                    && !operation_contracts.contains_key(&task_id))
-            {
-                continue;
+        for step in task_graph
+            .ordered
+            .iter()
+            .filter(|step| task_graph.owners[*step] == id)
+        {
+            let task = &workspace.tasks[step];
+            if task.mutates_source {
+                bail!("{step}: mutating formatter cannot run as a build check");
             }
-            let sequence = tasks::sequence_for_build(workspace, &task_id, &native_operations)?;
-            for (position, step) in sequence.iter().enumerate() {
-                if !emitted.insert(step.clone()) {
-                    continue;
-                }
-                let task = &workspace.tasks[step];
-                if task.mutates_source {
-                    bail!("{step}: mutating formatter cannot run as a build check");
-                }
-                if !task.target.is_empty() && task.target != id {
-                    bail!("{step}: cross-target task prerequisites require graph integration");
-                }
-                // The operation owns its required evidence even when TOML
-                // replaces its body. Runner-specific adaptation belongs to the
-                // builder; the engine never guesses how to modify a command.
-                // A native operation can first appear as another operation's
-                // prerequisite. Its report contract follows its identity.
-                let contract = operation_contracts.get(step).copied();
-                let native = contract.filter(|_| task.provider == target.manager);
-                let mut bindings = super::reporting::bind(&workspace.root, &id, task, contract)?;
-                let mut env = intent.env.clone();
-                env.extend(task.env.clone());
-                if let Some(owner) = tasks::hook_owner(task).and_then(|id| workspace.tasks.get(&id))
-                {
-                    let reports = super::reporting::bind(
-                        &workspace.root,
-                        &id,
-                        owner,
-                        operation_contracts.get(&owner.id()).copied(),
-                    )?;
-                    env.extend(reports.env);
-                }
-                env.extend(bindings.env);
-                if let Some(config) = workspace.configuration.get(&id) {
-                    config.validate_environment(&env)?;
-                }
-                for (name, value) in &intent.fixed_env {
-                    if env.get(name) != Some(value) {
-                        bail!("{step}: {name} must remain {value} for the captured builder capability");
-                    }
-                }
-                let instrumented = contract
-                    .filter(|_| native.is_none())
-                    .and_then(|_| builder.instrument_override(target, task, &env));
-                let native_reporting = native.is_some() || instrumented.is_some();
-                let argv = native.map_or_else(
-                    || instrumented.unwrap_or_else(|| task.argv.clone()),
-                    |v| v.argv.clone(),
-                );
-                if !native_reporting {
-                    for source in bindings.sources.values_mut() {
-                        *source = crate::reports::ReportSource::File;
-                    }
-                }
-                let post = tasks::post_hook(task);
-                let boundary = sequence[position + 1..]
-                    .iter()
-                    .find(|id| **id == post)
-                    .unwrap_or(step);
-                let mut a = action(
-                    step,
+            // The operation owns its required evidence even when TOML
+            // replaces its body. Runner-specific adaptation belongs to the
+            // builder; the engine never guesses how to modify a command.
+            // A native operation can first appear as another operation's
+            // prerequisite. Its report contract follows its identity.
+            let contract = operation_contracts.get(step).copied();
+            let native = contract.filter(|_| task.provider == target.manager);
+            let mut bindings = super::reporting::bind(&workspace.root, &id, task, contract)?;
+            let mut env = intent.env.clone();
+            env.extend(task.env.clone());
+            if let Some(owner) = tasks::hook_owner(task).and_then(|id| workspace.tasks.get(&id)) {
+                let reports = super::reporting::bind(
+                    &workspace.root,
                     &id,
-                    &task.name,
-                    argv,
-                    &relative(&workspace.root, &task.cwd)?,
-                    &env,
-                    (
-                        image,
-                        &source.digest,
-                        native.map_or(&executor::Mode::Process, |v| &v.execution),
-                    ),
-                );
-                a["reports"] = json!(bindings.intents);
-                a["extensions"]["oyzu.dev/report-paths"] = json!(bindings.paths);
-                a["extensions"]["oyzu.dev/stdout-must-be-empty"] = json!(task.stdout_must_be_empty);
-                a["extensions"]["oyzu.dev/report-sources"] = json!(bindings.sources);
-                a["extensions"]["oyzu.dev/report-inputs"] = json!(bindings.inputs);
-                a["extensions"]["oyzu.dev/collect-after"] = json!(boundary);
-                planned.push(a);
+                    owner,
+                    operation_contracts.get(&owner.id()).copied(),
+                )?;
+                env.extend(reports.env);
             }
+            env.extend(bindings.env);
+            if let Some(config) = workspace.configuration.get(&id) {
+                config.validate_environment(&env)?;
+            }
+            for (name, value) in &intent.fixed_env {
+                if env.get(name) != Some(value) {
+                    bail!("{step}: {name} must remain {value} for the captured builder capability");
+                }
+            }
+            let instrumented = contract
+                .filter(|_| native.is_none())
+                .and_then(|_| builder.instrument_override(target, task, &env));
+            let native_reporting = native.is_some() || instrumented.is_some();
+            let argv = native.map_or_else(
+                || instrumented.unwrap_or_else(|| task.argv.clone()),
+                |v| v.argv.clone(),
+            );
+            if !native_reporting {
+                for source in bindings.sources.values_mut() {
+                    *source = crate::reports::ReportSource::File;
+                }
+            }
+            let boundary = super::task_graph::completion(workspace, step);
+            let mut a = action(
+                step,
+                &id,
+                &task.name,
+                argv,
+                &relative(&workspace.root, &task.cwd)?,
+                &env,
+                (
+                    image,
+                    &source.digest,
+                    native.map_or(&executor::Mode::Process, |v| &v.execution),
+                ),
+            );
+            a["reports"] = json!(bindings.intents);
+            a["extensions"]["oyzu.dev/report-paths"] = json!(bindings.paths);
+            a["extensions"]["oyzu.dev/stdout-must-be-empty"] = json!(task.stdout_must_be_empty);
+            a["extensions"]["oyzu.dev/report-sources"] = json!(bindings.sources);
+            a["extensions"]["oyzu.dev/report-inputs"] = json!(bindings.inputs);
+            a["extensions"]["oyzu.dev/collect-after"] = json!(boundary);
+            planned.push(a);
         }
         let producer = format!("{id}:{}", intent.package.operation);
         let mut package = action(
@@ -318,6 +280,19 @@ pub(super) fn plan_with_dependencies(
             ))
         })
         .collect::<Result<_>>()?;
+    let preparation: BTreeMap<_, _> = planned
+        .iter()
+        .filter(|a| {
+            !task_graph.owners.contains_key(a["id"].as_str().unwrap())
+                && final_actions[a["target"].as_str().unwrap()] != a["id"].as_str().unwrap()
+        })
+        .map(|a| {
+            (
+                a["target"].as_str().unwrap().to_owned(),
+                a["id"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
     let mut previous: BTreeMap<String, String> = BTreeMap::new();
     for a in &mut planned {
         if let Some(inputs) = a["target"].as_str().and_then(|id| materialized.get(id)) {
@@ -339,8 +314,46 @@ pub(super) fn plan_with_dependencies(
             .as_str()
             .context("missing action target")?
             .to_owned();
-        if let Some(p) = previous.get(&target) {
-            prerequisites.insert(p.clone());
+        let action_id = a["id"].as_str().context("missing action id")?;
+        if task_graph.owners.contains_key(action_id) {
+            let edges = task_graph
+                .dependencies
+                .get(action_id)
+                .cloned()
+                .unwrap_or_default();
+            if !edges
+                .iter()
+                .any(|id| task_graph.owners.get(id) == Some(&target))
+            {
+                prerequisites.extend(preparation.get(&target).cloned());
+            }
+            prerequisites.extend(edges);
+        } else if final_actions[&target] == action_id {
+            // Package only after every selected task owned by this target,
+            // including custom tasks requested by another target, has finished.
+            let owned: BTreeSet<_> = task_graph
+                .owners
+                .iter()
+                .filter(|(_, owner)| **owner == target)
+                .map(|(id, _)| id.clone())
+                .collect();
+            if owned.is_empty() {
+                prerequisites.extend(preparation.get(&target).cloned());
+            } else {
+                prerequisites.extend(
+                    owned
+                        .iter()
+                        .filter(|id| {
+                            !task_graph.dependencies.iter().any(|(consumer, edges)| {
+                                owned.contains(consumer) && edges.contains(*id)
+                            })
+                        })
+                        .cloned(),
+                );
+            }
+        } else {
+            prerequisites.extend(previous.get(&target).cloned());
+            previous.insert(target.clone(), action_id.into());
         }
         if let Some(config) = configs.get(&target) {
             for dependency in &config.depends_on {
@@ -363,11 +376,10 @@ pub(super) fn plan_with_dependencies(
                 .unwrap_or(json!(0));
         }
         a["dependsOn"] = json!(prerequisites);
-        previous.insert(
-            target,
-            a["id"].as_str().context("missing action id")?.into(),
-        );
     }
+    // Validate combined stage, hook, task and target edges before returning a
+    // runnable plan. Task-only cycle checks cannot see all these relationships.
+    super::scheduling::Schedule::new(&planned, 1)?;
     validate_required_checks(workspace, &planned)?;
     let managed = workspace
         .configuration

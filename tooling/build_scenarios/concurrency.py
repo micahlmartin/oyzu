@@ -40,3 +40,38 @@ setTimeout(() => console.log('OYZU_CONCURRENCY ' + JSON.stringify({start, end: D
         overlap = max(x['start'] for x in intervals) < min(x['end'] for x in intervals)
         assert overlap == (jobs == 2), intervals
     verified.append('build.jobs 1/2 controls actual action overlap with private target output roots')
+    # A qualified prerequisite runs once in its owner's workspace. Ordering
+    # alone must not expose the owner's mutated files to the consumer.
+    proof = "const fs=require('node:fs'); if(fs.existsSync('proof.txt'))process.exit(1); fs.writeFileSync('proof.txt','beta'); console.log('OYZU_PROOF_ONCE');"
+    post = "if(require('node:fs').readFileSync('proof.txt','utf8')!=='beta')process.exit(1);"
+    consumer = "if(require('node:fs').existsSync('../beta/proof.txt'))process.exit(1);"
+    config = '[build]\njobs=2\n'
+    config += '[tasks."beta:proof"]\nargv='+json.dumps(['node','-e',proof])+'\n'
+    config += '[tasks."beta:post_proof"]\nargv='+json.dumps(['node','-e',post])+'\n'
+    for target in ['alpha','beta']:
+        config += f'[tasks."{target}:pre_test"]\ndepends_on=["beta:proof"]\nargv='+json.dumps(['node','-e',consumer if target=='alpha' else post])+'\n'
+    (project/'oyzu.toml').write_text(config)
+    before = source_files(project)
+    invoke(project,'build')
+    manifest = validate(project/'dist')
+    assert manifest['status']=='succeeded' and source_files(project)==before
+    plan = json.loads((project/'dist/plan.json').read_text())
+    proofs = [a for a in plan['actions'] if a['id']=='beta:proof']
+    assert len(proofs)==1 and proofs[0]['target']=='beta' and proofs[0]['cwd']=='beta'
+    assert proofs[0]['tools']==['beta']
+    for target in ['alpha','beta']:
+        action = next(a for a in plan['actions'] if a['id']==f'{target}:pre_test')
+        assert 'beta:post_proof' in action['dependsOn']
+    assert len(manifest['artifacts'])==2
+    assert len([r for r in manifest['reports'] if r['kind']=='test'])==2
+    invoke(project,'inspect','dist')
+    # A failing producer post-hook blocks both consumers and packages.
+    (project/'oyzu.toml').write_text(config.replace(
+        'argv='+json.dumps(['node','-e',post]),
+        'argv='+json.dumps(['node','-e','process.exit(7)']), 1))
+    invoke(project,'build',success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    for target in ['alpha','beta']:
+        assert next(a for a in failed['actions'] if a['id']==f'{target}:pre_test')['status']=='blocked'
+    verified.append('Cross-target task prerequisites: one owned execution, private workspaces, post-hook ordering, per-target reports/artifacts and failed-hook gating')

@@ -5,6 +5,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | Reference | Coverage |
 | --- | --- |
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
+| [Build tasks](build-tasks.md) | Builder stages, cross-target prerequisites, hooks, private workspace ownership, report gates and failure behavior |
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |
 | [pnpm builds](pnpm.md) | Frozen registry archive capture, native installation, implicit tasks, snapshot packages, provenance and current compatibility limits |
 | [Yarn Classic builds](yarn.md) | Native lock parsing, captured registry archives, offline mirror installation, reports, snapshot packaging and compatibility limits |

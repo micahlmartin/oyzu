@@ -187,6 +187,88 @@ fn plan_edges_preserve_target_order_without_serializing_independent_targets() {
 }
 
 #[test]
+fn cross_target_prerequisites_keep_owner_reports_and_hooks() {
+    let root = tempfile::tempdir().unwrap();
+    for id in ["alpha", "beta"] {
+        fs::create_dir(root.path().join(id)).unwrap();
+        fs::write(
+            root.path().join(id).join("package.json"),
+            format!(r#"{{"name":"{id}","version":"1.0.0","scripts":{{"build":"node -e 0"}}}}"#),
+        )
+        .unwrap();
+    }
+    fs::write(
+        root.path().join("build.yaml"),
+        "alpha: {uses: node/package, path: alpha}\nbeta: {uses: node/package, path: beta}\n",
+    )
+    .unwrap();
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['beta:test']\n[tasks.\"beta:post_test\"]\nargv=['node','-e','0']\n").unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    let get = |id: &str| actions.iter().find(|a| a["id"] == id).unwrap();
+    assert_eq!(actions.iter().filter(|a| a["id"] == "beta:test").count(), 1);
+    assert_eq!(get("beta:test")["cwd"], "beta");
+    assert_eq!(get("beta:test")["tools"], json!(["beta"]));
+    assert_eq!(get("beta:test")["target"], "beta");
+    assert_eq!(get("beta:test")["reports"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        get("beta:test")["extensions"]["oyzu.dev/collect-after"],
+        "beta:post_test"
+    );
+    assert!(get("alpha:pre_test")["dependsOn"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("beta:post_test")));
+    assert!(get("beta:test")["env"]["OYZU_TEST_REPORT"]
+        .as_str()
+        .unwrap()
+        .contains("beta/"));
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['beta:verify']\n[tasks.\"beta:verify\"]\nargv=['node','-e','0']\ndepends_on=['helper']\n[tasks.helper]\nargv=['node','-e','0']\n").unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let inherited = planned(root.path(), capture.path());
+    let helper = inherited["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "helper")
+        .unwrap();
+    assert_eq!(helper["target"], "beta");
+    assert_eq!(helper["tools"], json!(["beta"]));
+    // Root tasks retain their declared root cwd.
+    assert_eq!(helper["cwd"], ".");
+    // Task-only dependencies are acyclic, but native build-before-test order
+    // makes these two prerequisites cyclic. Reject before execution.
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:build\"]\nargv=['node','-e','0']\ndepends_on=['beta:test']\n[tasks.\"beta:build\"]\nargv=['node','-e','0']\ndepends_on=['alpha:test']\n").unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let workspace = discovery::discover(&captured.path().join("source")).unwrap();
+    let image = Image {
+        reference: "node:test".into(),
+        digest: format!("sha256:{}", "1".repeat(64)),
+        os: "linux".into(),
+        arch: "amd64".into(),
+    };
+    let images = BTreeMap::from([("alpha".into(), image.clone()), ("beta".into(), image)]);
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("action dependency cycle"));
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['helper']\n[tasks.\"beta:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['helper']\n[tasks.helper]\nargv=['node','-e','0']\n").unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let workspace = discovery::discover(&captured.path().join("source")).unwrap();
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("shared root task has ambiguous build ownership"));
+}
+
+#[test]
 fn implicit_node_tests_and_custom_scripts_inherit_report_obligations() {
     let root = tempfile::tempdir().unwrap();
     fs::write(
