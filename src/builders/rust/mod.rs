@@ -1,6 +1,7 @@
 use crate::builders::task::insert;
 mod acquisition;
 mod metadata;
+mod packaging;
 mod planning;
 mod preparation;
 mod reporting;
@@ -36,6 +37,10 @@ impl Builder for Rust {
             RuntimeFile {
                 name: "rust-doctest.py",
                 contents: include_str!("runtime/doctest.py"),
+            },
+            RuntimeFile {
+                name: "rust-package.py",
+                contents: include_str!("runtime/package.py"),
             },
         ]
     }

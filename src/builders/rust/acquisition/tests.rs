@@ -37,6 +37,78 @@ fn write_lock(path: &Path, checksum: &str) {
 }
 
 #[test]
+fn workspace_packaging_preserves_native_unpublished_dependency_resolution() {
+    let root = tempfile::tempdir().unwrap();
+    let project = root.path().join("workspace");
+    for member in ["core", "app"] {
+        fs::create_dir_all(project.join(member).join("src")).unwrap();
+        fs::write(project.join(member).join("Cargo.toml"), format!(
+            "[package]\nname='example-{member}'\nversion='0.1.0-dev.g123456789abc'\nedition='2021'\n{}",
+            if member == "app" { "[dependencies]\nexample-core={path='../core',version='=0.1.0-dev.g123456789abc'}\n" } else { "" }
+        )).unwrap();
+    }
+    fs::write(
+        project.join("Cargo.toml"),
+        "[workspace]\nmembers=['core','app']\nresolver='2'\n",
+    )
+    .unwrap();
+    fs::write(
+        project.join("core/src/lib.rs"),
+        "pub fn answer() -> u32 { 42 }\n",
+    )
+    .unwrap();
+    fs::write(
+        project.join("app/src/main.rs"),
+        "fn main() { assert_eq!(example_core::answer(),42); }\n",
+    )
+    .unwrap();
+    let home = root.path().join("cargo-home");
+    fs::create_dir(&home).unwrap();
+    let cargo = |args: &[&str]| {
+        let result = Command::new(env!("CARGO"))
+            .args(args)
+            .current_dir(&project)
+            .env("CARGO_HOME", &home)
+            .env("CARGO_TARGET_DIR", root.path().join("target"))
+            .env("CARGO_NET_OFFLINE", "true")
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    };
+    cargo(&["generate-lockfile", "--offline"]);
+    let lock = project.join("Cargo.lock");
+    let original_lock = fs::read(&lock).unwrap();
+    let prepared = root.path().join("prepared");
+    fs::create_dir(&prepared).unwrap();
+    let inventory = capture_with(&lock, &prepared, |_| {
+        panic!("local workspace must not fetch")
+    })
+    .unwrap();
+    assert!(inventory.is_empty());
+    fs::copy(prepared.join("cargo-config.toml"), home.join("config.toml")).unwrap();
+    cargo(&[
+        "package",
+        "--workspace",
+        "--locked",
+        "--offline",
+        "--allow-dirty",
+    ]);
+    for member in ["core", "app"] {
+        assert!(root
+            .path()
+            .join(format!(
+                "target/package/example-{member}-0.1.0-dev.g123456789abc.crate"
+            ))
+            .is_file());
+    }
+    assert_eq!(fs::read(lock).unwrap(), original_lock);
+}
+
+#[test]
 fn local_registry_is_consumed_and_verified_by_native_cargo() {
     let root = tempfile::tempdir().unwrap();
     let project = root.path().join("consumer");

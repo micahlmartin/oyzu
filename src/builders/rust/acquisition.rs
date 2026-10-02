@@ -147,8 +147,15 @@ fn capture_with(
         fs::create_dir_all(path.parent().unwrap())?;
         fs::write(path, bytes)?;
     }
-    fs::write(destination.join("cargo-config.toml"),
-        "[source.crates-io]\nreplace-with = 'oyzu-captured'\n[source.oyzu-captured]\nlocal-registry = '/dependencies/registry'\n")?;
+    // An empty replacement hides Cargo's temporary registry of unpublished
+    // workspace packages. No registry input means no replacement is needed:
+    // execution still uses a private Cargo home and locked, offline commands.
+    let config = if inventory.is_empty() {
+        "# No external registry packages in the captured lock.\n"
+    } else {
+        "[source.crates-io]\nreplace-with = 'oyzu-captured'\n[source.oyzu-captured]\nlocal-registry = '/dependencies/registry'\n"
+    };
+    fs::write(destination.join("cargo-config.toml"), config)?;
     Ok(inventory)
 }
 
