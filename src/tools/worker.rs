@@ -6,6 +6,8 @@ mod exchange;
 mod framing;
 mod io;
 mod session;
+#[cfg(windows)]
+mod windows_job;
 pub use channel::{
     native_tool_worker_channel, NativeToolWorkerEndpoint, NativeToolWorkerReader,
     NativeToolWorkerWriter,
@@ -19,3 +21,5 @@ pub use framing::{
 };
 pub use io::NativeToolWorkerIo;
 pub use session::ToolWorkerSession;
+#[cfg(windows)]
+pub use windows_job::WindowsToolWorkerJob;

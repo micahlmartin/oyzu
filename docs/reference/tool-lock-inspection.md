@@ -1107,7 +1107,56 @@ channel authentication, process-tree termination, deadline scheduling and backen
 dispatch remain separate unfinished work. These tests do not establish those
 properties or authorize use of a backend.
 The six tests pass on Windows GNU with Rust 1.94 and Linux with Rust 1.95
-(network disabled); native macOS verification of this increment remains pending.
+(network disabled). At commit `63e8073`, the full locked unit/integration test,
+strict Clippy and formatting steps also passed on Windows, macOS and Linux in
+[native CI](https://github.com/micahlmartin/oyzu/actions/runs/37031170986).
+That observation covers those completed steps, not every downstream CI job or
+later process-lifecycle changes.
+
+### Windows worker process-tree cleanup
+
+On Windows, `WindowsToolWorkerJob::new()` creates an unnamed, non-inheritable
+job with kill-on-last-handle-close enabled and no process breakaway permission.
+The native spawn adapter must create the initial worker suspended, call
+`assign_suspended(process_handle)`, and only then resume its primary thread.
+Assignment is permitted once, including when the native assignment fails. If it
+fails, the caller must terminate and reap the still-suspended initial process;
+it must never resume it or retry assignment on that job. This API does not
+verify the image, inspect suspension, transfer the supplied process handle,
+establish a sandbox or authenticate a control channel.
+
+`terminate(absolute_monotonic_deadline)` requests termination of every process in
+the job, then queries native job accounting until no active processes remain.
+This includes descendants and any associated console-host processes. Success
+requires an empty job, not just a successful termination request. A repeated
+termination call is permitted. Assignment is permanently closed once termination
+starts, even for an initially empty job. The supervisor must independently join
+control I/O and finish handle/receipt cleanup before reporting operation cleanup.
+
+`TOOL_WORKER_JOB_CLEANUP_TIMEOUT` or a native query/termination error means exit
+has not been confirmed. The owner retains its job handle so cleanup can be
+retried. Closing the last handle requests job-wide termination as a fallback;
+dropping this value alone does not claim observed exit. Native errors preserve
+their OS cause under stable `TOOL_WORKER_JOB_*` diagnostic context.
+
+The Windows-only tests launch the test executable suspended, assign it before
+resuming, and have it create a real descendant. They check breakaway denial,
+membership of both known processes, confirmed exit of both after termination,
+empty job accounting, independence of another live worker, last-handle-close
+termination, failed-assignment sequencing and empty-job shutdown. Console hosts
+were observed as additional job members on Windows; the tests intentionally
+require cleanup of all members rather than assuming a fixed process count.
+Run `cargo test --locked --lib tools::worker::windows_job`. The ignored child
+fixture is invoked by those tests; it is not a product worker entry point.
+All four lifecycle tests pass on Windows GNU with Rust 1.94, as do the full
+locked suite, strict all-target Clippy, formatting and real CLI task scenarios.
+Native Windows MSVC CI verification of this increment remains pending.
+
+This is the Windows lifecycle component, not a complete native spawn adapter.
+Production same-binary creation, image verification, explicit inherited handle
+lists, combined process/I/O deadlines and backend dispatch remain unimplemented.
+Unix process groups and their equivalent cleanup verification remain outstanding.
+The implementation follows Microsoft's [job-object lifecycle contract](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects).
 
 ### Worker exchange correlation
 

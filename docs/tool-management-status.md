@@ -2214,3 +2214,40 @@ it does not test this increment. New native macOS validation is pending. Same-bi
 spawn, image/channel authentication, restricted inheritance, process-tree cleanup,
 deadline scheduling, typed payloads, backend dispatch and full OEP-0003 completion
 remain outstanding. Successful I/O shutdown does not prove a worker process exited.
+
+## Checkpoint 152: Windows worker job lifetime and descendant termination
+
+The Windows worker lifecycle owner now creates an unnamed non-inheritable job
+with kill-on-close and no breakaway permission. It permits one initial process
+assignment, requiring the spawn adapter to create suspended and resume only after
+successful assignment. A failed assignment consumes the attempt. Job termination
+retains ownership and queries native accounting until no active processes remain;
+errors/timeouts do not establish cleanup and permit retry on the same owner.
+Closing the final job handle is a fallback request, not an observed-exit result.
+
+Four lifecycle tests pass on Windows GNU Rust 1.94. Tests create this test binary
+suspended, assign it, resume it and create a real descendant; attempted breakaway
+is denied. Both known process handles become signaled and native accounting is
+empty after termination, while an independent job stays alive. Last-handle-close,
+failed assignment and empty-job sequencing are covered. Initial fixed-count
+assertions failed because native job inspection identified additional conhost.exe
+members; corrected assertions check known-process membership and require all job
+members to exit. The ignored child fixture is explicitly run by these tests.
+
+Windows full cargo test --locked (152 library tests passed, three fixture/native
+opt-ins ignored at the top level), strict all-target Clippy, formatting and all
+nine real CLI task scenarios pass. External-archive opt-ins were not rerun locally.
+Documentation and diff checks pass. The existing windows-sys dependency gains job
+and threading API features without a package/version or license-alternative change.
+Reference, code map and OEP runtime describe the component and recovery obligations.
+
+Separately, completed test/lint/format steps in native run 37031170986 at prior
+commit 63e8073 pass on Windows, macOS and Linux. This confirms native I/O test
+coverage on macOS, superseding checkpoint 151's pending observation. That workflow
+is still active; it does not test the Windows job increment or establish all
+captured-build/task results. Windows MSVC job verification remains pending.
+
+Production same-binary creation, image validation, explicit control-handle lists,
+combined process/I/O cleanup, deadline scheduling, Unix process lifecycle and
+backend dispatch remain unfinished. This component is not a sandbox, shipping
+approval, or completion of OEP-0003.

@@ -14,6 +14,8 @@ pub use backend::{inspect as inspect_backend, BackendInspection};
 pub use edit::{ToolLockChange, ToolLockChangeKind, ToolLockEdit, ToolLockProposal};
 pub use requests::{project_tool_requests, ToolRequestIdentity};
 pub use selection::{select_for_tool_requests, select_locked_environment};
+#[cfg(windows)]
+pub use worker::WindowsToolWorkerJob;
 pub use worker::{
     native_tool_worker_channel, split_tool_worker_channel, NativeToolWorkerEndpoint,
     NativeToolWorkerIo, NativeToolWorkerReader, NativeToolWorkerWriter, ToolWorkerChannel,

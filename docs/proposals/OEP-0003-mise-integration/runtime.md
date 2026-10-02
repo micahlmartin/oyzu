@@ -157,6 +157,16 @@ tree, and handle incomplete cleanup. A successful I/O shutdown is not evidence
 that a worker or descendant exited. See the
 [current I/O contract](../../reference/tool-lock-inspection.md#interruptible-native-control-io).
 
+The Windows lifecycle component now owns a private kill-on-close job, permits one
+initial suspended-process assignment, and confirms zero active processes after
+job-wide termination. Assignment failure consumes the attempt; the spawn adapter
+must terminate/reap the unassigned suspended process instead of resuming it.
+Closing the job handle is a fallback termination request, not exit confirmation.
+Native tests cover a real worker/descendant tree, breakaway denial and an unrelated
+live job. Production image verification, creation, restricted handle inheritance
+and integration with I/O cleanup remain outstanding, as does Unix process cleanup.
+See the [Windows lifecycle contract](../../reference/tool-lock-inspection.md#windows-worker-process-tree-cleanup).
+
 Envelope fields are `protocol = "oyzu.tool-worker/1"`, `request_id` (UUID),
 `operation` (`resolve`, `prepare`, `environment`, `executable`),
 `context_digest`, `backend_release_digest`, `target_platform`, `capabilities`
