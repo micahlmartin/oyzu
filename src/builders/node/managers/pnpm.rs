@@ -3,11 +3,9 @@ use crate::{
     broker,
     builders::{BuilderPlan, CommandSpec, PlanningContext, PreparationContext},
     dependencies::Prepared,
-    records, snapshot,
+    records,
 };
 use anyhow::{bail, Context, Result};
-use serde_json::{json, Value};
-use std::collections::BTreeMap;
 
 pub(super) struct Pnpm;
 impl Pnpm {
@@ -67,32 +65,7 @@ impl Manager for Pnpm {
         } else {
             vec![]
         };
-        let tree = crate::dependencies::preparation::capture(
-            &context,
-            super::super::RUNTIME,
-            &["node".into(), "/oyzu/pnpm.mjs".into(), "acquire".into()],
-            &BTreeMap::from([("HOME".into(), "/tmp/oyzu-home".into())]),
-            sources,
-        )?;
-        let inventory = records::read(&context.destination.join("inventory.json"))?;
-        let packages: Vec<Value> = inventory["packages"].as_array().context("missing pnpm inventory")?
-            .iter().enumerate().map(|(index, p)| json!({
-                "id":format!("pnpm/package-{index}"), "name":p["name"], "version":p["version"],
-                "sourceId":p["sourceId"], "digest":format!("sha256:{}",p["sha256"].as_str().unwrap_or("")),
-                "size":p["size"], "purpose":"build", "dependencies":[], "verification":"digest-only"
-            })).collect();
-        let platform = json!({"os":context.image.os,"arch":context.image.arch});
-        let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
-            "adapter":{"id":"node/pnpm-registry-tarballs","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"2"},
-            "manager":{"id":"pnpm","version":inventory["version"],"digest":context.image.digest,"platform":platform},
-            "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&context.target.path.join("pnpm-lock.yaml"))?],
-            "targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,
-            "extensions":{"oyzu.dev/pnpm":{"nodeVersion":inventory["nodeVersion"],"inventory":"all-locked-registry-tarballs","integrity":"lockfile-sha512","dependencyEdges":"not-modeled","purposeClassification":"build-inputs"}}});
-        Ok(Some(Prepared {
-            root: context.destination.into(),
-            digest: records::digest("oyzu.dependencies.v1alpha1", &record)?,
-            record,
-        }))
+        super::registry::prepare(context, "pnpm.mjs", "pnpm-lock.yaml", sources)
     }
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()> {
         self.validate(&context.target.path)?;

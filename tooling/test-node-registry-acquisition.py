@@ -1,4 +1,4 @@
-"""Real pnpm capture/replay with a fixture broker; worker isolation is tested in CI."""
+"""Real native manager capture/replay; worker isolation is tested separately in CI."""
 import argparse
 import hashlib
 import json
@@ -12,27 +12,33 @@ import time
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
-URLS = [f'https://registry.npmjs.org/{name}/-/{name}-{version}.tgz'
-        for name, version in [('is-odd', '3.0.1'), ('is-number', '6.0.0')]]
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--pnpm-cli', type=Path, required=True)
+    parser.add_argument('--manager', choices=['pnpm', 'yarn'], required=True)
+    parser.add_argument('--native-cli', type=Path, required=True)
     args = parser.parse_args()
-    native = args.pnpm_cli.resolve()
-    env = dict(os.environ, OYZU_PNPM_YAML=str(native.parents[2] / 'yaml'))
+    manager = args.manager
+    native = args.native_cli.resolve()
+    env = dict(os.environ, OYZU_PNPM_YAML=str(native.parents[2] / 'yaml'),
+               OYZU_YARN_LOCKFILE=str(native.parents[2] / '@yarnpkg/lockfile'))
+    expected = {('is-odd', '3.0.1'), ('is-number', '6.0.0')}
+    if manager == 'yarn':
+        expected.add(('@colors/colors', '1.6.0'))
+    urls = [f'https://registry.npmjs.org/{name}/-/{name.split("/")[-1]}-{version}.tgz'
+            for name, version in sorted(expected)]
     bodies = {}
-    for url in URLS:
+    for url in urls:
         with urllib.request.urlopen(url, timeout=30) as response:
             bodies[url] = response.read()
-    with tempfile.TemporaryDirectory(prefix='oyzu pnpm capture ') as temporary:
+    with tempfile.TemporaryDirectory(prefix=f'oyzu {manager} capture ') as temporary:
         base = Path(temporary)
         runtime = base / 'runtime'
         shutil.copytree(ROOT / 'src/builders/node/runtime', runtime)
         shutil.copyfile(ROOT / 'src/broker/runtime/transport.mjs', runtime / 'broker_transport.mjs')
         wrapper = base / 'run.mjs'
-        wrapper.write_text(f"import {{profile}} from {json.dumps((runtime/'pnpm.mjs').as_uri())};\n"
+        wrapper.write_text(f"import {{profile}} from {json.dumps((runtime/f'{manager}.mjs').as_uri())};\n"
                            f"import {{run}} from {json.dumps((runtime/'manager-runtime.mjs').as_uri())};\n"
                            f"profile.command.splice(0,1,process.execPath,{json.dumps(str(native))}); await run(profile);\n")
         spool = base / 'broker'
@@ -71,7 +77,7 @@ def main():
             captures = []
             for index in range(2):
                 project = base / f'project {index}'
-                shutil.copytree(ROOT / 'tooling/fixtures/pnpm-registry', project)
+                shutil.copytree(ROOT / f'tooling/fixtures/{manager}-registry', project)
                 package_path = project / 'package.json'
                 package = json.loads(package_path.read_text())
                 package['scripts']['preinstall'] = 'node lifecycle.cjs'
@@ -79,11 +85,12 @@ def main():
                 (project / 'lifecycle.cjs').write_text("require('node:fs').writeFileSync('lifecycle-ran', 'yes');\n")
                 output = base / f'capture {index}'
                 output.mkdir()
-                original_lock = (project / 'pnpm-lock.yaml').read_bytes()
+                lock_path = project / ('pnpm-lock.yaml' if manager == 'pnpm' else 'yarn.lock')
+                original_lock = lock_path.read_bytes()
                 run('acquire', output, project)
                 assert not (project / 'lifecycle-ran').exists()
                 inventory = json.loads((output / 'inventory.json').read_text())
-                assert {(p['name'], p['version']) for p in inventory['packages']} == {('is-odd', '3.0.1'), ('is-number', '6.0.0')}
+                assert {(p['name'], p['version']) for p in inventory['packages']} == expected
                 assert all(p['sourceId'] == 'npm-public' for p in inventory['packages'])
                 captures.append(tree(output))
                 shutil.rmtree(project / 'node_modules')
@@ -93,9 +100,9 @@ def main():
                 assert (project / 'lifecycle-ran').read_text() == 'yes'
                 result = subprocess.run(['node', '--test'], cwd=project, capture_output=True, text=True)
                 assert result.returncode == 0, result.stdout + result.stderr
-                assert (project / 'pnpm-lock.yaml').read_bytes() == original_lock
+                assert lock_path.read_bytes() == original_lock
             assert captures[0] == captures[1], 'captured bytes depend on location/time'
-            assert sorted(requests) == sorted(URLS * 2)
+            assert sorted(requests) == sorted(urls * 2)
             # Failures must not silently resolve a different version or execute source hooks.
             shutil.rmtree(project / 'node_modules')
             archive = next((output / 'tarballs').glob('*.tgz'))
@@ -105,18 +112,25 @@ def main():
             archive.write_bytes(original)
             package['dependencies']['is-odd'] = '2.0.0'
             package_path.write_text(json.dumps(package))
-            assert 'OUTDATED_LOCKFILE' in run('install', output, project, False).stderr
+            stale = run('install', output, project, False).stderr
+            assert ('OUTDATED_LOCKFILE' if manager == 'pnpm' else 'current frozen lockfile') in stale
             package['dependencies']['is-odd'] = '3.0.1'
             package_path.write_text(json.dumps(package))
-            lock_path = project / 'pnpm-lock.yaml'
-            lock_path.write_bytes(original_lock.replace(b'version: 3.0.1', b'version: link:/outside'))
-            assert 'non-registry dependency references' in run('acquire', output, project, False).stderr
-            lock_path.write_bytes(original_lock)
-            (project / '.pnpmfile.cjs').write_text("throw new Error('project hook executed');")
-            assert 'does not yet support .pnpmfile.cjs' in run('acquire', output, project, False).stderr
+            if manager == 'pnpm':
+                lock_path.write_bytes(original_lock.replace(b'version: 3.0.1', b'version: link:/outside'))
+                assert 'non-registry dependency references' in run('acquire', output, project, False).stderr
+                lock_path.write_bytes(original_lock)
+                (project / '.pnpmfile.cjs').write_text("throw new Error('project hook executed');")
+                assert 'does not yet support .pnpmfile.cjs' in run('acquire', output, project, False).stderr
+            else:
+                lock_path.write_bytes(original_lock.replace(b'https://registry.npmjs.org/is-odd/-/is-odd-3.0.1.tgz', b'file:/outside'))
+                assert 'credential-free registry archive' in run('acquire', output, project, False).stderr
+                lock_path.write_bytes(original_lock)
+                (project / '.yarnrc').write_text('yarn-path "outside.js"\n')
+                assert 'does not yet support .yarnrc' in run('acquire', output, project, False).stderr
             assert len(requests) == count
             assert not failures, failures
-            print('pnpm: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed')
+            print(f'{manager}: native transitive capture/replay, lifecycle isolation, frozen lock, digest rejection and deterministic inputs passed')
         finally:
             stop.set()
             thread.join()

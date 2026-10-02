@@ -1,0 +1,18 @@
+{
+  "name": "oyzu-yarn-registry-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "is-odd": "3.0.1",
+    "@colors/colors": "1.6.0"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "yarn@1.22.22"
+}

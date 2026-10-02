@@ -1,23 +1,43 @@
-use super::{empty, Manager};
+use super::Manager;
 use crate::{
+    broker,
     builders::{BuilderPlan, CommandSpec, PlanningContext, PreparationContext},
     dependencies::Prepared,
+    records,
 };
 use anyhow::{bail, Result};
 
 pub(super) struct Yarn;
 impl Yarn {
-    fn validate(&self, root: &std::path::Path) -> Result<()> {
-        empty::validate(root)?;
-        let lock = std::fs::read_to_string(root.join("yarn.lock"))?;
-        if !lock.lines().any(|line| line.trim() == "# yarn lockfile v1")
-            || lock
-                .lines()
-                .any(|line| !line.trim().is_empty() && !line.trim().starts_with('#'))
+    fn validate(&self, root: &std::path::Path) -> Result<bool> {
+        let package = records::read(&root.join("package.json"))?;
+        if package.get("workspaces").is_some()
+            || package.get("resolutions").is_some()
+            || [".yarnrc", ".yarnrc.yml", ".npmrc"]
+                .iter()
+                .any(|name| root.join(name).exists())
         {
-            bail!("only dependency-free Yarn Classic locks are implemented; modern Yarn and registry capture remain pending");
+            bail!("Yarn workspace/custom configuration capture is not implemented yet");
         }
-        Ok(())
+        let lock = std::fs::read_to_string(root.join("yarn.lock"))?;
+        if !lock.lines().any(|line| line.trim() == "# yarn lockfile v1") {
+            bail!("Yarn capture requires a Classic v1 lockfile; modern Yarn integration remains pending");
+        }
+        let required = lock
+            .lines()
+            .any(|line| !line.trim().is_empty() && !line.trim().starts_with('#'));
+        if !required
+            && ["dependencies", "devDependencies", "optionalDependencies"]
+                .iter()
+                .any(|field| {
+                    package[field]
+                        .as_object()
+                        .is_some_and(|values| !values.is_empty())
+                })
+        {
+            bail!("Yarn dependencies require a current frozen lockfile for capture");
+        }
+        Ok(required)
     }
 }
 impl Manager for Yarn {
@@ -28,8 +48,15 @@ impl Manager for Yarn {
         "oyzu-toolchain/node:yarn1.22.22-node22"
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        self.validate(&context.target.path)?;
-        empty::prepare(context, "yarn.mjs", "yarn.lock")
+        let sources = if self.validate(&context.target.path)? {
+            vec![
+                broker::Source::new("npm-public", "https://registry.npmjs.org/", None)?,
+                broker::Source::new("yarn-public", "https://registry.yarnpkg.com/", None)?,
+            ]
+        } else {
+            vec![]
+        };
+        super::registry::prepare(context, "yarn.mjs", "yarn.lock", sources)
     }
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()> {
         self.validate(&context.target.path)?;

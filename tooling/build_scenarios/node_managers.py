@@ -11,6 +11,7 @@ def verify(root, base, invoke, validate, source_files, verified):
         ('pnpm', '10.11.0', 'examples/builds/node-managers/pnpm', 0),
         ('yarn', '1.22.22', 'examples/builds/node-managers/yarn', 0),
         ('pnpm', '10.11.0', 'tooling/fixtures/pnpm-registry', 2),
+        ('yarn', '1.22.22', 'tooling/fixtures/yarn-registry', 3),
     ]:
         project = base / f'node-manager-{manager}-{dependency_count}'
         shutil.copytree(root / fixture, project)
@@ -21,7 +22,7 @@ def verify(root, base, invoke, validate, source_files, verified):
         invoke(project,'build')
         manifest = validate(project / 'dist')
         assert manifest['status'] == 'succeeded' and source_files(project) == before
-        assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == (3 if dependency_count else 2)
+        assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == (dependency_count + 1 if dependency_count else 2)
         assert next(r for r in manifest['reports'] if r['kind'] == 'coverage')['summary']['covered'] > 0
         artifact = manifest['artifacts'][0]
         assert '-dev.g' in artifact['version']
@@ -33,9 +34,12 @@ def verify(root, base, invoke, validate, source_files, verified):
         assert record['manager']['id'] == manager and record['manager']['version'] == version
         assert len(record['packages']) == dependency_count
         if dependency_count:
-            assert {(p['name'], p['version']) for p in record['packages']} == {('is-odd', '3.0.1'), ('is-number', '6.0.0')}
+            expected = {('is-odd', '3.0.1'), ('is-number', '6.0.0')}
+            if manager == 'yarn':
+                expected.add(('@colors/colors', '1.6.0'))
+            assert {(p['name'], p['version']) for p in record['packages']} == expected
             assert all(p['sourceId'] == 'npm-public' for p in record['packages'])
-            assert record['extensions']['oyzu.dev/pnpm']['integrity'] == 'lockfile-sha512'
+            assert record['extensions'][f'oyzu.dev/{manager}']['integrity'] == 'lockfile-sha512'
         invoke(project,'inspect','dist')
         invoke(project,'build')
         repeated = validate(project / 'dist')

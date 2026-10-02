@@ -21,7 +21,7 @@ src/
       managers/mod.rs         # Crate-private native Manager interface and registration
       managers/{npm,pnpm,yarn}.rs # Native toolchain, preparation, script and packaging behavior
       managers/npm/preparation.rs # npm lock admission and scoped tarball snapshot records
-      managers/empty.rs       # Initial dependency-free manager admission and evidence
+      managers/registry.rs    # Shared immutable-archive snapshot evidence for pnpm/Yarn
       runtime/                # Native manager capture/replay, lifecycle and integrity validation
       reporting.rs            # Native test reporters and exact-command override adaptation
       jest.rs                 # Jest default invocation and exact script/override adaptation

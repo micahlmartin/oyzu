@@ -7,6 +7,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |
 | [pnpm builds](pnpm.md) | Frozen registry archive capture, native installation, implicit tasks, snapshot packages, provenance and current compatibility limits |
+| [Yarn Classic builds](yarn.md) | Native lock parsing, captured registry archives, offline mirror installation, reports, snapshot packaging and compatibility limits |
 | [Node quality](node-quality.md) | ESLint/Prettier/Biome selection, provisioning, read-only checks, explicit formatting, scopes and failure behavior |
 | [Python testing](python-testing.md) | Native pytest collection, root/configured suites, manager commands, report preparation, no-tests outcomes and evidence limits |
 | [Python applications](python-applications.md) | Native-wheel console archives, runtime dependencies, snapshot artifacts, archive-source tests and format limits |

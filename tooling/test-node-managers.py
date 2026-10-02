@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--tar-stream', type=Path, required=True)
     args = parser.parse_args()
     os.environ['OYZU_PNPM_YAML'] = str(args.pnpm_cli.resolve().parents[2] / 'yaml')
+    os.environ['OYZU_YARN_LOCKFILE'] = str(args.yarn_cli.resolve().parents[2] / '@yarnpkg/lockfile')
     with tempfile.TemporaryDirectory(prefix='oyzu-native-managers-') as temporary:
         base = Path(temporary)
         runtime = base / 'runtime'

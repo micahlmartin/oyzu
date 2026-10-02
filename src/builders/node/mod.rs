@@ -17,6 +17,14 @@ pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
     RuntimeFile {
+        name: "registry-archives.mjs",
+        contents: include_str!("runtime/registry-archives.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-registry.mjs",
+        contents: include_str!("runtime/yarn-registry.mjs"),
+    },
+    RuntimeFile {
         name: "integrity.mjs",
         contents: include_str!("runtime/integrity.mjs"),
     },

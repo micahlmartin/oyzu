@@ -25,6 +25,7 @@ if [[ "$mode" == provision ]]; then
   fi
   if selected node; then
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
+    npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
     docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
     docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
   fi
@@ -63,7 +64,8 @@ if [[ "$mode" == provision ]]; then
   fi
 else
   if selected node; then
-    .ci-python/bin/python tooling/test-pnpm-acquisition.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager pnpm --native-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs
+    .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager yarn --native-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js
   fi
   if selected python; then
     .ci-python/bin/python tooling/test-python-adapter.py

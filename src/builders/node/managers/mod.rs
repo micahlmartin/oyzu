@@ -1,7 +1,7 @@
 //! Native manager ownership within the Node builder, independent of test runners.
-mod empty;
 mod npm;
 mod pnpm;
+mod registry;
 #[cfg(test)]
 mod tests;
 mod yarn;
