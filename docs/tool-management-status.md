@@ -617,3 +617,16 @@ Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and nine
 real CLI task scenarios passed. Linux FIFO/descriptor and lock CLI regressions,
 nine layout tests, 16 receipt/recovery tests and strict all-target Clippy passed.
 Documentation structure passed; native macOS verification remains pending.
+
+## Checkpoint 69: existing Java metadata API conformance
+
+The maintained fork adds an eighth isolated scenario using the existing Java
+backend's target-aware lock metadata API. Supplied synthetic Temurin metadata
+exercises all three initial targets, exact URL/checksum preservation, unsupported
+installer filtering, missing-version rejection, Java-only settings admission and
+one supplied transport request per target. No Java production code, dependency
+or notice changes are required. Linux Rust 1.95 strict library/example Clippy and
+all eight scenarios pass; 20 compliance tests ran with one Windows symlink skip,
+and the notice inventory remains consistent. Native Windows/macOS verification
+is pending. This does not establish archive layout, cryptographic verification,
+installation or Java execution parity.

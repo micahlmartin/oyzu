@@ -149,3 +149,15 @@ ARM64 has 952 packages, Windows MSVC 975 and Linux GNU 955. This is a review
 index, not a notice bundle, validated license selection or shipping SBOM. The
 original reports must still accompany any review; index hashes alone cannot
 recover their contents after CI artifact expiration.
+
+### Java metadata boundary experiment
+
+The fork's eighth fresh-process conformance scenario exercises the existing Java
+backend `resolve_lock_info` method with supplied synthetic Temurin metadata for
+Linux, Darwin ARM64 and Windows. It preserves target URL/checksum facts, rejects
+unavailable versions and unsupported installer formats, and verifies exactly one
+transport callback per target while reusing the backend's metadata cache. The
+session admits Java only and reads no ambient configuration. Linux library/example
+Clippy and all eight scenarios pass; native Windows/macOS confirmation is pending.
+This adds no Java layout API and performs no JDK acquisition, publisher verification
+or execution. It is parser-reuse evidence, not production Java qualification.
