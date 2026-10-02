@@ -1014,9 +1014,10 @@ network connections or credentials are created by the codec itself.
 
 Framing success is not envelope admission. `ToolWorkerExchange`, described below,
 adds closed outer envelopes and response correlation; operation-specific payload
-admission and worker-side dispatch remain unimplemented. Private
-process channel inheritance, handshake/operation deadlines, embedded backend dispatch
-and executor containment are also absent. The native allocation API below creates
+admission and worker-side dispatch remain unimplemented. Complete authenticated
+bootstrap, handshake/operation deadlines, embedded backend dispatch and executor
+containment are also absent. Windows restricted process inheritance is implemented
+separately below; Unix process creation remains outstanding. The native allocation API creates
 local endpoints only. Tests exercise fragmented reads/writes,
 exact frame bounds, combined budgets, invalid/truncated JSON and terminal errors;
 they do not qualify a running worker or complete TM-05.
@@ -1304,6 +1305,33 @@ remain outstanding; this is not the complete typed worker schema or a deployed
 worker protocol.
 
 ### Worker-side operation session
+
+`ToolWorkerExchange::request_digest()` commits to the exact validated request body
+using SHA-256 over `oyzu.tool-worker.request.v1` followed by a NUL byte and the
+request bytes. The four-byte frame prefix is excluded. The supervisor must compute
+this expectation from its independently admitted request before launch.
+`ToolWorkerSession::from_committed_request(bytes, expected_digest)` validates the
+digest format and envelope, then rejects a mismatch with
+`TOOL_WORKER_REQUEST_COMMITMENT_INVALID`. This binds payload bytes as well as the
+outer identity. Even semantically equivalent JSON with different whitespace or
+field ordering fails against the original commitment; send the original bytes.
+After failure, tear down the operation rather than replacing the expectation
+with a digest computed from received input.
+
+For this startup path, `ToolWorkerChannel::receive_frame()` and the receiver's
+equivalent return `ToolWorkerFrame`, preserving the bounded original body through
+`bytes()` alongside `untrusted_value()`. `NativeToolWorkerIo::try_receive_frame()`
+collects the same single pending read as `try_receive()`; collecting through one
+consumes it for both. Existing value-only receive APIs remain available. Frame
+limits and shared accounting are unchanged. These APIs perform no network access
+or persistent writes, and require no new configuration or lockfile fields.
+
+The digest is an integrity commitment, not a credential. Supplying both request
+and expectation from an untrusted source establishes no authority. Authenticated
+launch context, capability-handle validation and typed payload admission remain
+separate requirements. Tests cover an independent digest vector, payload
+substitution, changed JSON spelling and exact-byte exchange over native channels
+between test threads; they do not exercise a product worker entrypoint.
 
 `ToolWorkerSession::new(request_bytes, expected_operation, expected_context)`
 applies the same bounded outer-request validation as the supervisor exchange,

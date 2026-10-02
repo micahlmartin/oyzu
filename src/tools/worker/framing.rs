@@ -11,6 +11,25 @@ use std::{
 
 const FRAME_BYTES: usize = 8 * 1024 * 1024;
 const SESSION_BYTES: usize = 32 * 1024 * 1024;
+
+/// A bounded, syntactically validated JSON object and its exact received bytes.
+/// Neither representation admits an operation, payload or capability. Keeping
+/// the wire bytes permits bootstrap commitment checks without reserialization.
+pub struct ToolWorkerFrame {
+    bytes: Vec<u8>,
+    value: Value,
+}
+impl ToolWorkerFrame {
+    pub fn bytes(&self) -> &[u8] {
+        &self.bytes
+    }
+    pub fn untrusted_value(&self) -> &Value {
+        &self.value
+    }
+    pub(super) fn into_value(self) -> Value {
+        self.value
+    }
+}
 #[cfg(test)]
 #[path = "duplex_tests.rs"]
 mod duplex_tests;
@@ -79,6 +98,9 @@ impl<T: Read + Write> ToolWorkerChannel<T> {
     pub fn receive(&mut self) -> Result<Value> {
         receive(&self.control, &mut self.transport)
     }
+    pub fn receive_frame(&mut self) -> Result<ToolWorkerFrame> {
+        receive_frame(&self.control, &mut self.transport)
+    }
     /// Validate before writing; partial write/flush failure is terminal.
     pub fn send(&mut self, bytes: &[u8]) -> Result<()> {
         send(&self.control, &mut self.transport, bytes)
@@ -129,6 +151,9 @@ impl<R: Read> ToolWorkerReceiver<R> {
     pub fn receive(&mut self) -> Result<Value> {
         receive(&self.control, &mut self.transport)
     }
+    pub fn receive_frame(&mut self) -> Result<ToolWorkerFrame> {
+        receive_frame(&self.control, &mut self.transport)
+    }
     pub fn abort(&self) {
         self.control.abort();
     }
@@ -143,6 +168,10 @@ impl<W: Write> ToolWorkerSender<W> {
 }
 
 fn receive(control: &Control, transport: &mut impl Read) -> Result<Value> {
+    receive_frame(control, transport).map(ToolWorkerFrame::into_value)
+}
+
+fn receive_frame(control: &Control, transport: &mut impl Read) -> Result<ToolWorkerFrame> {
     control.open()?;
     let result = (|| {
         let mut prefix = [0; 4];
@@ -157,7 +186,8 @@ fn receive(control: &Control, transport: &mut impl Read) -> Result<Value> {
         transport
             .read_exact(&mut bytes)
             .map_err(|_| anyhow::anyhow!("TOOL_WORKER_CHANNEL_LOST"))?;
-        parse(&bytes)
+        let value = parse(&bytes)?;
+        Ok(ToolWorkerFrame { bytes, value })
     })();
     control.finish(result)
 }

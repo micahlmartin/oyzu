@@ -2,7 +2,7 @@
 //! Framing owns record limits; the supervisor owns deadlines and process cleanup.
 use super::{
     framing::Control, split_tool_worker_channel, NativeToolWorkerEndpoint, NativeToolWorkerReader,
-    NativeToolWorkerWriter, ToolWorkerReceiver, ToolWorkerSender,
+    NativeToolWorkerWriter, ToolWorkerFrame, ToolWorkerReceiver, ToolWorkerSender,
 };
 use anyhow::{ensure, Context, Result};
 use serde_json::Value;
@@ -14,7 +14,7 @@ use std::{
 
 type Receiver = ToolWorkerReceiver<NativeToolWorkerReader>;
 type Sender = ToolWorkerSender<NativeToolWorkerWriter>;
-type ReadTask = JoinHandle<(Receiver, Result<Value>)>;
+type ReadTask = JoinHandle<(Receiver, Result<ToolWorkerFrame>)>;
 type WriteTask = JoinHandle<(Sender, Result<()>)>;
 
 /// Dedicated read/write threads for one native private channel. At most one
@@ -64,7 +64,7 @@ impl NativeToolWorkerIo {
         match thread::Builder::new()
             .name("oyzu-tool-read".into())
             .spawn(move || {
-                let result = receiver.receive();
+                let result = receiver.receive_frame();
                 (receiver, result)
             }) {
             Ok(task) => self.read = Some(task),
@@ -105,6 +105,13 @@ impl NativeToolWorkerIo {
     /// None means the single pending read has not completed. A completed read
     /// is joined before exposing its result. Cancellation discards racing output.
     pub fn try_receive(&mut self) -> Result<Option<Value>> {
+        self.try_receive_frame()
+            .map(|frame| frame.map(ToolWorkerFrame::into_value))
+    }
+
+    /// Collect a validated frame retaining exact wire bytes for bootstrap binding.
+    /// Shares the pending read with try_receive; either consumes that one result.
+    pub fn try_receive_frame(&mut self) -> Result<Option<ToolWorkerFrame>> {
         ensure!(!self.closed, "TOOL_WORKER_CHANNEL_CLOSED");
         self.control.open()?;
         let task = self.read.as_ref().context("TOOL_WORKER_IO_NOT_STARTED")?;

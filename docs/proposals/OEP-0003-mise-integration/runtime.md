@@ -109,6 +109,15 @@ remain unfinished. Allocation alone is not worker isolation.
 
 ### Native supervisor implementation constraints
 
+The initial request commitment API hashes a domain-separated exact request body
+before launch. The worker can retain validated frame bytes and check them against
+that independently supplied expectation before creating its operation session.
+This includes the payload and intentionally rejects changed JSON spelling. It
+adds no wire field and does not authenticate the channel or validate typed payloads.
+See the [implemented session contract](../../reference/tool-lock-inspection.md#worker-side-operation-session).
+Product bootstrap must supply the trusted expectation independently of the received
+frame; deriving it from that frame would defeat the check.
+
 The existing `src/executor/worker.rs` lifecycle owns Docker containers. Native
 tool-worker creation and termination belong under `src/tools/worker/`; do not
 reuse Docker cleanup as evidence that a native process or its descendants exited.

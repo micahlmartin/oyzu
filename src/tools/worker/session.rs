@@ -11,6 +11,21 @@ pub struct ToolWorkerSession {
 }
 
 impl ToolWorkerSession {
+    /// Bind every request byte to an independently trusted launch commitment.
+    /// The digest must originate from the supervisor's admitted request before
+    /// transport, never from this received frame or a project-supplied value.
+    /// Use exact frame bytes: parse/reserialize changes intentionally fail binding.
+    /// Channel authentication and typed payload/capability admission remain external.
+    pub fn from_committed_request(request: &[u8], expected_digest: &str) -> Result<Self> {
+        super::super::lock::digest(expected_digest)?;
+        let exchange = ToolWorkerExchange::new(request)?;
+        ensure!(
+            exchange.request_digest() == expected_digest,
+            "TOOL_WORKER_REQUEST_COMMITMENT_INVALID"
+        );
+        Ok(Self { exchange })
+    }
+
     /// Bind the initial envelope to independently trusted supervisor state before
     /// backend initialization. Never derive expected values from the received
     /// request. Exact capabilities are operation-specific, not an ambient allowlist.
@@ -89,6 +104,77 @@ mod tests {
         // requests below must not be allowed to redefine this expectation.
         let expected = ToolWorkerExchange::new(REQUEST)?;
         ToolWorkerSession::new(request, expected.operation(), expected.context())
+    }
+
+    #[test]
+    fn committed_request_binds_payload_and_exact_json_spelling() {
+        let expected = ToolWorkerExchange::new(REQUEST).unwrap();
+        let commitment = expected.request_digest();
+        assert!(ToolWorkerSession::from_committed_request(REQUEST, commitment).is_ok());
+        let mut changed: Value = serde_json::from_slice(REQUEST).unwrap();
+        changed["payload"] = json!({"substituted": true});
+        let changed = serde_json::to_vec(&changed).unwrap();
+        // Header-only binding deliberately leaves payload admission external.
+        assert!(bound_session(&changed).is_ok());
+        assert_eq!(
+            ToolWorkerSession::from_committed_request(&changed, commitment)
+                .err()
+                .unwrap()
+                .to_string(),
+            "TOOL_WORKER_REQUEST_COMMITMENT_INVALID"
+        );
+        let reparsed: Value = serde_json::from_slice(REQUEST).unwrap();
+        let reserialized = serde_json::to_vec(&reparsed).unwrap();
+        assert_ne!(reserialized, REQUEST);
+        assert!(ToolWorkerSession::from_committed_request(&reserialized, commitment).is_err());
+        assert!(ToolWorkerSession::from_committed_request(REQUEST, "invalid").is_err());
+        assert!(ToolWorkerSession::from_committed_request(b"{", commitment).is_err());
+    }
+
+    #[test]
+    fn native_bootstrap_preserves_bytes_and_checks_preselected_commitment() {
+        use super::super::{native_tool_worker_channel, NativeToolWorkerIo, ToolWorkerChannel};
+        use std::{
+            thread,
+            time::{Duration, Instant},
+        };
+        let expected = ToolWorkerExchange::new(REQUEST).unwrap();
+        let commitment = expected.request_digest().to_owned();
+        let (parent, child) = native_tool_worker_channel().unwrap();
+        let peer = thread::spawn(move || {
+            let mut wire = ToolWorkerChannel::new(parent);
+            wire.send(REQUEST).unwrap();
+            let result = wire.receive().unwrap();
+            assert_eq!(result["status"], "ok");
+        });
+        let mut io = NativeToolWorkerIo::new(child).unwrap();
+        io.start_receive().unwrap();
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let frame = loop {
+            if let Some(frame) = io.try_receive_frame().unwrap() {
+                break frame;
+            }
+            assert!(Instant::now() < deadline);
+            thread::sleep(Duration::from_millis(1));
+        };
+        assert_eq!(frame.bytes(), REQUEST);
+        assert_eq!(
+            frame.untrusted_value(),
+            &serde_json::from_slice::<Value>(REQUEST).unwrap()
+        );
+        assert!(
+            io.try_receive().is_err(),
+            "a frame can only be collected once"
+        );
+        let mut worker =
+            ToolWorkerSession::from_committed_request(frame.bytes(), &commitment).unwrap();
+        io.start_send(worker.finish(success()).unwrap()).unwrap();
+        while !io.try_send().unwrap() {
+            assert!(Instant::now() < deadline);
+            thread::sleep(Duration::from_millis(1));
+        }
+        peer.join().unwrap();
+        io.shutdown(deadline).unwrap();
     }
 
     #[test]

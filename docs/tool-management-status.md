@@ -2337,3 +2337,25 @@ process-creation tests. This supersedes checkpoint 154's pending MSVC observatio
 for that revision only. The broader workflow is still active. Product bootstrap,
 release/capability admission, automatic deadlines, Unix spawning, backend wiring
 and full OEP-0003 implementation remain unfinished.
+
+## Checkpoint 156: exact request commitment for worker startup
+
+Worker framing now optionally retains the original bounded JSON body alongside
+its parsed value. The native asynchronous receiver exposes the same frame without
+reserializing it, while retaining the existing single-collection lifecycle.
+The exchange computes a domain-separated SHA-256 commitment, and the worker
+session can reject any request-byte mismatch against a preselected expectation.
+Tests reject payload substitution and equivalent JSON with changed spelling;
+an independent Python hashlib vector checks the digest, and a native-channel
+thread test checks exact-byte receipt and a correlated response.
+
+The pending Windows GNU Rust 1.94 verification completed successfully: full
+locked tests, strict all-target Clippy, formatting and nine real CLI task scenarios.
+These checks do not establish full managed-tool execution. No dependencies,
+license alternatives, notices, configuration fields or wire fields changed.
+
+Focused native worker CI run 37037310454 passed on Windows, macOS and Linux at
+10750d8, superseding checkpoint 155's pending observation for that revision.
+The request-commitment changes still require their own native CI run. This is an
+integrity foundation; trusted bootstrap, received-capability admission, typed
+payloads, backend dispatch, Unix spawning and full OEP acceptance remain unfinished.

@@ -3,6 +3,7 @@
 use anyhow::{ensure, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 const PROTOCOL: &str = "oyzu.tool-worker/1";
 
@@ -59,6 +60,7 @@ pub enum ToolWorkerOutcome {
 /// still owns deadlines, transport failure handling and typed payload admission.
 pub struct ToolWorkerExchange {
     request: Request,
+    request_digest: String,
     cancel_sent: bool,
     terminal: bool,
 }
@@ -92,8 +94,12 @@ impl ToolWorkerExchange {
             "TOOL_WORKER_CAPABILITIES_INVALID"
         );
         ensure!(request.payload.is_object(), "TOOL_WORKER_PAYLOAD_INVALID");
+        let mut digest = Sha256::new();
+        digest.update(b"oyzu.tool-worker.request.v1\0");
+        digest.update(bytes);
         Ok(Self {
             request,
+            request_digest: format!("sha256:{:x}", digest.finalize()),
             cancel_sent: false,
             terminal: false,
         })
@@ -101,6 +107,14 @@ impl ToolWorkerExchange {
 
     pub fn operation(&self) -> ToolWorkerOperation {
         self.request.operation
+    }
+
+    /// Commitment to the exact validated request body, including payload and
+    /// JSON spelling. The four-byte frame prefix is excluded. Compute the trusted
+    /// expectation before launch from the independently admitted supervisor input;
+    /// reading this digest from received worker input does not authenticate it.
+    pub fn request_digest(&self) -> &str {
+        &self.request_digest
     }
 
     /// Borrow identity from the same request used for cancellation and terminal
@@ -260,6 +274,19 @@ mod tests {
     }
     fn bytes(value: &Value) -> Vec<u8> {
         serde_json::to_vec(value).unwrap()
+    }
+    #[test]
+    fn request_commitment_matches_independent_sha256_vector() {
+        // Golden computed independently with Python hashlib. Normalize only this
+        // test fixture's checkout line endings; production commits exact bytes.
+        let request =
+            include_str!("../../../tests/fixtures/tool-worker/request.json").replace("\r\n", "\n");
+        assert_eq!(
+            ToolWorkerExchange::new(request.as_bytes())
+                .unwrap()
+                .request_digest(),
+            "sha256:c5e0cde93a460686ee4a0362f2ae6be182e4c5158b680b9d3dbed3d5c8a25dc1"
+        );
     }
     #[test]
     fn one_result_and_cancel_races_are_terminal() {

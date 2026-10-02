@@ -19,7 +19,8 @@ pub use exchange::{
 };
 use framing::parse;
 pub use framing::{
-    split_tool_worker_channel, ToolWorkerChannel, ToolWorkerReceiver, ToolWorkerSender,
+    split_tool_worker_channel, ToolWorkerChannel, ToolWorkerFrame, ToolWorkerReceiver,
+    ToolWorkerSender,
 };
 pub use io::NativeToolWorkerIo;
 pub use session::ToolWorkerSession;
