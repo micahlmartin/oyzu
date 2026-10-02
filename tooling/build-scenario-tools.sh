@@ -17,7 +17,7 @@ selected() {
 if [[ "$mode" == provision ]]; then
   python3 -m venv .ci-python
   .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
-  if selected node core; then
+  if selected node core docker; then
     docker pull node:22-bookworm-slim
     docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
     npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality

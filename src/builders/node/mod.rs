@@ -1,3 +1,4 @@
+mod application;
 mod detection;
 mod discovery;
 mod jest;
@@ -16,6 +17,10 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "node-application.mjs",
+        contents: include_str!("runtime/application.mjs"),
+    },
     RuntimeFile {
         name: "pnpm-patches.mjs",
         contents: include_str!("runtime/pnpm-patches.mjs"),

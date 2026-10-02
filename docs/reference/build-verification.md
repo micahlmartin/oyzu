@@ -13,7 +13,7 @@ python tooling/check-build-suites.py
 
 The inventory check verifies unique registrations, conventional acceptance entry points, matching CI matrix coverage, compilation dependency and the aggregate gate. It neither provisions tools nor verifies native product behavior.
 
-For real builds, supply a compiled CLI and provision the required toolchains. Captured-build acceptance currently runs on Linux with Docker and the toolchain definitions in `tooling/images/`. Node/core checks also use host Node 22/npm; Java native adapter checks require host JDK 17. The provisioning script uses network access to obtain test tooling and images. Go/Docker suites install the repository's explicit BuildKit AppArmor profile using `sudo apparmor_parser`; use a suitable Linux test machine. This is acceptance-fixture setup, not Oyzu's tool-installation feature or an implicit network fallback during a product build.
+For real builds, supply a compiled CLI and provision the required toolchains. Captured-build acceptance currently runs on Linux with Docker and the toolchain definitions in `tooling/images/`. Node/core/Docker checks also use host Node 22/npm; Java native adapter checks require host JDK 17. The provisioning script uses network access to obtain test tooling and images. Go/Docker suites install the repository's explicit BuildKit AppArmor profile using `sudo apparmor_parser`; use a suitable Linux test machine. This is acceptance-fixture setup, not Oyzu's tool-installation feature or an implicit network fallback during a product build.
 
 From the repository on that Linux test machine:
 
@@ -37,7 +37,7 @@ Omitting `--suite` selects `all` and retains the original full-run ordering. Pro
 | `rust` | Native Cargo application/workspace/registry, packaging, tests and quality profiles |
 | `java` | Ant, Maven and Gradle captured builds plus native metadata/reporting adapter probes |
 | `helm` | Chart packaging, rendering, native suites and subchart variants plus native adapter probes |
-| `docker` | Dockerfile images, provisioned inputs, aliases, ARG defaults, quality and Go artifact assembly; includes Go tooling |
+| `docker` | Dockerfile images, provisioned inputs, aliases, ARG defaults, quality, Go artifact assembly and Vite directory materialization; includes Go and npm/Node quality tooling |
 
 The catalog is owned by `tooling/test-build-scenarios.py`; native assertions remain in `tooling/build_scenarios/`. New conventional `verify(root, base, invoke, validate, source_files, verified)` entry points must be registered. Keep helper assertions with their owning group and update provisioning when a composition check needs another builder's toolchain. No production builder rules belong in this harness.
 

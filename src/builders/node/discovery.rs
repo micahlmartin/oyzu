@@ -9,6 +9,9 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     target.discovery.insert("linter".into(), profile.linter);
     target
         .discovery
+        .insert("output-profile".into(), profile.output);
+    target
+        .discovery
         .insert("formatter".into(), profile.formatter);
     target
         .discovery
@@ -57,6 +60,19 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
         }
     }
     super::quality::discover(target);
+    if target.builder == "node/app"
+        && target.discovery["output-profile"].selected() == "vite-application"
+    {
+        if let Ok(output) = super::application::output_directory(&value) {
+            let exclusions = serde_json::to_string(&[output])?;
+            for name in ["lint", "format-check", "format"] {
+                if let Some(task) = target.tasks.get_mut(name) {
+                    task.env
+                        .insert("OYZU_NODE_QUALITY_EXCLUDE".into(), exclusions.clone());
+                }
+            }
+        }
+    }
     if manager == "npm" && value.get("workspaces").is_some() {
         for operation in ["build", "test", "lint", "format-check", "format"] {
             let scripts = &value["scripts"];

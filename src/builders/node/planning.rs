@@ -76,5 +76,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         media_type: "application/gzip",
     });
     super::quality::plan(target, &mut plan)?;
+    super::application::configure(target, &package, &mut plan)?;
     Ok(plan)
 }

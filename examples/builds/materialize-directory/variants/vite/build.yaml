@@ -1,0 +1,9 @@
+frontend:
+  uses: node/app
+  path: frontend
+image:
+  uses: docker/image
+  path: image
+  materialize:
+    - from: frontend
+      to: site

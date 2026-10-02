@@ -202,6 +202,7 @@ jobs:
             python tooling/test-npm-workspace-tests.py --cli cli/oyzu.exe
             python tooling/test-node-quality.py --cli cli/oyzu.exe
             python tooling/test-biome-quality.py --cli cli/oyzu.exe
+            python tooling/test-node-application.py --cli cli/oyzu.exe
           else
             chmod +x cli/oyzu
             python3 tooling/test-go-metadata.py --cli cli/oyzu
@@ -210,6 +211,7 @@ jobs:
             python3 tooling/test-npm-workspace-tests.py --cli cli/oyzu
             python3 tooling/test-node-quality.py --cli cli/oyzu
             python3 tooling/test-biome-quality.py --cli cli/oyzu
+            python3 tooling/test-node-application.py --cli cli/oyzu
           fi
 
   container-worker-contract:
@@ -260,7 +262,7 @@ jobs:
         with:
           python-version: '3.12'
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        if: matrix.suite == 'node' || matrix.suite == 'core'
+        if: matrix.suite == 'node' || matrix.suite == 'core' || matrix.suite == 'docker'
         with:
           node-version: '22'
       - name: Provision JDK for native adapter verification

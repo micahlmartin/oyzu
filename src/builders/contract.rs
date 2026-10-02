@@ -224,6 +224,7 @@ pub(crate) struct ArtifactSpec {
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum ArtifactKind {
     File,
+    Directory,
     OciImage,
 }
 

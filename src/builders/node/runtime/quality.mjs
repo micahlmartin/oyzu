@@ -92,7 +92,7 @@ if (biome) {
       const defaults = new Class({cwd:root, fix:false, cache:false, overrideConfigFile:true,
         overrideConfig:[js.configs.recommended,
           ...ts.configs.recommended.map(config => ({...config, files:['**/*.{ts,mts,cts,tsx}']})),
-          {files:['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'], languageOptions:{globals:globals.node, parserOptions:{ecmaFeatures:{jsx:true}}}},
+          {files:['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'], languageOptions:{globals:{...globals.node,...(process.env.OYZU_NODE_BROWSER === '1' ? globals.browser : {})}, parserOptions:{ecmaFeatures:{jsx:true}}}},
           ...(process.env.OYZU_NODE_TEST_FRAMEWORK === 'jest' ? [{files:['**/*.{test,spec}.{js,cjs,mjs,ts,tsx,jsx}','**/__tests__/**'],languageOptions:{globals:globals.jest}}] : [])]});
       results.push(...await defaults.lintFiles(withoutConfig));
     }

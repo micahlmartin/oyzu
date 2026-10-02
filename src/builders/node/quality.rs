@@ -37,9 +37,16 @@ pub(super) fn discover(target: &mut Target) {
         target.tasks.get_mut("format").unwrap().mutates_source = true;
     }
     let framework = target.discovery["test-framework"].selected().to_string();
+    let browser = target
+        .discovery
+        .get("output-profile")
+        .is_some_and(|profile| profile.selected() == "vite-application");
     for task in target.tasks.values_mut().filter(|t| mode(t).is_some()) {
         task.env
             .insert("OYZU_NODE_TEST_FRAMEWORK".into(), framework.clone());
+        if browser {
+            task.env.insert("OYZU_NODE_BROWSER".into(), "1".into());
+        }
     }
 }
 

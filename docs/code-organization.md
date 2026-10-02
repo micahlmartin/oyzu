@@ -35,6 +35,8 @@ Build planning owns action dependency edges: actions that mutate one target work
 
 `build/directory` owns directory artifact inventories and integrity checks used by collection, bundle inspection and materialization. `snapshot` owns their shared bounded tree traversal/identity, with a read-only inventory operation that applies the same rules as copying. Artifact traversal never applies source exclusions. Native output selection remains a builder responsibility; directory content alone does not establish platform independence.
 
+`builders/node/detection/outputs` observes native output profiles; `builders/node/application` owns Vite's currently supported literal output selection and artifact declaration. Its runtime stages the selected tree and rejects unsafe entry types before copying. Shared collection owns the authoritative inventory and digest, and materialization owns consumer copies. Node quality owns browser defaults and native-output exclusions; these details do not enter shared orchestration.
+
 Existing broad public modules, dynamic records and partially combined responsibilities are migration work, not a pattern to copy blindly. Improve the relevant boundary with the feature being changed; preserve observable behavior and avoid unrelated repository-wide rewrites.
 
 ## Interfaces that earn their place
