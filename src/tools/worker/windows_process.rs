@@ -3,28 +3,23 @@
 //! pins the expected image, assigns the suspended process to its job, then resumes.
 use super::WindowsToolWorkerJob;
 use anyhow::{ensure, Context, Result};
-use sha2::{Digest, Sha256};
+mod image;
+use image::ImagePin;
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    fs::{File, OpenOptions},
-    io::Read,
+    fs::OpenOptions,
     mem::size_of,
     os::windows::{
         ffi::OsStrExt,
-        fs::{MetadataExt, OpenOptionsExt},
         io::{AsHandle, AsRawHandle, FromRawHandle, OwnedHandle},
     },
-    path::{Path, PathBuf},
+    path::Path,
     ptr::{null, null_mut},
     time::Instant,
 };
 use windows_sys::Win32::{
     Foundation::{SetHandleInformation, HANDLE, HANDLE_FLAG_INHERIT, WAIT_OBJECT_0, WAIT_TIMEOUT},
-    Storage::FileSystem::{
-        FILE_ATTRIBUTE_REPARSE_POINT, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_REPARSE_POINT,
-        FILE_SHARE_READ, FILE_SHARE_WRITE,
-    },
     System::Threading::*,
 };
 
@@ -228,70 +223,6 @@ impl Drop for Attributes {
         unsafe {
             DeleteProcThreadAttributeList(self.pointer());
         }
-    }
-}
-
-struct ImagePin {
-    path: PathBuf,
-    _file: File,
-    _parents: Vec<File>,
-}
-impl ImagePin {
-    fn current(expected: &str) -> Result<Self> {
-        crate::tools::lock::digest(expected)?;
-        let path = std::env::current_exe()?.canonicalize()?;
-        let mut parents = Vec::new();
-        let ancestors: Vec<_> = path
-            .parent()
-            .context("TOOL_WORKER_IMAGE_INVALID")?
-            .ancestors()
-            .collect();
-        for directory in ancestors.into_iter().rev() {
-            let handle = OpenOptions::new()
-                .read(true)
-                .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
-                .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT)
-                .open(directory)?;
-            let metadata = handle.metadata()?;
-            ensure!(
-                metadata.is_dir() && metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
-                "TOOL_WORKER_IMAGE_PARENT_INVALID"
-            );
-            parents.push(handle);
-        }
-        let mut file = OpenOptions::new()
-            .read(true)
-            .share_mode(FILE_SHARE_READ)
-            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
-            .open(&path)?;
-        let metadata = file.metadata()?;
-        ensure!(
-            metadata.is_file()
-                && metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0
-                && metadata.len() <= 512 * 1024 * 1024,
-            "TOOL_WORKER_IMAGE_INVALID"
-        );
-        let mut digest = Sha256::new();
-        let mut buffer = [0u8; 64 * 1024];
-        let mut total = 0;
-        loop {
-            let count = file.read(&mut buffer)?;
-            if count == 0 {
-                break;
-            }
-            total += count as u64;
-            ensure!(total <= metadata.len(), "TOOL_WORKER_IMAGE_CHANGED");
-            digest.update(&buffer[..count]);
-        }
-        ensure!(
-            total == metadata.len() && format!("sha256:{:x}", digest.finalize()) == expected,
-            "TOOL_WORKER_IMAGE_DIGEST_MISMATCH"
-        );
-        Ok(Self {
-            path,
-            _file: file,
-            _parents: parents,
-        })
     }
 }
 

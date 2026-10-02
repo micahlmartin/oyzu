@@ -1183,6 +1183,17 @@ owned for the process owner's lifetime. A changed release fails with
 `TOOL_WORKER_IMAGE_DIGEST_MISMATCH`; retry requires trusted release selection, not
 accepting the newly observed hash. No image or parent directory is modified.
 
+Image pinning is owned by `worker/windows_process/image.rs`. Disposable-file
+tests exercise write, delete, image rename and parent-directory rename denial
+while a pin is held, then successful replacement after release. A digest rejection
+must release every acquired handle so the update/retry path remains available.
+These tests use ordinary temporary files rather than a loaded executable, so the
+Windows loader's own image lock cannot substitute for the pin's protection. The
+path-taking helper is private; production still selects only the running executable.
+Run `cargo test --locked --lib tools::worker::windows_process::image`.
+These two pin-lifetime tests pass on Windows GNU Rust 1.94. Native MSVC verification
+of the extracted image module and its new tests remains pending.
+
 The caller supplies an absolute, admitted private working directory and literal
 bootstrap arguments. Arguments are quoted for native Windows parsing, without a
 shell. There are at most 256 arguments and 32,767 UTF-16 code units in the encoded
@@ -1226,7 +1237,21 @@ parser checks empty, quoted, Unicode and trailing-backslash argument round trips
 Run `cargo test --locked --lib tools::worker::windows_process`.
 All four native process tests pass on Windows GNU Rust 1.94, together with the
 full locked suite, strict all-target Clippy, formatting and real CLI task scenarios.
-Windows MSVC verification of this process-creation increment remains pending.
+At `b68b983`, the locked unit/integration suite, strict Clippy and formatting also
+passed on Windows MSVC in
+[run 37036054434](https://github.com/micahlmartin/oyzu/actions/runs/37036054434).
+Those steps passed on Linux/macOS too, where Windows-only tests are excluded.
+That observation predates the extracted image module and its two pin-lifetime
+tests, and does not establish success of the still-running full workflow.
+
+The focused `Tool worker lifecycle` workflow runs formatting, strict all-target
+Clippy and `cargo test --locked --lib tools::worker` on Windows, macOS and Linux
+with Rust 1.94. It runs for relevant changes on `main` and the active integration
+branch, and supports manual dispatch. Native tests launch their own ignored
+subprocess fixtures; ordinary `--ignored` execution is not required. This workflow
+does not run archive qualification, CLI task scenarios or captured builds. The
+full `CLI and scenarios` workflow remains the broader regression/acceptance suite;
+a green worker workflow cannot establish full OEP-0003 completion.
 
 The tests are lifecycle qualification, not mise execution. Release-manifest
 admission, the product worker entry point and authenticated bootstrap, automatic

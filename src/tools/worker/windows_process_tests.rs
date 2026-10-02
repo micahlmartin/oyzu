@@ -1,6 +1,13 @@
 use super::*;
 use crate::tools::{native_tool_worker_channel, split_tool_worker_channel, NativeToolWorkerIo};
-use std::{io::Write, os::windows::io::IntoRawHandle, thread, time::Duration};
+use sha2::{Digest, Sha256};
+use std::{
+    fs::File,
+    io::{Read, Write},
+    os::windows::io::IntoRawHandle,
+    thread,
+    time::Duration,
+};
 use windows_sys::Win32::Foundation::GetLastError;
 
 const FIXTURE: &str = "tools::worker::windows_process::tests::native_process_fixture";

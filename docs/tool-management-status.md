@@ -2306,3 +2306,34 @@ and private cwd. Coordination with concurrent broad-inheritance launchers, produ
 worker bootstrap and received-handle validation, automatic deadlines, backend
 wiring, Unix creation and the complete supervisor remain unfinished. All OEP-0003
 acceptance requirements remain tracked at their full scope.
+
+## Checkpoint 155: image-pin lifetime and focused native worker CI
+
+The Windows image pin now has its own private owner module beneath windows_process.
+Production still selects only the running image; no alternate-image public API
+was added. Two disposable-file tests verify denial of writes, deletion, image
+rename and parent-directory replacement while a pin is held, then successful
+replacement after release. Digest rejection also releases all acquired handles.
+Using plain fixture files distinguishes this protection from the OS loader's
+independent lock on a running executable.
+
+Windows GNU Rust 1.94 full locked tests pass (158 library tests, four top-level
+fixture/native opt-ins ignored). Strict Clippy initially rejected test-module
+placement; after moving the tests to the end of the owner module, the two focused
+tests, strict all-target Clippy, formatting and nine real CLI task scenarios pass.
+Documentation and diff checks pass. External archive opt-ins were not rerun locally.
+No dependency, notice, public constructor or wire-format changes were made.
+
+A focused Tool worker lifecycle workflow now runs formatting, strict all-target
+Clippy and the worker library tests on Windows, macOS and Linux using Rust 1.94.
+Relevant pushes on main/the integration branch trigger it, and manual dispatch
+is available. Its 10-minute test-step limit bounds hung regression runs. It does
+not replace the full CLI/task/captured-build workflow or prove OEP acceptance.
+The new workflow and new image tests await native CI results.
+
+Separately, run 37036054434 at b68b983 reports successful locked unit/integration,
+lint and formatting steps on all three native hosts, including Windows MSVC
+process-creation tests. This supersedes checkpoint 154's pending MSVC observation
+for that revision only. The broader workflow is still active. Product bootstrap,
+release/capability admission, automatic deadlines, Unix spawning, backend wiring
+and full OEP-0003 implementation remain unfinished.
