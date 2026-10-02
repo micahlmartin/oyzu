@@ -17,6 +17,7 @@ pub(in crate::builders) struct Maven;
 
 const RUNTIME: &[RuntimeFile] = &[
     super::quality::RUNTIME,
+    super::reporting::RUNTIME,
     RuntimeFile {
         name: "maven-host.py",
         contents: include_str!("runtime/host.py"),

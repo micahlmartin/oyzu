@@ -6,7 +6,6 @@ XML is copied unchanged; parsing and result admission remain engine-owned.
 """
 import hashlib
 from pathlib import Path
-import xml.etree.ElementTree as ET
 
 
 def directory(value):
@@ -71,18 +70,3 @@ def files(paths):
                 raise ValueError('Maven report group exceeds collection budget')
             remaining -= len(data)
             yield file, data
-
-
-def combined(paths, destination):
-    # Keep native suites/cases intact; the shared collector owns validation and
-    # outcome counts. Missing XML remains missing evidence, never an empty pass.
-    suites = ET.Element('testsuites')
-    found = False
-    for _, data in files(paths):
-        native = ET.fromstring(data)
-        if native.tag not in {'testsuite', 'testsuites'}:
-            raise ValueError('Unexpected Maven JUnit root')
-        suites.append(native)
-        found = True
-    if found:
-        ET.ElementTree(suites).write(destination, encoding='utf-8', xml_declaration=True)

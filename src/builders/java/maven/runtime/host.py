@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -54,6 +55,7 @@ def test(native, encoded, output, extra):
     spec = importlib.util.spec_from_file_location('oyzu_maven_reporting', Path(__file__).with_name('maven_reporting.py'))
     reporting = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(reporting)
+    combine = runpy.run_path(str(Path(__file__).with_name('java-junit.py')))['combine']
     modules = json.loads(encoded)
     reporting.clear([module['reports'] for module in modules])
     # Avoid stale coverage on both successful and failed reruns. Maven still
@@ -69,7 +71,7 @@ def test(native, encoded, output, extra):
     for module in modules:
         destination = Path(output)/module['id']
         destination.mkdir(parents=True, exist_ok=True)
-        reporting.combined(module['reports'], destination/'junit.xml')
+        combine((data for _, data in reporting.files(module['reports'])), destination/'junit.xml')
         source = reporting.directory(module['directory'])/'site/jacoco/jacoco.xml'
         if source.is_file():
             shutil.copyfile(source, destination/'jacoco.xml')

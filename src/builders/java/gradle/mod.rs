@@ -2,6 +2,7 @@ use crate::builders::task::insert;
 mod metadata;
 mod planning;
 mod preparation;
+mod testing;
 #[cfg(test)]
 mod tests;
 use crate::builders::{
@@ -15,6 +16,19 @@ pub(in crate::builders) struct Gradle;
 
 const RUNTIME: &[RuntimeFile] = &[
     super::quality::RUNTIME,
+    super::reporting::RUNTIME,
+    RuntimeFile {
+        name: "gradle-host.py",
+        contents: include_str!("runtime/host.py"),
+    },
+    RuntimeFile {
+        name: "host.gradle",
+        contents: include_str!("runtime/host.gradle"),
+    },
+    RuntimeFile {
+        name: "reporting.gradle",
+        contents: include_str!("runtime/reporting.gradle"),
+    },
     RuntimeFile {
         name: "gradle.py",
         contents: include_str!("runtime/adapter.py"),
@@ -34,6 +48,13 @@ const RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Gradle {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        testing::development(target, task)
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/gradle:8.14.3-jdk17")
     }

@@ -25,6 +25,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | [Rust builds](rust.md) | Captured crates.io inputs, Cargo workspaces, native feature-gated binary selection, compiler-message artifacts, snapshot crates and JUnit/coverage |
 | [Java quality](java-quality.md) | Shared native lint and read-only formatting defaults, explicit formatting, overrides and provisioning for Maven/Gradle/Ant |
 | [Maven builds](maven.md) | Native reactors, captured repositories, snapshot JAR/POM/WAR artifacts, effective Surefire/Failsafe report directories and coverage |
+| [Gradle builds](gradle.md) | Native multi-project/composite snapshots and direct per-task JUnit/JaCoCo bundles |
 | [Ant tests](ant.md) | Native assertion/JUnit targets, direct JUnit/JaCoCo bundles, custom targets, prerequisites and report scope |
 | [Dockerfile quality](docker-quality.md) | Native lint/format defaults, read-only build gates, explicit formatting, ignored configuration preservation and toolchain prerequisites |
 | [Docker image inputs](docker-images.md) | Provisioned base capture, immutable OCI contexts, separate worker/artifact platforms, offline assembly, evidence and current limits |

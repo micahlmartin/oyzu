@@ -1,0 +1,30 @@
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.tasks.JacocoReport
+
+// Shared report injection. Source repositories and version projection belong
+// to each execution mode, not to the native test/report integration.
+gradle.beforeProject { project ->
+    project.pluginManager.withPlugin('java') {
+        project.pluginManager.apply('jacoco')
+        project.jacoco.toolVersion = '0.8.13'
+    }
+}
+
+gradle.projectsEvaluated {
+    gradle.rootProject.allprojects.each { project ->
+        if (project.plugins.hasPlugin('java')) {
+            project.tasks.withType(Test).each { test ->
+                test.reports.junitXml.required = true
+                def coverage = project.tasks.register("oyzuCoverage${test.name.capitalize()}", JacocoReport) {
+                    executionData(test)
+                    sourceSets(project.sourceSets.main)
+                    reports.xml.required = true
+                    reports.xml.outputLocation = project.layout.buildDirectory.file("reports/oyzu/${test.name}/jacoco.xml")
+                    reports.html.required = false
+                    reports.csv.required = false
+                }
+                test.finalizedBy(coverage)
+            }
+        }
+    }
+}

@@ -158,6 +158,13 @@ jobs:
           python -m pip install -r tooling/design-requirements.txt
           if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
           python tooling/test-maven-direct.py --cli "$CLI" --maven-home .ci-maven/apache-maven-3.9.11 --repository .ci-maven/repository --acquire
+      - name: Native Gradle direct test bundles
+        shell: bash
+        run: |
+          python tooling/provision-gradle.py --destination .ci-gradle
+          python -m pip install -r tooling/design-requirements.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-gradle-direct.py --cli "$CLI" --gradle-home .ci-gradle/gradle-8.14.3 --user-home .ci-gradle/home --acquire
       - name: Native Dockerfile quality tasks
         shell: bash
         run: |

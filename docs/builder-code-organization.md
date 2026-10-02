@@ -80,7 +80,11 @@ src/
       gradle/metadata.rs      # Typed native composite models and path validation
       gradle/preparation.rs   # Scoped repository capture without mutable daemon caches
       gradle/planning.rs      # Native archive identities and module test evidence
+      gradle/testing.rs       # Shared native test admission and direct composite report plan
       gradle/runtime/         # Native model, snapshot/check integration and acquisition transport
+      gradle/runtime/reporting.gradle # Shared native JUnit/JaCoCo integration
+      gradle/runtime/host.py  # Offline model/test commands with native versions and repositories
+      gradle/runtime/host.gradle # Frozen test selection across root and included builds
       ant/metadata.rs         # Typed native Ant output metadata and containment
       ant/preparation.rs      # Sandboxed native project evaluation
       ant/planning.rs         # Compile/check/archive intent and versioned JARs
@@ -92,6 +96,8 @@ src/
         AntReports.java       # Bounded native suite aggregation
         AntCoverage.java      # Application class ownership and JaCoCo reporting
     java/maven_repository.rs  # Shared Maven-layout inventory for Maven and Gradle
+    java/reporting.rs         # Shared native JUnit composition runtime registration
+    java/runtime/junit.py     # Compose native suites; collection owns validation/counts
     docker/                   # Container builder
       quality.rs              # Native linter/formatter detector evidence and task defaults
       metadata.rs             # Typed native facts and captured-input admission
