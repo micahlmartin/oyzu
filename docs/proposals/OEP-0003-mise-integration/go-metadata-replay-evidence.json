@@ -64,8 +64,46 @@
   "limitations": [
     "Full fixture retained outside repository; index does not reconstruct its bytes",
     "No archives downloaded or executed",
-    "Not signature verification, source admission or full backend qualification",
-    "Native Windows/macOS replay not yet performed"
+    "Not signature verification, source admission or full backend qualification"
   ],
-  "replay_implementation_revision": "29ed9c2ae484adb2ef7d81545ebedebc724e44fc"
+  "replay_implementation_revision": "29ed9c2ae484adb2ef7d81545ebedebc724e44fc",
+  "native_ci": {
+    "run_url": "https://github.com/oyzuai/mise/actions/runs/36992169356",
+    "head_revision": "b71e447bc10acfbce3627b5f4c8baeb4a0f2f6fb",
+    "tested_merge_revision": "58fa4ec749d3af8638bd5aa582fb2928595f2739",
+    "result": "all three native library boundary jobs passed, including capture and real Go replay",
+    "network_during_replay": "runner network available; adapter uses supplied captured responses",
+    "retained_artifacts": [
+      {
+        "artifact": "go-metadata-aarch64-apple-darwin-58fa4ec749d3af8638bd5aa582fb2928595f2739",
+        "fixture_sha256": "sha256:9320028623a69eec46454193deaeb52bffdc6309cbf5110f0ba598b4c0839058",
+        "fixture_bytes": 2527192,
+        "report_sha256": "sha256:baaf0af462dab2ee58a7c3f50ba049812a4c864d226207b65975c4ae68eae429",
+        "cases": 6,
+        "responses": 7,
+        "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+      },
+      {
+        "artifact": "go-metadata-x86_64-pc-windows-msvc-58fa4ec749d3af8638bd5aa582fb2928595f2739",
+        "fixture_sha256": "sha256:82b1be7e842a1936449aa9f0d7bebe530b47c2c88ee185df4d3dd6f29cd0e56e",
+        "fixture_bytes": 2527192,
+        "report_sha256": "sha256:0c926d1f40f1b09d7893b5bf132a17669da9fe4a34fa87c2318bf5c82fea384d",
+        "cases": 6,
+        "responses": 7,
+        "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+      },
+      {
+        "artifact": "go-metadata-x86_64-unknown-linux-gnu-58fa4ec749d3af8638bd5aa582fb2928595f2739",
+        "fixture_sha256": "sha256:0d6995aa7cb23bd413b0dd9b471a6f3713782aa6177839e0ef2176887b7a8a11",
+        "fixture_bytes": 2527192,
+        "report_sha256": "sha256:e8a805181a791553c1af163d1e1c26daf75a3c21a3e9e7e85e4492f1e1ea1c5a",
+        "cases": 6,
+        "responses": 7,
+        "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+      }
+    ],
+    "verification": "fixture/report digest, all response hashes/sizes, and six catalog/sidecar target records independently checked",
+    "legal_approval": false,
+    "release_ready": false
+  }
 }

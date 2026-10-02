@@ -211,7 +211,7 @@ with Docker `--network none`, alongside twenty-two existing scenarios. A changed
 expected size produced a failing replay. Provisioning tests, Clippy, formatting and
 compliance inventory checks passed. This qualifies real metadata interpretation,
 not archive content, publisher signatures, installation, native Go execution or
-legal approval. Native Windows/macOS replay remains pending. Retain the fixture
+legal approval. Native CI confirmation is recorded below. Retain the fixture
 outside the checkout; a later catalog capture can have a different digest.
 
 The fork's native CI now captures and replays these same two versions on each
@@ -226,7 +226,15 @@ missing cases fail the job; synthetic data is never substituted. This native CI
 replay uses the supplied-response boundary; it does not claim the runner's network
 is disabled. The separate Linux `--network none` result above proves that narrower
 offline case. Workflow syntax, path filters and the exact pinned capture step were
-verified locally on Windows; execution of the new native jobs remains pending.
+verified locally on Windows. Run `36992169356` subsequently passed all three native
+library jobs at tested merge `58fa4ec749d3af8638bd5aa582fb2928595f2739`
+(fork head `b71e447bc10acfbce3627b5f4c8baeb4a0f2f6fb`), including the ordinary
+suite and six real target cases per host. All three captured fixtures and reports
+were retained outside the checkout and independently checked for exact fixture and
+response hashes/sizes and catalog/sidecar agreement. The
+[evidence index](../proposals/OEP-0003-mise-integration/go-metadata-replay-evidence.json)
+records their identities. This resolves native metadata replay verification only;
+it does not establish product worker integration or production backend admission.
 
 ### Target metadata API
 

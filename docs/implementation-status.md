@@ -1116,3 +1116,20 @@ Clippy passed with container networking disabled. Linux did not execute the Wind
 payloads. Updated native CI, Go environment/build integration, other native Go
 archives, publisher verification and production source admission remain
 outstanding. The reference and code map describe bounds, migration and test scope.
+
+## Mise integration checkpoint 94: native real Go metadata evidence
+
+Fork run `36992169356` completed successfully on Windows, macOS and Linux at
+head `b71e447bc10acfbce3627b5f4c8baeb4a0f2f6fb`, tested merge
+`58fa4ec749d3af8638bd5aa582fb2928595f2739`. All three jobs passed strict
+library/example and utility Clippy, ordinary boundary scenarios, live capture and
+six-case real Go replay. This supersedes checkpoint 92's pending native execution.
+
+All three fixture/report artifacts were downloaded before expiry. Independent
+checks matched report-to-fixture digests, every response's UTF-8 byte hash/size,
+and all six expected target records reconstructed from the retained official
+catalog and checksum sidecars. Each fixture contains seven responses and 2,527,192
+bytes; hashes and tested revisions are in the Go metadata replay evidence index.
+The native runner network was available; only the earlier Linux Docker replay
+provides OS-level network-disabled evidence. No product implementation changed in
+this checkpoint, and no legal or production admission gate was approved.
