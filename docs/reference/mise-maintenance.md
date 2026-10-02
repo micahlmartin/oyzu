@@ -531,3 +531,27 @@ pinned directory tree and preserve their original bytes. Applicability remains
 unreviewed; root LICENSE alone is not presented as complete coverage. The index
 records both the directory tree identity and each contained file identity. All source-admission and release
 approval flags remain false.
+
+Recheck supplemental files with the separate offline verifier (Python 3.11+):
+
+```sh
+python tooling/mise-upstream/verify_source_notices.py --artifacts /retained/supplemental-notices
+```
+
+The directory must contain the exact `retained_path` layout from the index.
+`--index` and `--pointers` override the trusted index and source-pointer inventory;
+by default the command uses the checked-in files. It binds the inventory's bytes,
+each package/repository/commit association, immutable source URL, retained path,
+Git blob identity, SHA-256 and byte size. Duplicate JSON fields, duplicate source
+or file entries, changed/missing notices, symlinks and paths escaping the retention
+root fail. Unindexed files are ignored; this is not a complete filesystem inventory.
+Use trusted local retention storage: path checks are not a hostile concurrent
+filesystem sandbox.
+
+Each index is bounded to 1 MiB, each notice to 2 MiB, with at most 4,096 sources,
+20,000 files and 256 MiB of notice bytes. Success exits 0 and prints counts and
+explicit false approval flags; malformed or inconsistent evidence exits 1 with a
+redacted error type. No file is modified, extracted or executed, and no network
+request occurs. Restore the exact retained source bytes after failure; do not
+rewrite trusted hashes to accept changed input. All 22 current files (78,323 bytes)
+passed this check, alongside mutation tests included in the maintenance CI suite.

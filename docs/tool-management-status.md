@@ -1342,3 +1342,18 @@ contract/observation triggers are unchanged; no existing run was cancelled and
 no missing result was converted into a pass. Documentation describes when manual
 requalification is needed and requires adding future out-of-directory inputs to
 the filter.
+
+## Checkpoint 107: repeatable supplemental notice verification
+
+Added an offline verifier for the supplemental evidence index and retained files.
+It checks the source-pointer byte hash, package/repository/commit bindings,
+immutable URLs, safe retained paths, both file hashes and sizes, bounded reads and
+explicit unapproved flags. Duplicate fields/records and mismatched inputs fail;
+no network, extraction, execution or mutation occurs. The existing maintenance
+workflow discovers its tests automatically.
+
+All 22 retained files across 14 source commits passed, totaling 78,323 original
+bytes. Fourteen maintenance tests passed, including missing/modified files, source
+identity drift, path escapes, duplicate JSON/records, Git hash mismatch and an
+attempt to present approved evidence. This checks consistency of trusted evidence,
+not completeness or legal applicability. The reference and code map are updated.
