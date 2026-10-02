@@ -1934,3 +1934,20 @@ supervision and production integration remain outstanding. Schema agreement for
 this record does not qualify a backend or complete OEP-0003. Existing CI run
 37010483750 remains active at the preceding immutable-request revision; it is
 not evidence for this later schema/test commit.
+
+## Checkpoint 133: native archive CI results at immutable-request revision
+
+[CI run 37010483750](https://github.com/micahlmartin/oyzu/actions/runs/37010483750)
+tests commit 1c2ffaf9236bd835bc3ae1ba764e1292bd501fc2. Linux and macOS Build CLI
+jobs completed successfully. Windows job 110848763744 completed formatting,
+strict lint, unit/discovery tests, and all five real archive qualification steps:
+Node, Go 1.24, Go 1.25, Temurin and jq. Each archive step includes store parity
+and changed-lock denial. The Temurin step completed at 2026-10-02T13:28:53Z;
+the jq step completed at 13:28:55Z. Native policy integrity checks also passed.
+
+At this observation Windows release CLI compilation remains in progress; later
+Cargo conformance steps and the complete workflow are not yet verified. This run
+does not cover subsequent request-schema commit 084fcfd. Archive qualification
+uses the existing synthetic admission harness and does not establish production
+backend admission, distribution approval, full tool CLI behavior or completion
+of OEP-0003. No product behavior changed in this evidence update.
