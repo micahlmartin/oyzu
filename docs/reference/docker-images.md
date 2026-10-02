@@ -19,7 +19,7 @@ oyzu build
 oyzu inspect dist
 ```
 
-Planning includes input preparation and therefore requires the provisioned images. `oyzu run build` remains a native development command; it does not provide this captured-build boundary. Windows and macOS hosts require a suitable Linux Docker environment; native Windows images, emulation and complete multi-platform OCI indices remain unfinished.
+Planning includes input preparation and therefore requires the provisioned images. `oyzu run build` remains a native development command; it does not provide this captured-build boundary. Windows and macOS hosts require a suitable Linux Docker environment; native Windows images and emulation remain unfinished.
 
 ### Artifact target and worker platform
 
@@ -37,7 +37,7 @@ Preparation records the toolchain platform under `manager.platform` and the arti
 
 The native parser records required `targetExecution` evidence for any `RUN`, including commands in intermediate stages. Until suitable native/emulated executor admission is implemented, a Dockerfile with `RUN` requires matching worker and target platforms. A foreign-platform `RUN` fails preparation before application actions, even if the host happens to have an emulator. OCI integrity/platform assertions verify bytes and metadata; they do not execute the image or replace required application tests.
 
-Every OCI image is checked against its artifact target during default testing, collection and bundle inspection. A valid image for the wrong architecture cannot be retained as a successful output merely because its archive hash is valid. Snapshot artifacts, JUnit and lint/read-only-format gates otherwise retain their existing behavior. Set `matrix: {platform: [linux/amd64, linux/arm64]}` instead of scalar `platform` to expand separate image builds. Each produces its own versioned OCI archive and reports. Complete OCI index assembly remains unfinished; see [matrix builds](runtime-matrices.md#platform-requirements-and-producer-selection) for selection, producer propagation and compatibility details.
+Every OCI image is checked against its artifact target during default testing, collection and bundle inspection. A valid image for the wrong architecture cannot be retained as a successful output merely because its archive hash is valid. Snapshot artifacts, JUnit and lint/read-only-format gates otherwise retain their existing behavior. Set `matrix: {platform: [linux/amd64, linux/arm64]}` instead of scalar `platform` to expand separate image builds. Each produces its own versioned OCI archive and reports. Complete selected image families additionally produce an [OCI index](oci-indices.md); see [matrix builds](runtime-matrices.md#platform-requirements-and-producer-selection) for selection, producer propagation and compatibility details.
 
 ## Capture, execution and evidence
 

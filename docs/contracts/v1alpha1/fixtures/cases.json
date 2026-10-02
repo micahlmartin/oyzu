@@ -201,5 +201,15 @@
     "schema": "plan",
     "valid": false,
     "reason": "schema"
+  },
+  {
+    "file": "plan-oci-index.valid.json",
+    "schema": "plan",
+    "valid": true
+  },
+  {
+    "file": "manifest-oci-index.valid.json",
+    "schema": "manifest",
+    "valid": true
   }
 ]

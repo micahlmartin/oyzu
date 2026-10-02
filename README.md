@@ -53,7 +53,7 @@ All designs remain drafts for maintainer review. Run `cargo test --locked`, `car
 
 ## Contributing
 
-Handcrafted code patches are not our contribution workflow. Ideas, bug reports, design feedback, examples, testing and reviewed AI-generated changes are welcome under the [contribution policy](CONTRIBUTING.md), including its current license restrictions.
+**Oyzu is 100% AI-built and community-directed.** First-party implementation code, tests and scripts are AI-generated; handcrafted code patches are not our contribution workflow. People define requirements, direct agents, review results and verify behavior. Ideas, bug reports, design feedback, examples, testing and reviewed AI-generated changes are welcome under the [contribution policy](CONTRIBUTING.md), including its current license restrictions. Third-party code retains its actual authorship and licenses.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 

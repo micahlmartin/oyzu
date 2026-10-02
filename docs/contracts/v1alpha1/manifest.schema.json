@@ -279,9 +279,25 @@
         "digest",
         "size"
       ],
-      "if": {"properties": {"kind": {"const": "directory"}}},
-      "then": {"required": ["entries"]},
-      "else": {"not": {"required": ["entries"]}},
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "directory"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "entries"
+        ]
+      },
+      "else": {
+        "not": {
+          "required": [
+            "entries"
+          ]
+        }
+      },
       "additionalProperties": false
     },
     "treeEntry": {
@@ -291,17 +307,57 @@
           "type": "string",
           "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:])[^\\x00-\\x1f]+$"
         },
-        "kind": {"enum": ["file", "directory"]},
-        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-        "size": {"type": "integer", "minimum": 0, "maximum": 10737418240},
-        "executable": {"type": "boolean"}
+        "kind": {
+          "enum": [
+            "file",
+            "directory"
+          ]
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10737418240
+        },
+        "executable": {
+          "type": "boolean"
+        }
       },
-      "required": ["path", "kind", "size", "executable"],
-      "if": {"properties": {"kind": {"const": "file"}}},
-      "then": {"required": ["digest"]},
+      "required": [
+        "path",
+        "kind",
+        "size",
+        "executable"
+      ],
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "file"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "digest"
+        ]
+      },
       "else": {
-        "not": {"required": ["digest"]},
-        "properties": {"size": {"const": 0}, "executable": {"const": false}}
+        "not": {
+          "required": [
+            "digest"
+          ]
+        },
+        "properties": {
+          "size": {
+            "const": 0
+          },
+          "executable": {
+            "const": false
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -577,7 +633,14 @@
           }
         },
         "platform": {
-          "$ref": "#/$defs/platform"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "extensions": {
           "type": "object",
@@ -594,6 +657,89 @@
         "path",
         "variant",
         "platform"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "builder": {
+                "const": "oyzu/oci-index"
+              }
+            },
+            "required": [
+              "builder"
+            ]
+          },
+          "then": {
+            "properties": {
+              "platform": {
+                "type": "null"
+              },
+              "extensions": {
+                "required": [
+                  "oyzu.dev/oci-index"
+                ],
+                "properties": {
+                  "oyzu.dev/oci-index": {
+                    "$ref": "#/$defs/ociIndexAssembly"
+                  }
+                }
+              }
+            },
+            "required": [
+              "extensions"
+            ]
+          },
+          "else": {
+            "properties": {
+              "platform": {
+                "$ref": "#/$defs/platform"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ociIndexAssembly": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "properties": {
+              "artifact": {
+                "type": "string",
+                "minLength": 1
+              },
+              "producer": {
+                "type": "string",
+                "minLength": 1
+              },
+              "platform": {
+                "$ref": "#/$defs/platform"
+              }
+            },
+            "required": [
+              "artifact",
+              "producer",
+              "platform"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "family",
+        "members"
       ],
       "additionalProperties": false
     }

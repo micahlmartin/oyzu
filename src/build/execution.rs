@@ -70,6 +70,9 @@ pub(super) fn execute_plan(
     let runtime = tempfile::tempdir()?;
     let mut runtime_paths = BTreeMap::new();
     for target in plan["targets"].as_array().context("missing targets")? {
+        if super::indices::is_target(target) {
+            continue;
+        }
         let id = target["id"].as_str().context("missing target id")?;
         let builder = builders::get(target["builder"].as_str().context("missing builder id")?)?;
         if !builder.runtime_files().is_empty() {
@@ -86,8 +89,13 @@ pub(super) fn execute_plan(
     }
     let contexts = tempfile::tempdir()?;
     let mut workspaces = BTreeMap::new();
-    let targets = plan["targets"].as_array().context("missing targets")?;
-    for target in targets {
+    let targets: Vec<_> = plan["targets"]
+        .as_array()
+        .context("missing targets")?
+        .iter()
+        .filter(|target| !super::indices::is_target(target))
+        .collect();
+    for target in &targets {
         let id = target["id"].as_str().context("missing target id")?;
         let selection = &target["extensions"]["oyzu.dev/source-projection"];
         let path = if !selection.is_null() {
@@ -107,7 +115,7 @@ pub(super) fn execute_plan(
     // Each target receives a private /out root as well as a private workspace.
     // Concurrent project code cannot overwrite another target's pending outputs.
     let mut outputs = BTreeMap::new();
-    for target in targets {
+    for target in &targets {
         let id = target["id"].as_str().context("missing target id")?;
         let root = out.join(id);
         fs::create_dir_all(root.join(id).join("reports"))?;
@@ -154,6 +162,32 @@ pub(super) fn execute_plan(
         let mut runnable = Vec::new();
         for index in ready {
             let a = &actions[index];
+            if super::indices::is_action(a) {
+                if !schedule.permitted(index, &records.actions) {
+                    records.actions[index]["status"] = json!("blocked");
+                    records.actions[index]["reason"] = json!("a required platform image failed");
+                    continue;
+                }
+                let started = std::time::Instant::now();
+                let result =
+                    super::indices::execute(a, plan, bundle, &records.artifacts, &records.actions);
+                records.actions[index]["durationMs"] = json!(started.elapsed().as_millis() as u64);
+                match result {
+                    Ok(artifact) => {
+                        records.artifacts.push(artifact);
+                        records.actions[index]["status"] = json!("succeeded");
+                        records.actions[index]["exitCode"] = json!(0);
+                        records.actions[index]["enforced"] =
+                            json!(["engine-owned-archive-assembly", "verified-oci-inputs"]);
+                    }
+                    Err(error) => {
+                        records.actions[index]["status"] = json!("failed");
+                        records.actions[index]["exitCode"] = json!(1);
+                        records.diagnostics.push(json!({"code":"oci-index-failed","phase":"collect","severity":"error","message":error.to_string(),"action":a["id"],"target":a["target"]}));
+                    }
+                }
+                continue;
+            }
             let id = a["id"].as_str().context("missing action id")?;
             let target = a["target"].as_str().context("missing action target")?;
             let mut outcome = records.actions[index].clone();

@@ -1,0 +1,162 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "build-manifest",
+  "runId": "synthetic-run",
+  "planDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777",
+  "planPath": "plan.json",
+  "status": "succeeded",
+  "source": {
+    "treeDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "commit": null,
+    "dirty": true
+  },
+  "targets": [
+    {
+      "id": "image-amd64",
+      "builder": "docker/image",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {
+        "platform": "linux/amd64"
+      },
+      "platform": {
+        "os": "linux",
+        "arch": "amd64"
+      }
+    },
+    {
+      "id": "image-arm64",
+      "builder": "docker/image",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {
+        "platform": "linux/arm64"
+      },
+      "platform": {
+        "os": "linux",
+        "arch": "arm64"
+      }
+    },
+    {
+      "id": "image-index",
+      "builder": "oyzu/oci-index",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {},
+      "platform": null,
+      "extensions": {
+        "oyzu.dev/oci-index": {
+          "family": "image",
+          "members": [
+            {
+              "artifact": "image-amd64/primary",
+              "producer": "image-amd64:package",
+              "platform": {
+                "os": "linux",
+                "arch": "amd64"
+              }
+            },
+            {
+              "artifact": "image-arm64/primary",
+              "producer": "image-arm64:package",
+              "platform": {
+                "os": "linux",
+                "arch": "arm64"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "image-amd64:package",
+      "target": "image-amd64",
+      "status": "succeeded",
+      "exitCode": 0,
+      "required": true,
+      "producerEvidence": [],
+      "enforced": []
+    },
+    {
+      "id": "image-arm64:package",
+      "target": "image-arm64",
+      "status": "succeeded",
+      "exitCode": 0,
+      "required": true,
+      "producerEvidence": [],
+      "enforced": []
+    },
+    {
+      "id": "image-index:assemble-index",
+      "target": "image-index",
+      "status": "succeeded",
+      "exitCode": 0,
+      "required": true,
+      "producerEvidence": [],
+      "enforced": []
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "image-amd64/primary",
+      "target": "image-amd64",
+      "variant": {
+        "platform": "linux/amd64"
+      },
+      "name": "primary",
+      "producer": "image-amd64:package",
+      "kind": "oci-image",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "path": "image-amd64/image.oci.tar",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "ociDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "size": 123
+    },
+    {
+      "id": "image-arm64/primary",
+      "target": "image-arm64",
+      "variant": {
+        "platform": "linux/arm64"
+      },
+      "name": "primary",
+      "producer": "image-arm64:package",
+      "kind": "oci-image",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "path": "image-arm64/image.oci.tar",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "ociDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "size": 123
+    },
+    {
+      "id": "image-index/primary",
+      "target": "image-index",
+      "variant": {},
+      "name": "primary",
+      "producer": "image-index:assemble-index",
+      "kind": "oci-index",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "path": "image-index/image.oci.tar",
+      "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "ociDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "size": 123
+    }
+  ],
+  "reports": [],
+  "evidence": [
+    {
+      "id": "producer.local",
+      "kind": "execution-observation",
+      "subjectDigest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "producer": "local-run",
+      "verification": "local"
+    }
+  ],
+  "diagnostics": [],
+  "envelopePath": "envelope.json",
+  "envelopeDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}

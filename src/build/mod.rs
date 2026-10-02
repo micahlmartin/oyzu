@@ -2,6 +2,7 @@
 mod bundle;
 mod directory;
 mod execution;
+mod indices;
 mod materialization;
 mod planning;
 mod scheduling;
@@ -166,6 +167,7 @@ pub fn run_selected_with_options(
             }
         }
         let mut plan = planning::compile(&workspace, &source, &resolved, &dependencies, &intents)?;
+        indices::plan(&workspace, &variants, &mut plan)?;
         plan["extensions"]["oyzu.dev/selection"] = selection.record();
         manifest["extensions"]["oyzu.dev/selection"] = selection.record();
         if plan_only {

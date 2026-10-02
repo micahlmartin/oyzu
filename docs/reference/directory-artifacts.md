@@ -1,6 +1,6 @@
 # Directory artifact integrity and materialization
 
-The experimental build engine can collect, inspect and materialize a declared directory artifact. The [Node application adapter](node-applications.md) declares directory outputs for conventional Vite builds and explicit `node/app` custom builds using the `dist/` convention. Platform matrices now expand matching producer/consumer variants, but suitable target execution or established platform independence and complete OCI index assembly remain required before the full [directory-materialization example](../../examples/builds/materialize-directory/README.md) can pass. This does not infer directory outputs for arbitrary unclassified build scripts.
+The experimental build engine can collect, inspect and materialize a declared directory artifact. The [Node application adapter](node-applications.md) declares directory outputs for conventional Vite builds and explicit `node/app` custom builds using the `dist/` convention. Platform matrices now expand matching producer/consumer variants, but suitable target execution or established platform independence remain required before the full [directory-materialization example](../../examples/builds/materialize-directory/README.md) can pass. This does not infer directory outputs for arbitrary unclassified build scripts.
 
 ## Record and identity
 

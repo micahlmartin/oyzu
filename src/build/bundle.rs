@@ -69,6 +69,23 @@ pub fn inspect(root: &Path) -> Result<Value> {
         if manifest["targets"] != plan["targets"] {
             bail!("build target identities differ from plan");
         }
+        if manifest["status"] == "succeeded" {
+            for intent in plan["artifacts"]
+                .as_array()
+                .context("missing planned artifacts")?
+                .iter()
+                .filter(|a| a["kind"] == "oci-index")
+            {
+                if !manifest["artifacts"]
+                    .as_array()
+                    .context("missing bundle artifacts")?
+                    .iter()
+                    .any(|a| a["id"] == intent["id"])
+                {
+                    bail!("successful bundle is missing a required OCI index");
+                }
+            }
+        }
         for artifact in manifest["artifacts"]
             .as_array()
             .context("missing bundle artifacts")?
@@ -81,6 +98,13 @@ pub fn inspect(root: &Path) -> Result<Value> {
                 || artifact["variant"] != declared["variant"]
             {
                 bail!("artifact target/variant differs from plan");
+            }
+            if declared["kind"] == "oci-index"
+                && ["name", "producer", "kind", "version", "mediaType", "path"]
+                    .iter()
+                    .any(|key| artifact[*key] != declared[*key])
+            {
+                bail!("OCI index artifact contract differs from plan");
             }
         }
     } else if manifest["status"] == "succeeded" {
@@ -130,6 +154,8 @@ pub fn inspect(root: &Path) -> Result<Value> {
                             .context("OCI image target is missing")?;
                         verified
                             .require_target(&serde_json::from_value(target["platform"].clone())?)?;
+                    } else {
+                        super::indices::inspect(&manifest, item, &verified, root)?;
                     }
                 }
             }

@@ -1,0 +1,294 @@
+{
+  "schemaVersion": "v1alpha1",
+  "kind": "build-plan",
+  "source": {
+    "treeDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "commit": null,
+    "dirty": true
+  },
+  "policy": {
+    "mode": "standalone",
+    "enforcementDigest": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "requiredChecks": []
+  },
+  "tools": [
+    {
+      "id": "go",
+      "version": "1.24.0",
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "platform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      }
+    }
+  ],
+  "targets": [
+    {
+      "id": "image-amd64",
+      "builder": "docker/image",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {
+        "platform": "linux/amd64"
+      },
+      "platform": {
+        "os": "linux",
+        "arch": "amd64"
+      }
+    },
+    {
+      "id": "image-arm64",
+      "builder": "docker/image",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {
+        "platform": "linux/arm64"
+      },
+      "platform": {
+        "os": "linux",
+        "arch": "arm64"
+      }
+    },
+    {
+      "id": "image-index",
+      "builder": "oyzu/oci-index",
+      "builderDigest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "path": ".",
+      "variant": {},
+      "platform": null,
+      "extensions": {
+        "oyzu.dev/oci-index": {
+          "family": "image",
+          "members": [
+            {
+              "artifact": "image-amd64/primary",
+              "producer": "image-amd64:package",
+              "platform": {
+                "os": "linux",
+                "arch": "amd64"
+              }
+            },
+            {
+              "artifact": "image-arm64/primary",
+              "producer": "image-arm64:package",
+              "platform": {
+                "os": "linux",
+                "arch": "arm64"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "actions": [
+    {
+      "id": "image-amd64:package",
+      "target": "image-amd64",
+      "operation": "package",
+      "dependsOn": [],
+      "argv": [
+        "go",
+        "build",
+        "-o",
+        "/out/server",
+        "."
+      ],
+      "cwd": ".",
+      "env": {},
+      "tools": [
+        "go"
+      ],
+      "executionPlatform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      },
+      "targetPlatform": {
+        "os": "linux",
+        "arch": "amd64"
+      },
+      "inputs": [
+        {
+          "kind": "tree",
+          "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "mount": "workspace"
+        }
+      ],
+      "outputs": [
+        "image-amd64/primary"
+      ],
+      "reports": [],
+      "required": true,
+      "cacheable": true,
+      "network": "none",
+      "limits": {
+        "timeoutSeconds": 1800,
+        "cpu": 1,
+        "memoryBytes": 1073741824,
+        "outputBytes": 10737418240
+      }
+    },
+    {
+      "id": "image-arm64:package",
+      "target": "image-arm64",
+      "operation": "package",
+      "dependsOn": [],
+      "argv": [
+        "go",
+        "build",
+        "-o",
+        "/out/server",
+        "."
+      ],
+      "cwd": ".",
+      "env": {},
+      "tools": [
+        "go"
+      ],
+      "executionPlatform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      },
+      "targetPlatform": {
+        "os": "linux",
+        "arch": "arm64"
+      },
+      "inputs": [
+        {
+          "kind": "tree",
+          "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+          "mount": "workspace"
+        }
+      ],
+      "outputs": [
+        "image-arm64/primary"
+      ],
+      "reports": [],
+      "required": true,
+      "cacheable": true,
+      "network": "none",
+      "limits": {
+        "timeoutSeconds": 1800,
+        "cpu": 1,
+        "memoryBytes": 1073741824,
+        "outputBytes": 10737418240
+      }
+    },
+    {
+      "id": "image-index:assemble-index",
+      "target": "image-index",
+      "operation": "assemble-index",
+      "dependsOn": [
+        "image-amd64:package",
+        "image-arm64:package"
+      ],
+      "argv": [
+        "oyzu-internal",
+        "assemble-index"
+      ],
+      "cwd": ".",
+      "env": {},
+      "tools": [
+        "go"
+      ],
+      "executionPlatform": {
+        "os": "linux",
+        "arch": "amd64",
+        "abi": "static"
+      },
+      "targetPlatform": null,
+      "inputs": [
+        {
+          "kind": "artifact",
+          "artifact": "image-amd64/primary",
+          "producer": "image-amd64:package",
+          "mount": "images/0.oci.tar"
+        },
+        {
+          "kind": "artifact",
+          "artifact": "image-arm64/primary",
+          "producer": "image-arm64:package",
+          "mount": "images/1.oci.tar"
+        }
+      ],
+      "outputs": [
+        "image-index/primary"
+      ],
+      "reports": [],
+      "required": true,
+      "cacheable": false,
+      "network": "none",
+      "limits": {
+        "timeoutSeconds": 1800,
+        "cpu": 1,
+        "memoryBytes": 1073741824,
+        "outputBytes": 10737418240
+      },
+      "extensions": {
+        "oyzu.dev/oci-index": {
+          "family": "image",
+          "members": [
+            {
+              "artifact": "image-amd64/primary",
+              "producer": "image-amd64:package",
+              "platform": {
+                "os": "linux",
+                "arch": "amd64"
+              }
+            },
+            {
+              "artifact": "image-arm64/primary",
+              "producer": "image-arm64:package",
+              "platform": {
+                "os": "linux",
+                "arch": "arm64"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "image-amd64/primary",
+      "target": "image-amd64",
+      "variant": {
+        "platform": "linux/amd64"
+      },
+      "name": "primary",
+      "producer": "image-amd64:package",
+      "kind": "oci-image",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "path": "image-amd64/image.oci.tar"
+    },
+    {
+      "id": "image-arm64/primary",
+      "target": "image-arm64",
+      "variant": {
+        "platform": "linux/arm64"
+      },
+      "name": "primary",
+      "producer": "image-arm64:package",
+      "kind": "oci-image",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/vnd.oci.image.manifest.v1+json",
+      "path": "image-arm64/image.oci.tar"
+    },
+    {
+      "id": "image-index/primary",
+      "target": "image-index",
+      "variant": {},
+      "name": "primary",
+      "producer": "image-index:assemble-index",
+      "kind": "oci-index",
+      "version": "0.1.0-dev.g111111111111",
+      "mediaType": "application/vnd.oci.image.index.v1+json",
+      "path": "image-index/image.oci.tar"
+    }
+  ]
+}

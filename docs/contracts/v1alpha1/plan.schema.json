@@ -114,7 +114,14 @@
             "$ref": "#/$defs/platform"
           },
           "targetPlatform": {
-            "$ref": "#/$defs/platform"
+            "oneOf": [
+              {
+                "$ref": "#/$defs/platform"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "inputs": {
             "type": "array",
@@ -314,6 +321,56 @@
               "required": [
                 "extensions"
               ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "extensions": {
+                  "required": [
+                    "oyzu.dev/oci-index"
+                  ]
+                }
+              },
+              "required": [
+                "extensions"
+              ]
+            },
+            "then": {
+              "properties": {
+                "targetPlatform": {
+                  "type": "null"
+                },
+                "cacheable": {
+                  "const": false
+                },
+                "network": {
+                  "const": "none"
+                },
+                "extensions": {
+                  "required": [
+                    "oyzu.dev/oci-index"
+                  ],
+                  "properties": {
+                    "oyzu.dev/oci-index": {
+                      "$ref": "#/$defs/ociIndexAssembly"
+                    }
+                  }
+                },
+                "operation": {
+                  "const": "assemble-index"
+                }
+              },
+              "required": [
+                "extensions"
+              ]
+            },
+            "else": {
+              "properties": {
+                "targetPlatform": {
+                  "$ref": "#/$defs/platform"
+                }
+              }
             }
           }
         ]
@@ -531,7 +588,14 @@
           }
         },
         "platform": {
-          "$ref": "#/$defs/platform"
+          "oneOf": [
+            {
+              "$ref": "#/$defs/platform"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "extensions": {
           "type": "object",
@@ -549,7 +613,48 @@
         "variant",
         "platform"
       ],
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "builder": {
+                "const": "oyzu/oci-index"
+              }
+            },
+            "required": [
+              "builder"
+            ]
+          },
+          "then": {
+            "properties": {
+              "platform": {
+                "type": "null"
+              },
+              "extensions": {
+                "required": [
+                  "oyzu.dev/oci-index"
+                ],
+                "properties": {
+                  "oyzu.dev/oci-index": {
+                    "$ref": "#/$defs/ociIndexAssembly"
+                  }
+                }
+              }
+            },
+            "required": [
+              "extensions"
+            ]
+          },
+          "else": {
+            "properties": {
+              "platform": {
+                "$ref": "#/$defs/platform"
+              }
+            }
+          }
+        }
+      ]
     },
     "tool": {
       "type": "object",
@@ -575,6 +680,48 @@
         "version",
         "digest",
         "platform"
+      ],
+      "additionalProperties": false
+    },
+    "ociIndexAssembly": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "members": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 256,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "properties": {
+              "artifact": {
+                "type": "string",
+                "minLength": 1
+              },
+              "producer": {
+                "type": "string",
+                "minLength": 1
+              },
+              "platform": {
+                "$ref": "#/$defs/platform"
+              }
+            },
+            "required": [
+              "artifact",
+              "producer",
+              "platform"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "family",
+        "members"
       ],
       "additionalProperties": false
     }

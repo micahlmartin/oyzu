@@ -1,11 +1,18 @@
 //! Verify a self-contained OCI layout tar without extracting it or using a registry.
 mod archive;
+mod assembly;
+pub(crate) use assembly::{assemble, Input};
+#[cfg(test)]
+pub(crate) mod fixtures;
 #[cfg(test)]
 mod tests;
 
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeSet, path::Path};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    path::Path,
+};
 
 const INDEX: &str = "application/vnd.oci.image.index.v1+json";
 const MANIFEST: &str = "application/vnd.oci.image.manifest.v1+json";
@@ -16,16 +23,19 @@ const LAYER: &str = "application/vnd.oci.image.layer.v1.tar";
 pub(crate) struct Platform {
     pub os: String,
     pub architecture: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub variant: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Descriptor {
     media_type: String,
     digest: String,
     size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     platform: Option<Platform>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     data: Option<String>,
 }
 
@@ -101,9 +111,16 @@ pub(crate) struct Verified {
     pub digest: String,
     pub kind: &'static str,
     pub platforms: BTreeSet<Platform>,
+    pub images: BTreeMap<Platform, String>,
 }
 
 impl Verified {
+    pub(crate) fn require_index(&self, expected: &BTreeMap<Platform, String>) -> Result<()> {
+        if self.kind != "oci-index" || expected.is_empty() || &self.images != expected {
+            bail!("OCI index does not contain exactly the required platform image digests");
+        }
+        Ok(())
+    }
     /// A platform-specific image must match its planned artifact target, which
     /// need not be the platform of the worker that assembled it.
     pub(crate) fn require_target(&self, target: &crate::platform::Platform) -> Result<()> {
@@ -142,11 +159,12 @@ pub(crate) fn verify(path: &Path) -> Result<Verified> {
         _ => bail!("unsupported OCI root media type"),
     };
     let mut budget = 1024;
-    let platforms = verify_node(&mut archive, root, 0, &mut budget)?;
+    let images = verify_node(&mut archive, root, 0, &mut budget)?;
     Ok(Verified {
         digest: root.digest.clone(),
         kind,
-        platforms,
+        platforms: images.keys().cloned().collect(),
+        images,
     })
 }
 
@@ -155,7 +173,7 @@ fn verify_node(
     descriptor: &Descriptor,
     depth: usize,
     budget: &mut usize,
-) -> Result<BTreeSet<Platform>> {
+) -> Result<BTreeMap<Platform, String>> {
     if depth > 8 || *budget == 0 {
         bail!("OCI descriptor graph exceeds verification limits");
     }
@@ -170,10 +188,10 @@ fn verify_node(
             {
                 bail!("invalid or empty OCI image index");
             }
-            let mut platforms = BTreeSet::new();
+            let mut platforms = BTreeMap::new();
             for child in &index.manifests {
-                for platform in verify_node(archive, child, depth + 1, budget)? {
-                    if !platforms.insert(platform) {
+                for (platform, digest) in verify_node(archive, child, depth + 1, budget)? {
+                    if platforms.insert(platform, digest).is_some() {
                         bail!("ambiguous duplicate platform in OCI index");
                     }
                 }
@@ -222,7 +240,10 @@ fn verify_node(
                     bail!("OCI uncompressed layer digest mismatch");
                 }
             }
-            Ok(BTreeSet::from([config.platform]))
+            Ok(BTreeMap::from([(
+                config.platform,
+                descriptor.digest.clone(),
+            )]))
         }
         _ => bail!("unsupported OCI descriptor media type"),
     }
