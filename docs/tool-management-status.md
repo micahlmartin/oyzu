@@ -2359,3 +2359,27 @@ Focused native worker CI run 37037310454 passed on Windows, macOS and Linux at
 The request-commitment changes still require their own native CI run. This is an
 integrity foundation; trusted bootstrap, received-capability admission, typed
 payloads, backend dispatch, Unix spawning and full OEP acceptance remain unfinished.
+
+## Checkpoint 157: absolute native control-I/O deadlines
+
+NativeToolWorkerIo can collect an already-started read or write under a supplied
+absolute monotonic deadline. Expiry closes both directions and requests native
+interruption; results observed after expiry are rejected even if the I/O already
+completed. Ownership is retained for explicit shutdown and confirmed joining.
+The supervisor still owns process termination, deadline selection, concurrent
+cancellation and the cancellation grace period; this is not the complete event loop.
+
+Windows GNU Rust 1.94 library tests passed (163 passed, four ignored), including
+new live-peer incomplete-read/backpressured-write deadline tests and late-result
+rejection. Full integration tests, strict Clippy and CLI scenarios are still
+running at this checkpoint. Documentation structure and diff checks passed before
+this status append. No dependencies, wire fields or license choices changed.
+Native CI for the preceding request commitment at 010fd62 reports Windows and
+macOS success; Linux remains in progress in run 37039123362. Those results do not
+cover the new deadline waits. Full OEP-0003 implementation remains outstanding.
+
+Checkpoint 157 verification completion: the full locked Rust suite, strict
+all-target Clippy, formatting and all nine real CLI task scenarios subsequently
+passed. Documentation and diff checks also passed. Run 37039123362 at 010fd62
+has now completed successfully on all three native hosts; new deadline-wait
+coverage still requires its own native run.

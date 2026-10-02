@@ -159,6 +159,48 @@ impl NativeToolWorkerIo {
         }
     }
 
+    /// Wait for the already-started read using an absolute monotonic deadline.
+    /// Expiry closes both directions, interrupts pending I/O and rejects racing
+    /// results. The owner must still terminate the process and call shutdown with
+    /// its cleanup deadline to confirm joins. This does not schedule cancellation
+    /// grace or run a supervisor event loop; use polling for concurrent decisions.
+    pub fn wait_receive_frame(&mut self, deadline: Instant) -> Result<ToolWorkerFrame> {
+        loop {
+            self.remaining(deadline)?;
+            if let Some(frame) = self.try_receive_frame()? {
+                self.remaining(deadline)?;
+                return Ok(frame);
+            }
+            let remaining = self.remaining(deadline)?;
+            thread::sleep(remaining.min(Duration::from_millis(1)));
+        }
+    }
+
+    /// Wait for the already-started write under the same expiry and cleanup
+    /// contract as wait_receive_frame. Completion does not prove peer admission.
+    pub fn wait_send(&mut self, deadline: Instant) -> Result<()> {
+        loop {
+            self.remaining(deadline)?;
+            if self.try_send()? {
+                self.remaining(deadline)?;
+                return Ok(());
+            }
+            let remaining = self.remaining(deadline)?;
+            thread::sleep(remaining.min(Duration::from_millis(1)));
+        }
+    }
+
+    fn remaining(&mut self, deadline: Instant) -> Result<Duration> {
+        ensure!(!self.closed, "TOOL_WORKER_CHANNEL_CLOSED");
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            self.abort();
+            self.interrupt();
+            anyhow::bail!("TOOL_WORKER_IO_DEADLINE_EXCEEDED");
+        }
+        Ok(remaining)
+    }
+
     fn abort(&mut self) {
         self.closed = true;
         self.control.abort();

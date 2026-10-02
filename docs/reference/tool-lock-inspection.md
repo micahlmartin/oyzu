@@ -1306,6 +1306,22 @@ worker protocol.
 
 ### Worker-side operation session
 
+For bounded synchronous collection of an already-started native I/O operation,
+`NativeToolWorkerIo::wait_receive_frame(deadline)` and `wait_send(deadline)` use
+an absolute `std::time::Instant`. They check expiry before polling and before
+returning a completed result. Expiry returns `TOOL_WORKER_IO_DEADLINE_EXCEEDED`,
+closes both directions and requests native interruption. An already-completed
+result collected after expiry is discarded. No elapsed-time extension occurs
+between polls; sleeps are at most one millisecond, subject to OS scheduling.
+The caller must still terminate the worker process and call `shutdown` with its
+separate cleanup deadline to confirm that all I/O threads joined. Expiry is not
+proof of process exit or completed cleanup, and the closed instance cannot be
+reused. These optional blocking waits do not schedule protocol defaults or a
+cancellation grace period. A supervisor that must concurrently observe process
+exit or user cancellation should use the nonblocking collection methods instead.
+Native tests keep peers open during incomplete reads and backpressured writes,
+then verify deadline failure, rejection of reuse and confirmed thread cleanup.
+
 `ToolWorkerExchange::request_digest()` commits to the exact validated request body
 using SHA-256 over `oyzu.tool-worker.request.v1` followed by a NUL byte and the
 request bytes. The four-byte frame prefix is excluded. The supervisor must compute

@@ -6,6 +6,69 @@ fn deadline() -> Instant {
     Instant::now() + Duration::from_secs(10)
 }
 
+#[test]
+fn absolute_deadlines_interrupt_live_peer_reads_and_writes() {
+    for read in [true, false] {
+        let (endpoint, mut peer) = native_tool_worker_channel().unwrap();
+        let mut io = NativeToolWorkerIo::new(endpoint).unwrap();
+        let error = if read {
+            peer.write_all(&[0, 0]).unwrap();
+            io.start_receive().unwrap();
+            io.wait_receive_frame(Instant::now() + Duration::from_millis(20))
+                .err()
+                .unwrap()
+        } else {
+            io.start_send(
+                serde_json::to_vec(&serde_json::json!({
+                    "data": "x".repeat(2 * 1024 * 1024)
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            io.wait_send(Instant::now() + Duration::from_millis(20))
+                .unwrap_err()
+        };
+        assert_eq!(error.to_string(), "TOOL_WORKER_IO_DEADLINE_EXCEEDED");
+        assert!(io.start_receive().is_err());
+        assert!(io.start_send(b"{}".to_vec()).is_err());
+        io.shutdown(deadline()).unwrap();
+        assert!(io.read.is_none() && io.write.is_none());
+        drop(peer);
+    }
+}
+
+#[test]
+fn deadline_waits_deliver_frames_but_reject_already_completed_late_results() {
+    let (endpoint, peer) = native_tool_worker_channel().unwrap();
+    let mut io = NativeToolWorkerIo::new(endpoint).unwrap();
+    let mut wire = ToolWorkerChannel::new(peer);
+    io.start_send(b"{}".to_vec()).unwrap();
+    io.wait_send(deadline()).unwrap();
+    assert_eq!(wire.receive().unwrap(), serde_json::json!({}));
+    wire.send(br#"{ "exact": true }"#).unwrap();
+    io.start_receive().unwrap();
+    assert_eq!(
+        io.wait_receive_frame(deadline()).unwrap().bytes(),
+        br#"{ "exact": true }"#
+    );
+    wire.send(b"{}").unwrap();
+    io.start_receive().unwrap();
+    let watchdog = deadline();
+    while !io.read.as_ref().unwrap().is_finished() {
+        assert!(Instant::now() < watchdog);
+        thread::sleep(Duration::from_millis(1));
+    }
+    assert_eq!(
+        io.wait_receive_frame(Instant::now())
+            .err()
+            .unwrap()
+            .to_string(),
+        "TOOL_WORKER_IO_DEADLINE_EXCEEDED"
+    );
+    assert!(io.try_receive().is_err());
+    io.shutdown(deadline()).unwrap();
+}
+
 fn receive(io: &mut NativeToolWorkerIo) -> Value {
     let end = deadline();
     loop {

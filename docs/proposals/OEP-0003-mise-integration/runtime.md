@@ -122,6 +122,11 @@ The existing `src/executor/worker.rs` lifecycle owns Docker containers. Native
 tool-worker creation and termination belong under `src/tools/worker/`; do not
 reuse Docker cleanup as evidence that a native process or its descendants exited.
 The framing layer continues to own byte limits and terminal protocol state.
+Native I/O now also offers absolute-deadline blocking collection: expiry rejects
+racing results, closes framing and requests interruption. The owner still must
+terminate the process and confirm I/O joins under its cleanup deadline. These
+waits do not replace the supervisor event loop or implement the protocol's
+handshake, operation and cancellation-grace defaults.
 The supervisor owns process lifetime, trusted image selection, restricted handle
 inheritance and elapsed-time enforcement. These responsibilities do not move into
 individual language backends.
