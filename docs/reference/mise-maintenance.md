@@ -757,3 +757,18 @@ above 8 MiB; parsing rejects invalid UTF-8, malformed digests, duplicates, more
 than 4,096 entries and absent selected files. Capture remains all-or-nothing.
 The default catalog-only fixture stays compatible. These unsigned declarations
 are retained test inputs, not publisher verification or installation approval.
+
+To exercise the public Python Session API with these inputs, set
+`OYZU_PYTHON_METADATA_FIXTURE` to a `--with-checksums` fixture and run from the fork:
+
+```sh
+cargo run --locked --example oyzu-embedding-check --no-default-features --features rustls,vfox/vendored-lua
+```
+
+At fork `bb56ea99001b7b743738a564192b9ff9bebd1f4d`, Linux passes this replay
+and all 28 ordinary scenarios with container networking disabled, plus formatting
+and strict library/example Clippy. The fresh replay child checks both input hashes,
+selected filenames/releases and declared checksums for all three targets, requiring
+six supplied-transport requests. Unknown routes fail. This is stronger than private
+selector replay but still does not acquire artifacts or verify publishers. Native
+CI now captures checksum inputs and runs both replays; new native results are pending.

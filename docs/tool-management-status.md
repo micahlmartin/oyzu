@@ -2118,3 +2118,17 @@ All selected artifacts were release 20260807 and had one matching checksum.
 This establishes retained inputs, not public Rust API replay or artifact integrity.
 The reference documents limits and reproduction. Documentation and diff checks
 pass; full OEP-0003 remains active.
+
+## Checkpoint 146: real Python metadata through public Session
+
+Fork bb56ea99001b7b743738a564192b9ff9bebd1f4d replays the independently
+retained Python catalogs and checksum bytes through Session::python_archive_metadata.
+Linux passed all 28 ordinary scenarios plus the real three-target replay with
+networking disabled. Formatting, strict library/example Clippy and compliance
+inventory checks pass. Native CI uses the updated revision/hash-pinned capture
+helper; these new native results remain pending. The earlier private decoder replay
+run 37023404189 at 5da9db228 completed successfully on all three native hosts.
+
+The reference includes reproduction and evidence boundaries. Metadata equality
+is not artifact integrity, publisher authentication, installation or production
+integration. Documentation and diff checks pass; OEP-0003 remains active.
