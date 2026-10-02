@@ -1,0 +1,198 @@
+[
+  {
+    "name": "unknown top-level field",
+    "pointer": "/command",
+    "value": "echo forbidden"
+  },
+  {
+    "name": "unsupported format",
+    "pointer": "/format",
+    "value": 2
+  },
+  {
+    "name": "explicit nullable closure required",
+    "pointer": "/package_closure_digest",
+    "remove": true
+  },
+  {
+    "name": "malformed digest",
+    "pointer": "/tree_digest",
+    "value": "sha256:wrong"
+  },
+  {
+    "name": "unsupported target",
+    "pointer": "/platform",
+    "value": "plan9/amd64/native"
+  },
+  {
+    "name": "negative distribution size",
+    "pointer": "/distribution_size",
+    "value": -1
+  },
+  {
+    "name": "zero distribution size",
+    "pointer": "/distribution_size",
+    "value": 0
+  },
+  {
+    "name": "unknown verification kind",
+    "pointer": "/verification/kind",
+    "value": "trust-me"
+  },
+  {
+    "name": "open verification",
+    "pointer": "/verification/approved",
+    "value": true
+  },
+  {
+    "name": "verification evidence required",
+    "pointer": "/verification/evidence_digest",
+    "remove": true
+  },
+  {
+    "name": "duplicate dependencies",
+    "pointer": "/dependency_installation_keys",
+    "value": [
+      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    ]
+  },
+  {
+    "name": "entrypoints must be map",
+    "pointer": "/entrypoints",
+    "value": []
+  },
+  {
+    "name": "unknown launcher",
+    "pointer": "/entrypoints/node/kind",
+    "value": "shell"
+  },
+  {
+    "name": "native launcher rejects interpreter",
+    "pointer": "/entrypoints/node/interpreter",
+    "value": {
+      "installation_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "relative_path": "bin/node"
+    }
+  },
+  {
+    "name": "prefix args explicit",
+    "pointer": "/entrypoints/node/prefix_args",
+    "remove": true
+  },
+  {
+    "name": "interpreter target required",
+    "pointer": "/entrypoints/node",
+    "value": {
+      "kind": "interpreter",
+      "payload_relative_path": "bin/node",
+      "prefix_args": []
+    }
+  },
+  {
+    "name": "string argument rejected",
+    "pointer": "/entrypoints/node/prefix_args",
+    "value": [
+      "--version"
+    ]
+  },
+  {
+    "name": "literal rejects extra fields",
+    "pointer": "/entrypoints/node/prefix_args",
+    "value": [
+      {
+        "kind": "literal",
+        "value": "x",
+        "shell": true
+      }
+    ]
+  },
+  {
+    "name": "NUL literal",
+    "pointer": "/entrypoints/node/prefix_args",
+    "value": [
+      {
+        "kind": "literal",
+        "value": "x\u0000y"
+      }
+    ]
+  },
+  {
+    "name": "path argument requires identity",
+    "pointer": "/entrypoints/node/prefix_args",
+    "value": [
+      {
+        "kind": "path",
+        "path": {
+          "relative_path": "bin/node"
+        }
+      }
+    ]
+  },
+  {
+    "name": "raw environment rejected",
+    "pointer": "/environment/PATH",
+    "value": "bin"
+  },
+  {
+    "name": "unknown environment kind",
+    "pointer": "/environment/PATH/kind",
+    "value": "shell"
+  },
+  {
+    "name": "path reference extra fields",
+    "pointer": "/environment/PATH/paths",
+    "value": [
+      {
+        "installation_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "relative_path": "bin",
+        "absolute": true
+      }
+    ]
+  },
+  {
+    "name": "installation_key trailing newline",
+    "pointer": "/installation_key",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "tool_key trailing newline",
+    "pointer": "/tool_key",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "backend_digest trailing newline",
+    "pointer": "/backend_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "distribution_digest trailing newline",
+    "pointer": "/distribution_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "layout_digest trailing newline",
+    "pointer": "/layout_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "tree_digest trailing newline",
+    "pointer": "/tree_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "tree_manifest_digest trailing newline",
+    "pointer": "/tree_manifest_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "installer_release_digest trailing newline",
+    "pointer": "/installer_release_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "platform trailing newline",
+    "pointer": "/platform",
+    "value": "linux/amd64/gnu\n"
+  }
+]

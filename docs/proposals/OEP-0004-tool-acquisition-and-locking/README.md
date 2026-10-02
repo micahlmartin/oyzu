@@ -78,4 +78,9 @@ Uninstall/prune must not delete distributions held by active processes or concur
 
 ## Open decisions
 
-Exact lock schema and integrity root, catalog metadata update-signing protocol, installation directory conventions, default optional-platform lock coverage, and handling source-built tools need prototypes. Source-built tools must declare their own build dependencies and use the controlled execution model.
+The [OEP-0003 implementation proposal](../OEP-0003-mise-integration/README.md)
+defines proposed format-2 lock/receipt schemas, store transactions, explicit
+platform expansion, backend admission and managed selection grants. These choices
+need maintainer review rather than another unspecified integration experiment.
+Source-built tools remain disabled until their captured dependencies and executor
+profile are designed and qualified; catalog additions do not enable scripts.

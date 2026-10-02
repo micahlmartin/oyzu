@@ -1,0 +1,249 @@
+{
+  "host": "nt",
+  "positive_control": {
+    "ip": "192.168.65.254",
+    "reachable": true
+  },
+  "driver_exit": 0,
+  "driver_stdout": "{\"code\":0,\"duration_ms\":7250,\"timed_out\":false,\"worker\":{\"arch\":\"amd64\",\"image\":\"sha256:1acd4dc91744f4c1ade40cba9f0c61adb6544e688894156c33c44dce8f2bcc3a\",\"os\":\"linux\"}}\n",
+  "driver_stderr": "",
+  "origin_requests": [
+    {
+      "path": "/public-control",
+      "authorized": false
+    },
+    {
+      "path": "/approved/node/index.json",
+      "authorized": true
+    },
+    {
+      "path": "/approved/node/v22.14.0/SHASUMS256.txt",
+      "authorized": true
+    },
+    {
+      "path": "/approved/node/v22.14.0/node-v22.14.0-linux-x64.tar.gz",
+      "authorized": true
+    },
+    {
+      "path": "/approved/node/v22.14.0/node-v22.14.0-linux-x64.tar.gz",
+      "authorized": true
+    },
+    {
+      "path": "/approved/node/redirect",
+      "authorized": true
+    },
+    {
+      "path": "/approved/node/error",
+      "authorized": true
+    }
+  ],
+  "cases": [
+    {
+      "case": "broker-backend-lock",
+      "status": "passed",
+      "detail": "backend metadata became an Oyzu lock through the production broker"
+    },
+    {
+      "case": "broker-real-node-install",
+      "status": "passed",
+      "detail": {
+        "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+        "versions": [
+          "22.14.0"
+        ],
+        "paths": [
+          "/tmp/mise-state/data/installs/node/22.14.0/bin"
+        ],
+        "platform": "linux-x64",
+        "settings_mirror": "http://127.0.0.1:41675/node/"
+      }
+    },
+    {
+      "case": "broker-frozen-execution",
+      "status": "passed",
+      "detail": "real locked Node executed; lock unchanged"
+    },
+    {
+      "case": "raw-ip-egress-denied",
+      "status": "passed",
+      "detail": "raw TCP to the positively tested origin is denied"
+    },
+    {
+      "case": "spawned-client-egress-denied",
+      "status": "passed",
+      "detail": {
+        "exit": 7,
+        "proxy_attempt": false
+      }
+    },
+    {
+      "case": "proxy-egress-denied",
+      "status": "passed",
+      "detail": {
+        "exit": 7,
+        "proxy_attempt": true
+      }
+    },
+    {
+      "case": "broker-unapproved-source-denied",
+      "status": "passed",
+      "detail": {
+        "status": 403,
+        "source": "denied"
+      }
+    },
+    {
+      "case": "broker-redirect-reauthorized",
+      "status": "passed",
+      "detail": {
+        "status": 403,
+        "source": "denied"
+      }
+    },
+    {
+      "case": "broker-error-sanitization",
+      "status": "passed",
+      "detail": "upstream error body and headers were not relayed"
+    },
+    {
+      "case": "production-worker-isolation",
+      "status": "passed",
+      "detail": "network none, read-only root, no capabilities, no-new-privileges, no Docker socket"
+    }
+  ],
+  "credential_canary_absent": true,
+  "source_credentials_checked": true,
+  "production_git_commit": "7f39a651b516982ae8e90e7213ed6ef3794292af",
+  "production_source_lf_sha256": "88be217e7d391cc786c74f688b43d9330034d1e4afa033492a21eacfb425e9e5",
+  "production_source_manifest": {
+    "Cargo.lock": "379e31a8599e324fe0a35cb6d9ddbc6336cb409cc4cdfa1d995bfec8c7427334",
+    "Cargo.toml": "b205d8dec646d90d72a45b7a4815501dfd0d5a4737759f22e4c57a25a6c9de87",
+    "src/broker.rs": "3d37abd9c4e384be079985cde33da5cd259517c18586e19a7d3f065b423ed85e",
+    "src/broker/runtime/transport.mjs": "c3ad2f741c35b6cb1f6c103ad7274fa9c1f655fd71762b4f013b399c094d13d0",
+    "src/broker/runtime/transport.py": "4d21f2c66b3947323f9193d2733836177f6a64a25a5638b45e09b780d33f7e4c",
+    "src/build/bundle.rs": "c897249a5602171020f2101a6576455ce4a48f7816caf9330d7b14e0f8023f73",
+    "src/build/collection.rs": "4911ee96ea5a9f0f12c6ae0f6ba3797fb7a3bcffa2d07a4f910bca743314f8b5",
+    "src/build/execution.rs": "55d41820a02e6c310b52a96cfa469e80f3155026379b0818c09b5a9ba8c340ef",
+    "src/build/materialization.rs": "97c59b9858f9ac8bd6cce3d5377226f8f84ee7d71715bdf50c429d852738dc4c",
+    "src/build/mod.rs": "4b4e8a4f6d1b954fb499292fa3f7378465a364ae46152dccccff26db29411605",
+    "src/build/planning.rs": "1d9d1bd2e27fc7d0858de05af5a09a0b12703a340e7bef72cb7f29ec0880ee32",
+    "src/build/reporting.rs": "e4abaea46b4c7b09ec2222badc1a335704a51083911479a4c87db17266da92a2",
+    "src/builders/contract.rs": "fccbd0d2cb1062697043560d0c06572ac5c504c902d1624b2644795081e073f4",
+    "src/builders/docker/metadata.rs": "e5f82e3335abbd90bf14b4d29f56aa307ba3bc7f32c7e81a176077bd7711f8c4",
+    "src/builders/docker/mod.rs": "1d6148e41790e0ef72f852e76a2bb169e8a2c6c5e9ffde314d925045ed51a01d",
+    "src/builders/docker/planning.rs": "06eb462fe00b6c5092e77f7638fa039aaf3ac9ff8d8bf97b6fcf85ec10b0c062",
+    "src/builders/docker/preparation.rs": "b30138c1039e00713ea9261c156d2a692fcac663a2ca624593d9f8f231762f1b",
+    "src/builders/docker/runtime/metadata/README.md": "4aed566ae192878c346403ba1645f9ea91a05b4ddbb5b4e8d70f6045c6669c1b",
+    "src/builders/docker/runtime/metadata/context.go": "8823ecf9ad184402cab2a83f6bc1237a1fe389d4413090e009eb3ab88bb6a653",
+    "src/builders/docker/runtime/metadata/go.mod": "b1e950b968f0f94596e4e2e41ddab7d788b596c6dac3d3f4db0b97580b3ef30f",
+    "src/builders/docker/runtime/metadata/go.sum": "3913a3a6cc2de5a45d2ff7cc112adb0470b57072b372e5f26847fdbee34614e0",
+    "src/builders/docker/runtime/metadata/main.go": "61787257adde2be01c2fd1a35036effb10339010a4434a188cf3a4b74a3c26fb",
+    "src/builders/docker/runtime/metadata/main_test.go": "5ff3dcf83274baf03f1b232df17a41c59e6fca433d914f77c70bdea4fed70b97",
+    "src/builders/docker/tests.rs": "3a37381367fe7768129e98d7bab71ce617d9cadc740f04a9235eb0eb3dc2e27c",
+    "src/builders/go/mod.rs": "44c0e0aa865d32a134be7a83f0c6e82b5ddcdeca84cd4dbda180f182a4b14f0b",
+    "src/builders/go/planning.rs": "b456c9e4063ca73c74989db274882b90e88adc9eb2a976603e97c46d6462b3e6",
+    "src/builders/helm/metadata.rs": "9762106cb9777a7cbc61d0688397b4865f90cc0fc5673db7020ec4fb5a24cdf8",
+    "src/builders/helm/mod.rs": "77fd4bf85215ca92b26a37dd4c40a0591bfba648da4f4ab4568f6aa569d3525c",
+    "src/builders/helm/planning.rs": "858757f6decf92785c2214a05d2228e38d758727ea786f36e64e3fca51b40aae",
+    "src/builders/helm/preparation.rs": "66a8d4c63061142e2aa15fd727b40b9477888412a97e95116089a32b122a57a9",
+    "src/builders/helm/runtime/archive.py": "cbab90d29bdc2c0148b24a5982e8421157c9f7d960d1d1880d674ff6b4982edf",
+    "src/builders/helm/tests.rs": "c1cd29ed6de8e9dc03c1f07aa4959e2ee971cb49d2f2f60ec189d9825d4fd6e2",
+    "src/builders/java/ant/metadata.rs": "43a5aae9085ce9c24b328faab459f6ec23eab7dfe2c4424c5470a1ab6383ead9",
+    "src/builders/java/ant/mod.rs": "b7d4c5ddba3703a5bb093d00c9dd24b5f093f59e590a72b32b3c613ae9582b3f",
+    "src/builders/java/ant/planning.rs": "ccc7b9558adc88f48984b760eeacceb4d5b1ac9cd0ea422c265a36781ac2cbe7",
+    "src/builders/java/ant/preparation.rs": "0dadfda9fd6a94a689aea367d2ccae3c048f0140144d400fa021a71bb5196ad6",
+    "src/builders/java/ant/runtime/AntMetadata.java": "a0846fc4a26da4391ba75bbfc6d655f9710760edb00e17b310635cee79e8a78e",
+    "src/builders/java/ant/runtime/JarPackaging.java": "f7775f776696374fc67e66528356dc1d372db2bfb101d5728a908ec577f61ce9",
+    "src/builders/java/ant/tests.rs": "d51068ef61fe3b60095078e1738755c3fa2c3b576d9d80d24a9b0d25369397dc",
+    "src/builders/java/gradle/metadata.rs": "44c4aedc486fd8f2188ac172ffbf9bc8bc66c520c72c9695e92da85731a44b84",
+    "src/builders/java/gradle/mod.rs": "8b2e3800799be660d3f521bc12f545e4c629a385c4238cbbb79c65b6cd0a6d63",
+    "src/builders/java/gradle/planning.rs": "e787bedb3f34e20dd4abe6410e3984e74e3a12a8f228f4702353e4351084f8fa",
+    "src/builders/java/gradle/preparation.rs": "0bcbfbbe8e5535ef19bf8aefbab107caeabbf84ed77b778f9bf645c85ae24458",
+    "src/builders/java/gradle/runtime/adapter.py": "2bdfe3256cd61cfc1dd115143078470c41d165c5130458cedcd978c7905298a7",
+    "src/builders/java/gradle/runtime/integration.gradle": "834975acd3e194b031e09d505df4f6b123f9e9f616bb00d5686b2a71adc84cbf",
+    "src/builders/java/gradle/runtime/metadata.gradle": "7e4deff23ca4bbb425873a484bf7c2a80c7fed31f631f50c62496e495ea69ee9",
+    "src/builders/java/gradle/tests.rs": "f876182382d2beb10e29494a888529aca585882e20a912737b75eb84e579cef4",
+    "src/builders/java/maven/metadata.rs": "33fd6354f1f81c9566206fe7576608694847a3dc10377a7bb703884a9eb1e122",
+    "src/builders/java/maven/mod.rs": "80d4a2bea458bc5675761768ea0866dde55ee49354533499892981400c18cd12",
+    "src/builders/java/maven/planning.rs": "5d3be1a568a744e530de1ab722bf2cd7099711cb0c3eaa7d4a6dd8452608b7f8",
+    "src/builders/java/maven/preparation.rs": "16f6a2d6f3010f76bacf757a9852c872f8fe1a14da284419dc71f34ed00c1249",
+    "src/builders/java/maven/runtime/OyzuMetadata.java": "99e1b69c4389a49def9f3b9f61a30f9b97359552b43d8a8d91718f61713482ec",
+    "src/builders/java/maven/runtime/adapter.py": "259e57599e2912e10ea6bd8dbf0afc0e47863808bb80b778ff99a74788750a0d",
+    "src/builders/java/maven/runtime/components.xml": "96612086aa52af41bf2f6e218b7702ada8e75b890417e38fc114a12ba2b424b0",
+    "src/builders/java/maven/tests.rs": "d5a5d9985387a3f6acfae44c459ba5a2cdb92404525ee71e24d8486a00fc3fe4",
+    "src/builders/java/maven_repository.rs": "f7b982a35702e0443e0042211b96db5d8a247cb640c45e2a0633e607acfa549b",
+    "src/builders/java/mod.rs": "78d63d5c046961b4d2dddd9262f44285ab3810201aa0454aab0d24d05b9daa87",
+    "src/builders/mod.rs": "1d75e324ffb9fd3152cc5131068461155bfb704e6ce4c1dbeb8f7ca819160a5d",
+    "src/builders/node/detection/frameworks.rs": "8303aa52bf622896fb7bfdc5152db8d6e22b56db9d632ee3676869706c261d89",
+    "src/builders/node/detection/managers.rs": "32c2990a2a4df12cebf6047817715be90e33bf33e3e50b25d79cef2812eac2fc",
+    "src/builders/node/detection/mod.rs": "d70fd3bbc1b3788a535575428db54d598360433022f566a9775c92bc83c1459e",
+    "src/builders/node/discovery.rs": "4c4e496e34fffa34daa9a7816600dbc3f93e28709437349d33b7a967bae0c6c2",
+    "src/builders/node/jest.rs": "b44ce5821795c1d1845f38b6cfc99bc6800c8a92c6dca38349a8120d5f24f6bb",
+    "src/builders/node/managers/empty.rs": "1510a3ac6419bfd90ceb56de72acf0a10466b4dec592a825f582f11cabf44482",
+    "src/builders/node/managers/mod.rs": "a18387d385fb67e09aca808aa75af644fea97ecb77a9cc657bac2ba7fa61df88",
+    "src/builders/node/managers/npm.rs": "9c50c38374a30f84496e579614141086f4694d7e8fb804110d95d71fa2455705",
+    "src/builders/node/managers/npm/preparation.rs": "83a149dafe7292711f8eb06ffc9aeaaaadd44b1a87e7488355fe6ff4292c9f01",
+    "src/builders/node/managers/pnpm.rs": "c15f9ae04de66d43b4546beeee3cf488b87f4479906ed968d69b0025a707fb70",
+    "src/builders/node/managers/tests.rs": "65ede2e7b44f54ad613128de4135c43c89b5f2d4cc2e4db7b468146fd81053f3",
+    "src/builders/node/managers/yarn.rs": "005c299b5e09f08f2954655b997c5d0dc953c7b77fa0617722b384ca243d6c2e",
+    "src/builders/node/mod.rs": "4cf54dab6c81a0e412f55d6f7741f8b2934506fc7dceb3fa55578a75a33f0c0b",
+    "src/builders/node/planning.rs": "2d7b7df71ca19c5652a488b669d6c78d245f56434027df04271bb49f057445a8",
+    "src/builders/node/reporting.rs": "987c96808e932d785e7627bf33ddf65ff28b5a4c03561bf95d96d65d06fb0220",
+    "src/builders/node/runtime/jest-results.mjs": "9739566eaf43807f13f3f60e54e80c6583502a0f40f36574bec055b48a33c22c",
+    "src/builders/node/runtime/jest.mjs": "938a7fc3650d9e3eed932edf2b013a1452798a9f7cc635024c1b38397258e1f3",
+    "src/builders/node/runtime/lock.mjs": "c1cc761225dd27492c0e4f3e55236bef115f30377a3f2fa5146811d87a580a59",
+    "src/builders/node/runtime/manager-runtime.mjs": "b64aad9b874b12690bc31d2134c43bcea7559e5c34c6e3b7134b49dc9a39748b",
+    "src/builders/node/runtime/npm.mjs": "b3e1e28c07fd7b19162c739b90f54083dbe748c85e7596090c0c2117f84c5a5a",
+    "src/builders/node/runtime/pnpm.mjs": "8f3b368f249f2215947e1ddf99b859ee8ef4b29dd30f62bc65eccf16d7fa4957",
+    "src/builders/node/runtime/yarn.mjs": "221ec0921af125306f0eea80b55ec17c9f3e71818cebb9976e79d6c578721cba",
+    "src/builders/python/acquisition.rs": "91e6ac238fed0574b2b3e26351fd87900339ba0168109d89ea25fab40bcfa402",
+    "src/builders/python/detection/mod.rs": "5437e299a74280a2542cb310d320c315b0034bffbeed960626795d7723497718",
+    "src/builders/python/discovery.rs": "ece31d0dab63d3085ef6823833c4b4e58ba12d6076361cb19f9b5013ae866d73",
+    "src/builders/python/mod.rs": "b168b1d2c28deaee28a498efbb5c9f40b80657b27e9cf319d6db81a620bea5bf",
+    "src/builders/python/planning.rs": "fe47f626764e8dba85b63f6ca8fed242f77fbcea22c2bb379de3b3ed48f01e62",
+    "src/builders/python/runtime/adapter.py": "d2708ba9b03354fe97f015ca20be55f3f44089d7ece407d98676d3c9ad31aa83",
+    "src/builders/python/runtime/reporting.py": "31fc997be89eacf1ec6202f78b35dfb7a60913057b65df75db008d9ba30f8877",
+    "src/builders/rust/metadata.rs": "841a43104f934153600acc778d1ec7bc8dc8220e8ad00bbc2e00971452637e79",
+    "src/builders/rust/mod.rs": "05458fef204b36eeccb7000af4b5a061f27b4d2a5057b852990f87e497607b2a",
+    "src/builders/rust/planning.rs": "ac8bf3537a37755f25af40645f0b4ecfc63d2c94bbaf9c21a73eafa436090e8f",
+    "src/builders/rust/preparation.rs": "11a4f9bf8513c5dd8f3a8c88d102bd7d13e362f3986ed32d9ca8115c49973a15",
+    "src/builders/rust/reporting.rs": "fd9fcfb20c0f06fb65faebabfb17bdceef7e49b65546004982dea1ec575f1ac2",
+    "src/builders/rust/runtime/test.sh": "6303b7a31b7a61e850b63129f76e88e410e683c9406a2618262ae6181d361879",
+    "src/builders/rust/tests.rs": "06b79b360242b5a310c7877bf31a53ef0b5ddd28bb3cf88c144cf5cd072bbe6f",
+    "src/builders/task.rs": "9ba42c12eeb999fd93d8c474ce0b619247202c50f7a81f7eacfffac60f9afbf9",
+    "src/builders/tests.rs": "490f292235a455ed43a0be21e0cce64a37d3eced3f423f67d96bede26eb0b4eb",
+    "src/config.rs": "d999c51a8be5f237a63be27d9e6c8634ef3173eaf8803d64d605accee965fb62",
+    "src/dependencies.rs": "9b6ada94bb82d9bffd3c4cedc4012a4b247c7612859e4627b1274d085813c766",
+    "src/dependencies/preparation.rs": "14ee50e8793154adf01aea6353aee07743b8f4d85e61665a4ce6d14598ec0d63",
+    "src/discovery.rs": "ceb0e7efafab461100c7b5744d1cdcf63587095e501443229261a76a35d381e2",
+    "src/discovery/detectors.rs": "136aa4f9d278e1579b4094b8cba21f54832ecc8f116d325ccb7ca79ea0c25929",
+    "src/discovery/source.rs": "261384fe2aa0360725e7a0107244488c2f5b587f9709a09ec7de6782b34c8a2b",
+    "src/executor.rs": "7a6be52d55c8ba97787a1dd42360688af7922c21d9239ca3d4cbb5b38c2d6d67",
+    "src/executor/mode.rs": "2ce6285671ec1279808808bb7a59f6fad34e66ca7619f287987f3dab5385be12",
+    "src/executor/worker.rs": "1fb9d5e6d6c35c8d8c397d32fdc2301d5c93d2167f63881cdc3470c2126d81fd",
+    "src/launch.rs": "0e1a172129a3e6ceb448bb71eefc32f2353922ad696dfe936be1d347352d8854",
+    "src/lib.rs": "0604da28d33fd4087e246a21086b6c5550d5ba78252f48375d27a89345560b51",
+    "src/main.rs": "7c8b26768c3b5b86534be9ba266e30886fb92ccc78d5a19fa996a6d225bb73f2",
+    "src/model.rs": "36a74bc14ee0c66b5359506f7727810ff79fddf6de3e211e5ea1d108b447e38e",
+    "src/names.rs": "51e7141feb00a9dd61dc5c9780dad4eabbc0e0b7bd217975e70786b884b204fe",
+    "src/oci/archive.rs": "585037aa73f937b99d2287677f03aa481e34880c28ae186c31d3f8dfce6b54dc",
+    "src/oci/mod.rs": "e9cbbf2a5e5ae1ef21e6c9bdc979392cdedccf34d35ba12536cd655bf4541bed",
+    "src/oci/tests.rs": "83a1d1aedc3976029df925bb7b1ad9556f76423c260674de1d72448e2008099f",
+    "src/records.rs": "739774d278b9ce84c78fff566328489b9722e601c463d2251f28f7ae9686990a",
+    "src/reports.rs": "e80df3ca45dacb27c0fc4e2f8f150558eb08229d71621c725a8f5b0552f9fe8f",
+    "src/reports/contract.rs": "e4a57d19766a7092bacd9e15b9e5438ce9d28f8a17de6503da2996729655a6e8",
+    "src/snapshot.rs": "6fba1c44eda9f50c92e28f96f316ab9a47f7e9ed9fce544aa819fdda59159cb6",
+    "src/snapshot/projection.rs": "c8416c96ffadc2db3c8eb27967b07eb3b8da14912cbe890ddd0d0f7bbe338c69",
+    "src/tasks.rs": "8314303ccea87ffcfb909d88e4b2041ea598f3938ef8a02cb373068482f661e8"
+  },
+  "driver_sha256": "0876ef9e89d4b94f42361706b8108025bf0401526b7f142e2c7ed28cc63d3f22",
+  "harness_lf_sha256": {
+    "run_broker.py": "9cb60a992bebcada4c7d226fda0a18761b698fee2c70940f84715919a16d4a0a",
+    "broker_bridge.py": "119a6c2b482eb6f6b861bfb6e134824da0db38bb0d1cf01a53a7ae1fcd909e5a",
+    "broker_worker.py": "1aebbbefaef260212071a2ed27f78e743bf44d54c709cad72e34a5913b34e6e3",
+    "broker-host/src/main.rs": "809b4257fc52cd171406a16029a461c52bee6a39ea60b94eaadb9871b6245eeb",
+    "broker-host/Cargo.toml": "50a72517676fd3cbbf9710235491b2f4e8c6e728c3c25e2d9cf04ae7f2bf48ea",
+    "broker-host/Cargo.lock": "5189c2d8e9e8d1292b5545f314cde2f41b266db1aa6e5c7fbc6321cfa367671b",
+    "Broker.Dockerfile": "d73786a4453a2f9ab2f35b3d0cc79033b3030e5cc8597ab5de5464df74635a33"
+  }
+}

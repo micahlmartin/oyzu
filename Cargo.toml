@@ -7,6 +7,10 @@ description = "An opinionated developer build platform"
 publish = false
 
 [dependencies]
+mise = { git = "https://github.com/oyzuai/mise", rev = "1da2a9fa009ada755cbcc96e5d944fe1cd61072c", default-features = false, features = ["rustls", "vendored-lua"], optional = true }
+tokio = { version = "1", features = ["rt", "net", "time"], optional = true }
+reqwest-mise = { package = "reqwest", version = "0.13", default-features = false, optional = true }
+http = { version = "1", optional = true }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -16,6 +20,7 @@ yaml-rust2 = { version = "0.13", default-features = false }
 sha2 = "0.10"
 tar = { version = "0.4", default-features = false }
 flate2 = "1.1"
+zip = { version = "=8.6.0", default-features = false, features = ["deflate-flate2"] }
 toml = "0.8"
 toml_edit = "0.22"
 base64 = "0.22"
@@ -32,8 +37,11 @@ httpdate = "1.0.3"
 
 [dev-dependencies]
 
+[features]
+mise-integration = ["dep:mise", "dep:tokio", "dep:reqwest-mise", "dep:http"]
+
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Memory"] }
+windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Memory", "Win32_System_IO", "Win32_System_JobObjects", "Win32_System_Threading"] }
 keyring = { version = "3.6", features = ["windows-native"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -41,6 +49,9 @@ keyring = { version = "3.6", features = ["apple-native"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 keyring = { version = "3.6", features = ["async-secret-service", "async-io", "crypto-rust"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [profile.release]
 lto = "thin"

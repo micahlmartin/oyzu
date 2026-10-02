@@ -1,0 +1,410 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oyzu.dev/contracts/tools-v1/archive-layout.schema.json",
+  "title": "Draft Oyzu archive layout plan format 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "backend_digest",
+    "platform",
+    "input_blob_digests",
+    "archive_kind",
+    "strip_prefix",
+    "payload_subtree",
+    "required_paths",
+    "entrypoints",
+    "environment",
+    "extraction_bounds",
+    "executable_paths"
+  ],
+  "properties": {
+    "format": {
+      "const": 1
+    },
+    "backend_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "platform": {
+      "type": "string",
+      "pattern": "^(linux/(amd64|arm64)/(gnu|musl)|darwin/(amd64|arm64)/native|windows/(amd64|arm64)/msvc)(?![\\s\\S])"
+    },
+    "input_blob_digests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/digest"
+      },
+      "maxItems": 64,
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "archive_kind": {
+      "enum": [
+        "tar",
+        "tar.gz",
+        "tar.xz",
+        "zip",
+        "raw"
+      ]
+    },
+    "strip_prefix": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/path"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "payload_subtree": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/path"
+        },
+        {
+          "const": "."
+        }
+      ]
+    },
+    "required_paths": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "kind"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "kind": {
+            "enum": [
+              "file",
+              "directory",
+              "symlink"
+            ]
+          }
+        }
+      },
+      "maxItems": 4096,
+      "minItems": 1
+    },
+    "entrypoints": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1024,
+      "propertyNames": {
+        "$ref": "#/$defs/component"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/launch"
+      }
+    },
+    "environment": {
+      "type": "object",
+      "maxProperties": 1024,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
+        "maxLength": 256
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/environment"
+      }
+    },
+    "extraction_bounds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_entries",
+        "max_bytes",
+        "max_file_bytes",
+        "max_depth",
+        "max_expansion_ratio"
+      ],
+      "properties": {
+        "max_entries": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200000
+        },
+        "max_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 8589934592
+        },
+        "max_file_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1073741824
+        },
+        "max_depth": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        },
+        "max_expansion_ratio": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        }
+      }
+    },
+    "executable_paths": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "maxItems": 4096,
+      "minItems": 0,
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "literal": {
+      "type": "string",
+      "maxLength": 16384,
+      "pattern": "^[^\\u0000]*(?![\\s\\S])"
+    },
+    "component": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f\\\\/:<>\"|?*]+(?![\\s\\S])"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f\\\\:<>\"|?*]+(?![\\s\\S])"
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner",
+        "relative_path"
+      ],
+      "properties": {
+        "owner": {
+          "anyOf": [
+            {
+              "const": "self"
+            },
+            {
+              "$ref": "#/$defs/digest"
+            }
+          ]
+        },
+        "relative_path": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/path"
+            },
+            {
+              "const": "."
+            }
+          ]
+        }
+      }
+    },
+    "argument": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal"
+            },
+            "value": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "path"
+          ],
+          "properties": {
+            "kind": {
+              "const": "path"
+            },
+            "path": {
+              "$ref": "#/$defs/reference"
+            }
+          }
+        }
+      ]
+    },
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "payload_relative_path",
+        "interpreter_tool_key",
+        "interpreter_relative_path",
+        "prefix_args"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "native",
+            "interpreter"
+          ]
+        },
+        "payload_relative_path": {
+          "$ref": "#/$defs/path"
+        },
+        "interpreter_tool_key": {
+          "anyOf": [
+            {
+              "const": "self"
+            },
+            {
+              "$ref": "#/$defs/digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interpreter_relative_path": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "prefix_args": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/argument"
+          },
+          "maxItems": 256,
+          "minItems": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "native"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "interpreter_tool_key": {
+                "type": "null"
+              },
+              "interpreter_relative_path": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "interpreter_tool_key": {
+                "not": {
+                  "type": "null"
+                }
+              },
+              "interpreter_relative_path": {
+                "$ref": "#/$defs/path"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "environment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal"
+            },
+            "value": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "paths"
+          ],
+          "properties": {
+            "kind": {
+              "const": "paths"
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/reference"
+              },
+              "maxItems": 256,
+              "minItems": 0
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$comment": "Shape validation only. Runtime additionally enforces portable path components, byte lengths, sorted sets, case collisions, closure references, identity hashes, admission, archive limits, filesystem types and executable permissions. The current finalizer supports tar, tar.gz, raw single-file artifacts and bounded ZIP32, with payload_subtree dot. Explicit executable paths are supported on Unix and rejected on Windows; no post-install programs run. Schema acceptance of tar.xz does not imply runtime support.",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "archive_kind": {
+            "const": "raw"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "strip_prefix": {
+            "type": "null"
+          },
+          "required_paths": {
+            "minItems": 1,
+            "maxItems": 1,
+            "items": {
+              "properties": {
+                "kind": {
+                  "const": "file"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

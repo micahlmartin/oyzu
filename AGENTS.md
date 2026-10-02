@@ -62,9 +62,18 @@ Scale architectural review to the change: internal implementation, changed contr
 - Before finishing, review docs against the implementation, run `node tooling/check-docs.mjs` and `git diff --check`, and identify the changed documentation in the PR. For an internal-only change with no documentation impact, record the concrete reason in the PR; do not use that exception for observable behavior changes.
 
 ## Current implementation
+
+For the active OEP-0003 implementation goal, the maintainer explicitly reserves
+hardening for future goals. Prioritize functional implementation, usability and
+user acceptance across the agreed flows. Do not resume component hardening after
+the first working path; continue delivering the remaining user capabilities.
+Record deferred hardening without claiming it has passed or blocking functional
+development on it. Licensing, notice preservation and explicit user constraints
+still apply; controlled mise development import was authorized on 2026-10-02.
+
 Draft visions and OEPs are indexed in docs/README.md. Implementation is now authorized and in progress. The Rust CLI sources are in src/ with tests in tests/. Track measured capabilities and remaining work in docs/implementation-status.md; do not mark full build scenarios passing based only on discovery or development task execution.
 
-Run `cargo test --locked`, `cargo clippy --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check` for Rust changes. Run `python tooling/test-task-scenarios.py --cli <compiled-oyzu-path>` for real CLI task behavior. Tool installation is excluded from the current implementation goal; use explicitly provisioned native tools.
+Run `cargo test --locked`, `cargo clippy --locked --all-targets -- -D warnings`, and `cargo fmt --all -- --check` for Rust changes. Run `python tooling/test-task-scenarios.py --cli <compiled-oyzu-path>` for real CLI task behavior. The maintainer authorized full OEP-0003 tool-management implementation on 2026-10-02. Retain explicitly provisioned native tool flows until the new provider passes its corresponding qualification gates; do not equate an inspector or experiment with completed installation support.
 
 Run `node tooling/check-docs.mjs` for documentation structure. Do not imply this validates product behavior. Preserve agreed constraints in docs/decisions.md, distinguish proposed syntax from stable contracts, and never mark a design accepted without recorded maintainer review.
 

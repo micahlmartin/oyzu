@@ -1,0 +1,118 @@
+[
+  {
+    "name": "missing requests",
+    "pointer": "/requests",
+    "remove": true
+  },
+  {
+    "name": "missing native_constraints",
+    "pointer": "/native_constraints",
+    "remove": true
+  },
+  {
+    "name": "missing required_capabilities",
+    "pointer": "/required_capabilities",
+    "remove": true
+  },
+  {
+    "name": "missing digest",
+    "pointer": "/digest",
+    "remove": true
+  },
+  {
+    "name": "unknown field",
+    "pointer": "/command",
+    "value": "echo"
+  },
+  {
+    "name": "requests not map",
+    "pointer": "/requests",
+    "value": []
+  },
+  {
+    "name": "unqualified ID",
+    "pointer": "/requests",
+    "value": {
+      "node": "22"
+    }
+  },
+  {
+    "name": "empty backend",
+    "pointer": "/requests",
+    "value": {
+      ":node": "22"
+    }
+  },
+  {
+    "name": "empty name",
+    "pointer": "/requests",
+    "value": {
+      "core:": "22"
+    }
+  },
+  {
+    "name": "ID whitespace",
+    "pointer": "/requests",
+    "value": {
+      "core:no de": "22"
+    }
+  },
+  {
+    "name": "empty version",
+    "pointer": "/requests",
+    "value": {
+      "core:node": ""
+    }
+  },
+  {
+    "name": "control version",
+    "pointer": "/requests",
+    "value": {
+      "core:node": "22\n"
+    }
+  },
+  {
+    "name": "nonliteral version",
+    "pointer": "/requests",
+    "value": {
+      "core:node": 22
+    }
+  },
+  {
+    "name": "empty constraint set",
+    "pointer": "/native_constraints",
+    "value": {
+      "core:node": []
+    }
+  },
+  {
+    "name": "duplicate constraint",
+    "pointer": "/native_constraints",
+    "value": {
+      "core:node": [
+        "22",
+        "22"
+      ]
+    }
+  },
+  {
+    "name": "duplicate capability",
+    "pointer": "/required_capabilities",
+    "value": [
+      "exec",
+      "exec"
+    ]
+  },
+  {
+    "name": "invalid capability",
+    "pointer": "/required_capabilities",
+    "value": [
+      "exec tools"
+    ]
+  },
+  {
+    "name": "bad digest",
+    "pointer": "/digest",
+    "value": "sha256:ABC"
+  }
+]

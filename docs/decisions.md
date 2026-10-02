@@ -37,6 +37,7 @@ Updated: 2026-10-01. This records product constraints agreed in discussion and t
 | DEC-029 | Every builder exposes an implicit test command, detects the existing framework or selects a documented standard default, and automatically collects JUnit and applicable code coverage in dist with manifest references; ordinary projects need no reporting configuration | OEP-0014 / OEP-0012 |
 | DEC-030 | Discovery uses registered specialized detectors behind an interface; detectors report evidence and a deterministic resolver composes compatible findings, resolves exclusive roles and explains ambiguity without registration-order precedence | OEP-0006 |
 | DEC-031 | Oyzu is an opinionated, batteries-included developer platform: integrate the developer workflow with documented defaults and minimal configuration; distinguish this product vision from delivered capabilities. Positioning reaffirmed by maintainer direction on 2026-10-01; technical designs remain drafts | VIS-001 |
+| DEC-032 | Oyzu TOML and `oyzu.lock` remain authoritative when reusing mise; no parallel mise project configuration or lockfile, and no ambient mise override of Oyzu selection | OEP-0003 / OEP-0004 |
 
 ## Proposed choices needing review or experiments
 
@@ -45,7 +46,7 @@ Maintainer direction for the OEP-0002 configuration delivery defers login/authen
 | ID | Decision | Current proposal and next evidence |
 | --- | --- | --- |
 | OPEN-001 | Public license and contribution terms | Unselected; decide before upstream code import or substantive external contributions |
-| OPEN-002 | Rust integration with mise | Audit a pinned source revision, choose reusable modules/fork boundary, preserve notices, benchmark switching |
+| OPEN-002 | Rust integration with mise | Experiment complete; OEP-0003 proposes a pinned source fork, same-binary worker, format-2 locks, verified receipts and explicit backend/transport admission; review before production implementation |
 | OPEN-003 | Configuration schemas and root/merge semantics | OEP-0002 proposes root YAML, nested TOML, whole-task replacement and `oyzu.lock`; prove with fixtures |
 | OPEN-004 | Hook failure/argument rules | Success-only post, no recursive hooks, args to primary only; review TASK examples |
 | OPEN-005 | Cross-platform hermetic executor | Validate Linux/macOS/Windows capabilities; do not silently fall back to host execution |
@@ -68,6 +69,7 @@ The [build implementation map](build-implementation.md) proposes concrete v1alph
 
 | Open item | Proposed initial resolution |
 | --- | --- |
+| OPEN-002 / OPEN-007 | [OEP-0003 implementation proposal](proposals/OEP-0003-mise-integration/README.md): library-only fork, Oyzu-owned selection/store, explicit backend/platform gates and brokered acquisition; experiment failures become mandatory acceptance tests |
 | OPEN-003 | Root target-map YAML, scoped TOML origins, whole-task replacement, bounded strict parsing and no expressions; OEP-0002 implementation |
 | OPEN-004 / OPEN-016 | Success-only nonrecursive hooks; argv for portable commands; explicit sh/PowerShell string semantics; extra CLI arguments require argv/native adapter |
 | OPEN-005 | Linux capability-qualified executor first, Windows/macOS host transport qualification; native targets require separate gates, never host fallback |
@@ -78,8 +80,63 @@ The [build implementation map](build-implementation.md) proposes concrete v1alph
 | OPEN-014 | Finite native runtime axes and typed Helm image-reference bindings, specified in draft schema and candidate examples |
 | OPEN-017 | linux/amd64 proposed standalone image default; explicit/managed target choice remains supported |
 
-Private dependency builds must keep upstream credentials out of project/dependency execution and exported outputs across all supported managers (OEP-0017). New Dockerfile context bindings and convenience fields remain draft UX choices. Public license, mise import boundaries and backend qualification are not silently decided by this specification pass.
+Private dependency builds must keep upstream credentials out of project/dependency execution and exported outputs across all supported managers (OEP-0017). New Dockerfile context bindings and convenience fields remain draft UX choices. Public licensing remains unresolved. Mise import boundaries and backend admission now have explicit proposed resolutions in OEP-0003; they are not agreed decisions or completed production qualification.
 
 The [proposal index](proposals/README.md) resolves OEP IDs. Detailed open decisions inside each OEP remain part of its review; this register highlights choices spanning components.
 
 OEP-0002 implementation now has an [experimental configuration reference](reference/configuration.md) and an acceptance-mapped checkpoint in [implementation status](implementation-status.md). Its cascade, constraint algebra, pinned-signature verification and 24-hour upper bound are implemented without changing the design's draft status. Native OS permission/keychain and real platform interoperability remain release gates. Docker's registered `docker.apparmorProfile` preserves the existing host default; the legacy environment override is a constrained migration input rather than a separate bypass.
+
+## End-to-end-first implementation priority
+
+On 2026-10-02, the maintainer explicitly directed that proving the real end-to-end
+solution is the first priority for proposals and implementation. Connect and run
+the complete intended flow before progressively hardening individual components.
+Avoid repeated edge-case work while the overall solution remains unproven.
+After the proof, stage hardening according to concrete risk and agreed acceptance
+requirements; optional robustness work must not expand indefinitely.
+
+This execution priority is agreed maintainer direction, not acceptance of every
+draft OEP or permission to ignore licensing, credentials, data integrity or other
+explicit constraints. It preserves the full final scope while changing delivery
+order. The operational rule lives in [AGENTS.md](../AGENTS.md#implementation-priority-prove-the-end-to-end-solution-first),
+with application guidance in the [engineering guide](code-organization.md#prove-the-solution-before-hardening)
+and a proof section in the [proposal template](proposals/TEMPLATE.md).
+
+## Authorized mise development integration
+
+On 2026-10-02, @micahlmartin explicitly authorized using oyzuai/mise revision
+9290bcac695c8ff8a56760ccebd785d5062b459c with default features disabled and rustls
+plus vendored-lua enabled in the controlled Oyzu development proof. This resolves
+the development-import decision; it is not distribution approval or a completed
+shipping-dependency license audit. The upstream MIT notice is preserved in
+third-party/mise/LICENSE. The feature is opt-in while the user flow is connected.
+
+The maintainer then revised the implementation goal to prioritize implementation,
+usability and user acceptance, reserving hardening for future goals. Existing
+hardening work remains available but must not displace connecting and exercising
+the complete user flows. Deferred hardening is tracked separately from functional
+acceptance, without claiming a production security or distribution qualification.
+
+On 2026-10-02 the maintainer explicitly added Rust/rustup installation to the active OEP-0003 functional scope. Reuse mise backend behavior through the maintained library boundary; inspect and prove native-installer transport and storage integration rather than implementing a parallel Rust installer. This records scope and direction, not approval of an untested design or completed Rust installation.
+
+
+## Tool installation policy end state and current delivery sequence
+
+On 2026-10-02 the maintainer clarified the OEP-0003 end state: standalone public
+CLI use requires no platform account or corporate service and may install
+supported tools through their backends' normal public acquisition paths. When
+server policy is enforced, it is an allowlist of tools available for installation
+and use. The client must reject tools not permitted by that policy, including
+implicit installer dependencies; cached installation does not confer permission.
+Every installation-related download must use the approved server/proxy route,
+including metadata, bootstrap installers, components, child managers and invoked
+scripts. An unrouteable backend must be unavailable in enforced mode, without
+silent direct-download fallback.
+
+The corporate installation proxy is not a prerequisite for the current functional
+implementation. Continue proving real standalone installation through normal
+backend acquisition, including Rust/rustup. Record the eventual routing boundary
+for each backend, but do not build the corporate proxy before proving installation.
+Direct standalone installation is not policy-enforced acceptance and must never
+be used as fallback when enforced policy cannot be satisfied. Licensing, notice
+preservation and existing explicit constraints remain applicable.

@@ -1,0 +1,17 @@
+[
+  {
+    "name": "registry-bound descriptor",
+    "pointer": "/registry_digest",
+    "value": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  {
+    "name": "plugin-bound descriptor",
+    "pointer": "/plugin_digest",
+    "value": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  {
+    "name": "no optional features",
+    "pointer": "/features",
+    "value": []
+  }
+]

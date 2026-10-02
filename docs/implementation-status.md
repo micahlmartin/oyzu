@@ -1,4 +1,146 @@
-# Builder implementation status
+# Implementation status
+
+## Tool-management objective
+
+Full OEP-0003 implementation is authorized and in progress. Initial lock/store
+contracts and a candidate public-fork library boundary exist; production tool
+installation, execution and shell activation are not complete. The dedicated
+[tool-management status](tool-management-status.md) preserves the experiment,
+implementation checkpoints, exact qualification evidence and remaining gates.
+This separate journal lets builder and tool implementation evolve independently.
+
+The opt-in standalone Node path now connects Oyzu TOML, the pinned mise library,
+lock creation, installation, frozen/repeat reuse and `exec`/`which`. Two real Node
+versions sharing a mounted store pass Linux user acceptance, including restoration
+from cached archives with networking disabled. Explicit Node updates now pass
+Linux version-switch/switch-back acceptance and preserve the other project's
+selection and lock; scoped/profile/multi-platform updates remain open. The original install/exec scenario
+also passed Windows and macOS at `73bb33d`; offline/which restoration subsequently
+passed Windows at `1acb16f` and macOS at `01e81be`. Explicit updates also passed
+Windows at `1acb16f`; macOS updates, environment application and native shim
+activation passed at `e335d70` in run `37051685318`. See the
+[development reference](reference/tool-management-development.md) for its exact
+scope. This milestone does not complete the remaining OEP-0003 functionality.
+The `env` command now shares composition with `exec`, redacts inspection values
+and uses mise to render literal Bash/Zsh/PowerShell assignments. Linux Bash/Zsh
+application agrees with actual exec under disabled networking. Initial upstream
+hooks now connect Bash/Zsh activation, automatic directory switching, unavailable
+selection cleanup and deactivation. Full shell lifecycle qualification remains
+unfinished; PowerShell native shim acceptance passed at `e335d70` in CI run
+`37051685318`. Initial PowerShell activation
+passed on Windows at `83049fa`, following environment application at `3eefcc2`.
+Native Node shims now retain the frontend image, validate their adjacent manifest
+and resolve frozen selection for each invocation. Active sessions retain the shim
+on PATH when a project is unavailable, so a declared Node command cannot silently
+fall back to a system installation. Native shim qualification remains in progress.
+Standalone administrative Node routes now connect explicit host TOML bindings to
+the existing broker for both mise metadata and archive acquisition. Linux acceptance
+on 2026-10-02 installed and executed real Node through an authenticated forwarding
+proxy, rejected missing/denied bindings without public fallback, and reused the
+frozen installation offline without proxy credentials. Managed agent grants remain
+unimplemented; this does not establish managed-network containment.
+Explicit `shell install/remove` now manages one activation block at a required
+profile path. Linux Bash/Zsh loaded the generated profiles, executed a freshly
+installed locked Node through native shims and deactivated. Repeated installation,
+refusal to overwrite edited blocks and byte-exact restoration passed. Native
+macOS/PowerShell profile acceptance remains pending; wider shell lifecycle work
+remains open.
+The profile CI run at `efefc93` exposed a macOS default-store failure when `-C`
+included a symlinked ancestor. The feature-enabled CLI now resolves the project
+directory before deriving relative paths. Linux Bash/Zsh profile acceptance
+passed through an explicit directory symlink, including real installation,
+activation, locked Node execution and byte-exact removal. Native macOS replay
+of this correction remains pending.
+Development `exec` now also accepts explicit executable paths with the frozen
+Node environment while rejecting unknown bare commands. Linux acceptance with
+networking disabled ran a real interpreter, selected locked Node in its child,
+preserved literal arguments/cwd/environment and exit status, resolved a relative
+path against `-C`, and left the lock unchanged. Windows/macOS acceptance for this
+extension is pending; managed execution and process supervision remain open.
+The same opt-in flow now installs a single Go tool through the maintained fork's
+official catalog/checksum adapter. Linux Go 1.24.13 acquisition, frozen reuse,
+which/exec, GOROOT/local toolchain configuration, real program compilation and
+Bash native shim activation passed. Official Go tar files required bounded local
+PAX filename support in the existing extractor. Node explicit exec and Bash
+activation replay still pass. Native Windows/macOS Go qualification and native
+module constraints remain unfinished.
+The Go installation was also moved aside and restored from cached bytes with
+container networking disabled; actual compilation/execution and unchanged locks
+passed again.
+Mixed Node/Go projects now use one format-2 environment and one verified lease.
+A Node-only update preserved the exact Go record, and an unselected changed Go
+requirement failed without lock mutation. After correcting the all-installed
+staging-directory assumption, Linux frozen replay and Node-to-Go child execution
+passed with networking disabled, as did mixed Bash activation and the existing
+two-project Node regression flow. Multi-tool JSON inspection retains redaction
+and preserves the singular fields for single-tool projects. Full native CI for
+this extension remains pending.
+Pinned registry names now feed the shared request projector for install and
+frozen commands. Canonical Node/Go keys and short names share lock identity;
+administrative eligibility and selected updates use the same alias map. Real
+Linux Node replay with networking disabled and an online canonical-name update
+passed, including duplicate rejection, policy denial and unchanged lock bytes.
+The Windows Go CI failure was traced to a 799:1 compiler fixture in the official
+ZIP; the product now uses the previously qualified Go 800:1 expansion allowance.
+Native verification of that correction remains pending.
+
+## OEP-0003 review checkpoint (2026-10-02)
+
+Implementation through `e0406c5` is available in [draft PR #4](https://github.com/micahlmartin/oyzu/pull/4).
+The maintained library fork is [oyzuai/mise PR #2](https://github.com/oyzuai/mise/pull/2),
+pinned at `9290bcac695c8ff8a56760ccebd785d5062b459c`. This is a functional
+checkpoint, not completion of OEP-0003 or distribution approval.
+
+| Area | Working implementation and evidence | Remaining functional acceptance |
+| --- | --- | --- |
+| Configuration and resolution | Oyzu TOML, format-2 locks, Node/Go mixed roots, explicit selective updates and canonical registry names; real Linux execution and unchanged-lock checks | Native manifest constraints, scoped/profile/multi-platform lock creation and updates, explicit migration |
+| Installation and transport | Real Node/Go archives, shared store, frozen reuse and cached restore; authenticated Node proxy flow | Rust/rustup, Java, PBS Python, jq, npm tool closures; corporate Go and additional backend proxy acceptance |
+| Commands and shells | Exec, which, environment rendering, native shims, Bash/Zsh/PowerShell activation and explicit profile editing | Remaining shell lifecycle, command coverage, interactive process/signal behavior and pruning |
+| Managed operation and builds | Contracts and component foundations only; standalone managed mode is rejected | Real managed selection/grants, public conformance and service interoperability, builder requirements/materialization/identity handoff |
+| Release and upstream maintenance | Public fork pin, retained MIT notice and documented maintenance procedure | Shipped dependency notices/SBOM and distribution review, actual upgrade/rollback rehearsal and complete native functional matrix |
+
+Authoritative native evidence from [run 37056475928](https://github.com/micahlmartin/oyzu/actions/runs/37056475928)
+at `1c2bd16`: Linux completed the entire then-current workflow, including Go
+compilation, cached restore and shell execution. Windows PowerShell profile
+installation/removal and explicit-path exec passed; macOS explicit-path exec
+passed. Windows Go installation failed on the expansion allowance and macOS
+profile installation failed on a symlinked project path. Fixes are committed in
+`e0406c5` and `785499e` respectively. Those corrected native flows, mixed-tool
+acceptance and canonical-name acceptance are not yet verified by completed CI.
+Subsequent [run 37060499018](https://github.com/micahlmartin/oyzu/actions/runs/37060499018)
+at `e0406c5` completed successfully on Windows, macOS and Linux. This verifies
+those corrections and the then-current Node/Go workflow, including mixed-tool and
+canonical-name acceptance. It predates Rust installation support.
+
+Local Linux mixed-tool and alias flows passed as detailed above. Default Windows
+locked tests, strict Clippy, formatting and nine real task scenarios passed;
+feature-enabled Linux build/Clippy/formatting passed. The
+[development reference](reference/tool-management-development.md) owns commands,
+prerequisites, recovery and limitations. The [checkpoint journal](tool-management-status.md)
+retains detailed evidence. Hardening, including additional fault-injection,
+worker isolation and robustness work, is reserved for future goals and is not
+represented as completed or used to block remaining functional implementation.
+
+Rust now uses the normal `oyzu install rust` flow with `[tools] rust = "1.95.0"`,
+Oyzu's format-2 lock and store, and the maintained fork's existing rustup backend.
+The Rust-enabled fork pin is `1da2a9fa009ada755cbcc96e5d944fe1cd61072c`.
+On Linux amd64, real installation, store-owned Cargo/rustc/rustdoc version checks,
+and dependency-free Cargo compilation/program execution passed with ambient Rust
+removed from PATH. The payload retains bundled Cargo licenses and Rust copyright
+files. Frozen reuse preserved the exact lock bytes, and the installed compiler
+built the actual Oyzu checkout's default frontend. With container networking
+disabled, Oyzu restored the removed installation from its cached snapshot and
+the restored Cargo compiled the sample project again. Native Windows/macOS Rust
+qualification remains pending in run `37067597727`.
+See the [current reference](reference/tool-management-development.md#rust-installation-through-mise)
+and [reuse investigation](proposals/OEP-0003-mise-integration/implementation.md#rust-backend-reuse-and-first-proof).
+The maintainer clarified that direct normal-backend acquisition is authorized for
+current standalone installation work. Corporate proxy implementation is not a
+prerequisite. The final enforced mode requires a server allowlist for installation
+and use plus complete approved routing of installer/dependency downloads; direct
+standalone success will not be reported as enforced-mode qualification.
+
+## Builder objective
 
 The active objective is the complete builder system, all applicable sample scenarios passing through real Oyzu behavior, snapshot artifacts, and CI that builds the CLI before running scenario verification. Tool installation is excluded. The checkpoints below do not redefine completion around a subset.
 
@@ -877,6 +1019,31 @@ The [Rust reference](reference/rust.md) documents commands, limits, failure beha
 
 Final local checks passed the complete Rust suite (80 library tests, two intentional ignores, plus integration suites), Clippy with warnings denied, rustfmt, CLI compilation and compiled-CLI task scenarios. Documentation, all 58 example structures, the new variant's native rustfmt, changed Python syntax and workflow YAML checks passed. The CLI job now explicitly pins `RUSTUP_TOOLCHAIN=1.94.0` so native probes run with that toolchain even after changing into temporary projects outside the repository.
 
+## Tool integration verification: declare the fixture's native Helm child dependency
+
+Captured-source run `36975364359` failed strict Helm lint because EX-028's
+subchart-only fixture contained `charts/child` without declaring it in the
+parent chart metadata. Child unittest assertions had passed; they did not prove
+that the complete chart was valid. Native Windows Helm 3.22.0 reproduced the
+same missing-dependency error before any change.
+
+The fixture now declares child 1.0.0 with an empty repository, selecting its
+already-contained unpacked chart. No Oyzu configuration, lint exemption or
+production adapter behavior changed. The example and Helm reference explain
+that suite discovery does not repair missing native dependency declarations.
+
+Windows native strict lint now passes. The compiled Windows CLI driving the
+explicitly provisioned Linux Helm 3.22.0/unittest 1.2.0 Docker toolchain passed
+the captured build with network-none, read-only root and dropped capabilities.
+Schema/digest checks validated both delivered artifacts and both retained test
+reports; the chart archive contains the child template and project sources were
+unchanged. Changing the child assertion to 99 then failed the build, retained
+failed test evidence and collected no artifacts, again without source mutation
+by the build. Documentation and all 58 example structure checks passed.
+
+This resolves the reproduced fixture failure locally. The complete captured
+suite and native CI at the corrected revision still need confirmation; this is
+not a claim that every authored scenario or OEP-0003 gate passes.
 ## Checkpoint 51: native Maven test plans and Surefire/Failsafe evidence
 
 Maven preparation now asks the native lifecycle planner for the effective `verify` executions after acquisition. The core extension uses Maven's parameter evaluator to capture bound Surefire/Failsafe report directories, including custom and inherited expressions. Prepared layout version 2 requires this directory plan. The toolchain image must be rebuilt so the extension matches the new contract; older metadata fails explicitly.

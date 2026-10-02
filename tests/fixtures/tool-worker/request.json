@@ -1,0 +1,12 @@
+{
+  "protocol": "oyzu.tool-worker/1",
+  "request_id": "12345678-1234-1234-1234-123456789abc",
+  "context_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "backend_release_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "target_platform": "linux/amd64/gnu",
+  "capabilities": [
+    "metadata"
+  ],
+  "operation": "resolve",
+  "payload": {}
+}

@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oyzu.dev/contracts/tools-v1/selection-grant.schema.json",
+  "title": "Draft tool-selection grant signed payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol",
+    "request_id",
+    "context_id",
+    "decision_id",
+    "decision",
+    "reason_codes",
+    "policy_revision",
+    "selection_digest",
+    "operations",
+    "not_before",
+    "not_after",
+    "offline_allowed",
+    "revocation_epoch",
+    "issuer",
+    "audience",
+    "tenant",
+    "subject"
+  ],
+  "properties": {
+    "protocol": {
+      "const": "oyzu.tool-selection/1"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
+    },
+    "context_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "decision_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "decision": {
+      "const": "allow"
+    },
+    "reason_codes": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 256
+      }
+    },
+    "policy_revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "selection_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "resolve",
+          "install",
+          "activate",
+          "exec",
+          "build"
+        ]
+      }
+    },
+    "not_before": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "not_after": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "offline_allowed": {
+      "type": "boolean"
+    },
+    "revocation_epoch": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "audience": {
+      "const": "oyzu.tool-selection"
+    },
+    "tenant": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "offline_allowed": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "operations": {
+            "items": {
+              "enum": [
+                "activate",
+                "exec",
+                "build"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operations": {
+            "contains": {
+              "const": "resolve"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "operations": {
+            "maxItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$comment": "Unsigned payload shape only, not signature verification or authorization. Runtime must require compact EdDSA JWS with protected pinned kid, duplicate-free JSON, exact authenticated context/subject/request/revision/digest/operation/epoch bindings, increasing validity, online lifetime <=60 seconds or explicit offline <=900 seconds, monotonic expiry, clock/revocation invalidation and memory-only storage. Integer validity fields are proposed Unix UTC seconds. No production verifier or issuer is enabled by this schema."
+}

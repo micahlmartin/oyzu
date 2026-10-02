@@ -1,0 +1,126 @@
+name: Tool management user acceptance
+
+on:
+  push:
+    branches: [main, codex/mise-qualification]
+    paths:
+      - 'src/tools/**'
+      - 'src/config/enforcement.rs'
+      - 'src/main.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tooling/test-tool-management.py'
+      - 'tooling/test-tool-updates.py'
+      - 'tooling/test-tool-environment.py'
+      - 'tooling/test-tool-activation.py'
+      - 'tooling/test-tool-proxy.py'
+      - 'tooling/test-tool-exec.py'
+      - 'tooling/test-tool-go.py'
+      - 'tooling/test-tool-mixed.py'
+      - 'tooling/test-tool-aliases.py'
+      - 'tooling/test-tool-rust.py'
+      - 'tooling/test-shell-profile.py'
+      - '.github/workflows/tool-management.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-user-flow:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            executable: target/debug/oyzu
+          - os: windows-latest
+            executable: target/debug/oyzu.exe
+          - os: macos-latest
+            executable: target/debug/oyzu
+    env:
+      RUSTUP_TOOLCHAIN: '1.95.0'
+      CARGO_BUILD_JOBS: '3'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_INCREMENTAL: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install compiler and checks
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: tool-user-flow-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: tool-user-flow-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}-
+      - name: Build library-linked Oyzu
+        run: cargo build --locked --features mise-integration --bin oyzu
+      - name: Rust installation and real Cargo compilation
+        run: python tooling/test-tool-rust.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-rust-acceptance"
+      - name: Restore Rust from cached installation snapshot
+        run: python tooling/test-tool-rust.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-rust-acceptance" --offline-check --restore-cached
+      - name: Real Node install and execution
+        timeout-minutes: 15
+        run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
+      - name: Explicit executable development commands
+        run: python tooling/test-tool-exec.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
+      - name: Canonical tool names and updates
+        run: python tooling/test-tool-aliases.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --update
+      - name: Explicit Node version updates
+        timeout-minutes: 15
+        run: python tooling/test-tool-updates.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
+      - name: Real authenticated Node proxy acquisition
+        if: runner.os == 'Linux'
+        run: sudo python3 tooling/test-tool-proxy.py --cli "${{ github.workspace }}/${{ matrix.executable }}" --disposable-linux-host
+      - name: Restore Node from cached archives in offline mode
+        timeout-minutes: 15
+        run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --offline-check --restore-cached
+      - name: Apply environment in Bash
+        if: runner.os != 'Windows'
+        run: python tooling/test-tool-environment.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell bash
+      - name: Apply environment in Zsh
+        if: runner.os == 'macOS'
+        run: python tooling/test-tool-environment.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell zsh
+      - name: Apply environment in PowerShell
+        if: runner.os == 'Windows'
+        run: python tooling/test-tool-environment.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell pwsh
+      - name: Activate Bash and switch projects
+        if: runner.os != 'Windows'
+        run: python tooling/test-tool-activation.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell bash
+      - name: Activate Zsh and switch projects
+        if: runner.os == 'macOS'
+        run: python tooling/test-tool-activation.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell zsh
+      - name: Activate PowerShell and switch projects
+        if: runner.os == 'Windows'
+        run: python tooling/test-tool-activation.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --shell pwsh
+      - name: Install and remove Bash profiles
+        if: runner.os != 'Windows'
+        run: python tooling/test-shell-profile.py --cli ${{ matrix.executable }} --shell bash
+      - name: Install and remove Zsh profiles
+        if: runner.os == 'macOS'
+        run: python tooling/test-shell-profile.py --cli ${{ matrix.executable }} --shell zsh
+      - name: Install and remove PowerShell profiles
+        if: runner.os == 'Windows'
+        run: python tooling/test-shell-profile.py --cli ${{ matrix.executable }} --shell pwsh
+      - name: Real Go installation and compiler execution
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance"
+      - name: Restore Go from cached archive
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance" --offline-check --restore-cached
+      - name: Go shell shim on Unix
+        if: runner.os != 'Windows'
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance" --offline-check --shell bash
+      - name: Go shell shim on Windows
+        if: runner.os == 'Windows'
+        run: python tooling/test-tool-go.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-go-acceptance" --offline-check --shell pwsh
+      - name: Mixed Node and Go selective update
+        run: python tooling/test-tool-mixed.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-mixed-acceptance" --store "${{ runner.temp }}/oyzu-go-acceptance/store"
+      - name: Mixed frozen offline reuse
+        run: python tooling/test-tool-mixed.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-mixed-acceptance" --store "${{ runner.temp }}/oyzu-go-acceptance/store" --offline-check --shell ${{ runner.os == 'Windows' && 'pwsh' || 'bash' }}
+      - name: Check feature-enabled code after acceptance
+        run: cargo clippy --locked --features mise-integration --all-targets -- -D warnings
+      - name: Formatting
+        run: cargo fmt --all -- --check

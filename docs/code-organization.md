@@ -2,6 +2,34 @@
 
 This is repository-wide engineering guidance for contributors and coding agents. The concise rules live in [AGENTS.md](../AGENTS.md); the [contribution workflow](../CONTRIBUTING.md) explains how to apply them. Product direction and proposed future components live in [architecture](architecture.md). This map is not a claim that every intended subsystem or invariant is implemented.
 
+## Prove the solution before hardening
+
+Follow the end-to-end-first priority in [AGENTS.md](../AGENTS.md). Start a feature
+or proposal experiment with a runnable user scenario, its real integration path
+and an observable pass/fail result. Connect the existing owners along that path
+before refining each owner independently. Architecture work should enable the
+scenario rather than create a growing collection of unused interfaces.
+
+For example, a tool-management proof must read the user's configuration, resolve
+through the intended backend, write and consume the lock, acquire through the
+intended transport and execute the selected real tool. A resolver fixture, archive
+test or worker-channel round trip alone does not prove that flow. Use a controlled
+environment and label its supported scope; retain all remaining platforms,
+backends and acceptance criteria for subsequent delivery.
+
+Before starting another hardening change, state which observed failure prevents
+that scenario from working. If none does, defer the change to a named hardening
+stage with its risk and verification criterion. Once the flow works, address
+mandatory release requirements and expand failure/platform coverage, then pursue
+optional robustness improvements according to maintainer priorities. Necessary
+licensing and safe execution constraints still apply to the proof. Surface a real
+blocker and the decision needed to resolve it; do not substitute unrelated
+hardening for progress while leaving the blocker unexplained.
+
+Implementation updates should state whether the real flow ran, what happened,
+and which integration remains missing. Do not infer completion from the number
+of components implemented, checks passed or checkpoints recorded.
+
 For a first change, [find its owner](#find-the-owner-first), use the [placement guide](#placing-a-new-extension), then follow the [small change workflow](#a-small-change-workflow). Consult [interface choices](#choosing-the-interface) or [reuse decisions](#reuse-without-coupling-unrelated-behavior) when the change crosses a boundary. The [upstream references](#lessons-from-other-projects) explain the precedents behind these choices; they are not additional contribution requirements.
 
 ## Find the owner first
@@ -12,6 +40,17 @@ Dependency direction is a reviewable constraint: entry points compose library op
 
 | Responsibility | Current entry points | Boundary to preserve as the code grows |
 | --- | --- | --- |
+| Upstream candidate evidence | `tooling/mise-upstream/verify_notices.py`, `tooling/mise-upstream/verify_source_notices.py` | Reconcile retained report/archive bytes and supplemental source notices against trusted evidence indexes without extraction or network access; legal interpretation and shipping approval remain human review responsibilities |
+| Go/Java metadata qualification fixtures | `tooling/mise-upstream/capture_go_metadata.py`, `tooling/mise-upstream/capture_java_metadata.py` | Independently capture bounded public catalog/sidecar bytes and expected target facts for fork library replay; this is fixture provisioning, never a product broker, resolver or installation path |
+| Native artifact qualification | `tests/tool_native_archive.rs`, `tooling/zip_fixture.py` | Share real Node/Go/Temurin ZIP and jq raw-artifact store assertions and an independent Python inventory oracle; wrapper scripts pin artifact identities, tests use synthetic admission and never confer production backend approval |
+| Core development integration | `src/tools/development.rs`, `src/tools/development_backend.rs` | Connects configuration and the pinned mise library in a fresh same-image child; a closed adapter enum supplies canonical IDs, archive expansion allowances and environment rules; configuration projects pinned upstream aliases once for installation and frozen lookup, while shared configuration enforcement owns alias-aware eligibility; exec, which, env and shell hooks share a frozen multi-tool environment lease, with mise rendering shell diffs |
+| Development installation | `src/tools/development/installation.rs` | Resolves selected Node/Go/Rust roots, retains unaffected locked records, prepares missing payloads and commits the complete lock after publication through existing store/lock contracts; scope/platform expansion remains separate |
+| Native backend publication | `src/tools/development/native.rs` | Invokes the embedded native Rust installer and packages its completed private sysroot for existing lock/store publication and offline restoration; upstream owns rustup command behavior |
+| Development shell sessions | `src/tools/shell.rs` | Owns session state and reversible environment transitions; consumes shared frozen lookup, composition and mise rendering; does not resolve versions, install tools or edit shell profiles |
+| Explicit shell profile editing | `src/tools/profile.rs` | Adds/replaces/removes one owned activation block at a user-specified path while preserving surrounding content; delegates runtime activation to the frontend and never evaluates a profile during editing |
+| Development core acquisition | `src/tools/acquisition.rs` | Maps admitted Node/Go resource keys through administrative route IDs and explicit host bindings into the existing broker; owns credential lookup in the host, never in the mise child; managed agent bindings remain separate |
+| Native tool shims | `src/tools/shims.rs` | Retains versioned frontend images and command manifests; validates shim invocation before CLI parsing and delegates current-project frozen execution; never caches a project/version selection or falls back to PATH |
+| Tool identity and store | `src/tools/`, `src/tools/lock/`, `src/tools/store/` | Own bounded identities (worker/channel.rs owns native non-inheritable endpoint allocation without spawning or deadlines; worker/io.rs owns dedicated native I/O threads, absolute-deadline collection, interruption and confirmed joining without process-tree termination or protocol deadline scheduling; worker/windows_job.rs owns single-worker job assignment and confirmed job-wide termination; worker/windows_lifecycle.rs jointly owns process and control cleanup, attempts both phases on failure and denies protocol reuse after cleanup begins; worker/windows_process.rs owns bounded native startup encoding, explicit inheritance and suspended-create/assign/resume sequencing (its image.rs child owns read-only same-image hash/path pinning and handle lifetime), while release admission, capability/argument admission and protocol bootstrap remain external; worker/framing.rs owns bounded duplex control framing, pre-write bounded JSON encoding and shared sender/receiver accounting (input and output reuse config/policy.rs tree limits), and worker/exchange.rs owns shared closed-envelope validation, borrowed original-request context, domain-separated exact-body commitments and supervisor correlation, while worker/session.rs owns independently expected request binding, worker-side cancellation and single-terminal response sequencing without backend interruption, transport authentication or operation-payload admission; grant.rs owns pinned-signature/context verification and in-memory bounded validity without authenticating caller inputs or enabling launch; backend.rs owns closed descriptor parsing and canonical identity inspection; edit.rs owns lossless lock proposals, semantic diffs and cooperative atomic publication; requests.rs owns shared tool-request normalization and immutable identity for configuration projection and bounded closed JSON record parsing; selection.rs chooses the nearest physical frozen scope and rejects stale requests without resolving versions), streamed content-addressed blobs, finite layout finalization, candidate receipts, receipt/content matching and immutable selection identity and borrowed command lookup from the same verified lease snapshot, atomic publication and cooperative OS leases; store/lease owns durable process-lease observations and ordinary cleanup, its recovery module owns conservative journal reaping, archive/paths owns shared name/prefix/collision budgets and anchored destination traversal, archive.rs also owns unchanged raw artifact copying to the sole admitted file destination; archive/zip owns bounded ZIP metadata admission and decoder use, and native filesystem access stays under store/access; content checks and leases do not confer backend admission, policy or execution authority |
 | CLI input and output | `src/main.rs`, `src/config_args.rs`, `src/presentation.rs` | Parse arguments, call operations, render results; keep business rules in the library |
 | Invocation composition | `src/invocation.rs` | Capture configuration before shared non-executing target selection; compose subsystem operations without moving their rules into CLI parsing |
 | Configuration | `src/config.rs`, `src/config/` | Own bounded source capture, typed settings, profiles, constraints, immutable resolution and edits; keep protected policy verification and effectful refresh separate from pure resolution |

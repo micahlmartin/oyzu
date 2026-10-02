@@ -1,0 +1,59 @@
+name: Python constraint candidate
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/mise-qualification]
+    paths:
+      - '.github/workflows/python-constraint-candidate.yml'
+      - 'tooling/mise-upstream/pep440_probe.rs'
+      - 'docs/proposals/OEP-0003-mise-integration/python-constraint-candidate.json'
+  pull_request:
+    paths:
+      - '.github/workflows/python-constraint-candidate.yml'
+      - 'tooling/mise-upstream/pep440_probe.rs'
+      - 'docs/proposals/OEP-0003-mise-integration/python-constraint-candidate.json'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pinned compiler
+        run: rustup toolchain install 1.95.0 --profile minimal --component clippy --component rustfmt
+      - name: Reconstruct isolated retained experiment
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          record = json.loads(Path('docs/proposals/OEP-0003-mise-integration/python-constraint-candidate.json').read_text())
+          experiment = record['experiment']
+          source = Path(experiment['probe']).read_bytes()
+          if hashlib.sha256(source).hexdigest() != experiment['probe_sha256']:
+              raise RuntimeError('retained probe identity mismatch')
+          root = Path(os.environ['RUNNER_TEMP']) / 'python-constraint-probe'
+          root.mkdir(exist_ok=False)
+          (root / 'src').mkdir()
+          (root / 'Cargo.toml').write_text(experiment['manifest'], encoding='utf-8')
+          (root / 'Cargo.lock').write_text(experiment['lockfile'], encoding='utf-8')
+          (root / 'src/main.rs').write_bytes(source)
+      - name: Run pinned semantic probe
+        working-directory: ${{ runner.temp }}/python-constraint-probe
+        run: cargo +1.95.0 run --locked
+      - name: Check isolated probe
+        working-directory: ${{ runner.temp }}/python-constraint-probe
+        run: cargo +1.95.0 clippy --locked --offline -- -D warnings
+      - name: Check formatting
+        working-directory: ${{ runner.temp }}/python-constraint-probe
+        run: cargo +1.95.0 fmt --all -- --check

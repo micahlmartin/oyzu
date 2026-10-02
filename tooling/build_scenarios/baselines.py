@@ -240,4 +240,3 @@ def test_acquired_dependency_and_offline_boundary():
     assert stale['status']=='failed' and stale['planDigest'] is None
     assert 'stale' in stale['diagnostics'][0]['message'].lower()
     verified.append('Poetry: native lock freshness/export, captured poetry-core backend, snapshot wheel/sdist and unittest results through pytest')
-

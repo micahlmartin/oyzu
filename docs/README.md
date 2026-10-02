@@ -18,6 +18,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Understand the product and component boundaries | [Vision index](vision/README.md), [architecture](architecture.md) |
 | Present Oyzu consistently | [Brand guide and assets](brand/README.md) |
 | Design tools, environment, shell switching, and tasks | OEP-0002 through OEP-0005 and OEP-0008 in the [proposal index](proposals/README.md) |
+| Implement mise-backed tool management | [OEP-0003](proposals/OEP-0003-mise-integration/README.md): runtime, lock/store, acquisition/authorization and ordered acceptance work packages |
 | Design discovery, execution, caching, and artifacts | OEP-0006, OEP-0007, OEP-0011 through OEP-0014 |
 | Design managed clients, credentials, and distribution | OEP-0009, OEP-0010, OEP-0015, OEP-0016 |
 | Turn designs into bounded implementation work | [Delivery plan](delivery.md), [examples](examples.md), [proposal process](proposals/OEP-0001-proposal-process/README.md) |

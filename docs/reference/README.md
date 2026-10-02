@@ -4,6 +4,10 @@ This is the entry point for current functionality documentation. Maintain featur
 
 | Reference | Coverage |
 | --- | --- |
+| [Tool identity inspection](tool-lock-inspection.md) | Format-2 selection/installation identities and no-follow payload tree observation; no installation or execution authority |
+| [Tool-management development integration](tool-management-development.md) | Opt-in mise-backed Node/Go/Rust installation, Oyzu locks/store, execution, shell integration and verification limits |
+| [Mise maintenance](mise-maintenance.md) | Read-only upstream observation, exact Cargo pin checks, candidate embedding/Node archive facts and scheduled-workflow activation limits |
+
 | [Runtime and platform matrices](runtime-matrices.md) | Node runtime variants, platform propagation through artifacts, selection, executor admission and separate evidence |
 | [OCI image indices](oci-indices.md) | Complete platform-family aggregation, deterministic archives, failure gates, bundle membership and evidence limits |
 | [Toolchain platforms](toolchain-platforms.md) | Verified provisioned image selection, explicit overrides, ARM execution prerequisites and remaining evidence limits |
@@ -52,3 +56,5 @@ Provision the common Node quality image before the npm, pnpm or Yarn image: `doc
 Build output is `dist/manifest.json`, `plan.json`, `envelope.json`, native logs and target artifacts/reports. Snapshot names include the captured source identity. Native npm test scripts equal to `node --test` receive JUnit and LCOV reporters; Go test events and coverage profiles are normalized. Available lint/format-check tasks run in the captured worktree. Mutating formatter tasks do not run as build checks. Previous bundles are preserved under `.oyzu/history`. `inspect` validates content integrity only; it does not certify production trust.
 
 Configuration commands, profile selection, administrative constraints, editing and their current limits are described in the [experimental configuration reference](configuration.md).
+
+The opt-in [core tool-management development integration](tool-management-development.md) documents the Node/Go install/exec paths and their functional acceptance status.

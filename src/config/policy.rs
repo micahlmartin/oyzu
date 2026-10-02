@@ -86,6 +86,12 @@ pub(crate) fn strict_json_limit(bytes: &[u8], limit: usize) -> Result<Value> {
     let value = serde_json::from_slice::<Unique>(bytes)
         .map_err(|_| anyhow::anyhow!("POLICY_INVALID: malformed JSON or duplicate key"))?
         .0;
+    validate_json_shape(&value)?;
+    Ok(value)
+}
+
+/// Shared finite JSON tree budget for decoded input and values before encoding.
+pub(crate) fn validate_json_shape(value: &Value) -> Result<()> {
     fn limits(value: &Value, depth: usize, count: &mut usize) -> Result<()> {
         *count += 1;
         if depth > 32 || *count > 10000 {
@@ -106,9 +112,9 @@ pub(crate) fn strict_json_limit(bytes: &[u8], limit: usize) -> Result<Value> {
         }
         Ok(())
     }
-    limits(&value, 0, &mut 0)?;
-    Ok(value)
+    limits(value, 0, &mut 0)
 }
+
 impl Policy {
     pub fn parse(bytes: &[u8]) -> Result<Self> {
         let value = strict_json(bytes)?;

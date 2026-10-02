@@ -36,6 +36,13 @@ Older component checklists do not override this delivery order. Review each prop
 
 ## Find a bounded starting point
 
+For feature implementation, follow the [end-to-end-first rule](AGENTS.md#implementation-priority-prove-the-whole-flow-first).
+The first milestone is a working user flow through the real integrations.
+Proposals should prove that solution; component hardening follows in explicit
+stages. A bounded contribution should connect or unblock that flow, or address
+an agreed later hardening requirement. Do not confuse a small component change
+with a demonstrated feature.
+
 Use this table to narrow your first change, then consult the [code map](docs/code-organization.md) for the authoritative ownership details. You do not need to understand every subsystem before contributing.
 
 | Contribution | Start here | Useful evidence |

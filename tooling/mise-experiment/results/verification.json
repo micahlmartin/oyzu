@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-01",
+  "checks": [
+    {
+      "command": "cargo check --locked --example oyzu-api-probe --no-default-features --features rustls,vfox/vendored-lua",
+      "scope": "unmodified pinned mise library API probe",
+      "outcome": "expected failure: E0624 private Config::load_from_config_files",
+      "retained_log_name": "oyzu-api-probe.log",
+      "log_sha256": "1af741c320ce52cef06ff3b22e91fb1e3b173a8f2f683182afc69864274b5d9e"
+    },
+    {
+      "command": "cargo build --locked --example oyzu-mise-spike --no-default-features --features rustls,vfox/vendored-lua",
+      "scope": "patched Linux example, Rust 1.95",
+      "outcome": "passed",
+      "retained_log_name": "oyzu-mise-path-check.log",
+      "log_sha256": "0c43a662eff63e91583f00791cfa8a0d7d1ce177c1489ab3b8619c791d7597c7"
+    },
+    {
+      "command": "cargo clippy --locked --example oyzu-mise-spike --no-default-features --features rustls,vfox/vendored-lua -- -D warnings",
+      "scope": "patched mise workspace",
+      "outcome": "failed: upstream collapsible_match in src/system/templating.rs:128",
+      "retained_log_name": "oyzu-mise-clippy.log",
+      "log_sha256": "e39993468613c382a765c5c2d5c9fd8432b2771d5715b66c315c0fb283d56948"
+    },
+    {
+      "command": "cargo clippy --locked --example oyzu-mise-spike --no-default-features --features rustls,vfox/vendored-lua -- -D warnings -A clippy::collapsible_match",
+      "scope": "patched Linux example, Rust 1.95; upstream lint exception",
+      "outcome": "passed",
+      "retained_log_name": "oyzu-mise-path-check.log",
+      "log_sha256": "0c43a662eff63e91583f00791cfa8a0d7d1ce177c1489ab3b8619c791d7597c7"
+    },
+    {
+      "command": "rustfmt --edition 2024 --config skip_children=true --check examples/oyzu-mise-spike.rs src/config/mod.rs src/shims.rs crates/mise-util/src/http.rs",
+      "scope": "frontend and patched files",
+      "outcome": "passed",
+      "retained_log_name": "oyzu-mise-path-check.log",
+      "log_sha256": "0c43a662eff63e91583f00791cfa8a0d7d1ce177c1489ab3b8619c791d7597c7"
+    },
+    {
+      "command": "cargo test --locked; cargo clippy --locked --all-targets -- -D warnings; cargo fmt --all -- --check",
+      "scope": "production Oyzu crate on Linux, Rust 1.94",
+      "outcome": "passed; 71 Rust tests",
+      "retained_log_name": "oyzu-mise-product-validation.log",
+      "log_sha256": "b738e89d5e3a3bd295beaf76d673408deaeec8766fbe08cb5ce9691e5f44bb9f"
+    },
+    {
+      "command": "python3 tooling/test-task-scenarios.py --cli /product-target/debug/oyzu",
+      "scope": "production CLI development tasks, real provisioned Node 22.14.0",
+      "outcome": "passed; 8 assertions, not full build acceptance",
+      "retained_log_name": "oyzu-mise-task-validation.log",
+      "log_sha256": "462a3c684d9791465b7e44bc45fb7006c3f5fbfa3f6f906b6377a328edcef68a"
+    },
+    {
+      "command": "cargo +1.95.0-x86_64-pc-windows-gnu build --locked --example oyzu-mise-spike --no-default-features --features rustls,vfox/vendored-lua",
+      "scope": "native Windows x64, GCC 16.2.0 MSVCRT; environment documented in README",
+      "outcome": "passed",
+      "retained_log_name": "oyzu-mise-path-windows-build.log",
+      "log_sha256": "550bbc6034ff4179b3af35168c3adc1a7859edb5ca5e47aa5535cbfda2b406b3"
+    },
+    {
+      "command": "rustfmt +1.95.0-x86_64-pc-windows-gnu --edition 2024 --config skip_children=true --check tooling/mise-experiment/spike.rs <upstream>/src/config/mod.rs <upstream>/src/shims.rs <upstream>/crates/mise-util/src/http.rs <upstream>/crates/mise-util/src/path_env.rs",
+      "scope": "frontend and all four patched source files",
+      "outcome": "passed"
+    },
+    {
+      "command": "git apply --check embedding.patch; git apply embedding.patch; compare resulting files with compiled source",
+      "scope": "fresh pinned file contents, core.autocrlf=false; LF-normalized comparison",
+      "outcome": "passed; all four patched files reproduce compiled source"
+    },
+    {
+      "command": "node tooling/check-docs.mjs",
+      "scope": "documentation structure only",
+      "outcome": "passed; 129 Markdown files, 26 design IDs, 143 acceptance criteria"
+    },
+    {
+      "command": "python -m py_compile tooling/mise-experiment/prepare.py tooling/mise-experiment/run.py tooling/mise-experiment/trace.py",
+      "scope": "Python harness syntax",
+      "outcome": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "scope": "tracked worktree changes",
+      "outcome": "passed"
+    },
+    {
+      "command": "runtime evidence audit",
+      "scope": "31 Linux and 28 Windows outcomes; current harness hashes; binary hash agreement with Linux trace and native Windows executable",
+      "outcome": "passed"
+    }
+  ],
+  "limitations": [
+    "No macOS host was available.",
+    "Measurements use unoptimized builds and uncontrolled host load.",
+    "No production proxy, arbitrary plugin, source-built tool or multi-workspace daemon qualification."
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "protocol": "oyzu.tool-selection/1",
+  "request_id": "12345678-1234-1234-1234-123456789abc",
+  "context_id": "synthetic-context",
+  "decision_id": "synthetic-decision",
+  "decision": "allow",
+  "reason_codes": [],
+  "policy_revision": "synthetic-revision",
+  "selection_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "operations": [
+    "exec"
+  ],
+  "not_before": 1700000000,
+  "not_after": 1700000060,
+  "offline_allowed": true,
+  "revocation_epoch": 1,
+  "issuer": "synthetic-issuer",
+  "audience": "oyzu.tool-selection",
+  "tenant": "synthetic-tenant",
+  "subject": "synthetic-subject"
+}
