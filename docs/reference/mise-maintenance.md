@@ -744,7 +744,9 @@ authenticate its publisher, validate attestations or establish actual artifact
 integrity. Those acquisition and verification obligations remain with Oyzu. At fork revision
 `36e1b5a54d81badd5eea17391c60568755e4b9c9`, Linux formatting, strict
 library/example Clippy and all 28 embedding harness scenarios pass, including
-valid, duplicate and missing checksum cases. Native results remain pending.
+valid, duplicate and missing checksum cases. Native
+[run 37025615534](https://github.com/oyzuai/mise/actions/runs/37025615534)
+also passed on Windows, macOS and Linux at this revision.
 This API is not exposed by the production CLI.
 
 Add `--with-checksums` to the Python capture command to retain release checksum

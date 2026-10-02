@@ -2144,3 +2144,16 @@ and the retained locked experiment graph. This resolves the macOS probe gap.
 No product dependency was added, license alternative selected or distribution
 approved. Full constraint conformance, dependency obligations and resolver wiring
 remain unfinished. Documentation and diff checks pass; OEP-0003 stays active.
+
+## Checkpoint 148: native Python checksum API scenarios pass
+
+Fork run 37025615534 completed successfully on Windows, macOS and Linux at
+36e1b5a54d81badd5eea17391c60568755e4b9c9. This supersedes the pending
+native checksum API result in checkpoint 144. The public reference now links the
+completed run. All three hosts passed the ordinary harness, including valid,
+duplicate and missing Python checksums, along with their other workflow checks.
+
+The later public real-metadata replay at bb56ea990 is a separate run and remains
+pending. These checks establish metadata behavior, not installation, publisher
+verification, native worker supervision or distribution approval. Documentation
+and diff checks pass; OEP-0003 remains active.
