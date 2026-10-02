@@ -1,14 +1,12 @@
-import re
-
-def clarify(slides):
+def clarify(slides, ico):
     s=slides[0]
-    s['body']=re.sub(r'<g class="radar-logos">.*?</g>','',s['body'],flags=re.S)
-    s['body']=re.sub(r'<g class="radar-verified">.*?</g>','',s['body'],flags=re.S)
-    s['body']=re.sub(r'<path class="radar-sector"[^>]+/>','',s['body'])
-    s['body']=s['body'].replace('<path d="M25 285H525M275 35V535"/>','')
-    s['body']=s['body'].replace('<path class="radar-route" d="M275 285L348 224L401 179L455 134"/>','<path class="radar-route" d="M275 285L455 134"/><path class="radar-route" d="m443 134 12 0 0 12"/>')
-    s['body']=re.sub(r'<g class="radar-check">.*?</g>','',s['body'],flags=re.S)
-    s['notes']+=' Simplified radar: three stages and one outward path; no live verification indicators.'
+    s['theme']='dark fc-cover'
+    s['body']='''<p class="fc-cover-bridge">Oyzu turns application intent and organizational policy into governed software delivery, with security controls and verifiable evidence built into the path from development to production.</p><div class="fc-cover-payoffs"><div><strong>One governed path</strong><span>from development to production.</span></div><div><strong>Delivery evolves through policy,</strong><span>not pipeline rewrites.</span></div><div><strong>Security and auditability</strong><span>built in.</span></div></div><div class="fc-cover-model" role="group" aria-label="Application teams declare intent. Organizations define policy. Oyzu delivers."><div class="fc-cover-inputs"><div><small>APPLICATION TEAMS</small><h2>Declare<br>intent.</h2></div><div><small>ORGANIZATIONS</small><h2>Define<br>policy.</h2></div></div><div class="fc-cover-join" aria-hidden="true"><span>↓</span></div><div class="fc-cover-result"><small>OYZU</small><strong>Delivers.</strong></div></div>'''
+    for phrase, icon in [('One governed path', 'code'), ('Delivery evolves through policy,', 'graph'), ('Security and auditability', 'policy')]:
+        s['body']=s['body'].replace('<div><strong>'+phrase, '<div>'+ico(icon)+'<strong>'+phrase)
+    s['body']='<p class="fc-cover-positioning">'+s['source']+'</p>'+s['body']
+    s['source']=''
+    s['notes']='Product vision: Oyzu generates delivery plans from application requirements and organizational policy. The working-foundation and funding slides distinguish current implementation evidence from intended capabilities.'
     proof=next(x for x in slides if x['label']=='THE WORKING FOUNDATION')
     proof['title']='The full delivery lifecycle.<br><em>A working build foundation.</em>'
     proof['theme']='fc-lifecycle'

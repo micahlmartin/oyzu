@@ -15,7 +15,7 @@ Python 3 generates the HTML with no third-party Python dependencies:
 python docs/investor-deck/build_visual_deck.py
 ```
 
-`build_visual_deck.py` assembles the base deck and applies the named editorial modules in order. CSS modules supply their layouts. Edit the final module owning a slide rather than an earlier version it overrides. The latest layers are `ecosystem_story.py`, `rollout_story.py` and `final_clarity.py`.
+`build_visual_deck.py` assembles the base deck and applies the named editorial modules in order. CSS modules supply their layouts. Edit the final module owning a slide rather than an earlier version it overrides. The latest layers are `ecosystem_story.py`, `rollout_story.py`, `final_clarity.py` and `opening_pains.py`. `opening_pains.py` owns the three opening pain slides and their sequence; it preserves the 20-slide main presentation and 28-slide full presentation. `source_cleanup.py` then keeps visible footers for citations, moves explanatory context to presenter notes, and labels material product and scenario distinctions in the slide content.
 
 To export PDFs and check desktop/print bounds, image loading, navigation and mobile width, install Playwright and Chromium in your local tooling environment, then run:
 
