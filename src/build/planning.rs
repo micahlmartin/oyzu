@@ -115,6 +115,7 @@ pub(super) fn plan_with_dependencies(
     dependencies: &BTreeMap<String, dependencies::Prepared>,
 ) -> Result<Value> {
     verify_inventory_source(workspace, source)?;
+    workspace.invocation_configuration()?;
     if workspace.declarations.targets.values().any(|c| {
         c.container
             .as_ref()
@@ -140,6 +141,7 @@ pub(super) fn intent(
     source: &snapshot::Snapshot,
     dependency: Option<&dependencies::Prepared>,
 ) -> Result<builders::BuilderPlan> {
+    workspace.target_configuration(id)?;
     let target = &workspace.targets[id];
     let intent = builders::get(&target.builder)?.plan(builders::PlanningContext {
         target,
@@ -160,6 +162,7 @@ pub(super) fn compile(
     intents: &BTreeMap<String, builders::BuilderPlan>,
 ) -> Result<Value> {
     verify_inventory_source(workspace, source)?;
+    let invocation = workspace.invocation_configuration()?;
     let selected = intents.keys().cloned().collect();
     let order = target_order(workspace, &selected)?;
     let mut planned = Vec::new();
@@ -170,6 +173,7 @@ pub(super) fn compile(
     let configs = &workspace.declarations.targets;
     let mut platforms = BTreeMap::new();
     for id in &order {
+        workspace.target_configuration(id)?;
         let target = &workspace.targets[id];
         let image = images
             .get(id)
@@ -202,9 +206,8 @@ pub(super) fn compile(
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
         let target_platform = &platforms[&id];
         let builder = builders::get(&target.builder)?;
-        if let Some(config) = workspace.configuration.get(&id) {
-            crate::config::enforcement::execution_preflight(config, builder.descriptor().tools)?;
-        }
+        let configuration = workspace.target_configuration(&id)?;
+        crate::config::enforcement::execution_preflight(configuration, builder.descriptor().tools)?;
         let intent = &intents[&id];
         let cwd = relative(&workspace.root, &target.path)?;
         let projection = intent
@@ -236,10 +239,8 @@ pub(super) fn compile(
         if let Some(projection) = projection {
             record["extensions"]["oyzu.dev/source-projection"] = json!(projection);
         }
-        if let Some(config) = workspace.configuration.get(&id) {
-            record["extensions"]["oyzu.dev/configuration"] =
-                json!({"digest": config.digest, "profile": config.profile});
-        }
+        record["extensions"]["oyzu.dev/configuration"] =
+            json!({"digest": configuration.digest, "profile": configuration.profile});
         target_records.push(record);
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));
         for command in &intent.prepare {
@@ -288,9 +289,7 @@ pub(super) fn compile(
                 env.extend(reports.env);
             }
             env.extend(bindings.env);
-            if let Some(config) = workspace.configuration.get(&id) {
-                config.validate_environment(&env)?;
-            }
+            configuration.validate_environment(&env)?;
             for (name, value) in &intent.fixed_env {
                 if env.get(name) != Some(value) {
                     bail!("{step}: {name} must remain {value} for the captured builder capability");
@@ -462,16 +461,12 @@ pub(super) fn compile(
                 );
             }
         }
-        if let Some(config) = a["target"]
-            .as_str()
-            .and_then(|id| workspace.configuration.get(id))
-        {
-            a["extensions"]["oyzu.dev/configuration-digest"] = json!(config.digest);
-            a["extensions"]["oyzu.dev/coverage-minimum"] = config
-                .get("checks.coverageMinimum")
-                .cloned()
-                .unwrap_or(json!(0));
-        }
+        let configuration = workspace.target_configuration(&target)?;
+        a["extensions"]["oyzu.dev/configuration-digest"] = json!(configuration.digest);
+        a["extensions"]["oyzu.dev/coverage-minimum"] = configuration
+            .get("checks.coverageMinimum")
+            .cloned()
+            .unwrap_or(json!(0));
         a["dependsOn"] = json!(prerequisites);
     }
     // Validate combined stage, hook, task and target edges before returning a
@@ -504,9 +499,7 @@ pub(super) fn compile(
         policy["extensions"]["oyzu.dev/configuration-policy"] = management.clone();
     }
     // A nested target cannot raise the invocation's shared concurrency ceiling.
-    let jobs = workspace
-        .root_configuration
-        .iter()
+    let jobs = std::iter::once(invocation)
         .chain(
             workspace
                 .configuration

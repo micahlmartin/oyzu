@@ -2,9 +2,11 @@
 
 Apply the repository-wide [code organization rules](code-organization.md) alongside this ecosystem-specific guide.
 
-Dockerfile-free packaging uses a shared [container assembly boundary](container-assembly.md). `Builder::container_profile` supplies language-owned runtime/artifact requirements; `build/containers` composes acquisition and derived packaging actions, and the executor owns the bounded generated definition and isolated worker. Do not introduce per-language Dockerfile writers or recompile the application during packaging. The first Python profile is implemented with native acceptance pending; general profiles remain unfinished.
+Dockerfile-free packaging uses a shared [container assembly boundary](container-assembly.md). `Builder::container_profile` supplies language-owned runtime/artifact requirements; `build/containers` composes acquisition and derived packaging actions, and the executor owns the bounded generated definition and isolated worker. Do not introduce per-language Dockerfile writers or recompile the application during packaging. The first Python profile is verified in Linux native acceptance; general profiles remain unfinished.
 
 Provisioned base-image capture and its native converter live under `dependencies/images` and `dependencies/runtime/images`. Docker owns parsing image requirements from Dockerfiles and consumes this shared acquisition contract. Application builders must use the same contract after configuration admission, while retaining their own language-runtime compatibility checks.
+
+`PreparationContext.configuration` is a required reference to the owner's resolved snapshot. Consume registered settings from that snapshot before effects; do not reread TOML/environment inputs or recompute setting defaults. Missing build snapshots fail at the composition boundary, including inferred projects that have no configuration files. Defaults are established once by configuration resolution.
 
 This describes the current Rust implementation structure. The behavioral design remains in [OEP-0014](proposals/OEP-0014-builders-and-examples/implementation.md), with acquisition in [OEP-0017](proposals/OEP-0017-dependency-acquisition/README.md). This refactor does not make unimplemented builder profiles complete; see [implementation status](implementation-status.md).
 

@@ -141,7 +141,9 @@ pub(crate) struct DevelopmentCommand {
 }
 
 pub(crate) struct PreparationContext<'a> {
-    pub configuration: Option<&'a crate::config::resolve::EffectiveConfig>,
+    /// The admitted owner's immutable snapshot. Adapters may consume registered
+    /// values but must never resolve sources or recompute defaults here.
+    pub configuration: &'a crate::config::resolve::EffectiveConfig,
     pub target: &'a Target,
     pub destination: &'a Path,
     pub image: &'a Image,

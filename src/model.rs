@@ -79,6 +79,32 @@ pub struct Workspace {
     pub root_configuration: Option<crate::config::resolve::EffectiveConfig>,
 }
 
+impl Workspace {
+    /// Build consumers require the snapshot produced by discovery. Missing
+    /// snapshots must not turn into defaults or bypass administrative checks.
+    /// Serialized discovery output deliberately cannot reconstruct this state.
+    pub(crate) fn target_configuration(
+        &self,
+        target: &str,
+    ) -> anyhow::Result<&crate::config::resolve::EffectiveConfig> {
+        self.configuration.get(target).ok_or_else(|| {
+            anyhow::anyhow!(
+                "CONFIG_INVALID_VALUE: {target}: missing resolved target configuration; rediscover the workspace"
+            )
+        })
+    }
+
+    pub(crate) fn invocation_configuration(
+        &self,
+    ) -> anyhow::Result<&crate::config::resolve::EffectiveConfig> {
+        self.root_configuration.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "CONFIG_INVALID_VALUE: missing resolved invocation configuration; rediscover the workspace"
+            )
+        })
+    }
+}
+
 fn redact_environment<S: serde::Serializer>(
     env: &BTreeMap<String, String>,
     serializer: S,

@@ -24,6 +24,60 @@ fn planned(root: &Path, temp: &Path) -> Value {
 }
 
 #[test]
+fn planning_requires_frozen_configuration_and_never_reresolves_live_files() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[build]\njobs=2\n[checks]\ncoverageMinimum=27\n",
+    )
+    .unwrap();
+    let mut workspace = discovery::discover_with_shell(root.path(), Some("sh")).unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let images = BTreeMap::from([(
+        "project".into(),
+        Image {
+            reference: "node:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        },
+    )]);
+    let plan = build::plan(&workspace, &source, &images).unwrap();
+    assert_eq!(plan["extensions"]["oyzu.dev/execution"]["jobs"], 2);
+    for action in plan["actions"].as_array().unwrap() {
+        assert_eq!(action["extensions"]["oyzu.dev/coverage-minimum"], 27);
+        assert_eq!(
+            action["extensions"]["oyzu.dev/configuration-digest"],
+            workspace.configuration["project"].digest
+        );
+    }
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[build]\njobs=32\n[checks]\ncoverageMinimum=0\n",
+    )
+    .unwrap();
+    assert_eq!(build::plan(&workspace, &source, &images).unwrap(), plan);
+
+    let target = workspace.configuration.remove("project").unwrap();
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("project: missing resolved target configuration"));
+    workspace.configuration.insert("project".into(), target);
+    workspace.root_configuration = None;
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("missing resolved invocation configuration"));
+}
+
+#[test]
 fn build_inventory_is_frozen_and_must_match_captured_source() {
     let root = tempfile::tempdir().unwrap();
     fs::write(

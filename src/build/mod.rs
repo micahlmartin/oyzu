@@ -18,7 +18,7 @@ pub use planning::plan;
 use planning::resolve_images;
 use serde_json::{json, Value};
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
@@ -94,6 +94,7 @@ pub fn run_selected_with_options(
     let mut manifest = json!({"schemaVersion":"v1alpha1","kind":"build-manifest","runId":run_id,"planDigest":null,"planPath":null,"source":null,"status":"failed","targets":[],"actions":[],"artifacts":[],"reports":[],"evidence":[],"diagnostics":[],"envelopePath":"envelope.json","envelopeDigest":null});
     let result = (|| -> Result<Value> {
         let mut workspace = workspace?;
+        workspace.invocation_configuration()?;
         let mut selection = selection::Selection::new(&workspace, requested)?;
         let source = snapshot::capture(&root, &source_path)?;
         planning::verify_inventory_source(&workspace, &source)?;
@@ -114,7 +115,7 @@ pub fn run_selected_with_options(
         let mut intents = BTreeMap::new();
         loop {
             planning::target_order(&workspace, &selection.targets)?;
-            let pending = selection
+            let pending: BTreeSet<String> = selection
                 .targets
                 .iter()
                 .filter(|id| !intents.contains_key(*id))
@@ -124,26 +125,25 @@ pub fn run_selected_with_options(
             for id in &pending {
                 let target = &workspace.targets[id];
                 let builder = builders::get(&target.builder)?;
-                if let Some(config) = workspace.configuration.get(id) {
-                    if workspace
-                        .declarations
-                        .targets
-                        .get(id)
-                        .and_then(|d| d.container.as_ref())
-                        .is_some_and(crate::config::Container::enabled)
-                    {
-                        crate::config::enforcement::execution_preflight(
-                            config,
-                            builders::get("docker/image")?.descriptor().tools,
-                        )?;
-                    }
+                let config = workspace.target_configuration(id)?;
+                if workspace
+                    .declarations
+                    .targets
+                    .get(id)
+                    .and_then(|d| d.container.as_ref())
+                    .is_some_and(crate::config::Container::enabled)
+                {
                     crate::config::enforcement::execution_preflight(
                         config,
-                        builder.descriptor().tools,
+                        builders::get("docker/image")?.descriptor().tools,
                     )?;
-                    if config.management.is_some() && builder.acquisition_requires_network() {
-                        bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
-                    }
+                }
+                crate::config::enforcement::execution_preflight(
+                    config,
+                    builder.descriptor().tools,
+                )?;
+                if config.management.is_some() && builder.acquisition_requires_network() {
+                    bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
                 }
             }
             resolved.extend(resolve_images(&workspace, images, &pending)?);
@@ -161,7 +161,7 @@ pub fn run_selected_with_options(
                     &resolved[&id],
                 )?;
                 if let Some(prepared) = builder.prepare(builders::PreparationContext {
-                    configuration: workspace.configuration.get(&id),
+                    configuration: workspace.target_configuration(&id)?,
                     target,
                     destination: &destination,
                     image: &resolved[&id],

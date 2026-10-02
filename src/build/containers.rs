@@ -52,10 +52,7 @@ pub(super) fn augment(
         {
             bail!("derived container target {id} collides with a project target");
         }
-        let configuration = workspace
-            .configuration
-            .get(owner)
-            .context("container requires resolved owner configuration")?;
+        let configuration = workspace.target_configuration(owner)?;
         let docker = builders::get("docker/image")?;
         config::enforcement::execution_preflight(configuration, docker.descriptor().tools)?;
         let platform = serde_json::from_value(original["platform"].clone())?;
