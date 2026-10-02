@@ -51,3 +51,7 @@ Acceptance criteria: BUILDER-01, BUILDER-05. See the [design catalog](../../../d
 
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+
+## Packaged subchart assertions
+
+`variants/packaged-only` contains a native Helm archive built from `variants/subchart-only/charts/child`. Its parent declares that local dependency without a repository. Run Oyzu directly from the packaged-only variant to exercise static archive-suite discovery, private native dependency preparation, real assertions and snapshot chart/rendered artifacts. No extraction occurs in the checkout. Recreate the child archive using `helm package`, then the owned archive normalization helper if maintaining the fixture; refresh its generated `.tgz.sha256` identity sidecar and do not hand-author archive bytes. Structural example validation checks that identity; native archive probes verify its behavior. A changed child assertion must fail testing and block artifact export. Empty selected suites also fail, even if the native plugin reports a successful exit with zero tests.

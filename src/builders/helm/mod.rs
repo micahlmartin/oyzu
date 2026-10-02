@@ -1,4 +1,5 @@
 use crate::builders::task::insert;
+mod archives;
 mod detection;
 mod metadata;
 mod planning;
@@ -18,6 +19,10 @@ pub(super) struct Helm;
 
 pub(super) const IMAGE: &str = "oyzu-toolchain/helm:3.22.0";
 pub(super) const RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "helm-charts.py",
+        contents: include_str!("runtime/charts.py"),
+    },
     RuntimeFile {
         name: "helm-archive.py",
         contents: include_str!("runtime/archive.py"),
@@ -45,6 +50,28 @@ impl Builder for Helm {
         planning::plan(context)
     }
 
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        let argv: Vec<_> = task.argv.iter().map(String::as_str).collect();
+        if task.provider == "helm" {
+            if let ["helm", "unittest", "--strict", chart] = argv.as_slice() {
+                return Ok(Some(crate::builders::DevelopmentCommand {
+                    argv: vec![
+                        "python".into(),
+                        "-I".into(),
+                        "-c".into(),
+                        include_str!("runtime/charts.py").into(),
+                        "test".into(),
+                        chart.to_string(),
+                    ],
+                    env: Default::default(),
+                }));
+            }
+        }
+        Ok(None)
+    }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             tools: &["helm"],

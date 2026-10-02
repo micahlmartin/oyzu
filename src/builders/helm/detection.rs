@@ -12,6 +12,7 @@ use std::{
 struct Context {
     source: Source,
     suites: Vec<String>,
+    archives: Vec<(String, Vec<String>)>,
 }
 
 struct Unittest;
@@ -20,15 +21,22 @@ impl Detector<Context> for Unittest {
         "helm/unittest"
     }
     fn version(&self) -> &'static str {
-        "2"
+        "3"
     }
 
     fn detect(&self, context: &Context) -> Result<Vec<Finding>> {
-        let evidence = context
+        let mut evidence = context
             .suites
             .iter()
             .filter_map(|path| context.source.evidence(path, "/"))
             .collect::<Vec<_>>();
+        for (path, locations) in &context.archives {
+            for location in locations {
+                if let Some(item) = context.source.evidence(path, &format!("tar:{location}")) {
+                    evidence.push(item);
+                }
+            }
+        }
         Ok(if evidence.is_empty() {
             vec![]
         } else {
@@ -49,14 +57,39 @@ impl Detector<Context> for Validation {
 }
 
 pub(super) fn detect(chart: &Path) -> Result<Resolution> {
-    let suites = suite_paths(chart)?;
-    let source = Source::read(
-        chart,
-        &suites.iter().map(String::as_str).collect::<Vec<_>>(),
-    )?;
+    let (suites, paths) = suite_paths(chart)?;
+    let inputs: Vec<_> = suites
+        .iter()
+        .chain(paths.iter())
+        .map(String::as_str)
+        .collect();
+    let source = Source::read_binary(chart, &inputs)?;
+    let mut archives = Vec::new();
+    let mut budget = super::archives::Budget::default();
+    for suite in &suites {
+        if let Some(bytes) = source.bytes(suite) {
+            std::str::from_utf8(bytes)?;
+        }
+    }
+    let mut total = suites.len();
+    for path in paths {
+        let bytes = source
+            .bytes(&path)
+            .ok_or_else(|| anyhow::anyhow!("Helm archive disappeared during discovery"))?;
+        let locations = super::archives::suites(bytes, &mut budget)?;
+        total += locations.len();
+        if total > 128 {
+            bail!("Helm native suite count exceeds 128");
+        }
+        archives.push((path, locations));
+    }
     exclusive(
         "Helm test framework",
-        &Context { source, suites },
+        &Context {
+            source,
+            suites,
+            archives,
+        },
         &[&Unittest, &Validation],
     )
 }
@@ -79,7 +112,9 @@ fn directory(path: &Path) -> Result<Option<fs::ReadDir>> {
 
 /// Follow only native unpacked chart locations. No project execution, archive
 /// extraction, repository traversal or dependency acquisition during discovery.
-fn suite_paths(chart: &Path) -> Result<Vec<String>> {
+/// Packaged subcharts are bounded binary evidence, not filesystem projections.
+fn suite_paths(chart: &Path) -> Result<(Vec<String>, Vec<String>)> {
+    let mut archives = Vec::new();
     let mut suites = Vec::new();
     let mut pending = vec![(PathBuf::new(), 0)];
     let mut entries = 0;
@@ -110,6 +145,9 @@ fn suite_paths(chart: &Path) -> Result<Vec<String>> {
                     if kind.is_symlink() {
                         bail!("Helm suite discovery rejects symlinked subcharts");
                     }
+                    if kind.is_file() && name.ends_with(".tgz") {
+                        archives.push(path.to_str().unwrap().replace('\\', "/"));
+                    }
                     if !kind.is_dir() {
                         continue;
                     }
@@ -132,5 +170,6 @@ fn suite_paths(chart: &Path) -> Result<Vec<String>> {
         }
     }
     suites.sort();
-    Ok(suites)
+    archives.sort();
+    Ok((suites, archives))
 }

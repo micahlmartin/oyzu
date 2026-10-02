@@ -98,6 +98,8 @@ def main():
         # Native unittest creates missing snapshots even without --update-snapshot.
         # A build must reject that success until the baseline is reviewed input.
         assert validate(project/'chart','application',report,rendered,helm,unit_report) != 0
+        assert not (tests/'__snapshot__').exists(), 'testing must leave source baselines unchanged'
+        subprocess.run([helm, 'unittest', '--strict', '--update-snapshot', str(project/'chart')], check=True)
         assert list((tests/'__snapshot__').glob('*.snap'))
         assert not ET.parse(unit_report).findall('.//failure')
         baseline = {p.name:p.read_bytes() for p in (tests/'__snapshot__').glob('*.snap')}
@@ -124,6 +126,49 @@ def main():
         assert validate(subcharts,'application',report,rendered,helm,unit_report)!=0
         assert len(ET.parse(unit_report).findall('.//failure'))==1
         cli_test(False, subcharts)
+        # Native package contents alone do not make the pinned plugin run tests.
+        # Oyzu expands a private copy so packaged-only suites must run and fail.
+        packed = base/'packaged-only'
+        shutil.copytree(ROOT/'examples/builds/helm-chart/variants/subchart-only', packed)
+        child = packed/'charts/child'
+        archive_output = base/'archives'
+        archive_output.mkdir()
+        def package_child():
+            subprocess.run([helm,'package',str(child),'--destination',str(archive_output)],check=True)
+            archive = next(archive_output.glob('*.tgz'))
+            shutil.copyfile(archive, packed/'charts'/archive.name)
+        package_child()
+        held = base/'held-child'
+        shutil.move(str(child), held)
+        if args.cli:
+            listed = subprocess.run([str(args.cli.resolve()),'-C',str(packed),'run','list','--json'],
+                                    env={**os.environ,'PATH':''},capture_output=True,text=True,timeout=30)
+            assert listed.returncode == 0, listed.stderr
+            assert json.loads(listed.stdout)['project:test']['argv']==['helm','unittest','--strict','.']
+        original = {str(p.relative_to(packed)):p.read_bytes() for p in packed.rglob('*') if p.is_file()}
+        assert validate(packed,'application',report,rendered,helm,unit_report)==0
+        assert len(ET.parse(unit_report).findall('.//testcase'))==1
+        cli_test(True, packed)
+        assert original == {str(p.relative_to(packed)):p.read_bytes() for p in packed.rglob('*') if p.is_file()}
+        shutil.move(str(held), child)
+        suite = child/'tests/configmap_test.yaml'
+        suite.write_text(suite.read_text().replace('value: "42"','value: "99"'))
+        package_child()
+        shutil.move(str(child), held)
+        assert validate(packed,'application',report,rendered,helm,unit_report)!=0
+        assert len(ET.parse(unit_report).findall('.//failure'))==1
+        cli_test(False, packed)
+        # Preparation expands native packaged dependencies before Helm's local build.
+        prepared = base/'prepared-packed'
+        shutil.copytree(packed,prepared)
+        (prepared/'Chart.yaml').write_text((prepared/'Chart.yaml').read_text()+'dependencies:\n- name: child\n  version: 1.0.0\n')
+        charts = runpy.run_path(str(ROOT/'src/builders/helm/runtime/charts.py'))
+        charts['expand'](prepared)
+        subprocess.run([helm,'dependency','build',str(prepared),'--skip-refresh'],check=True)
+        empty = base/'empty-suites'
+        shutil.copytree(ROOT/'examples/builds/helm-chart/variants/subchart-only',empty)
+        (empty/'charts/child/tests/configmap_test.yaml').write_text('suite: empty\ntests: []\n')
+        assert validate(empty,'application',report,rendered,helm,unit_report)!=0
     print('Native Helm reports: rendering/schema checks, native unittest assertions/JUnit, subchart-only suites, malformed suites, failure evidence, library validation and stale-output rejection passed')
 
 
