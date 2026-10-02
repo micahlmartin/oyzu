@@ -33,6 +33,18 @@ pub struct Session {
     invocation: Vec<ConfigSource>,
 }
 impl Session {
+    fn validate_capture_limits(&self) -> Result<()> {
+        let unique: std::collections::BTreeMap<_, _> = self
+            .sources
+            .iter()
+            .chain(self.captured.values().flatten())
+            .map(|source| (&source.identity, source.syntax.len()))
+            .collect();
+        if unique.len() > 128 || unique.values().sum::<usize>() > 8 * 1024 * 1024 {
+            bail!("CONFIG_LIMIT: invocation source limit exceeded");
+        }
+        Ok(())
+    }
     pub fn open(directory: &Path, options: &Options) -> Result<Self> {
         let root = workspace_root(directory, options.root.as_deref())?;
         let registry = Registry::default();
@@ -289,6 +301,9 @@ impl Session {
                     }
                 }
                 self.captured.insert(target.clone(), captured);
+                // Reject an oversized union before reading more targets. Shared
+                // ancestor files participate once in the invocation budget.
+                self.validate_capture_limits()?;
             }
             for source in &self.captured[&target] {
                 for name in source.profiles.keys() {
@@ -302,15 +317,7 @@ impl Session {
             .chain(self.captured.values().flatten())
             .map(|source| (&source.identity, source))
             .collect();
-        if unique.len() > 128
-            || unique
-                .values()
-                .map(|source| source.syntax.len())
-                .sum::<usize>()
-                > 8 * 1024 * 1024
-        {
-            bail!("CONFIG_LIMIT: invocation source limit exceeded");
-        }
+        self.validate_capture_limits()?;
         let mut profile_origins =
             std::collections::BTreeMap::from([("ci".to_owned(), vec!["built-in".to_owned()])]);
         for source in unique

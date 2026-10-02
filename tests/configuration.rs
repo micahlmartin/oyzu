@@ -429,3 +429,43 @@ fn edit_revalidation_rejects_oversized_concurrent_source_without_replacing_it() 
         .to_string()
         .contains("CONFIG_LIMIT"));
 }
+
+#[test]
+fn project_capture_enforces_depth_and_aggregate_bytes_before_resolution() {
+    let root = tempfile::tempdir().unwrap();
+    let registry = Registry::default();
+    let mut target = root.path().to_path_buf();
+    for _ in 0..33 {
+        target.push("n");
+        std::fs::create_dir(&target).unwrap();
+    }
+    let error =
+        oyzu::config::sources::project_sources(root.path(), &target, false, &registry).unwrap_err();
+    assert!(error.to_string().contains("CONFIG_LIMIT"));
+    assert!(oyzu::config::sources::project_sources(
+        root.path(),
+        target.parent().unwrap(),
+        false,
+        &registry
+    )
+    .is_ok());
+    let comment = format!("#{}", " ".repeat(1024 * 1024 - 1));
+    let mut target = root.path().to_path_buf();
+    for index in 0..9 {
+        if index > 0 {
+            target.push("n");
+        }
+        std::fs::write(target.join("oyzu.toml"), &comment).unwrap();
+        if index == 7 {
+            assert_eq!(
+                oyzu::config::sources::project_sources(root.path(), &target, false, &registry)
+                    .unwrap()
+                    .len(),
+                8
+            );
+        }
+    }
+    let error =
+        oyzu::config::sources::project_sources(root.path(), &target, false, &registry).unwrap_err();
+    assert!(error.to_string().contains("CONFIG_LIMIT"));
+}

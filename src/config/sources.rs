@@ -354,6 +354,9 @@ pub fn project_sources(
     let mut directories = vec![root.clone()];
     let mut current = root.clone();
     for component in target.strip_prefix(&root)?.components() {
+        if directories.len() > 32 {
+            bail!("CONFIG_LIMIT: project configuration depth exceeds 32");
+        }
         current.push(component);
         if current.join(".git").exists() {
             bail!("CONFIG_SCOPE: submodule requires an explicit import");
@@ -364,6 +367,7 @@ pub fn project_sources(
         directories.push(current.clone());
     }
     let mut sources = Vec::new();
+    let mut captured_bytes = 0usize;
     for (filename, scope) in [
         ("oyzu.toml", Scope::Project),
         ("oyzu.local.toml", Scope::Local),
@@ -382,6 +386,10 @@ pub fn project_sources(
                 directory != &root,
                 registry,
             )? {
+                captured_bytes += source.syntax.len();
+                if sources.len() >= 128 || captured_bytes > 8 * 1024 * 1024 {
+                    bail!("CONFIG_LIMIT: project source limit exceeded");
+                }
                 sources.push(source);
             }
         }
