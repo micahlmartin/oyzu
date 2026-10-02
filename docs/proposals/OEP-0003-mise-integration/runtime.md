@@ -90,6 +90,12 @@ are 30 seconds for local selection, 120 seconds for metadata and 15 minutes for
 installation. Administrative caps may shorten deadlines; increasing them is a
 host preference within policy, never project syntax.
 
+The initial framing implementation counts four-byte prefixes in the total control
+budget and uses the shared strict JSON parser's additional 10,000-entry ceiling.
+These conservative draft limits require protocol review with typed payloads.
+The codec alone admits JSON objects, not protocol envelopes or operations;
+private transport, lifecycle and deadline enforcement remain separate work.
+
 Envelope fields are `protocol = "oyzu.tool-worker/1"`, `request_id` (UUID),
 `operation` (`resolve`, `prepare`, `environment`, `executable`),
 `context_digest`, `backend_release_digest`, `target_platform`, `capabilities`

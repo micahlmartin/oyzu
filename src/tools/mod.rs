@@ -1,6 +1,7 @@
-//! Oyzu-owned tool identity and verified content storage. Inspection is read-only;
-//! cache/publication mutations require caller admission and confer no execution
-//! authority. Backend admission and current policy remain separate gates.
+//! Oyzu-owned tool identity, verified storage and internal control contracts.
+//! Inspection is read-only; cache/publication mutations require caller admission.
+//! Grant checks and worker framing rely on independently trusted caller context;
+//! none of these library operations alone confers execution authority.
 mod backend;
 mod edit;
 mod grant;
@@ -8,10 +9,12 @@ pub use grant::{ToolGrantContext, ToolGrantOperation, VerifiedToolGrant};
 mod lock;
 mod requests;
 mod selection;
+mod worker;
 pub use backend::{inspect as inspect_backend, BackendInspection};
 pub use edit::{ToolLockChange, ToolLockChangeKind, ToolLockEdit, ToolLockProposal};
 pub use requests::{project_tool_requests, ToolRequestIdentity};
 pub use selection::{select_for_tool_requests, select_locked_environment};
+pub use worker::ToolWorkerChannel;
 mod store;
 pub use store::InstallationLease;
 pub use store::LeaseRecovery;

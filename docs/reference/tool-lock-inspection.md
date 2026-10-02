@@ -846,3 +846,37 @@ The implementation uses portable Rust clocks/cryptography; focused tests use
 synthetic signatures and the shared valid/invalid payload fixtures. This remains
 an initial library boundary, with no deployed service interoperability, agent
 lifecycle integration or grant-backed launch path. The protocol remains a draft.
+
+### Internal worker control framing
+
+`ToolWorkerChannel<T>` provides the initial private-channel byte framing for
+OEP-0003. It takes an already established duplex `Read + Write` transport; it
+does not discover a channel, start a subprocess or read worker stdin/stdout.
+The supervisor must authenticate and restrict inherited channel handles and
+enforce deadlines/cancellation independently. A blocking `Read` or `Write` is
+not made interruptible by this codec. This is an unstable internal interface,
+not a public worker/plugin compatibility promise.
+
+Construct one channel per operation with `ToolWorkerChannel::new(transport)`.
+`send(json_bytes)` validates one UTF-8 JSON object, writes a four-byte big-endian
+length and the original bytes, then flushes. `receive()` reads exactly one frame
+and returns an untrusted JSON value. Both directions share a 32 MiB lifetime
+budget, including length prefixes; each body is at most 8 MiB. Empty bodies,
+non-object roots, duplicate keys, malformed/nonfinite values and excessive nesting
+fail. The shared strict JSON parser also caps aggregate entries at 10,000.
+Oversized lengths and exhausted budgets fail before allocating or reading bodies.
+Malformed outgoing JSON emits no bytes.
+
+All failures permanently invalidate the channel instance. This includes clean
+EOF, short reads, invalid input and write/flush failures; retry requires a new
+supervised operation rather than attempting stream resynchronization. Errors
+use `TOOL_WORKER_*` codes without payload or transport-error text. No files,
+network connections or credentials are created by the codec itself.
+
+Framing success is not envelope admission: typed operation payloads, unknown-field
+rejection, protocol/request/context identity checks, single-request/terminal-result
+sequencing and cancellation remain to be implemented above this layer. Private
+OS channel creation, handshake/operation deadlines, embedded backend dispatch and
+executor containment are also absent. Tests exercise fragmented reads/writes,
+exact frame bounds, combined budgets, invalid/truncated JSON and terminal errors;
+they do not qualify a running worker or complete TM-05.

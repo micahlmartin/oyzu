@@ -1415,3 +1415,26 @@ interoperability and actual launch integration remain absent. The documented
 interpretation of the draft 60-second online/900-second offline windows still
 requires maintainer/service-contract review. These checks neither complete
 MISE-11 nor approve the production mise dependency or distribution obligations.
+
+## Checkpoint 111: bounded worker control framing
+
+TM-05 now has an initial duplex Read/Write control codec: four-byte big-endian
+lengths, 8 MiB JSON-object bodies and one 32 MiB budget across both directions,
+including prefixes. It reuses strict JSON parsing, rejects oversized lengths
+before body allocation/read, validates outgoing JSON before transmission and
+makes all input/transport failures terminal. Errors omit payload and transport
+implementation details. No dependency or upstream code was added.
+
+Five focused tests passed on Windows and Linux: fragmented reads/writes, exact
+frame limits, shared budgets, malformed/duplicate/nonfinite/deep JSON, truncated
+frames and permanent failure handling. Full Windows locked tests, strict
+all-target Clippy, formatting and all nine CLI task scenarios passed. Linux
+strict all-target Clippy passed with networking disabled. Documentation checks
+and diff checks passed; native macOS verification remains pending.
+
+Typed envelopes, unknown-field/protocol/identity admission, request/result/cancel
+sequencing, private OS channels, deadlines, embedded dispatch and executor
+containment remain unimplemented. The codec cannot interrupt arbitrary blocking
+Read/Write operations and provides no authorization. The reference, code map
+and OEP distinguish this framing component from a qualified worker; TM-05 is
+not complete.

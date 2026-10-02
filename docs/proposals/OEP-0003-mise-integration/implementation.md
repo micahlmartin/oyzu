@@ -28,6 +28,13 @@ agent context/key provisioning, lifecycle notifications, authorizer interoperabi
 and grant-backed launch remain unimplemented. The worker schema remains
 outstanding.
 
+TM-05 has an initial bounded duplex JSON framing codec, with one shared 32 MiB
+budget including prefixes, 8 MiB frame bodies and terminal failure handling.
+It does not yet implement typed envelopes, private OS transport, protocol lifecycle,
+deadlines, worker dispatch or containment. The shared strict JSON parser imposes
+an additional 10,000-entry bound. See the current
+[framing reference](../../reference/tool-lock-inspection.md#internal-worker-control-framing).
+
 TM-03 now has a first frozen selection boundary: given an already resolved
 workspace, working directory, profile, request digest and platform, it chooses
 the nearest physical locked scope and rejects stale requests or an unavailable
