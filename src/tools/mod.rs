@@ -3,7 +3,9 @@
 //! authority. Backend admission and current policy remain separate gates.
 mod backend;
 mod lock;
+mod selection;
 pub use backend::{inspect as inspect_backend, BackendInspection};
+pub use selection::select_locked_environment;
 mod store;
 pub use store::InstallationLease;
 pub use store::LeaseRecovery;

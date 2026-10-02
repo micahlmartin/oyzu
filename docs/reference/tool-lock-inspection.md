@@ -389,6 +389,34 @@ creation does not itself verify publisher signatures or attestations: callers
 must establish that evidence before invoking this boundary. Recovery, production
 worker wiring, compiled descriptors and native backend parity are still required.
 
+## Frozen environment selection
+
+The experimental Rust `select_locked_environment(workspace, directory, profile,
+request_digest, platform)` boundary chooses from `workspace/oyzu.lock` after the
+caller has resolved effective configuration and computed its request digest.
+It does not read Oyzu or mise configuration itself. Workspace and working
+directory must exist as directories; both are resolved physically and an outside
+working directory fails. Internal directory aliases select the physical scope.
+Locked scope aliases are resolved physically too; two matching scope records for
+the same physical ancestor fail `TOOL_LOCK_AMBIGUOUS`. Existing locked scope
+directories for the selected profile must stay inside the workspace. Missing
+unrelated scopes do not prevent using a present scope.
+
+Among locked environments for the exact profile, the longest complete ancestor
+scope wins. `app` does not match `application`. A nearer scope with a different
+request digest fails `TOOL_LOCK_STALE`, even if the root entry would match.
+No matching scope/profile fails `TOOL_LOCK_MISSING`; no complete selection for
+the requested platform fails `TOOL_PLATFORM_UNAVAILABLE`. These failures require
+an explicit resolution/update action, not a fallback to another profile, parent
+or platform. The whole lock is validated before selection, including unrelated
+dependency graph errors. Nothing is installed, downloaded, executed or edited.
+
+Success returns the existing `LockedSelection` identity and installation keys.
+The caller must still check current policy, compiled backend admission and
+installed receipts and retain leases before use. This boundary is not a stable
+new CLI command, a resolver, an authorization grant or race-proof filesystem
+containment. Effective-request projection and worker integration remain pending.
+
 ## Backend descriptor contract fixtures
 
 The draft [backend descriptor schema](../contracts/tools-v1/backend-descriptor.schema.json)

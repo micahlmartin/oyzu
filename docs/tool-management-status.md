@@ -742,3 +742,27 @@ and bundle schemas/digests were checked in both cases. See builder
 [checkpoint 51](implementation-status.md#checkpoint-51-declare-the-fixtures-native-helm-child-dependency).
 The complete CI run remains unverified; this correction does not complete any
 remaining tool-management package.
+
+## Checkpoint 75: nearest frozen scope selection
+
+`tools/selection` now selects an existing locked environment from an explicitly
+resolved workspace and physical cwd, exact profile, effective request digest
+and platform. It reuses bounded whole-lock validation and existing selection
+identities. The nearest component-boundary ancestor wins; stale nested requests
+and missing nested platform coverage cannot fall back to a convenient root.
+Outside/non-directory cwd inputs fail. It reads no project or mise configuration
+and performs no network, installation, execution or lock mutation.
+
+Windows scope/profile/stale/platform regressions pass, including a root with
+Windows coverage and a nearer Linux-only tool closure. Linux additionally tests
+internal directory aliases and rejection of a symlink escaping the workspace.
+The [reference](reference/tool-lock-inspection.md#frozen-environment-selection)
+documents caller obligations and errors. This is a TM-03 foundation; effective
+request projection, backend resolution, authorization, lock editing and worker
+wiring remain incomplete.
+
+The final Windows GNU full locked suite, strict all-target Clippy and formatting
+passed; nine real CLI task scenarios passed during this change. Linux passed all
+four selection tests and strict all-target Clippy, including locked-scope alias
+ambiguity. Documentation structure passed. Native macOS/MSVC confirmation and
+the remaining end-to-end tool-management flows are still pending.

@@ -23,6 +23,13 @@ fields; bounded Rust parsing, shared shape tests and canonical identity inspecti
 are implemented. Compiled descriptor admission remains outstanding. Worker
 and selection-grant schemas remain outstanding.
 
+TM-03 now has a first frozen selection boundary: given an already resolved
+workspace, working directory, profile, request digest and platform, it chooses
+the nearest physical locked scope and rejects stale requests or an unavailable
+target without parent fallback. Effective request projection, alias/version
+resolution and transactional lock editing remain unimplemented. No worker or
+execution path is enabled by this boundary alone.
+
 ## Dependency order and deliverables
 
 Each package is a reviewable change with an executable acceptance result. Do not
