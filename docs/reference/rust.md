@@ -1,0 +1,64 @@
+# Rust applications, libraries and workspaces
+
+The experimental Rust builder discovers `Cargo.toml` without Oyzu configuration. Cargo owns workspace membership, native package metadata and dependency resolution. Captured builds currently support single packages and contained local workspaces, including libraries, binaries, proc macros and build scripts. Registry/Git dependency acquisition and cross-compilation remain unfinished.
+
+## Usage and prerequisites
+
+```text
+oyzu run list
+oyzu run build
+oyzu run test
+oyzu run lint
+oyzu run format-check
+oyzu build --plan
+oyzu build
+oyzu inspect dist
+```
+
+Development tasks use already provisioned Cargo, rustfmt and Clippy on the host. Static task listing reads native manifests without executing Cargo. Implicit tasks include install (`cargo fetch --locked`), workspace build/test, Clippy, formatting, formatting checks and archive. `oyzu run format` modifies source; captured builds use read-only `format-check`. Direct task execution uses native host state and does not currently collect a `dist/` report bundle. Native Cargo workspace ownership is distinct from separate Oyzu target groups.
+
+Captured builds require Docker and this explicitly provisioned Linux amd64 image:
+
+```text
+docker build -f tooling/images/rust.Dockerfile -t oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1 .
+```
+
+The image supplies Rust 1.94.0, rustfmt, Clippy, LLVM tools, cargo-nextest 0.9.146, cargo-llvm-cov 0.9.1 and Python 3 for the owned artifact adapter. Custom `--image cargo=<image>` profiles must supply these capabilities. Python is now required for compiler-message collection; rebuild older images with the same tag. Tool/image provisioning is explicit and separate from project execution. Oyzu does not download a missing toolchain image.
+
+The CLI supports Windows, macOS and Linux; that does not imply a native captured-build executor on each host. Current isolated Rust acceptance runs on Linux with Docker. The native artifact probe also runs separately on all three CI hosts. See [implementation status](../implementation-status.md) for revision-specific evidence.
+
+## Preparation and build gates
+
+A checked-in `Cargo.lock` is required. Preparation checks the original lock using native offline Cargo resolution, projects package versions and contained workspace dependency requirements into private manifests, then regenerates the private lock with Cargo. Source files remain unchanged. Registry/Git dependencies, unresolved paths and paths outside the captured target fail preparation rather than falling back to internet access or ambient host files.
+
+Versions retain each package's base version and use a source-derived suffix, such as `1.2.3-dev.g<source-prefix>`. Different workspace packages retain their individual base versions. These are snapshot versions; they do not establish release eligibility or production trust.
+
+Build execution runs workspace release compilation, native tests with reporting, Clippy, rustfmt checking, native verified crate packaging and final collection. Commands use locked offline inputs and the shared executor denies networking. Build scripts and proc macros execute inside that environment and must work with the captured inputs. The selected compiler host target and `.oyzu-build/target` output root are fixed plan facts; a task environment cannot redirect them.
+
+Tests run through `cargo llvm-cov nextest`; native JUnit and Cobertura are retained under `dist/` and indexed with paths, digests and summaries in `dist/manifest.json`. Test execution and coverage generation retain independent failure outcomes. Missing or invalid required reports fail collection. `inspect dist` checks bundle integrity, not release authorization. Doctest execution/coverage and every custom nextest configuration are not yet covered by this profile.
+
+Compilation, tests, lint, formatting and archive verification are required gates. Their failures block final artifacts. Native logs and available reports explain the failed stage. Repair the native input and rerun; an earlier successful bundle is retained under `.oyzu/history`, not reused as this build's successful output.
+
+## Artifact selection and collection
+
+Each selected package produces a native `<package>-<snapshot-version>.crate`. Each enabled binary additionally produces `<binary>-<snapshot-version>-<compiler-host>`. Manifest names use the existing scoped `crate-` and `bin-` identities. A library-only package has a crate artifact without an invented executable. Duplicate binary names currently fail planning instead of colliding in the output bundle.
+
+Cargo's resolved features determine whether a binary with `required-features` is enabled. An unmet feature gate omits that binary from the artifact plan; enabling the feature through native defaults includes it. No Oyzu-specific switch or new build YAML is needed. This increment does not add a feature matrix or new CLI feature-selection syntax. Cargo documents [required-features](https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-required-features-field) as native target selection.
+
+The build adapter consumes Cargo's [JSON compiler messages](https://doc.rust-lang.org/cargo/reference/external-tools.html#json-messages). It matches opaque package IDs and binary target names against a prepared inventory and takes executable paths from native `compiler-artifact` events. It accepts fresh Cargo cache results as well as newly compiled binaries, requires a successful native process and build-finished event, rejects missing/unplanned/conflicting outputs and verifies each executable is a regular file contained in the target root. It does not guess executable filenames or publish intermediate test binaries.
+
+The adapter clears its reserved staging directory before invoking Cargo. Only after all expected binaries are verified does it stage them for the shared final collection step. This prevents a previous executable from satisfying a disabled feature or failed compilation. Native source archive contents are checked in the scenario harness to exclude private `.oyzu-build` files. Cargo does not automatically exclude arbitrary custom output directories; the captured profile fixes its private output location. Exhaustive custom Cargo include/exclude packaging behavior remains unverified.
+
+Task overrides and pre/post hooks retain their existing shared owners. Replacing a native build task must still satisfy its planned artifact obligations; an override does not waive collection checks. No registry publication, signing or promotion is performed by this builder increment.
+
+## Verification and remaining work
+
+```text
+python tooling/test-rust-artifacts.py --cargo <provisioned-cargo>
+```
+
+This native probe checks gated binaries disabled/enabled by Cargo defaults, exact executable bytes, launching collected executables, fresh cache results, source archive exclusions, missing outputs, redirected output paths and compiler failures. The [Rust example variants](../../examples/builds/rust-app/variants/) supply the native inputs. Rust planner checks cover per-package versions, feature resolution and fixed output facts.
+
+The compiled-CLI Linux scenario suite additionally builds applications, libraries and local workspaces, executes delivered binaries, checks snapshot crate contents, measures application coverage, verifies repeatability and confirms failed tests/formatting block collection. New feature-gate scenarios must pass that suite before being described as verified captured behavior. The native probe alone does not prove isolated build acceptance.
+
+Remaining work includes external Cargo dependencies and credentials, full feature/profile/platform matrices, doctests and broader test-framework support, custom task artifact production, release policy, publication, remote caching and complete authored-scenario acceptance. The build goal remains broader than this implementation increment.

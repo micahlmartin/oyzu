@@ -1,0 +1,12 @@
+[package]
+name = "oyzu-greeting-example"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+extra = []
+
+[[bin]]
+name = "extra"
+path = "src/extra.rs"
+required-features = ["extra"]

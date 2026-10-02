@@ -5,7 +5,7 @@ Status: **design contract for review**. Intended hosts: Windows, macOS, Linux. S
 ## Purpose
 
 - Select Cargo from native metadata, build a binary and collect test results.
-- Unsupported coverage is disclosed until a pinned coverage adapter is available.
+- Retain native JUnit and measured application coverage alongside snapshot artifacts.
 
 ## Review the project
 
@@ -34,6 +34,10 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 ## Failure and variation cases
 
 - **failed-test:** Change the expected greeting. Expected: Tests fail; report collection never reports success.
+- **feature-gated-binary:** Replace `project/Cargo.toml` with `variants/features.Cargo.toml` and copy `variants/extra.rs` to `project/src/extra.rs`. The `extra` binary is absent from the artifact plan until the native `extra` feature is enabled. Add `default = ["extra"]` under `[features]` to include it, then remove that default to verify the next bundle excludes the prior output.
+- **failed-compilation:** Introduce a native compiler error after a successful build. The new failed bundle must not reuse previous executable artifacts.
+
+The [Rust reference](../../../docs/reference/rust.md) distinguishes current captured-build support, native probes and remaining acceptance work. These variants add native Cargo configuration only; no Oyzu build file is needed.
 
 ## Contract and limitations
 

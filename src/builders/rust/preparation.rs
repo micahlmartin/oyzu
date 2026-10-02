@@ -74,6 +74,12 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         "--locked",
     ])?)?;
     projected.validate()?;
+    records::write(
+        &context.destination.join("binaries.json"),
+        &json!({"schemaVersion":1,"binaries":projected.binaries()?.iter().map(|(package, target)| {
+            json!({"packageId":package.id,"name":target.name})
+        }).collect::<Vec<_>>()}),
+    )?;
     let rustc = runner.run(&["rustc", "-vV"])?;
     let host = rustc
         .lines()
@@ -111,7 +117,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let platform = json!({"os":context.image.os,"arch":context.image.arch,"abi":host});
     let record = json!({
         "schemaVersion":"v1alpha1", "kind":"dependency-snapshot",
-        "adapter":{"id":"rust/cargo-local-workspace", "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":"1"},
+        "adapter":{"id":"rust/cargo-local-workspace", "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":"2"},
         "manager":{"id":"cargo","version":manager_version,"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&root.join("Cargo.lock"))?],
         "targetPlatform":platform,"packages":[],"preparedTree":tree.digest,

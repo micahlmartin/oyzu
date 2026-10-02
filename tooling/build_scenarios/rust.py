@@ -97,6 +97,37 @@ def verify(root, base, invoke, validate, source_files, verified):
     application_coverage(project, library_manifest, 'src/lib.rs', 'MESSAGE.to_owned()')
     verified.append('Cargo library-only project produces a native verified snapshot crate without a binary')
 
+    # Native required-features controls artifact membership, not just execution.
+    project = base/'rust-feature-gates'
+    shutil.copytree(root/'examples/builds/rust-app/project', project)
+    variants = root/'examples/builds/rust-app/variants'
+    shutil.copyfile(variants/'features.Cargo.toml', project/'Cargo.toml')
+    shutil.copyfile(variants/'extra.rs', project/'src/extra.rs')
+    feature_manifest = project/'Cargo.toml'
+    disabled = feature_manifest.read_text()
+    for enabled in [False, True]:
+        feature_manifest.write_text(disabled.replace('extra = []', 'extra = []\ndefault = ["extra"]') if enabled else disabled)
+        before = source_files(project)
+        invoke(project, 'build')
+        manifest = validate(project/'dist')
+        assert source_files(project) == before
+        archives(project, manifest, 1)
+        binaries = [a for a in manifest['artifacts'] if a['mediaType']=='application/octet-stream']
+        assert len(binaries) == (2 if enabled else 1)
+        assert {run_binary(project, a) for a in binaries} == ({'Hello, Oyzu!', 'Optional command'} if enabled else {'Hello, Oyzu!'})
+        assert all('-dev.g' in a['version'] for a in manifest['artifacts'])
+        assert next(r for r in manifest['reports'] if r['kind']=='test')['summary']['passed'] > 0
+        application_coverage(project, manifest, 'src/main.rs', 'format!("Hello, {name}!")')
+    feature_manifest.write_text(disabled)
+    invoke(project, 'build')
+    assert len([a for a in validate(project/'dist')['artifacts'] if a['mediaType']=='application/octet-stream']) == 1
+    (project/'src/main.rs').write_text('compile_error!("native compile failure");\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    assert next(a for a in failed['actions'] if a['id']=='project:build')['status']=='failed'
+    verified.append('Cargo native feature gates select executable artifacts; compiler-message collection retains executable identity and never reuses disabled or failed outputs')
+
     project = base/'rust-workspace'
     previous = binary(validate(project/'dist'))
     (project/'core/message.txt').write_text('Hello, changed input!\n')

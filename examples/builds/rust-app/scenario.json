@@ -16,13 +16,23 @@
   ],
   "expected": [
     "Select Cargo from native metadata, build a binary and collect test results.",
-    "Unsupported coverage is disclosed until a pinned coverage adapter is available."
+    "Retain native JUnit and measured application coverage alongside snapshot artifacts."
   ],
   "cases": [
     {
       "name": "failed-test",
       "change": "Change the expected greeting.",
       "expect": "Tests fail; report collection never reports success."
+    },
+    {
+      "name": "feature-gated-binary",
+      "change": "Use variants/features.Cargo.toml and variants/extra.rs, then enable and disable the native extra default feature.",
+      "expect": "Only enabled binaries appear in the artifact plan and final bundle, with native executable identity and snapshot versions."
+    },
+    {
+      "name": "failed-compilation",
+      "change": "Introduce a compiler error after a successful build.",
+      "expect": "Compilation fails and previous executable outputs never become artifacts of the failed build."
     }
   ],
   "nativeChecks": [
@@ -40,7 +50,9 @@
   "requiredFiles": [
     "project/Cargo.lock",
     "project/Cargo.toml",
-    "project/src/main.rs"
+    "project/src/main.rs",
+    "variants/features.Cargo.toml",
+    "variants/extra.rs"
   ],
   "hosts": {
     "intended": [

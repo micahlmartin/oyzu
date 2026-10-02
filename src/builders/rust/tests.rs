@@ -39,6 +39,24 @@ fn cargo_paths_cannot_escape_the_captured_target() {
 }
 
 #[test]
+fn cargo_required_features_select_only_resolved_binary_targets() {
+    let mut native = metadata();
+    native.packages[0].targets[0].required_features = vec!["extra".into()];
+    assert!(native.binaries().is_err());
+    native.resolve = Some(super::metadata::Resolution {
+        nodes: vec![super::metadata::Node {
+            id: "opaque-a".into(),
+            features: vec![],
+        }],
+    });
+    assert!(native.binaries().unwrap().is_empty());
+    native.resolve.as_mut().unwrap().nodes[0]
+        .features
+        .push("extra".into());
+    assert_eq!(native.binaries().unwrap().len(), 1);
+}
+
+#[test]
 fn cargo_projection_preserves_workspace_settings_and_updates_aliased_requirements() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("api")).unwrap();
@@ -136,6 +154,22 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
     assert_eq!(plan.tasks["test"].reports[1].format.name(), "cobertura");
     assert_eq!(plan.env["CARGO_NET_OFFLINE"], "true");
     assert_eq!(plan.env["CARGO_LLVM_COV_SETUP"], "no");
+    assert_eq!(plan.fixed_env["CARGO_TARGET_DIR"], ".oyzu-build/target");
+    assert_eq!(
+        plan.fixed_env["CARGO_BUILD_TARGET"],
+        "x86_64-unknown-linux-gnu"
+    );
+    assert!(plan
+        .package
+        .argv
+        .contains(&".oyzu-build/target/oyzu-binaries/0".into()));
+    assert!(plan
+        .package
+        .argv
+        .contains(&".oyzu-build/target/oyzu-binaries/1".into()));
+    assert!(plan.tasks["build"]
+        .argv
+        .contains(&"--message-format=json-render-diagnostics".into()));
 }
 
 #[test]

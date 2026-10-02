@@ -8,6 +8,19 @@ pub(super) struct Metadata {
     pub packages: Vec<Package>,
     pub workspace_members: Vec<String>,
     pub workspace_root: String,
+    #[serde(default)]
+    pub resolve: Option<Resolution>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub(super) struct Resolution {
+    pub nodes: Vec<Node>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub(super) struct Node {
+    pub id: String,
+    pub features: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -33,6 +46,8 @@ pub(super) struct Target {
     pub name: String,
     pub kind: Vec<String>,
     pub src_path: String,
+    #[serde(default, rename = "required-features")]
+    pub required_features: Vec<String>,
 }
 
 pub(super) fn relative(path: &str) -> Result<&str> {
@@ -51,6 +66,34 @@ pub(super) fn relative(path: &str) -> Result<&str> {
 }
 
 impl Metadata {
+    /// Cargo's resolved package features determine which binary targets exist.
+    pub fn binaries(&self) -> Result<Vec<(&Package, &Target)>> {
+        let mut selected = Vec::new();
+        for package in &self.packages {
+            for target in &package.targets {
+                if !target.kind.iter().any(|kind| kind == "bin") {
+                    continue;
+                }
+                if !target.required_features.is_empty() {
+                    let node = self
+                        .resolve
+                        .as_ref()
+                        .and_then(|r| r.nodes.iter().find(|n| n.id == package.id))
+                        .context("Cargo feature-gated binary requires resolved native features")?;
+                    if !target
+                        .required_features
+                        .iter()
+                        .all(|feature| node.features.contains(feature))
+                    {
+                        continue;
+                    }
+                }
+                selected.push((package, target));
+            }
+        }
+        Ok(selected)
+    }
+
     pub fn validate(&self) -> Result<()> {
         if self.workspace_root != "/workspace" || self.packages.is_empty() {
             bail!("Cargo workspace must be rooted in the captured target");

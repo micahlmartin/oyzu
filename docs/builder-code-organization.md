@@ -46,11 +46,12 @@ src/
       runtime/modulezip/      # Pinned x/mod integration for source archive projection and checksums
     rust/
       mod.rs                  # Cargo descriptor, discovery and interface implementation
-      metadata.rs             # Typed native workspace metadata and version projection
-      preparation.rs          # Offline lock validation and captured manifest overlay
-      planning.rs             # Binary, native checks and JUnit intent
+      metadata.rs             # Native workspace/features, binary selection and version projection
+      preparation.rs          # Offline lock validation, manifest overlay and binary inventory
+      planning.rs             # Snapshot artifacts, fixed target facts, native checks and reports
       reporting.rs            # Private nextest settings and exact report destinations
       runtime/test.sh         # Native coverage/test reporting with failure preservation
+      runtime/build.py        # Native compiler-message binding and contained executable staging
       tests.rs                # Workspace projection and containment regressions
     java/{maven,gradle,ant}/   # Separate native-manager adapters
       maven/metadata.rs       # Typed native reactor metadata and output validation
