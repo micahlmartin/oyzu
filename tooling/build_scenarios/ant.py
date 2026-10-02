@@ -23,6 +23,9 @@ def verify(root, base, invoke, validate, source_files, verified):
         measured = ET.parse(project/'dist'/coverage['path'])
         assert [c.attrib['name'] for c in measured.findall('.//class')] == ['example/Greeting']
         assert int(measured.find("./counter[@type='INSTRUCTION']").attrib['covered']) > 0
+        assert measured.find("./counter[@type='LINE']") is None
+        native = measured.find("./counter[@type='INSTRUCTION']").attrib
+        assert coverage['summary']=={'covered':int(native['covered']), 'total':int(native['covered'])+int(native['missed']), 'metric':'instructions'}
         artifact, = manifest['artifacts']
         assert '-dev.g' in artifact['version']
         with zipfile.ZipFile(project/'dist'/artifact['path']) as archive:
@@ -91,6 +94,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert manifest['status']=='succeeded' and source_files(project)==before
     test, = [r for r in manifest['reports'] if r['kind']=='test']
     assert test['summary']=={'total':3, 'passed':2, 'failed':0, 'skipped':1}
+    assert next(r for r in manifest['reports'] if r['kind']=='coverage')['summary']['metric']=='lines'
     report = ET.parse(project/'dist'/test['path'])
     assert {c.attrib['name'] for c in report.findall('.//testcase')}=={'positive','zero','negative'}
     coverage, = [r for r in manifest['reports'] if r['kind']=='coverage']

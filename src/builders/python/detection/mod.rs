@@ -1,4 +1,5 @@
-//! Independent manager detectors over a single parsed pyproject snapshot.
+//! Independent manager and quality detectors over bounded captured metadata.
+mod quality;
 use crate::discovery::{
     detectors::{exclusive, Detector, Finding, Source},
     Resolution,
@@ -9,6 +10,8 @@ use std::path::Path;
 pub(super) struct Profile {
     pub project: toml::Value,
     pub manager: Resolution,
+    pub linter: Resolution,
+    pub formatter: Resolution,
 }
 struct ContextData {
     source: Source,
@@ -71,7 +74,19 @@ static MANAGERS: &[&dyn Detector<ContextData>] = &[
     &PipDefault,
 ];
 pub(super) fn detect(root: &Path) -> Result<Profile> {
-    let source = Source::read(root, &["pyproject.toml", "uv.lock", "poetry.lock"])?;
+    let source = Source::read(
+        root,
+        &[
+            "pyproject.toml",
+            "uv.lock",
+            "poetry.lock",
+            "ruff.toml",
+            ".ruff.toml",
+            ".flake8",
+            "setup.cfg",
+            "tox.ini",
+        ],
+    )?;
     let project = source
         .text("pyproject.toml")
         .map(toml::from_str)
@@ -79,8 +94,12 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
         .unwrap_or(toml::Value::Table(Default::default()));
     let context = ContextData { source, project };
     let manager = exclusive("Python package manager", &context, MANAGERS)?;
+    let linter = exclusive("Python linter", &context, quality::LINTERS)?;
+    let formatter = exclusive("Python formatter", &context, quality::FORMATTERS)?;
     Ok(Profile {
         project: context.project,
         manager,
+        linter,
+        formatter,
     })
 }

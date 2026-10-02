@@ -8,5 +8,6 @@ def supported_version(value):
 def health():
     return {"status": "ok"}
 
+
 if __name__ == "__main__":
     print(health())
