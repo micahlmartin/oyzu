@@ -9,7 +9,7 @@ Status: **design contract for review**. Intended hosts: Windows, macOS, Linux. S
 
 ## Review the project
 
-Open the checked-in project roots: `project` (npm) and `variants/yarn-classic` (Yarn). The development build/quality composition below describes npm; see the [Yarn reference](../../../docs/reference/yarn.md#workspace-builds) for its native host commands and captured-build behavior. Source, native manifests, and Oyzu configuration are included here so we can review the intended experience directly.
+Open the checked-in project roots: `project` (npm) and `variants/yarn-classic` (Yarn), and `variants/pnpm` (pnpm). The development build/quality composition below describes npm; see the [Yarn reference](../../../docs/reference/yarn.md#workspace-builds) for its native host commands and captured-build behavior. Source, native manifests, and Oyzu configuration are included here so we can review the intended experience directly.
 
 The intended Oyzu interface is:
 
@@ -41,6 +41,7 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 
 ## Failure and variation cases
 
+- **pnpm:** The committed v9 lock and native workspace declaration link the same app/shared packages through `workspace:*`. Expect both snapshot packages to reference matching projected versions, package-owned reports, read-only quality gates and retained failures. See the [pnpm reference](../../../docs/reference/pnpm.md#workspace-builds) for verified scope.
 - **yarn-classic:** The committed native Classic lock and manifests link the same app/shared packages. Expect offline captured installation, two snapshot archives with matching dependency references, package-owned JUnit/LCOV, read-only quality gates and failure evidence. Native adapter verification is available; isolated CLI acceptance is pending.
 - **publishable-root:** Remove `private: true` from the root package and add conventional root source and tests. Expected: a third snapshot package, separate root JUnit/coverage, no duplicate member tests, no engine state in archives, and a failed root test blocking artifacts. No Oyzu configuration or root test script is needed. The native probe and compiled-CLI scenario suite construct this variation from the checked-in project.
 - **duplicate-execution:** Select both workspace root and package targets. Expected: Do not run the same native workspace task twice.

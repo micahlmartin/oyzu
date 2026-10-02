@@ -53,12 +53,11 @@ impl Pnpm {
         let importers = lock["importers"]
             .as_mapping()
             .context("pnpm lock missing importers")?;
-        if importers.len() != 1
-            || importers
-                .get(serde_yaml::Value::String(".".into()))
-                .is_none_or(|v| v.as_mapping().is_none())
+        if importers
+            .get(serde_yaml::Value::String(".".into()))
+            .is_none_or(|v| v.as_mapping().is_none())
         {
-            bail!("pnpm workspace/dependency capture is not implemented yet");
+            bail!("pnpm lock requires a root importer");
         }
         for field in ["dependencies", "devDependencies", "optionalDependencies"] {
             if let Some(dependencies) = package[field].as_object() {
@@ -97,8 +96,38 @@ impl crate::dependencies::context::Provider for Pnpm {
 }
 
 impl Manager for Pnpm {
+    fn workspace_build_command(&self) -> Option<Vec<String>> {
+        Some(
+            ["pnpm", "--recursive", "run", "build"]
+                .map(str::to_owned)
+                .to_vec(),
+        )
+    }
+    fn workspace_plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
+        let prepared = context
+            .dependencies
+            .context("pnpm workspace requires captured metadata")?;
+        let metadata = crate::builders::node::workspace::model::Metadata::read(
+            prepared.record["extensions"]["oyzu.dev/pnpm"]["workspaces"].clone(),
+        )?
+        .context("missing captured pnpm workspace model")?;
+        crate::builders::node::workspace::planning::plan(
+            context,
+            self,
+            &metadata,
+            "pnpm-workspace-build.mjs",
+        )
+    }
     fn is_workspace(&self, root: &std::path::Path, package: &serde_json::Value) -> bool {
-        root.join("pnpm-workspace.yaml").is_file() || package.get("workspaces").is_some()
+        let config = std::fs::read_to_string(root.join("pnpm-workspace.yaml"))
+            .ok()
+            .and_then(|text| serde_yaml::from_str::<serde_yaml::Value>(&text).ok());
+        package.get("workspaces").is_some()
+            || config.is_some_and(|value| {
+                value["packages"]
+                    .as_sequence()
+                    .is_some_and(|p| !p.is_empty())
+            })
     }
     fn workspace_test_command(&self) -> Vec<String> {
         ["pnpm", "--recursive", "run", "test"]

@@ -32,7 +32,7 @@ export function validatePatches(workspace, manifest, lock, yaml) {
     {maxAliasCount:100, uniqueKeys:true}), 'pnpm-workspace.yaml'));
   for (const config of configs) {
     for (const key of Object.keys(config)) {
-      if (key !== 'patchedDependencies') throw new Error(`pnpm capture does not yet support configuration ${key}`);
+      if (key !== 'patchedDependencies' && key !== 'packages') throw new Error(`pnpm capture does not yet support configuration ${key}`);
     }
     for (const path of Object.values(mapping(config.patchedDependencies, 'patchedDependencies'))) patchFile(workspace, path);
   }

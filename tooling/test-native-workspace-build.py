@@ -1,7 +1,8 @@
-"""Native Yarn capture -> offline workspace build -> snapshot packages/reports.
+"""Native manager capture -> offline workspace build -> snapshot packages/reports.
 
 This checks the native adapter. Compiled-CLI isolated acceptance runs in CI.
 """
+import argparse
 import hashlib
 import json
 import os
@@ -16,8 +17,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main():
-    native = ROOT/'tooling/images/node-yarn/node_modules/yarn/bin/yarn.js'
-    with tempfile.TemporaryDirectory(prefix='oyzu Yarn workspace ') as directory:
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--manager',choices=['yarn','pnpm'],required=True)
+    manager=parser.parse_args().manager
+    native=ROOT/f'tooling/images/node-{manager}/node_modules'/manager/('bin/yarn.js' if manager=='yarn' else 'bin/pnpm.cjs')
+    native_args=[] if manager=='yarn' else ['--config.manage-package-manager-versions=false']
+    variant='yarn-classic' if manager=='yarn' else 'pnpm'
+    with tempfile.TemporaryDirectory(prefix=f'oyzu {manager} workspace ') as directory:
         base = Path(directory)
         runtime = base/'runtime'
         shutil.copytree(ROOT/'src/builders/node/runtime', runtime)
@@ -25,13 +31,14 @@ def main():
         shutil.copyfile(runtime/'quality.mjs', runtime/'node-quality.mjs')
         shutil.copyfile(ROOT/'src/broker/runtime/transport.mjs', runtime/'broker_transport.mjs')
         wrapper = runtime/'capture.mjs'
-        wrapper.write_text(f"import {{profile}} from './yarn.mjs'; import {{run}} from './manager-runtime.mjs'; profile.command=[process.execPath,{json.dumps(str(native))}]; await run(profile);\n",encoding='utf-8')
+        wrapper.write_text(f"import {{profile}} from './{manager}.mjs'; import {{run}} from './manager-runtime.mjs'; profile.command=[process.execPath,{json.dumps(str(native))},...{json.dumps(native_args)}]; await run(profile);\n",encoding='utf-8')
         env = dict(os.environ, OYZU_YARN_LOCKFILE=str(native.parents[2]/'@yarnpkg/lockfile'),
+                   OYZU_PNPM_YAML=str(native.parents[2]/'yaml'),
                    OYZU_NODE_QUALITY_HOME=str(ROOT/'tooling/images/node-quality'),
                    PATH=str(native.parents[2]/'.bin')+os.pathsep+os.environ['PATH'], OYZU_TARGET='project')
         source = base/'source'
-        shutil.copytree(ROOT/'examples/builds/node-workspace/variants/yarn-classic',source)
-        subprocess.run(['node',str(native),'install','--offline','--non-interactive','--ignore-scripts'],cwd=source,env=env,check=True,capture_output=True)
+        shutil.copytree(ROOT/'examples/builds/node-workspace/variants'/variant,source)
+        subprocess.run(['node',str(native),*native_args,'install','--offline','--ignore-scripts'],cwd=source,env=env,check=True,capture_output=True)
         originals={p.relative_to(source):p.read_bytes() for p in source.rglob('*') if p.is_file() and 'node_modules' not in p.parts}
         acquired=base/'acquired'
         shutil.copytree(source,acquired,ignore=shutil.ignore_patterns('node_modules'))
@@ -60,12 +67,12 @@ def main():
         env['OYZU_NODE_WORKSPACE_PLAN']=hashlib.sha256(encoded.encode()).hexdigest()
         project=base/'execution'
         shutil.copytree(source,project,ignore=shutil.ignore_patterns('node_modules'))
-        invoke('yarn-workspace-build.mjs',['project',encoded],project)
+        invoke(f'{manager}-workspace-build.mjs',['project',encoded],project)
         invoke('capture.mjs',['install',str(captured),str(project)],project)
         for stage in ['build','test','lint','format-check']:
-            invoke('yarn-workspace-build.mjs',[stage],project)
+            invoke(f'{manager}-workspace-build.mjs',[stage],project)
         output=base/'out'
-        invoke('yarn-workspace-build.mjs',['package','unused',str(output)],project)
+        invoke(f'{manager}-workspace-build.mjs',['package','unused',str(output)],project)
         artifacts=list((output/'project/artifacts').glob('*.tgz'))
         assert len(artifacts)==2
         for artifact in artifacts:
@@ -79,10 +86,10 @@ def main():
             assert ET.parse(reports/'junit.xml').findall('.//testcase')
             assert 'DA:' in (reports/'coverage.lcov').read_text()
         (project/'packages/shared/failure.test.mjs').write_text("import test from 'node:test'; test('failure',()=>{throw Error('expected')});\n")
-        invoke('yarn-workspace-build.mjs',['test'],project,False)
+        invoke(f'{manager}-workspace-build.mjs',['test'],project,False)
         assert ET.parse(project/'.oyzu-build/reports/shared/junit.xml').findall('.//failure')
         assert originals=={p:(source/p).read_bytes() for p in originals}
-        print('Yarn workspace: native capture, fresh offline links, snapshot packages/local references, real tests/coverage, quality and failure evidence passed')
+        print(f'{manager} workspace: native capture, fresh offline links, snapshot packages/local references, real tests/coverage, quality and failure evidence passed')
 
 
 if __name__=='__main__':

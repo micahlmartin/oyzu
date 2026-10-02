@@ -10,7 +10,8 @@
   ],
   "projects": [
     "project",
-    "variants/yarn-classic"
+    "variants/yarn-classic",
+    "variants/pnpm"
   ],
   "oyzu": [
     "oyzu build"
@@ -33,6 +34,11 @@
     {
       "name": "yarn-classic",
       "change": "Use the checked-in variants/yarn-classic project with its native Classic lock.",
+      "expect": "Build both snapshot packages with matching local dependency versions, JUnit/LCOV, quality gates and retained failure evidence without changing source."
+    },
+    {
+      "name": "pnpm",
+      "change": "Use the checked-in variants/pnpm project with its native v9 lock and packages declaration.",
       "expect": "Build both snapshot packages with matching local dependency versions, JUnit/LCOV, quality gates and retained failure evidence without changing source."
     }
   ],
@@ -71,7 +77,14 @@
     "variants/yarn-classic/packages/app/package.json",
     "variants/yarn-classic/packages/app/app.test.mjs",
     "variants/yarn-classic/packages/shared/package.json",
-    "variants/yarn-classic/packages/shared/shared.test.mjs"
+    "variants/yarn-classic/packages/shared/shared.test.mjs",
+    "variants/pnpm/package.json",
+    "variants/pnpm/pnpm-lock.yaml",
+    "variants/pnpm/pnpm-workspace.yaml",
+    "variants/pnpm/packages/app/package.json",
+    "variants/pnpm/packages/app/app.test.mjs",
+    "variants/pnpm/packages/shared/package.json",
+    "variants/pnpm/packages/shared/shared.test.mjs"
   ],
   "hosts": {
     "intended": [

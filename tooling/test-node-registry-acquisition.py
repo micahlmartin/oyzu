@@ -244,7 +244,7 @@ def main():
             package_path.write_text(json.dumps(package))
             if manager == 'pnpm':
                 lock_path.write_bytes(original_lock.replace(b'version: 3.0.1', b'version: link:/outside'))
-                assert 'non-registry dependency references' in run('acquire', output, project, False).stderr
+                assert 'local links must reference captured workspace importers' in run('acquire', output, project, False).stderr
                 lock_path.write_bytes(original_lock)
                 (project / '.pnpmfile.cjs').write_text("throw new Error('project hook executed');")
                 assert 'does not yet support .pnpmfile.cjs' in run('acquire', output, project, False).stderr
