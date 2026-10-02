@@ -28,6 +28,20 @@ def verify(root, base, invoke, validate, source_files, verified):
     manifest = validate(project / 'dist')
     assert manifest['status'] == 'succeeded'
     assert source_files(project) == before, 'mixed build changed checked-in inputs'
+    verify_outputs(project, manifest)
+    assert invoke(project, 'inspect', 'dist')['planDigest'] == manifest['planDigest']
+    verified.append('EX-030 first end-to-end flow: unchanged five-target configuration, grouped tasks, native build/test/lint/format checks, Python wheel/sdist/application, Node directory, Go binary, exact binary in OCI, ordered Helm chart/rendering, JUnit/coverage and inspected snapshot bundle; advanced negative cases and image-to-chart value binding remain separate work')
+
+
+def verify_outputs(project, manifest):
+    # The image's explicit platform propagates to its Go producer. Resolve the
+    # actual variant by native ownership and platform, not its hashed ID text.
+    command_target, = [t for t in manifest['targets']
+                       if t['builder'] == 'go/app' and t['path'] == 'command']
+    assert command_target['platform'] == {'os': 'linux', 'arch': 'amd64'}
+    command_id = command_target['id']
+    targets = {'api', 'web', command_id, 'image', 'chart'}
+    stages = ('build', 'test', 'lint', 'format-check')
     assert {t['id'] for t in manifest['targets']} == targets
     actions = {a['id']: a for a in manifest['actions']}
     assert len(actions) == len(manifest['actions']), 'duplicate action execution'
@@ -36,7 +50,7 @@ def verify(root, base, invoke, validate, source_files, verified):
             assert actions[f'{target}:{stage}']['status'] == 'succeeded'
         assert any(r['target'] == target and r['kind'] == 'test'
                    and r['summary']['passed'] > 0 for r in manifest['reports'])
-    for target in ('api', 'web', 'command'):
+    for target in ('api', 'web', command_id):
         assert any(r['target'] == target and r['kind'] == 'coverage'
                    and r['summary']['covered'] > 0 for r in manifest['reports'])
 
@@ -60,7 +74,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert web['kind'] == 'directory'
     assert (project / 'dist' / web['path'] / 'greeting.mjs').read_bytes() == (
         project / 'web/src/greeting.mjs').read_bytes()
-    command, = [a for a in artifacts if a['target'] == 'command']
+    command, = [a for a in artifacts if a['target'] == command_id]
     image, = [a for a in artifacts if a['target'] == 'image']
     image_digest, config, files = image_contents(project / 'dist' / image['path'])
     assert image_digest == image['ociDigest']
@@ -72,7 +86,7 @@ def verify(root, base, invoke, validate, source_files, verified):
 
     plan = json.loads((project / 'dist/plan.json').read_text())
     planned = {a['id']: a for a in plan['actions']}
-    assert 'command:package' in planned['image:build']['dependsOn']
+    assert f'{command_id}:package' in planned['image:build']['dependsOn']
     chart_actions = [a for a in plan['actions'] if a['target'] == 'chart']
     assert any('image:package' in a['dependsOn'] for a in chart_actions)
     chart, = [a for a in artifacts if a['target'] == 'chart' and a['name'] == 'chart']
@@ -86,5 +100,3 @@ def verify(root, base, invoke, validate, source_files, verified):
     # digest-to-chart-values binding; preserve the authored native values.
     assert deployment['spec']['template']['spec']['containers'][0]['image'] == (
         'registry.example.invalid/team/greeting:development')
-    assert invoke(project, 'inspect', 'dist')['planDigest'] == manifest['planDigest']
-    verified.append('EX-030 first end-to-end flow: unchanged five-target configuration, grouped tasks, native build/test/lint/format checks, Python wheel/sdist/application, Node directory, Go binary, exact binary in OCI, ordered Helm chart/rendering, JUnit/coverage and inspected snapshot bundle; advanced negative cases and image-to-chart value binding remain separate work')
