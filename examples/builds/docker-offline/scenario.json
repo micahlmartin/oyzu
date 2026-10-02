@@ -20,6 +20,11 @@
   ],
   "cases": [
     {
+      "name": "image-aliases",
+      "change": "Use variants/image-aliases with alpine:3.22 provisioned; FROM, external COPY and an image-backed RUN mount use equivalent short and qualified references.",
+      "expect": "Preserve both requested references in the input evidence, use one native context only when captured identities agree, and retain copied content without persisting the temporary mount."
+    },
+    {
       "name": "provisioned-base",
       "change": "Use variants/provisioned-base with alpine:3.22 explicitly provisioned in the executor Docker store.",
       "expect": "Capture the immutable image during preparation, build from its OCI store offline, retain input identity and produce repeatable snapshots; missing images fail preflight without pulling."
@@ -55,6 +60,7 @@
     }
   ],
   "requiredFiles": [
+    "variants/image-aliases/Dockerfile",
     "variants/provisioned-base/Dockerfile",
     "variants/provisioned-base/greeting.txt",
     "negative/Dockerfile",

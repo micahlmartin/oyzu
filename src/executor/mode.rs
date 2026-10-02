@@ -110,7 +110,13 @@ impl Mode {
                 .into_iter()
                 .map(str::to_owned)
                 .collect();
+                // Validation requires aliases of one native context to bind
+                // identical content. Emit its first deterministic store once.
+                let mut contexts = std::collections::BTreeSet::new();
                 for (index, image) in images.iter().enumerate() {
+                    if !contexts.insert(&image.name) {
+                        continue;
+                    }
                     args.extend([
                         "--oci-layout".into(),
                         format!("base-{index}=/inputs/base-{index}"),
@@ -144,14 +150,21 @@ impl Mode {
             images,
         } = self
         {
-            let mut names = std::collections::BTreeSet::new();
+            let mut names = std::collections::BTreeMap::new();
             if images.len() > 64 {
                 bail!("too many captured base images");
             }
             for image in images {
                 image.validate()?;
-                if !names.insert(&image.name) {
-                    bail!("duplicate captured image context");
+                let identity = (&image.manifest, &image.config, &image.tree_digest);
+                if names
+                    .insert(&image.name, identity)
+                    .is_some_and(|previous| previous != identity)
+                {
+                    bail!(
+                        "conflicting captured identities for image context {}",
+                        image.name
+                    );
                 }
             }
             if dockerfile_digest.len() != 71
@@ -212,6 +225,54 @@ impl Mode {
                 "buildkit-private-store",
                 "buildkit-no-result-cache-import",
             ],
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn equivalent_image_references_share_a_context_but_conflicts_fail() {
+        let image = ImageInput {
+            reference: "alpine:3.22".into(),
+            name: "alpine:3.22".into(),
+            store: "images/base-0".into(),
+            manifest: format!("sha256:{}", "1".repeat(64)),
+            config: format!("sha256:{}", "2".repeat(64)),
+            tree_digest: format!("sha256:{}", "3".repeat(64)),
+        };
+        let mut alias = image.clone();
+        alias.reference = "docker.io/library/alpine:3.22".into();
+        alias.store = "images/base-1".into();
+        let mode = Mode::Buildkit {
+            output: "image.tar".into(),
+            image_name: "example/app:1".into(),
+            context_files: vec![],
+            apparmor_profile: "unconfined".into(),
+            dockerfile_digest: format!("sha256:{}", "4".repeat(64)),
+            images: vec![image, alias],
+        };
+        mode.validate().unwrap();
+        let args = mode.argv("linux/amd64").unwrap();
+        assert_eq!(args.iter().filter(|a| *a == "--oci-layout").count(), 1);
+        assert_eq!(
+            args.iter()
+                .filter(|a| a.starts_with("context:alpine:"))
+                .count(),
+            1
+        );
+        assert!(args.contains(&"base-0=/inputs/base-0".into()));
+        for field in ["manifest", "config", "tree_digest"] {
+            let mut record = serde_json::to_value(&mode).unwrap();
+            record["images"][1][field] = format!("sha256:{}", "5".repeat(64)).into();
+            let conflict: Mode = serde_json::from_value(record).unwrap();
+            assert!(conflict
+                .validate()
+                .unwrap_err()
+                .to_string()
+                .contains("conflicting captured identities"));
         }
     }
 }

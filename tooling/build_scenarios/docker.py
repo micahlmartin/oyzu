@@ -123,6 +123,20 @@ def verify(root, base, invoke, validate, source_files, verified):
     repeated=invoke(provisioned,'build')
     assert repeated['planDigest']==captured['planDigest']
     assert repeated['artifacts'][0]['ociDigest']==digest and repeated['artifacts'][0]['digest']==image['digest']
+    aliases=base/'docker-image-aliases'
+    shutil.copytree(root/'examples/builds/docker-offline/variants/image-aliases',aliases)
+    before=source_files(aliases)
+    invoke(aliases,'build')
+    equivalent=validate(aliases/'dist')
+    assert equivalent['status']=='succeeded' and source_files(aliases)==before
+    alias_image,=equivalent['artifacts']
+    _,_,alias_files=image_contents(aliases/'dist'/alias_image['path'])
+    assert alias_files['copied-release']==alias_files['etc/alpine-release']
+    assert not any(name.startswith('base-etc/') for name in alias_files), 'temporary image mount leaked into a layer'
+    alias_inputs=json.loads((aliases/'dist/dependencies/project.json').read_text())['extensions']['oyzu.dev/docker']['images']
+    assert {i['reference'] for i in alias_inputs}=={'alpine:3.22','docker.io/library/alpine:3.22'}
+    assert len({(i['name'],i['manifest'],i['config'],i['tree_digest']) for i in alias_inputs})==1
+    verified.append('Docker native reference aliases bind one immutable context for FROM, external COPY and temporary image-backed RUN mounts')
     (provisioned/'Dockerfile').write_text('FROM example.invalid/oyzu/unprovisioned:1\n')
     invoke(provisioned,'build',success=False)
     missing=validate(provisioned/'dist')
