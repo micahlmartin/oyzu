@@ -20,7 +20,15 @@ Describe checks performed and relevant results.
 
 Describe affected contracts, platform differences, and unresolved limitations.
 
-## Documentation
+## Third-party compliance
+
+State third-party impact, including "none" with a reason. For imports/dependency
+changes, identify source/version/license records, preserved notices, required
+source availability and validation. A refreshed inventory is not legal approval.
+Link human review for obligations or policy changes; AI must not approve its own
+exceptions. See `compliance/README.md`.
+
+## Documentation updates
 
 Link the updated feature reference and applicable status/interface pages. For an internal-only change with no documentation impact, explain the specific reason. Observable behavior changes require corresponding documentation in this PR; see `docs/documentation.md`.
 

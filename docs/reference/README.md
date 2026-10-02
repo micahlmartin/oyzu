@@ -4,6 +4,7 @@ This is the entry point for current functionality documentation. Maintain featur
 
 | Reference | Coverage |
 | --- | --- |
+| [Repository compliance tooling](compliance.md) | Factual inventory, notice drift, review guard and explicitly blocked provisional release status |
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
 | CLI overview below | Discovery, development tasks and initial build/bundle usage; detailed subsystem coverage remains to be expanded as those features are touched |
 

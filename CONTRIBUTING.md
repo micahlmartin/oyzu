@@ -50,4 +50,9 @@ Never include secrets or confidential information. See [SECURITY.md](SECURITY.md
 
 ## License status
 
+Follow the [third-party compliance policy](compliance/README.md) for dependency
+changes, imported source, notices and release preparation. The inventory and CI
+guard detect drift; their success is not permission to redistribute. The initial
+technical reviewer is @micahlmartin, with legal approval separately required.
+
 The project license and contribution licensing terms remain undecided. External substantive code submissions remain deferred until those terms are established; this applies to AI-generated submissions too. Maintainer-directed implementation is underway. Issues, design feedback and documentation discussions can continue. No license or contribution agreement is introduced by this guide.
