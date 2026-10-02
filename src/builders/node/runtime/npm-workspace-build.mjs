@@ -2,13 +2,12 @@
 import {spawnSync} from 'node:child_process';
 import {copyFileSync, constants, mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {createRequire} from 'node:module';
 import {dirname, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {npm, npmCommand} from './npm-native.mjs';
 import {digest, project, read, regular, root, specification, state} from './npm-workspace-plan.mjs';
 import {packRoot} from './npm-workspace-root.mjs';
-import {nodeTests, frameworkArguments, frameworkCommand} from './npm-workspace-test-scope.mjs';
+import {testWorkspace} from './npm-workspace-testing.mjs';
 
 const [mode, encoded, location] = process.argv.slice(2);
 if (mode === 'project') {
@@ -47,38 +46,7 @@ if (mode === 'project') {
     }
     writeFileSync(receipt, JSON.stringify(artifacts), {flag:'wx'});
   } else if (mode === 'test') {
-    const rootProducer = {id:'root', path:'.', scripts:spec.rootScripts, framework:spec.rootFramework};
-    const producers = spec.rootScripts.test ? [rootProducer]
-      : [...spec.modules, ...(spec.rootArtifact ? [rootProducer] : [])];
-    for (const member of producers) {
-      const reports = join(state, 'reports', member.id);
-      mkdirSync(reports, {recursive:true});
-      const env = {...process.env, OYZU_TEST_REPORT:join(reports, 'junit.xml'), OYZU_COVERAGE_REPORT:join(reports, 'coverage.lcov')};
-      const cwd = resolve(root, member.path);
-      const excludes = member.id === 'root' ? spec.modules : member.testExcludes?.map(path => ({path}));
-      if (!member.scripts.test && !excludes) throw new Error('Missing planned workspace test scope');
-      let command;
-      if (member.scripts.test) command = script('test', member.name ? member : undefined);
-      else if (member.framework === 'node-test') command = [process.execPath, '--test'];
-      else if (['jest', 'vitest', 'mocha'].includes(member.framework)) {
-        command = frameworkCommand(member.framework, cwd);
-      } else throw new Error(`No native test command for ${member.name}`);
-      if (member.framework === 'node-test') {
-        command.push(...spec.nodeTestArguments.map(v => v.replace('__OYZU_TEST_REPORT__', env.OYZU_TEST_REPORT).replace('__OYZU_COVERAGE_REPORT__', env.OYZU_COVERAGE_REPORT)));
-        if (!member.scripts.test) command.push(...nodeTests(cwd, excludes));
-      } else if (['jest', 'vitest', 'mocha'].includes(member.framework)) {
-        if (!member.scripts.test) {
-          const native = createRequire(join(cwd, 'package.json'));
-          const version = member.framework === 'jest' ? native('jest/package.json').version : undefined;
-          command.push(...frameworkArguments(member.framework, cwd, excludes, version));
-        }
-        command = [process.execPath, join(runtime, `${member.framework}.mjs`), ...command];
-      }
-      // Mocha/c8 resolve native config and reporting dependencies from the
-      // package they test, including when npm dispatches a member script.
-      const status = invoke(command, member.scripts.test && member.framework !== 'mocha' ? root : cwd, env);
-      if (status) process.exitCode = 1;
-    }
+    process.exitCode = testWorkspace(spec, {root, reportRoot:join(state, 'reports'), script});
   } else if (['lint', 'format-check', 'format:check'].includes(mode)) {
     const aliases = mode === 'lint' ? ['lint'] : ['format-check','format:check'];
     const rootScript = aliases.find(name => Object.hasOwn(spec.rootScripts, name));

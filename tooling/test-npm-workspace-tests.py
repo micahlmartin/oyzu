@@ -32,7 +32,8 @@ def main():
             member.mkdir(parents=True, exist_ok=True)
             pkg = {'name':name.replace('/','-'),'version':'1.0.0','private':True}
             if name == 'node/nested':
-                pkg['scripts'] = {stage:f'node ../../../marker.cjs {stage}' for stage in ['pretest','test','posttest']}
+                pkg['scripts'] = {stage:f'node ../../../marker.cjs {stage}' for stage in ['pretest','posttest']}
+                pkg['scripts']['test'] = 'node --test'
             (member/'package.json').write_text(json.dumps(pkg))
         native = (ROOT/'src/builders/node/runtime/npm-native.mjs').as_uri()
         subprocess.run(['node','--input-type=module','-e',f"import {{npm}} from {json.dumps(native)}; npm(['install','--ignore-scripts'],process.cwd(),process.argv[1]);",str(base/'cache')],cwd=project,check=True,capture_output=True,text=True)
@@ -44,7 +45,8 @@ def main():
 
         def write_test(path, name, framework):
             imports = {'node':"const {test}=require('node:test');",'jest':'','vitest':"import {test} from 'vitest'; import {createRequire} from 'node:module'; const require=createRequire(import.meta.url);"}[framework]
-            path.write_text(imports + f"test('{name}',()=>{{require('node:fs').appendFileSync(process.env.OYZU_WORKSPACE_TEST_LOG,JSON.stringify([{json.dumps(name)}])+'\\n')}});\n")
+            (path.parent/'value.cjs').write_text('module.exports=()=>42;\n', encoding='utf-8')
+            path.write_text(imports + f"test('{name}',()=>{{if(require('./value.cjs')()!==42)throw Error('wrong value');require('node:fs').appendFileSync(process.env.OYZU_WORKSPACE_TEST_LOG,JSON.stringify([{json.dumps(name)}])+'\\n')}});\n")
 
         write_test(project/'root.test.cjs','root','node')
         write_test(project/'packages/node/member.test.cjs','node','node')
@@ -55,7 +57,8 @@ def main():
         for name, modules in [('jest',args.jest_modules),('vitest',args.vitest_modules)]:
             assert modules.is_dir(), f'Provision native {name} dependencies first: {modules}'
             subprocess.run(['node','-e',"require('node:fs').symlinkSync(process.argv[1],process.argv[2],process.platform==='win32'?'junction':'dir')",str(modules.resolve()),str(project/f'packages/{name}/node_modules')],check=True)
-        for directory in ['.oyzu-build','packages/node/nested']:
+        write_test(project/'packages/node/nested/nested.test.cjs','test','node')
+        for directory in ['.oyzu-build']:
             (project/directory).mkdir(exist_ok=True)
             (project/directory/'excluded.test.cjs').write_text("throw Error('A parent executed a test owned by a child');\n")
 
@@ -72,6 +75,10 @@ def main():
         listed = json.loads(run('run','list','--json',extra_env={'PATH':''}).stdout)
         assert listed['project:test']['availability'] is None and not log.exists()
         run('run','test')
+        bundle = json.loads((project/'dist/manifest.json').read_text(encoding='utf-8'))
+        assert bundle['status'] == 'succeeded' and len(bundle['reports']) == 10
+        assert not bundle['artifacts']
+        run('inspect', 'dist')
         result = entries()
         assert sorted(x[0] for x in result) == sorted(['root','node','jest','vitest','pretest','test','posttest']), result
         assert result.index(['pretest']) < result.index(['test']) < result.index(['posttest'])
@@ -88,14 +95,16 @@ def main():
         run('run','test',success=False)
         assert sorted(x[0] for x in entries()) == sorted(x[0] for x in result)
         failed.unlink()
-        # Explicit root scripts own the aggregate and preserve native arguments/lifecycle.
+        # Custom root scripts retain exact argument/lifecycle behavior, but these
+        # marker-only commands now fail the required reporting contract.
         package['scripts'] = {stage:f'node marker.cjs root-{stage}' for stage in ['pretest','test','posttest']}
         manifest.write_text(json.dumps(package))
         forwarded = ['with spaces','','semi;colon','snowman-\u2603']
-        run('run','test','--',*forwarded)
+        run('run','test','--',*forwarded,success=False)
+        assert json.loads((project/'dist/manifest.json').read_text(encoding='utf-8'))['status'] == 'failed'
         assert entries() == [['root-pretest'],['root-test',*forwarded],['root-posttest']]
         (project/'oyzu.toml').write_text('[tasks."project:test"]\nargv=["node","marker.cjs","override"]\n')
-        run('run','test')
+        run('run','test',success=False)
         assert entries() == [['override']]
         (project/'oyzu.toml').unlink()
         package.pop('scripts')

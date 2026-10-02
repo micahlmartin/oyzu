@@ -80,6 +80,14 @@ static RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/npm-workspace-build.mjs"),
     },
     RuntimeFile {
+        name: "npm-workspace-testing.mjs",
+        contents: include_str!("runtime/npm-workspace-testing.mjs"),
+    },
+    RuntimeFile {
+        name: "npm-workspace-test-host.mjs",
+        contents: include_str!("runtime/npm-workspace-test-host.mjs"),
+    },
+    RuntimeFile {
         name: "npm-workspace-plan.mjs",
         contents: include_str!("runtime/npm-workspace-plan.mjs"),
     },
@@ -156,6 +164,9 @@ impl Builder for Node {
     }
     fn development_test(&self, target: &Target, task: &Task) -> Result<Option<super::TaskPlan>> {
         let package = crate::records::read(&target.path.join("package.json"))?;
+        if task.name == "test" && package.get("workspaces").is_some() {
+            return managers::get(&target.manager)?.development_test(target, task);
+        }
         if task.name != "test"
             || package.get("workspaces").is_some()
             || target

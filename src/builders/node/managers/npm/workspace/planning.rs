@@ -1,9 +1,11 @@
 //! Compile captured workspace facts into native operations and per-module outputs.
-use super::{Member, Metadata};
+use super::{
+    reporting::{framework, reports},
+    Member, Metadata,
+};
 use crate::builders::node::{detection, managers::Manager};
 use crate::builders::{
-    ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, ReportFormat,
-    ReportSpec, TaskPlan,
+    ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, TaskPlan,
 };
 use anyhow::{bail, Context, Result};
 use serde_json::json;
@@ -32,22 +34,6 @@ pub(super) fn ordered(metadata: &Metadata) -> Result<Vec<&Member>> {
         done.insert(name);
     }
     Ok(output)
-}
-
-fn framework(profile: &detection::Profile) -> Result<String> {
-    let name = profile.framework.selected();
-    if let Some(script) = profile.package["scripts"]["test"].as_str() {
-        if (name == "jest" && !crate::builders::node::jest::recognized(script))
-            || (name == "vitest" && !crate::builders::node::vitest::recognized(script))
-            || (name == "mocha" && !crate::builders::node::mocha::recognized(script))
-        {
-            return Ok("custom".into());
-        }
-    }
-    if !["node-test", "jest", "vitest", "mocha", "custom"].contains(&name) {
-        bail!("npm workspace {name} reporting integration is not implemented yet");
-    }
-    Ok(name.into())
 }
 
 fn package_artifact(name: &str, version: String) -> ArtifactSpec {
@@ -94,7 +80,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         let artifact = package_artifact(&member.name, version);
         modules.push(json!({"id":artifact.name,"name":member.name,"path":member.path,"version":artifact.version,"filename":artifact.filename,"scripts":member.scripts,"dependencies":member.dependencies,"framework":framework(&profile)?,"testExcludes":super::scope::exclusions(&metadata, &member.path),"quality":{"linter":profile.linter.selected(),"formatter":profile.formatter.selected(),"excludes":super::scope::exclusions(&metadata, &member.path)}}));
         if !root_test {
-            reports(&mut test, &artifact.name);
+            reports(&mut test, &artifact.name, true);
         }
         plan.artifacts.push(artifact);
     }
@@ -118,7 +104,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         None
     };
     if root_test || root_artifact.is_some() {
-        reports(&mut test, "root");
+        reports(&mut test, "root", true);
     }
     let root_profile = detection::detect(&context.target.path)?;
     if root_profile.framework.selected() == "mocha"
@@ -170,21 +156,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     }
     crate::builders::node::quality::plan(context.target, &mut plan)?;
     Ok(plan)
-}
-
-fn reports(task: &mut TaskPlan, module: &str) {
-    for (format, filename) in [
-        (ReportFormat::Junit, "junit.xml"),
-        (ReportFormat::Lcov, "coverage.lcov"),
-    ] {
-        task.reports.push(ReportSpec {
-            format,
-            filename,
-            source: crate::reports::ReportSource::File,
-            name: Some(module.into()),
-            input: Some(format!(".oyzu-build/reports/{module}/{filename}")),
-        });
-    }
 }
 
 #[cfg(test)]

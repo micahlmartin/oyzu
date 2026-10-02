@@ -33,6 +33,16 @@ pub(super) trait Manager: Sync {
     ) -> Result<Option<crate::builders::DevelopmentCommand>> {
         Ok(None)
     }
+    /// Bind package-owned reports for an explicitly admitted host test run.
+    /// Native workspace observation may use already installed tools; no install
+    /// or project scripts may run while constructing this report contract.
+    fn development_test(
+        &self,
+        _target: &crate::model::Target,
+        _task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        Ok(None)
+    }
     /// Translate captured native workspace facts into intent without executing
     /// tools. Return an explicit unsupported error until the manager owns its
     /// module/version/report semantics; never silently pack only the root.

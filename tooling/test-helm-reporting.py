@@ -13,6 +13,13 @@ ROOT = Path(__file__).resolve().parents[1]
 validate = runpy.run_path(str(ROOT/'src/builders/helm/runtime/testing.py'))['validate']
 
 
+def chart_sources(root):
+    # Direct tests now intentionally create a bundle/history. Preserve the
+    # chart-byte invariant independently of those engine-owned outputs.
+    return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob('*')
+            if p.is_file() and p.relative_to(root).parts[0] not in {'dist', '.oyzu'}}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--helm', default='helm')
@@ -70,6 +77,11 @@ def main():
                 env = {**os.environ, 'PATH':str(Path(helm).parent)+os.pathsep+os.environ.get('PATH','')}
                 result = subprocess.run([str(args.cli.resolve()),'-C',str(directory),'run','test'],env=env,capture_output=True,text=True,encoding='utf-8',timeout=120)
                 assert (result.returncode==0)==expected, (result.stdout,result.stderr)
+                manifest = json.loads((directory/'dist/manifest.json').read_text(encoding='utf-8'))
+                assert manifest['status'] == ('succeeded' if expected else 'failed')
+                inspected = subprocess.run([str(args.cli.resolve()),'-C',str(directory),'inspect','dist'],
+                                           env=env,capture_output=True,text=True,timeout=120)
+                assert inspected.returncode == 0, (inspected.stdout,inspected.stderr)
         if args.cli:
             result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'run','list','--json'],env={**os.environ,'PATH':''},capture_output=True,text=True,timeout=30)
             assert result.returncode==0, result.stderr
@@ -139,14 +151,14 @@ def main():
         # Oyzu expands a private copy so packaged-only suites must run and fail.
         authored = base/'authored-packaged-only'
         shutil.copytree(ROOT/'examples/builds/helm-chart/variants/packaged-only', authored)
-        authored_before = {str(p.relative_to(authored)):p.read_bytes() for p in authored.rglob('*') if p.is_file()}
+        authored_before = chart_sources(authored)
         subprocess.run([helm,'lint','--strict',str(authored)],check=True)
         assert validate(authored,'application',report,rendered,helm,unit_report)==0
         assert len(ET.parse(unit_report).findall('.//testcase'))==1
         cli_test(True, authored)
-        assert authored_before == {str(p.relative_to(authored)):p.read_bytes() for p in authored.rglob('*') if p.is_file()}
+        assert authored_before == chart_sources(authored)
         authored_prepared = base/'authored-prepared'
-        shutil.copytree(authored, authored_prepared)
+        shutil.copytree(authored, authored_prepared, ignore=shutil.ignore_patterns('.oyzu', 'dist'))
         runpy.run_path(str(ROOT/'src/builders/helm/runtime/charts.py'))['expand'](authored_prepared)
         subprocess.run([helm,'dependency','build',str(authored_prepared),'--skip-refresh'],check=True)
         packed = base/'packaged-only'
@@ -166,11 +178,11 @@ def main():
                                     env={**os.environ,'PATH':''},capture_output=True,text=True,timeout=30)
             assert listed.returncode == 0, listed.stderr
             assert json.loads(listed.stdout)['project:test']['argv']==['helm','unittest','--strict','.']
-        original = {str(p.relative_to(packed)):p.read_bytes() for p in packed.rglob('*') if p.is_file()}
+        original = chart_sources(packed)
         assert validate(packed,'application',report,rendered,helm,unit_report)==0
         assert len(ET.parse(unit_report).findall('.//testcase'))==1
         cli_test(True, packed)
-        assert original == {str(p.relative_to(packed)):p.read_bytes() for p in packed.rglob('*') if p.is_file()}
+        assert original == chart_sources(packed)
         shutil.move(str(held), child)
         suite = child/'tests/configmap_test.yaml'
         suite.write_text(suite.read_text().replace('value: "42"','value: "99"'))
@@ -181,7 +193,7 @@ def main():
         cli_test(False, packed)
         # Preparation expands native packaged dependencies before Helm's local build.
         prepared = base/'prepared-packed'
-        shutil.copytree(packed,prepared)
+        shutil.copytree(packed,prepared,ignore=shutil.ignore_patterns('.oyzu', 'dist'))
         charts = runpy.run_path(str(ROOT/'src/builders/helm/runtime/charts.py'))
         charts['expand'](prepared)
         subprocess.run([helm,'dependency','build',str(prepared),'--skip-refresh'],check=True)

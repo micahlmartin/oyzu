@@ -1,9 +1,11 @@
 //! Typed native workspace facts; no scheduling or package execution here.
 mod development;
 mod planning;
+mod reporting;
 mod scope;
 
 pub(super) use development::command as development_command;
+pub(super) use development::report_plan;
 
 pub(super) fn plan(
     context: crate::builders::PlanningContext<'_>,

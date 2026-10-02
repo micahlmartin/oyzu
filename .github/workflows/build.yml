@@ -204,6 +204,7 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then FRAMEWORK_CLI=cli/oyzu.exe; else FRAMEWORK_CLI=cli/oyzu; fi
           python -m pip install -r tooling/design-requirements.txt
           python tooling/test-node-framework-direct.py --cli "$FRAMEWORK_CLI"
+          python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI"
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-go-metadata.py --cli cli/oyzu.exe
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe

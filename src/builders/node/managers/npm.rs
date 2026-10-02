@@ -31,6 +31,13 @@ impl crate::dependencies::context::Provider for Npm {
 }
 
 impl Manager for Npm {
+    fn development_test(
+        &self,
+        target: &crate::model::Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        workspace::report_plan(target, task)
+    }
     fn development_command(
         &self,
         task: &crate::model::Task,
