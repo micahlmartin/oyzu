@@ -2,6 +2,7 @@ mod acquisition;
 mod application;
 mod detection;
 mod discovery;
+mod legacy;
 mod planning;
 mod quality;
 
@@ -32,6 +33,7 @@ impl Builder for Python {
     }
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
         match target.manager.as_str() {
+            "pip" if legacy::matches(&target.path) => Ok(legacy::IMAGE),
             "pip" => Ok(acquisition::PYTHON_IMAGE),
             "uv" => Ok(acquisition::UV_IMAGE),
             "poetry" => Ok(acquisition::POETRY_IMAGE),
@@ -39,15 +41,7 @@ impl Builder for Python {
         }
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        acquisition::prepare(
-            &context.target.path,
-            context.destination,
-            context.image,
-            context.source_digest,
-            context.execution_name,
-            &context.target.manager,
-        )
-        .map(Some)
+        acquisition::prepare(context).map(Some)
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)
@@ -69,6 +63,10 @@ impl Builder for Python {
             RuntimeFile {
                 name: "python-app.py",
                 contents: include_str!("runtime/application.py"),
+            },
+            RuntimeFile {
+                name: "python-legacy.py",
+                contents: legacy::RUNTIME,
             },
         ]
     }

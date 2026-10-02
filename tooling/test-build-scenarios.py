@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, python_application, rust, vitest
+from build_scenarios import ant, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, python_application, python_legacy, rust, vitest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -77,7 +77,7 @@ def main():
         print(f"[{root.name}] oyzu {' '.join(command)}", flush=True)
         result = subprocess.run([str(cli), "-C", str(root), *command], capture_output=True, text=True, timeout=900)
         print(f"[{root.name}] exit {result.returncode} after {time.monotonic()-started:.1f}s", flush=True)
-        if evidence and command == ('build',):
+        if evidence and command and command[0]=='build' and '--plan' not in command:
             invocation += 1
             destination = evidence / f'{invocation:02d}-{root.name}'
             destination.mkdir()
@@ -111,6 +111,7 @@ def main():
         helm.verify(ROOT,base,invoke,validate,source_files,verified)
         rust.verify(ROOT,base,invoke,validate,source_files,verified)
         python_application.verify(ROOT,base,invoke,validate,source_files,verified)
+        python_legacy.verify(ROOT,base,invoke,validate,source_files,verified)
         for example in ["node-package", "go-app"]:
             project = base / example
             shutil.copytree(ROOT / "examples/builds" / example / "project", project)

@@ -59,6 +59,7 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     }
     if value.get("tool").and_then(|v| v.get("ruff")).is_some()
         || super::application::matches(&target.path)
+        || super::legacy::matches(&target.path)
     {
         super::quality::discover(target);
     }

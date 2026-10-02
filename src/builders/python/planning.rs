@@ -14,13 +14,44 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     if context.dependencies.is_none() {
         bail!("{id}: missing prepared Python dependency snapshot");
     }
-    let project =
-        toml::from_str::<toml::Value>(&fs::read_to_string(target.path.join("pyproject.toml"))?)?;
-    let name = project
-        .get("project")
-        .and_then(|p| p.get("name"))
-        .and_then(|v| v.as_str())
-        .context("Python project requires a static name")?;
+    let legacy = if super::legacy::matches(&target.path) {
+        Some(super::legacy::Metadata::read(
+            context.dependencies.unwrap().record["extensions"]["oyzu.dev/python-legacy"].clone(),
+        )?)
+    } else {
+        None
+    };
+    let (name, version, wheel_tag) = if let Some(metadata) = &legacy {
+        if !metadata
+            .version
+            .ends_with(&format!(".dev0+g{}", &context.source.digest[7..19]))
+        {
+            bail!("legacy Python version does not bind captured source");
+        }
+        (
+            metadata.name.clone(),
+            metadata.version.clone(),
+            metadata.wheel_tag.clone(),
+        )
+    } else {
+        let project = toml::from_str::<toml::Value>(&fs::read_to_string(
+            target.path.join("pyproject.toml"),
+        )?)?;
+        let name = project
+            .get("project")
+            .and_then(|p| p.get("name"))
+            .and_then(|v| v.as_str())
+            .context("Python project requires a static name")?;
+        (
+            name.to_string(),
+            format!(
+                "{}.dev0+g{}",
+                target.version.split('+').next().unwrap_or("0.0.0"),
+                &context.source.digest[7..19]
+            ),
+            "py3-none-any".into(),
+        )
+    };
     if !name
         .bytes()
         .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
@@ -28,11 +59,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         bail!("invalid Python distribution name");
     }
     let name = name.replace(['-', '.'], "_").to_lowercase();
-    let version = format!(
-        "{}.dev0+g{}",
-        target.version.split('+').next().unwrap_or("0.0.0"),
-        &context.source.digest[7..19]
-    );
     let mut plan = BuilderPlan::new(
         version.clone(),
         CommandSpec::new("package", &["python", "-I", "/oyzu/python.py", "package"]),
@@ -47,6 +73,24 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         ("UV_CACHE_DIR".into(), "/tmp/uv-cache".into()),
         ("UV_PROJECT_ENVIRONMENT".into(), ".oyzu-build/venv".into()),
     ]));
+    if let Some(metadata) = &legacy {
+        plan.env
+            .insert("OYZU_SOURCE_DIGEST".into(), context.source.digest.clone());
+        plan.env.insert("PYTHONHASHSEED".into(), "0".into());
+        for name in [
+            "OYZU_VERSION",
+            "OYZU_SOURCE_DIGEST",
+            "PYTHONHASHSEED",
+            "SOURCE_DATE_EPOCH",
+        ] {
+            plan.fixed_env.insert(name.into(), plan.env[name].clone());
+        }
+        if let Some(compiler) = &metadata.compiler {
+            let command = compiler.command.join(" ");
+            plan.env.insert("CC".into(), command.clone());
+            plan.fixed_env.insert("CC".into(), command);
+        }
+    }
     plan.prepare.push(CommandSpec::new(
         "prepare",
         &["python", "-I", "/oyzu/python.py", "prepare"],
@@ -104,7 +148,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             kind: crate::builders::ArtifactKind::File,
             name: "wheel".into(),
             version: None,
-            filename: format!("{name}-{version}-py3-none-any.whl"),
+            filename: format!("{name}-{version}-{wheel_tag}.whl"),
             media_type: "application/zip",
         },
         ArtifactSpec {

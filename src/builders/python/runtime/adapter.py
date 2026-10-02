@@ -61,7 +61,7 @@ def requirement_lines():
         name=Requirement(item).name
         if name not in purposes:
             add(item,'test' if name.startswith('pytest') else 'build')
-    if 'ruff' in data.get('tool',{}) or not package_project:
+    if 'ruff' in data.get('tool',{}) or not package_project or (Path('setup.py').exists() and not Path('pyproject.toml').exists()):
         add('ruff==0.11.13','test')
     requirements = Path('requirements.txt')
     if requirements.exists():
@@ -279,6 +279,9 @@ def inventory(purposes, roots, destination=Path('/out')):
 
 
 def prepare():
+    if Path('setup.py').is_file() and not Path('pyproject.toml').exists():
+        prepare_environment()
+        return
     data=project()
     if not data.get('project',{}).get('version') or not data['project'].get('name'):
         raise ValueError('Static PEP 621 name/version required for this Python build profile')
@@ -305,7 +308,9 @@ def prepare_environment(dependencies=Path('/dependencies')):
 
 def build():
     python='.oyzu-build/venv/bin/python'
-    if os.environ.get('OYZU_PYTHON_MANAGER')=='uv':
+    if Path('setup.py').is_file() and not Path('pyproject.toml').exists():
+        run([python,'-I','/oyzu/python-legacy.py','build','/dependencies/legacy.json'])
+    elif os.environ.get('OYZU_PYTHON_MANAGER')=='uv':
         run(['uv','build','--offline','--no-python-downloads','--no-managed-python','--python',python,'--no-build-isolation','--no-create-gitignore','--out-dir','.oyzu-build/dist'])
     else:
         run([python,'-I','-m','build','--no-isolation','--outdir','.oyzu-build/dist'])
@@ -353,5 +358,8 @@ if __name__=='__main__':
         build()
     elif sys.argv[1]=='package':
         package()
+    elif sys.argv[1]=='legacy-metadata':
+        prepare_environment()
+        run(['.oyzu-build/venv/bin/python','-I','/oyzu/python-legacy.py','metadata','/out/legacy.json'])
     else:
         raise SystemExit('Unknown adapter operation')
