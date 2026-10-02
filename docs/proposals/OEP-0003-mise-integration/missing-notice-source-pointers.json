@@ -1,0 +1,1886 @@
+{
+  "format": 1,
+  "scope": "missing-notice-source-pointers",
+  "workflow_run": "36992169356",
+  "legal_approval": false,
+  "release_ready": false,
+  "limitations": [
+    "Source pointers are publisher metadata, not proof of license applicability",
+    "No upstream notices fetched or legal dispositions changed",
+    "Local workspace packages and unavailable cached archives require separate review"
+  ],
+  "packages": [
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#age-core@0.11.0",
+      "name": "age-core",
+      "version": "0.11.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "e2bf6a89c984ca9d850913ece2da39e1d200563b0a94b002b253beee4c5acf99",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/str4d/rage",
+      "vcs": {
+        "git": {
+          "sha1": "17446612f865c705e44fe392d9d41dd102fed137"
+        },
+        "path_in_vcs": "age-core"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "5ad0d2f247cda1d79e6ea42b492c08c986bd2b595bb3fb1b9678eaf3b4994804",
+        "Cargo.toml": "5f92c4dc269d11629133b1018cbe4310bcd1a9323ab0d2a253eeed4559e75625"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#age-core@0.12.0",
+      "name": "age-core",
+      "version": "0.12.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "01d4375964d1501e5f1b32aef2ead573913893ff238448d4e9fdf1522d828656",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/str4d/rage",
+      "vcs": {
+        "git": {
+          "sha1": "f6383f367e9aa514a3b5fbce7feede08a425d647"
+        },
+        "path_in_vcs": "age-core"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "53a25fda270b778e3cb9080abfa6060bc9110336484f4047875c8574b187a4c0",
+        "Cargo.toml": "f15eee630f0c44587560912d5d6a65276f647e5a154c91af0428dbbf6d649790"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#age@0.11.5",
+      "name": "age",
+      "version": "0.11.5",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "047a482d1843edf1ce76ada63183698144030fe1191bd5ddba6e41e164e0bc43",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/str4d/rage",
+      "vcs": {
+        "git": {
+          "sha1": "7f29934dc58e058e7a588ac3a9a7e946198a73a7"
+        },
+        "path_in_vcs": "age"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "66eb57bf4f27c0c15b7bec31a43d14eca5f8a7c6451be9ca19b551ffe913aecb",
+        "Cargo.toml": "19bcc511a81478078d08982fc8e1f5886888e3c1d797163cc2c070a87cd24d53"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#age@0.12.1",
+      "name": "age",
+      "version": "0.12.1",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "fd290633c2482479f70f6d1d96ae0e9f52c6a26cd5859edd47ee1fe33fc89f26",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/str4d/rage",
+      "vcs": {
+        "git": {
+          "sha1": "7a854c9c8c02dab2ebea19e02e6693a5730a8b2a"
+        },
+        "path_in_vcs": "age"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "f6eba7203d565182111f9f0ce1cbc9133abd25531e69a405b58fed98e9538b83",
+        "Cargo.toml": "6c701b08cd4f5ff8e9a168af2f1aa7b593300ed6714fc283894ff3976328b023"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#alloc-stdlib@0.2.4",
+      "name": "alloc-stdlib",
+      "version": "0.2.4",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "0e76a019e91224d279006ff972f1e984179a6e9feb050adba6ce8274aef23195",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/dropbox/rust-alloc-no-stdlib",
+      "vcs": {
+        "git": {
+          "sha1": "ae42d22078b98549e987d2f03d12df7b984fde47"
+        },
+        "path_in_vcs": "alloc-stdlib"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "5d07554db80324e6f09a3074928e6ae0e7cea58248f4c1db3f32d9ce0ec85efb",
+        "Cargo.toml": "9b65004149aeacdda9e2aa7cc08c36912d26cd51e8d91914fd63ad5bc1893a01"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#archspec@0.2.0",
+      "name": "archspec",
+      "version": "0.2.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "3ea6ba19ec651dfd93c3d00cf86048feca2eeab57e8e7cc218e053fe5d08fb33",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/archspec-rs",
+      "vcs": {
+        "git": {
+          "sha1": "ceb2503adede0659ab1715d5784640b0ca36e4ba"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "33b87107e8fdd5a87cd0cdf2f55488a7b022875e87504a1ba7092679febf965d",
+        "Cargo.toml": "993d84dea5594107c970bb9e45b7546d72b9c5cbf750fea88ee13688c4e248d0"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-codes@2.6.1",
+      "name": "aube-codes",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "42d363d29d0c278e5f022a001181195fe52f116da4ef5c4ff09214e362264003",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-codes"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "4fe4f7352efbeb1ee0961207ff3315082f5b5469d83b4ab34fc8ada3fcf57457",
+        "Cargo.toml": "fcf71e87243e0ccf91489b9eb0819377d054c72506279ebde197491d99aa0cbf"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-linker@2.6.1",
+      "name": "aube-linker",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "aa9309da42da2330c388a1afa9ed0eb04b546ade68d1ae206ed5aa5b2829a2d1",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-linker"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "f07ffb6ef09dd6eb429420eabe08b278b6d6d947671863104f3b839cddbef6f0",
+        "Cargo.toml": "2641800e91fadaf6cfdeaa98573a707ffdb3d8fd7b57d912be35308c90869566"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-lockfile@2.6.1",
+      "name": "aube-lockfile",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "863e57c0a607ec6d3eed45cbec42b52f599b803654ff931ebaa98809d5750b4c",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-lockfile"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "d1f85b1dfb71b126b8c3d093f032a6456e054b835713a97663eed9bb6076ca98",
+        "Cargo.toml": "239d0a636f4a36b198801316a3aa6a9ca12cc943ef05053d356994a1cff00e62"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-manifest@2.6.1",
+      "name": "aube-manifest",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "704c86ff09ea3e93683aa02327fd4f97a1d81ea616eea60bbdcda132df6d553f",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-manifest"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "742594c1a7abcaed5f611689e6e0f0386bc4f4d4b607dacc9496bdf9d4e05e31",
+        "Cargo.toml": "a3c520cba13810b9d74be57b31ff90c448191d5138577c8e66ab83b66ffeec81"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-registry@2.6.1",
+      "name": "aube-registry",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "069d3ce9069874109463e6cb7946d32e964511431bca535a491ffdfdc2d6ba37",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-registry"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "e47e276d02c3af9970a1d2176520a5d97bb5bba996962d06420759aface37efb",
+        "Cargo.toml": "3c8606a788f2f60b06c8759ccda832578ac356e39b64e80165c648c1c21876ca"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-resolver@2.6.1",
+      "name": "aube-resolver",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "1160a5bcf411b4a436d157fe6c829d81140c13c43dcc368deb0437704d856216",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-resolver"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "d1e7a7f3b0caabb192e91c847502fa76530f36d6ec35e1b0d94374fd495c0c9f",
+        "Cargo.toml": "00e6ef8adcd13a370e7f94de7562c4e207bd5227aeef9762ec0585355fad6480"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-runtime@2.6.1",
+      "name": "aube-runtime",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "c7b60b17ee8a7def7e03ce3c0825d2678a98f4c9074e8bc9acb04ad6003fc788",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-runtime"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "be9d6f550958ce6edfc0333abd3c059ec937f1b51527cbc0c388c1697eeade4d",
+        "Cargo.toml": "350366d3f15d411bc7a3a2aaf4ae93fa45eb1d1d802be4be14fcfb3294c97a8c"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-scripts@2.6.1",
+      "name": "aube-scripts",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "448cf727554eb30003c534b8032a1a614914b4a57305b07678d3cf302b502409",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-scripts"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "fcee92a41d53260f4d8006478da7d1326030f810d85bbbeffa0291343ae136d5",
+        "Cargo.toml": "1f0cb401df66192e6b31683f8993b7011cd557cd9d77a4dade6c39cee3775d48"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-settings@2.6.1",
+      "name": "aube-settings",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "44a26df41c3f73cb8904d71afd58db5c0221e5aacb4bcbc4c874bf6942fa461b",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-settings"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "abfab592a1f1142b592f4f455f297d6e415a3f4967ef0546553d7f2dca638428",
+        "Cargo.toml": "9a6a5d315b10d32754d185c952a0e9318c0f8d8d5f3dc68ff81537aad47aac5b"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-store@2.6.1",
+      "name": "aube-store",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "6423f2798adf3b1d0b342d3a1e9253b4a384814341fb788decd5824e27ed63d3",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-store"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "49c999777a15af18abd8bbc855a362c10bf0d269cbfa079e00e065da7bdded2d",
+        "Cargo.toml": "c3162e2b03e394093e88ecb6e9d96872ab42eaccabb9cd8bfd0daca5d98f3f8d"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-util@2.6.1",
+      "name": "aube-util",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "165d0c5d6962391bbec246df7b1048416b17994519e6ea475f012e123576b93b",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-util"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "dbe8c5ddaec0fb8dcbcc7051dadf83bc95d8f6bef990e085899b5ebbe244b60f",
+        "Cargo.toml": "3a615fa4e5aeaa98ad059d0c5a10216a40873a397bf455b6dcc480691a1add2e"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube-workspace@2.6.1",
+      "name": "aube-workspace",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "20b0b81ffc5deb3192b86710f368ee990155151d92d6c2deffabdae0cf0f4296",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube-workspace"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "01c12beff282f62f07b0e77af67116f8f8f94d88dfa7c28634c4c3c79ac90c46",
+        "Cargo.toml": "60e6bb4ab67ecd989c439cb76b86609371ff4f685c6d76c6e0143acf980794ef"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#aube@2.6.1",
+      "name": "aube",
+      "version": "2.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "8cde90a8546321246d8cdc29eb7cac7eba0cf8326eaf2ef7f9d08daec9b49b44",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/aubepkg/aube",
+      "vcs": {
+        "git": {
+          "sha1": "bd94e42f54d3b5e3dd102716b7197f316cb5f4ed"
+        },
+        "path_in_vcs": "crates/aube"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "0b87704831923b38c8cc177697cd483cbb448d400132af2572af11397a4dd4e2",
+        "Cargo.toml": "442981d7c8c6f59f27b8d70761a654392909ed306ea9e6fd5ec70ff8fb9c3d08"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#backtrace-ext@0.2.1",
+      "name": "backtrace-ext",
+      "version": "0.2.1",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "537beee3be4a18fb023b570f80e3ae28003db9167a751266b259926e25539d50",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/gankra/backtrace-ext",
+      "vcs": {
+        "git": {
+          "sha1": "043c95350875a36be6cd755dcef21a44a52ec2cc"
+        }
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "9fc4a92f2a95cea9717647e152cfeca5a571e42411b01dc6459fdd82fb87c576",
+        "Cargo.toml": "6c19e27c8d3f3c65ae6720d5715036faa3ab6f6187853d125e24d5ef5295d524"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#base64-simd@0.8.0",
+      "name": "base64-simd",
+      "version": "0.8.0",
+      "declared_license": "MIT",
+      "package_checksum": "339abbe78e73178762e23bea9dfd08e697eb3f3301cd4be981c0f78ba5859195",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/Nugine/simd",
+      "vcs": {
+        "git": {
+          "sha1": "d74c030d9dc4f3cae02146d1f497ff62726ef09a"
+        },
+        "path_in_vcs": "crates/base64-simd"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b371389063321859f1fe9ea823e089d4a47be7a6d52304a36624f08a1a4d4c48",
+        "Cargo.toml": "aa103a538f3fea026b646611ce892957a30d452eda6bef15a892f12c3a67f749"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#bech32@0.9.1",
+      "name": "bech32",
+      "version": "0.9.1",
+      "declared_license": "MIT",
+      "package_checksum": "d86b93f97252c47b41663388e6d155714a9d0c398b99f1005cbc5f978b29f445",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/rust-bitcoin/rust-bech32",
+      "vcs": {
+        "git": {
+          "sha1": "d12513f1e3768a7f2a2e1b4d650139eb92a4ae9b"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "cf342f731669078e5730e6a0adc47177e064557e93334ade0d07c5f51afd5826",
+        "Cargo.toml": "9159a7ba9aac408d06c9e5c0739196461aacdfdc1f144c896f80a71642aaf932"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#bitfields-impl@1.0.3",
+      "name": "bitfields-impl",
+      "version": "1.0.3",
+      "declared_license": "MIT",
+      "package_checksum": "f2c044f98f86f15414668d6c8187c7e4fadab1ad2b31680f648703e0fe07c555",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/gregorygaines/bitfields-rs",
+      "vcs": {
+        "git": {
+          "sha1": "a3c3d994c87c4f9cab566b3bbb5eb9bd1b2a9a98"
+        },
+        "path_in_vcs": "bitfields_impl"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "eca520a89c21dd72f30185ba93fb43214a44f2f7833d60cbc3055385343b15bd",
+        "Cargo.toml": "fc2c5eb8eb7aa62a0a5a59c9ee2050dc4505eb61736d857c2030eaf0d0c5752a"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#bitfields@1.0.3",
+      "name": "bitfields",
+      "version": "1.0.3",
+      "declared_license": "MIT",
+      "package_checksum": "ef6e59298da389bc0649c7463856b34c6e17fe542f88939426ede4436c6b1195",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/gregorygaines/bitfields-rs",
+      "vcs": {
+        "git": {
+          "sha1": "a3c3d994c87c4f9cab566b3bbb5eb9bd1b2a9a98"
+        },
+        "path_in_vcs": "bitfields"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "15a3fb6e7d8e0aa80b101dc44e7e3cb0f6f4be42d3ca59d615d625e41580fd42",
+        "Cargo.toml": "4fd5fcc6895cfb1ed12e9b7e4524cec23d207ab9770e4867e263f90be3387da9"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#cache_control@0.2.0",
+      "name": "cache_control",
+      "version": "0.2.0",
+      "declared_license": "MIT",
+      "package_checksum": "1bf2a5fb3207c12b5d208ebc145f967fea5cac41a021c37417ccc31ba40f39ee",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/connerebbinghaus/rust-cache-control",
+      "vcs": {
+        "git": {
+          "sha1": "36d04cd3db0d66eb62528e93367c42cbb1324636"
+        }
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "4625d8423186bf5bbbf514571a0d18759809797a0c3e438b4171c43f9d4698fe",
+        "Cargo.toml": "8b493d97032193c8be86dd0ac6e1d4d0b0c25200e6cd51ab1517fe2a6729b88d"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#calmio_filters@0.1.0",
+      "name": "calmio_filters",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": "846501f4575cd66766a40bb7ab6d8e960adc7eb49f753c8232bd8e0e09cf6ca2",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/myrrlyn/calm_io",
+      "vcs": {
+        "git": {
+          "sha1": "4efa6ffbf8efa1b2c3250ae9ab347c6852e7cd6d"
+        }
+      },
+      "metadata_sha256": {
+        "Cargo.toml": "b746777111d75d4c7d125c24bf207eee963854f257956240a2fba299164f4aa6",
+        ".cargo_vcs_info.json": "993a89b05cfd3f21b8542e799c8fa404192ad18d77acb98dd2111e3fd8365c81"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#clx@3.0.3",
+      "name": "clx",
+      "version": "3.0.3",
+      "declared_license": "MIT",
+      "package_checksum": "612147d677ba3f69a2600c226541080e3e0432b3c3294600e9646ed21cb476a4",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/jdx/clx",
+      "vcs": {
+        "git": {
+          "sha1": "1b0561c118e8f1d0b962333e5f0f7e4d3591d1a8"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "1b153e80e68abd3e3a1cb91b19912d055c675b26a3301b53671c6d84f42c5f26",
+        "Cargo.toml": "e93c78df34a28b58aa28a122dec4e76f73a395b020f2d1ae2c59d68d42bc988d"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#cms@0.2.3",
+      "name": "cms",
+      "version": "0.2.3",
+      "declared_license": "Apache-2.0 OR MIT",
+      "package_checksum": "7b77c319abfd5219629c45c34c89ba945ed3c5e49fcde9d16b6c3885f118a730",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/RustCrypto/formats/tree/master/cms",
+      "vcs": {
+        "git": {
+          "sha1": "5821a21553509dbd03eae593b0a1fad4e2083d4e"
+        },
+        "path_in_vcs": "cms"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b6698684015175b959d0e0e71045bcb8c78bff4de701e4058d3ad50e8dc0e177",
+        "Cargo.toml": "31694e166b9ba2c236fe7e29be22a96373d51580ecb19717dae8a8086898c513"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#coalesced_map@0.1.4",
+      "name": "coalesced_map",
+      "version": "0.1.4",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "dae1159673deb7e62cf1be84e4cda5dfc584fac013123096a2e720d777694ecd",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "98fd38536049366d7abc6cb5197dc7866d258928"
+        },
+        "path_in_vcs": "crates/coalesced_map"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "560a69d7d9682f2c1eb98f5e9c218c865c64ee1567426fd2fa49cc0c48ad7cc7",
+        "Cargo.toml": "967a78f223611b7e987d229cc9eab2839fddd0002dcc85325d05a96bb139091e"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#confique-macro@0.0.13",
+      "name": "confique-macro",
+      "version": "0.0.13",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "e4d1754680cd218e7bcb4c960cc9bae3444b5197d64563dccccfdf83cab9e1a7",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/LukasKalbertodt/confique/",
+      "vcs": {
+        "git": {
+          "sha1": "63afcdcf341471acd82a33b302f582c4ab1820ff"
+        },
+        "path_in_vcs": "macro"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "d8ccf6df3ec402cb76cbcf98da01cf7236dc9e87c3e09097029c50e601587007",
+        "Cargo.toml": "f110356be92aa40e62ae7f2a83626bdb9cafd59de1daff3d15bfaca2136aa24f"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#cookie-factory@0.3.3",
+      "name": "cookie-factory",
+      "version": "0.3.3",
+      "declared_license": "MIT",
+      "package_checksum": "9885fa71e26b8ab7855e2ec7cae6e9b380edff76cd052e07c683a0319d51b3a2",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/rust-bakery/cookie-factory",
+      "vcs": {
+        "git": {
+          "sha1": "d36b805dbd7dd65f2df947235c5bcc573afe2c76"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "6ef41d2f54db49565168fad249dcdf952fc02557ba0f6fdca35efadbca42c6be",
+        "Cargo.toml": "5ad132113ca741e5b719fd3a0b2dbd0d325fe2dbb56b4a58fffe3545d3890c02"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#crc-catalog@2.5.0",
+      "name": "crc-catalog",
+      "version": "2.5.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "217698eaf96b4a3f0bc4f3662aaa55bdf913cd54d7204591faa790070c6d0853",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/akhilles/crc-catalog.git",
+      "vcs": {
+        "git": {
+          "sha1": "ed4ad631f22b05055c21a3a4127eb7cf6d75bb62"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "880f3b14373d21cc5b15360d862f6724ac973ab4a05ef11689e629715e5d607d",
+        "Cargo.toml": "083323ace7883c5c078bc033f4d5229139a01d5380b59d8d6ae312741c397169"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#crc24@0.1.6",
+      "name": "crc24",
+      "version": "0.1.6",
+      "declared_license": "MIT/Apache-2.0",
+      "package_checksum": "fd121741cf3eb82c08dd3023eb55bf2665e5f60ec20f89760cf836ae4562e6a0",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/sellibitze/crc24-rs.git",
+      "vcs": null,
+      "metadata_sha256": {
+        "Cargo.toml": "1b417c059df1881472bf70e4654c9e5206a71314314831298ce732edbadb9260"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#cx448@0.1.1",
+      "name": "cx448",
+      "version": "0.1.1",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "b4c0cf476284b03eb6c10e78787b21c7abb7d7d43cb2f02532ba6b831ed892fa",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/dignifiedquire/cx448",
+      "vcs": {
+        "git": {
+          "sha1": "58785c9ea154f646d03ccec4185f0a1ffa1c67e5"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "29aa5a5e8e7081369cd11ba8e188cf1ec1134cc0d95de8a596ebc3e86a4287a4",
+        "Cargo.toml": "21231884978de4d1c8909259de20fbaf90babb3d6c319621a777366b2897e83c"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#defmt-parser@1.0.0",
+      "name": "defmt-parser",
+      "version": "1.0.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "10d60334b3b2e7c9d91ef8150abfb6fa4c1c39ebbcf4a81c2e346aad939fee3e",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/knurling-rs/defmt",
+      "vcs": {
+        "git": {
+          "sha1": "4a8cdb44891ed57b8ff5a023b6bec7137c48708f"
+        },
+        "path_in_vcs": "parser"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "7ab8f01085721143c43db5db2528806f393df2058d03c5b8da20634e14886a05",
+        "Cargo.toml": "c4c4df5b09e53450267eacadf1f7f6a0d3d5fc463bc450e199f0d06eba8e6ab3"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#defmt@0.3.100",
+      "name": "defmt",
+      "version": "0.3.100",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "f0963443817029b2024136fc4dd07a5107eb8f977eaf18fcd1fdeb11306b64ad",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/knurling-rs/defmt",
+      "vcs": {
+        "git": {
+          "sha1": "f6decae6e09d1216aff052aa0733a6b5e632a100"
+        },
+        "path_in_vcs": "defmt-03"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "52958cfe708221b05e570d1ec210648cda1ff43896ca0e2db590ab05c2f5a274",
+        "Cargo.toml": "c5af9fdb95fb235ad451d4d1ccb1303e7c68d458dc1d93804b6da256c3e65aff"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#file_url@0.3.2",
+      "name": "file_url",
+      "version": "0.3.2",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "5e68d9ad067554ef18d79494f0e0bcddaf263f41b0126eb7a937f9e942fcbbd8",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "98fd38536049366d7abc6cb5197dc7866d258928"
+        },
+        "path_in_vcs": "crates/file_url"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "9208e8383865228e14f22acaa44e9cce8d0b7036a6818c446acd445c7490370d",
+        "Cargo.toml": "be0b71265b3ba477efc9bd79aa6649b5fd3f525b5ac20eb6c082580612922ade"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#fluent-langneg@0.13.1",
+      "name": "fluent-langneg",
+      "version": "0.13.1",
+      "declared_license": "Apache-2.0 OR MIT",
+      "package_checksum": "7eebbe59450baee8282d71676f3bfed5689aeab00b27545e83e5f14b1195e8b0",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/projectfluent/fluent-langneg-rs",
+      "vcs": {
+        "git": {
+          "sha1": "7fdc590466ea63ca2367ac10fb1b881fe561f1a8"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "fb990f6cb3fce781aa344a021c02ee55c301a8f699a7ab2ad32aa7596dc60ea6",
+        "Cargo.toml": "30592b2881518521cd996a2a6e332ddf9d8d22f2def90df65ead10afa65e9ed8"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#http-serde@2.1.1",
+      "name": "http-serde",
+      "version": "2.1.1",
+      "declared_license": "Apache-2.0 OR MIT",
+      "package_checksum": "0f056c8559e3757392c8d091e796416e4649d8e49e88b8d76df6c002f05027fd",
+      "review_status": "unreviewed",
+      "repository": "https://gitlab.com/kornelski/http-serde",
+      "vcs": {
+        "git": {
+          "sha1": "c2403fb3d64bc0db31a05ca5d340ff82686163b1"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "e8b2623f34cf64a76382a2ee63cb27eb59241df1c6be2e6c9bd1e872dba18238",
+        "Cargo.toml": "2b31b9a160e3de952218d5c89051b0214a86f5baf106d654266cf0432411bf12"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#impl-tools-lib@0.11.4",
+      "name": "impl-tools-lib",
+      "version": "0.11.4",
+      "declared_license": "MIT/Apache-2.0",
+      "package_checksum": "ab699036df31c1f7d3561bfa6e9cb9bc3bb0fd2e2cd9bf121c31cb961d049ddf",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/kas-gui/impl-tools",
+      "vcs": {
+        "git": {
+          "sha1": "644334a67e90a703502c07849d716c1ae8e1660a"
+        },
+        "path_in_vcs": "lib"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "ef9a6003e39352dac4fe91266aa9721b2704cfe8ca4ddb7c0ca372ac3453c3fd",
+        "Cargo.toml": "81fff71dd217cbc29dea69f66ee471311ba5c813ef320b3ccec39923a390199b"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#intl_pluralrules@7.0.2",
+      "name": "intl_pluralrules",
+      "version": "7.0.2",
+      "declared_license": "Apache-2.0/MIT",
+      "package_checksum": "078ea7b7c29a2b4df841a7f6ac8775ff6074020c6776d48491ce2268e068f972",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/zbraniecki/pluralrules",
+      "vcs": {
+        "git": {
+          "sha1": "d0715d5b7cca72e228d6e6c4de154bd30dfdd06a"
+        },
+        "path_in_vcs": "intl_pluralrules"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "eccc6457f87a5ddb8d614a21dfacd1aa68f66113f6a15a619df111699de1f1b0",
+        "Cargo.toml": "595634ece6249e274c389db766170aa88f78df41e8887d333a7cac8dad6b0bed"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#io_tee@0.1.1",
+      "name": "io_tee",
+      "version": "0.1.1",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "4b3f7cef34251886990511df1c61443aa928499d598a9473929ab5a90a527304",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/TheOnlyMrCat/io_tee",
+      "vcs": {
+        "git": {
+          "sha1": "8a7adecebf3429cbc58a0368751d1851dfaf58ed"
+        }
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "2cd4c013729f4a47224f14cca06866f08a4955a2cc0b5a675a564520b3859dcb",
+        "Cargo.toml": "361d0548c8284b9d033b3a94e75bd540c382da1fdbf62f1e99c7562a06ece5e1"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#lazy-regex-proc_macros@3.6.1",
+      "name": "lazy-regex-proc_macros",
+      "version": "3.6.1",
+      "declared_license": "MIT",
+      "package_checksum": "fd97232314824e6dbef1918a871bb93f51070455e3715bf26e19a6d01aa977a0",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/Canop/lazy-regex/tree/main/src/proc_macros",
+      "vcs": {
+        "git": {
+          "sha1": "39a459c01e1ba2488075be50a821e2d72e466241"
+        },
+        "path_in_vcs": "src/proc_macros"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "cda367a6c389180a2e54c1c5b4220891199613e1f22a27f9bd52f2a8c74173a4",
+        "Cargo.toml": "e12f2183084c9c295a395a89d5d6154e6d8002e904d6e4b9857934e605c4b83a"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#logos-derive@0.12.1",
+      "name": "logos-derive",
+      "version": "0.12.1",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "a1d849148dbaf9661a6151d1ca82b13bb4c4c128146a88d05253b38d4e2f496c",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/maciejhirsz/logos",
+      "vcs": {
+        "git": {
+          "sha1": "5dd386a6d55eb2f1feb6f7a7de8ed90e9d820e37"
+        },
+        "path_in_vcs": "logos-derive"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "f6a8958bd8186481209777a30a66420326818cabddad2b5711e15b1bd1c21dc3",
+        "Cargo.toml": "85aea94c1969a2a3a0f8364c73bb691afe6e3067baa6b02a0901183e981bddf5"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#logos@0.12.1",
+      "name": "logos",
+      "version": "0.12.1",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "bf8b031682c67a8e3d5446840f9573eb7fe26efe7ec8d195c9ac4c0647c502f1",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/maciejhirsz/logos",
+      "vcs": {
+        "git": {
+          "sha1": "5dd386a6d55eb2f1feb6f7a7de8ed90e9d820e37"
+        },
+        "path_in_vcs": "logos"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "a31ea71c4cb8894fa90ae88ac507a79678d37e9b86f66545faf79b24b4711003",
+        "Cargo.toml": "9db7bc31b0c410848d2893cf2a6ff7a4ba2b33118d1ddad737d50496f6d47a88"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#mlua-sys@0.12.0",
+      "name": "mlua-sys",
+      "version": "0.12.0",
+      "declared_license": "MIT",
+      "package_checksum": "b806d7ade031f5d6607eae3e283fb034cb795a76247dd0d1ba753c8c42debccf",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/mlua-rs/mlua",
+      "vcs": {
+        "git": {
+          "sha1": "4fd87af2157b0a7ecd22ba299848e4ca3d462efe"
+        },
+        "path_in_vcs": "mlua-sys"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "f40ed5fbb0b5b807f920f3e85c908bbfb7307e6a59c3eebad6db10fb5515fc2d",
+        "Cargo.toml": "f0f5fa0b4cb62a1c217ffc308aeaba125ad42e36cb55d8b8b3f241e99d459c73"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#mlua_derive@0.12.1",
+      "name": "mlua_derive",
+      "version": "0.12.1",
+      "declared_license": "MIT",
+      "package_checksum": "87de1e4bdfaa4bb99d8c1449d8a34b0f19e649ef68eb5d4e8dbf1e9ec6f4a084",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/mlua-rs/mlua",
+      "vcs": {
+        "git": {
+          "sha1": "4fd87af2157b0a7ecd22ba299848e4ca3d462efe"
+        },
+        "path_in_vcs": "mlua_derive"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "129b3340681305c7525c9d5b1b5a171dbd1fb61fd4763d55bae7cf5d24397043",
+        "Cargo.toml": "66b211fd855d63b1d00a75ad9b3641866040ae85dda7c3f1fa766153a96094aa"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#nom-language@0.1.0",
+      "name": "nom-language",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": "2de2bc5b451bfedaef92c90b8939a8fff5770bdcc1fafd6239d086aab8fa6b29",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/rust-bakery/nom",
+      "vcs": {
+        "git": {
+          "sha1": "2cec1b3e4c9ccac62c902d60c00de6d1549ccbe1"
+        },
+        "path_in_vcs": "nom-language"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "61ef2d6baf5b25fca61349550a397663c558fdd4cc3d06e1c8bde24360ea04f6",
+        "Cargo.toml": "dc6111b76b82592e83f88c749a5607678b3bbd922e834c9de9fb90afa852dfdd"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#opentelemetry-http@0.33.0",
+      "name": "opentelemetry-http",
+      "version": "0.33.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "ee2c3625b8aa04209f7e01e513bc8044da9687fa38a9eacf59628ca5f3b87300",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-http",
+      "vcs": {
+        "git": {
+          "sha1": "19833847cab86c8464c1dfb6d28b1de9c0b50038"
+        },
+        "path_in_vcs": "opentelemetry-http"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "7e4e11e58ba9f8d0019f242403042ce88bf81de071bb915aa98673658700920a",
+        "Cargo.toml": "76f1cd3411546676993d2a384fc704fa02fe140ad782465c178674a2d173c505"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#opentelemetry-otlp@0.33.0",
+      "name": "opentelemetry-otlp",
+      "version": "0.33.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "699a67345e21962a231955b9059a157e428b219fa5df8efe11f08346fb23a344",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-otlp",
+      "vcs": {
+        "git": {
+          "sha1": "19833847cab86c8464c1dfb6d28b1de9c0b50038"
+        },
+        "path_in_vcs": "opentelemetry-otlp"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b71f94b761a5b90f7e5d618230d559e54675bba76bf9ddea236ae794287ff894",
+        "Cargo.toml": "fb3df6cd1ab22399970d609fea377743e88391b83bbc446f5e077a65069f244a"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#opentelemetry-proto@0.33.0",
+      "name": "opentelemetry-proto",
+      "version": "0.33.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "25da1ac11a0aeccf38d7f77ee0348715adaf8340f65ad46c94a02c6b20e2f65d",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-proto",
+      "vcs": {
+        "git": {
+          "sha1": "19833847cab86c8464c1dfb6d28b1de9c0b50038"
+        },
+        "path_in_vcs": "opentelemetry-proto"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "7e6eaab563865267d8928a847d8d1f08c2a0492e4f02965c3f93609ad39522a6",
+        "Cargo.toml": "ea8e629b4266f07389f034f6c98e2cdecd75341d0bf9eece74f25ea614965d62"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#opentelemetry@0.33.0",
+      "name": "opentelemetry",
+      "version": "0.33.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "6cdb0b1b267eb9db3331b434ed9ddab10d50e280a9adf9d13e5233e2002b61b5",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry",
+      "vcs": {
+        "git": {
+          "sha1": "19833847cab86c8464c1dfb6d28b1de9c0b50038"
+        },
+        "path_in_vcs": "opentelemetry"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "3597b37b49f3ae14ca216f8ad4062527336bd4895519b7dd235f263d76efa0a7",
+        "Cargo.toml": "68f59865c1ee2bcf8dc0967af89b15ccd9235fe225dafe9bc9cb55d6c8f241a5"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#opentelemetry_sdk@0.33.0",
+      "name": "opentelemetry_sdk",
+      "version": "0.33.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "cb39533d9d1c912123efd7d41d7e0c29d16917b60ce15b4c8d87cb1af7f67520",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/open-telemetry/opentelemetry-rust/tree/main/opentelemetry-sdk",
+      "vcs": {
+        "git": {
+          "sha1": "19833847cab86c8464c1dfb6d28b1de9c0b50038"
+        },
+        "path_in_vcs": "opentelemetry-sdk"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "2abca2266e34e507ce323471c23c05196d92e06ed4cc7fdad998810747e5a27a",
+        "Cargo.toml": "ccc9848b74795e2f6e036e731c9af9a8bd9855ef17ee0512d91d312e9c284e40"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#path_resolver@0.2.13",
+      "name": "path_resolver",
+      "version": "0.2.13",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "9994183d6ed25258205ec5612143b3da8cf2a2027d5e532b0af961ebf32ea5a1",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "1b5f3f914e174c19e772db96fbf98dd7e0d99662"
+        },
+        "path_in_vcs": "crates/path_resolver"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "afc27201c42a0c40d0d193609496d2df4f375b2c45fcd4c771544e73f5d4c29a",
+        "Cargo.toml": "7e5f05570b90df75d9df12ea943d129a10fea83ef375a2de00a8b84a924d783c"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#purl@0.1.6",
+      "name": "purl",
+      "version": "0.1.6",
+      "declared_license": "MIT",
+      "package_checksum": "60ebe4262ae91ddd28c8721111a0a6e9e58860e211fc92116c4bb85c98fd96ad",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/phylum-dev/purl/",
+      "vcs": {
+        "git": {
+          "sha1": "93152aae4005766d3ea7dcd0e5d8beaee3f0fad8"
+        },
+        "path_in_vcs": "purl"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "bbdf54a00751cf014d38a2f24a0ea493aca44c312eb78586311d0f2e3fb385f1",
+        "Cargo.toml": "49c8e3d44be5ef6e677dba2808f67e91ee8850b55f36cde6b84fe6dd7c290798"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler@0.49.0",
+      "name": "rattler",
+      "version": "0.49.0",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "69c2a6ad5622713f76abd96900912cdbc3c77a7baa48049decfd608bf66b84ec",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "e49a3fae3b66492bb081639d5e7ac42e4902c81796d0784f021dc9f18b681e78",
+        "Cargo.toml": "3dae694a463dbddb094c7ff1a1429d4dc73dfa97f6395a7fb3fd1d344ad2ae42"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_cache@0.10.11",
+      "name": "rattler_cache",
+      "version": "0.10.11",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "1f606d520b6ac15c28d4c21fc31871c17b93faed3193d8e6595777f9b4978d40",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_cache"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "6fce6473ff3c472a20dc551c597d9a9398affd18e0c4bbbc5d7c6a25983a62cd",
+        "Cargo.toml": "89b883b9d9aa32ef6d82eff52db80941d4ca723bde016b732c8a068b912441b0"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_conda_types@0.53.0",
+      "name": "rattler_conda_types",
+      "version": "0.53.0",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "3d347674ae946804b2d3f7c38591e511a019aeef414bf8c036b78589f6980f77",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_conda_types"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "47eb266ff695492dcfd19b817abae1900b23da5ed9330592f840f7e6dc200030",
+        "Cargo.toml": "45dd8ce90a6e3a7da548f3e95993de2f013d21852aeb2a0c12710d0f0e0558bd"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_conda_version@0.1.1",
+      "name": "rattler_conda_version",
+      "version": "0.1.1",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "46fd80ddd753d6499a742e42ee657b4c5f334dd806a59585c8b8923ecc479fc7",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "0c27a3c5fd5c2d118a0e811fb2b23bf8f27eb274"
+        },
+        "path_in_vcs": "crates/rattler_conda_version"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "22109547535c7ce6a69d32b10a5181cc799db9ea66f1e3f9b4de1feebe2acd5c",
+        "Cargo.toml": "22a43caa5a6fbc8bd3a603272e613bb017d0611e4b9c0a9eaf1af5f9bac23fee"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_digest@1.3.2",
+      "name": "rattler_digest",
+      "version": "1.3.2",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "56538779701395adba456293b22fda6598b079f30c24d9a22c2bb15271bd67f3",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "98fd38536049366d7abc6cb5197dc7866d258928"
+        },
+        "path_in_vcs": "crates/rattler_digest"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "5d61fc0ca9bdbf5a6b30ce2d17a3b1b5348f73fb8db80433fce122431db26836",
+        "Cargo.toml": "ddf81b53dbf7b3c235823fed6a4c7f498911c7b74be17cd15b3b34b7a74289a5"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_macros@1.1.2",
+      "name": "rattler_macros",
+      "version": "1.1.2",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "bc1bde42798a908a8a2609836a062f01117b83a3fba6f8f6be3eb8c1d07bfdf2",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "98fd38536049366d7abc6cb5197dc7866d258928"
+        },
+        "path_in_vcs": "crates/rattler_macros"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "a39f406e3e1e73cccc067342836568725ac315865f0170e204a3b8132b107b8c",
+        "Cargo.toml": "0c0646379c4f7b563bcb72bfdcc134e46a61afbae6b4418912de44b224476757"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_menuinst@0.3.0",
+      "name": "rattler_menuinst",
+      "version": "0.3.0",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "732f3a2880af5bc6e7056944585dd391a941143a285ca16ad34869813bc9e202",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_menuinst"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "f62d9946cbda999cb36638d3cadfa78138ff364710e82725c233ae8938644729",
+        "Cargo.toml": "68e6c19368b67ff3c929a385d05990d509fa62db677b3b5ee3cbb95e8dfb4680"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_networking@0.30.9",
+      "name": "rattler_networking",
+      "version": "0.30.9",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "97e7434618535717205b32954cfbcfc383ca3720d46f276e76aef547fa4e296e",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_networking"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "0ba6f05e340c6924a579bf1782fbd3b9738e0202a8288f701a06f1a789968699",
+        "Cargo.toml": "5822a59a14324be3fd296eb3948900f2443e478cc876cfbd722aaf37103d50ac"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_package_streaming@0.27.6",
+      "name": "rattler_package_streaming",
+      "version": "0.27.6",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "b71d3d0e86bfc6fe6006d82149cad2ca710f207d9209b037c1f843b020fee4f2",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_package_streaming"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "7587fa334ebc8419a3cb73898d3d292767fb6e4b6f71a2ad480a41dcf4332f98",
+        "Cargo.toml": "af95b7336614f553a456764beabaed0c0030025eeefbea870710286cdaef6ab6"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_pty@0.2.16",
+      "name": "rattler_pty",
+      "version": "0.2.16",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "c4bb899b6b8d316efe26fe43e003073ef93d230d9009a41d630e22473368c0e4",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "4e5e69c943fae4c29d002de1b502f3d03b79bb4e"
+        },
+        "path_in_vcs": "crates/rattler_pty"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "3217b284f5c8ae92b1a2a8bf3330b3c002d12b9396f0f8646b0eb54bf7feb598",
+        "Cargo.toml": "94b8a0a2c1a89c9cb4f3fdaf7edf8e0017e1323b7097633ce630b993b11ea3b8"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_redaction@0.2.5",
+      "name": "rattler_redaction",
+      "version": "0.2.5",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "05886a15155b2b76a9f40e334a92eed586ce5da37c7cc35a38b3a64c18466b7a",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "10c12c97d07f0accc80d7dcae792e5b5c4e70184"
+        },
+        "path_in_vcs": "crates/rattler_redaction"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "8e430de4e6fbbef4e0743ce6119254c74d54d5ec5d6734ffa0e5e3b6993122a1",
+        "Cargo.toml": "40a87ef2626ecf06e6f6bb6daeffabdfc56e1cb83cbfe85832710e4e36209727"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_repodata_gateway@0.33.5",
+      "name": "rattler_repodata_gateway",
+      "version": "0.33.5",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "c068cc0d128f1a70c58924ed435b7fafe8609bb9c6f6be27482995d2ea85b4c0",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_repodata_gateway"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "f3e451ad3bb805bd8b197f6c7d70e3ce955ee3bcd30e4c5840528e177add68e0",
+        "Cargo.toml": "c6c18ddcd33d24d3bc5279dfb9aaf5900c3605d2f126f93777e5102dd532c55f"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_shell@0.28.0",
+      "name": "rattler_shell",
+      "version": "0.28.0",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "e994a23ab8fe2beb7c8c9f9d513e137888678a8a1a62131e65bfdcb846c5705d",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_shell"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "ceb1ec04a6370317ae649d1f055e645a573ff77e3d3961002178a252b9d2e9f5",
+        "Cargo.toml": "c696c2153b2f8236b4cfd9fac334ad090f813e372dd18c11fd7db51a9bf4a7df"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_solve@9.0.8",
+      "name": "rattler_solve",
+      "version": "9.0.8",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "b64eef457fd0cf455074e2a2d53945df256a004be7856da2834c9138eb88d330",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "7863b485cf18d4ed160a519c99e1c3feb28943dc"
+        },
+        "path_in_vcs": "crates/rattler_solve"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "f821477a4b964a81a34f6ce7d924e8abd50a4a95d4afaf20e13c517b90f71686",
+        "Cargo.toml": "c2f3c2f027f9f7ee27bba61664e5c521ca6ca1404adcefe38b55053aac55e1b8"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rattler_virtual_packages@7.0.0",
+      "name": "rattler_virtual_packages",
+      "version": "7.0.0",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "3abcfbd1bc31dd886b298b2c1eb3d321b080aa62708f3d6bc72f985c63ffe43d",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "10ea83405deda707147bc1af664e188ddb29cac9"
+        },
+        "path_in_vcs": "crates/rattler_virtual_packages"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "c93cc8a49e1ce32a95c91925f66154a9746e20d715a8f5194050e4cc41cd0112",
+        "Cargo.toml": "d237d1583608b73515d202c3bbf61d09aa2be2bae94def5739ce4a93596427db"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rmcp-macros@3.5.0",
+      "name": "rmcp-macros",
+      "version": "3.5.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "c7e66877136e969d5a2d561ee5841b17717a0619aebd64abb47a2a2f46e34683",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/modelcontextprotocol/rust-sdk/",
+      "vcs": {
+        "git": {
+          "sha1": "0cde3c5cf3e6aff0cc852ce6045f107e95991f48"
+        },
+        "path_in_vcs": "crates/rmcp-macros"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b5905b9bad669b9d17b75d4aa1ad26e769e9e0bdc2e5fb7f34db93f0c5e4c33f",
+        "Cargo.toml": "d6f0b92dfa2d5fbec581eda84a87dae94fc599b9bfd23bc20e159239f521ee7d"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rmcp@3.5.0",
+      "name": "rmcp",
+      "version": "3.5.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "fae7019994ae0fe4ada40b732f798f3ff26f0f04facb1477f1bf37eb4f18a2d3",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/modelcontextprotocol/rust-sdk/",
+      "vcs": {
+        "git": {
+          "sha1": "0cde3c5cf3e6aff0cc852ce6045f107e95991f48"
+        },
+        "path_in_vcs": "crates/rmcp"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b2f51ec38e76d73d7f5c64dab677b72a57639ac3969837a4d0ebd99dafb17184",
+        "Cargo.toml": "d4130fca6286aac90918bdb5a7713ad242ef1eb9fe28efb942203dd08ae215d6"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#rops@0.1.7",
+      "name": "rops",
+      "version": "0.1.7",
+      "declared_license": "MPL-2.0",
+      "package_checksum": "b4beb52a5d008a707436d388c05e9fee9ae81039cce62813ee750918a13c0aaf",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/gibbz00/rops",
+      "vcs": {
+        "git": {
+          "sha1": "d5eef3b5660227b9b832b686ed78ad538f27a78c"
+        },
+        "path_in_vcs": "crates/lib"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "e1f4a1fea2db0dcf155732e525a28cf72f0098ffb3ee7be2c4bfaf41d23eb6e0",
+        "Cargo.toml": "d1da1e03ddba39e9592ebbd5ecb7bf1f531c1dca7bcad057e8d8c1193bfdd343"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigchld@0.2.5",
+      "name": "sigchld",
+      "version": "0.2.5",
+      "declared_license": "MIT",
+      "package_checksum": "24f2b37f04360cd465089b87a9c3869c08220a2f3458463f0adf8badf5e77f2c",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/oconnor663/sigchld.rs",
+      "vcs": {
+        "git": {
+          "sha1": "0f279e73cefdac2cc66f19357df30a2682fb1570"
+        },
+        "path_in_vcs": ""
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "59f6c3e698bdabf6723ef7b00a87af9ffc204dedc41e39adaac4e09b680ea0bd",
+        "Cargo.toml": "fc2c77b0e206e4dc8ff390e18d734d6f6ec339ff543d4c2c4ac217f2689b77b6"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-bundle@0.11.0",
+      "name": "sigstore-bundle",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "5948e95f63e900fa92936ecf72c7f2251f83d27560a35a4aae560cc745f8b687",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-bundle"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b858f26402b6aef0b84fb649d2373b24a99131b71e80c364b87c22e1414b1e6d",
+        "Cargo.toml": "55b10669c6f45b7d4119bcab16c2cf3a97846a63bcfd76f21c5ff41001ba8dde"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-crypto@0.11.0",
+      "name": "sigstore-crypto",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "22f27364b37bec104a904f10a675c8cdf05d5e48a980569368f0cd0c119b2652",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-crypto"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "795b131310620ce5dfd4ad28cfa9100e8cdb83e199a311f7d076ce5bb6d40cfb",
+        "Cargo.toml": "cdc85f4bcf9a19f11ff16b6c59046af63e9c2dea8692e21485842a249a0750c0"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-merkle@0.11.0",
+      "name": "sigstore-merkle",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "0ee85fd9fb550efd7c8a59447cb0ef4eb02f1258f3ffa80c88d38427c3930af3",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-merkle"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "c747bd3c47ffd7fcaf4ff24e6849840a98c95a947cfd9e9528039a0d54815062",
+        "Cargo.toml": "90a69b335ecb7cbc25e668c91297923d237f3e81e863c6eea8d940991380e809"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-rekor@0.11.0",
+      "name": "sigstore-rekor",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "9b97c5a866f849a9445ae657bef0caa2db053a82827e6dae3a2b3de9c15a6a1a",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-rekor"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "d1e4e15b85daf6519b6ea04c4c86f2a0bbee026cf4b410ece13074254b6c1e86",
+        "Cargo.toml": "fcc510455e107b05515f54f07629bccd7d5f4f5b3c57b5dc010fe12a3c9a4ddb"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-trust-root@0.11.0",
+      "name": "sigstore-trust-root",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "389b54d1b8ace20ba86fdf90e5e655495f65f1abbc7d5d0eb7494defa9ad32f0",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-trust-root"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "59c17c8c96048c07e3318e9d552bd30338680d929bf1131346729cd684db8f6c",
+        "Cargo.toml": "3092779029d4afc119126df568d3381bc2d662c7b230736ba93f8367d42411f4"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-tsa@0.11.0",
+      "name": "sigstore-tsa",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "b58fe92d4d8cf4b7215b927b70bc1245b6e0d70d801febdfe0cd265ad97ebf8b",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-tsa"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "df80e2283788347219d2680e8d46020d3aacc5574cf0c30583d73d09d6cf71b7",
+        "Cargo.toml": "7bb43785996153aac9b70b07adf78c828e34635012fba4523599aa9d7e084e3e"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-tuf@0.11.0",
+      "name": "sigstore-tuf",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "eedac50883a917b7b434db22e2e6e853ace8c00f4a9c27f53e1e9c87e6d89fe4",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-tuf"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "8f3206fa14c0c5829454b8cca130e5645e6a3db50206a86313824cafc85bfd43",
+        "Cargo.toml": "4bb927642468b562511a7faeb3130f4e03997fdbe7ed98828d719ddbdc9f8ea7"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-types@0.11.0",
+      "name": "sigstore-types",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "236474c535a3157839926a0ae18f9c0c22b151e49634da6e5b18ad7cac8a3b69",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-types"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "5301e342b17bd7988116f8c4b10cf685be41cf082b7cce7219c2fff27966ac40",
+        "Cargo.toml": "2a5ab5a1835854b1c7840b14fb4b262dfd08c8e0aa510a6989fa8db1845b0fb2"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#sigstore-verify@0.11.0",
+      "name": "sigstore-verify",
+      "version": "0.11.0",
+      "declared_license": "Apache-2.0",
+      "package_checksum": "558f71aad0e1c5925d29ae2024f55f0f8898a7ad450c93668f99086624c421e0",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/prefix-dev/sigstore-rust",
+      "vcs": {
+        "git": {
+          "sha1": "ef17cacdbd357befea4c1c768ef02ed9bf52672c"
+        },
+        "path_in_vcs": "crates/sigstore-verify"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "56ba8c12d6414fdfc2c514b3f732df51f7544915e387c5b698e276d70f31c7ba",
+        "Cargo.toml": "c23106f19c79bde6d9f0d23ee91b49aef1f25462231131da8ce9cfa63682a371"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#simple_spawn_blocking@1.1.1",
+      "name": "simple_spawn_blocking",
+      "version": "1.1.1",
+      "declared_license": "BSD-3-Clause",
+      "package_checksum": "83a7b2679ee03cca581f57e5a4fecac405aa6b5d5174abe65b4b41fa181d8438",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/conda/rattler",
+      "vcs": {
+        "git": {
+          "sha1": "4ce86256da9e385b4b53b18a799ee985ba041b8f"
+        },
+        "path_in_vcs": "crates/simple_spawn_blocking"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "418a2ce77e29a6bd33831e22694d0a87ce69e8e95bc8530921327c1047cfff40",
+        "Cargo.toml": "cebc493d96a53ccead046bb6c5fe53fdf953e914fcbb880af97cf1749d18c37a"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#taplo@0.14.0",
+      "name": "taplo",
+      "version": "0.14.0",
+      "declared_license": "MIT",
+      "package_checksum": "c221a50eef1a5493074f11ca1ed62bef28c05a4d925002944cc686b2e783a5b3",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/tamasfe/taplo",
+      "vcs": {
+        "git": {
+          "sha1": "15963fcb555af6bb543e79caf664c3daa110f2ad"
+        },
+        "path_in_vcs": "crates/taplo"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "853ed41fab896c39eb782f3e9ad89b8be331f48e088d18d101ed2f32814a8a82",
+        "Cargo.toml": "e63238250d64331aee7d60a3fe463e8da973a69c6b810d8102ad3041d2be93b3"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#tera-contrib@0.3.0",
+      "name": "tera-contrib",
+      "version": "0.3.0",
+      "declared_license": "MIT",
+      "package_checksum": "e6c07f9f25dce5c40e92d0dcaa33508c451a07395dfcdd9040320ed6bb4a52a9",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/Keats/tera",
+      "vcs": {
+        "git": {
+          "sha1": "32c56694a8f2efa7e3d51bb64d23a37e06bcb468"
+        },
+        "path_in_vcs": "tera-contrib"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "7da03a6e68d73786d615e7ce605c62b373db5376d5a9f62056793363332395cf",
+        "Cargo.toml": "04729d10e95bbf4dfebe20dfa9c223492cce9a64980a66fd8d2749390719d786"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#ubi@0.12.0",
+      "name": "ubi",
+      "version": "0.12.0",
+      "declared_license": "MIT OR Apache-2.0",
+      "package_checksum": "38afff39148f8f08efb6d53441c871e39218677eb52ec9aefc1302ca24afdc62",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/houseabsolute/ubi",
+      "vcs": {
+        "git": {
+          "sha1": "9b402353524f4db7155c70f9d0e785e9ed692a41"
+        },
+        "path_in_vcs": "ubi"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "39df860b41f80f9e1e8cf82c9357534d9c99f265a69b4fbe34300fb06cb2d05b",
+        "Cargo.toml": "e555d1fd8b7900b44358d11ad567127f678249090a36d6c0cb0e8993f4514866"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#usage-test@6.12.0",
+      "name": "usage-test",
+      "version": "6.12.0",
+      "declared_license": "MIT",
+      "package_checksum": "1011b07f3e21381eaaada43daeb5dce92469bc25c87921e6c957b2c3ba5ae716",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/jdx/usage",
+      "vcs": {
+        "git": {
+          "sha1": "197b82b617e748b5c3c9a7f961af72edf1dd5db0"
+        },
+        "path_in_vcs": "test"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b91c985d4a00cc0fdc6413c9ac2dca49335112802fbcf0e79c899942e4da14d4",
+        "Cargo.toml": "211438611246acd888be86711e685be97ac50701fc594289eafa3014a59dab05"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#vsimd@0.8.0",
+      "name": "vsimd",
+      "version": "0.8.0",
+      "declared_license": "MIT",
+      "package_checksum": "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64",
+      "review_status": "unreviewed",
+      "repository": "https://github.com/Nugine/simd",
+      "vcs": {
+        "git": {
+          "sha1": "d74c030d9dc4f3cae02146d1f497ff62726ef09a"
+        },
+        "path_in_vcs": "crates/vsimd"
+      },
+      "metadata_sha256": {
+        ".cargo_vcs_info.json": "b6a479e65704d09745d31e0d86d23ca44ba673b01ddd0da81cc8ba619a92b2aa",
+        "Cargo.toml": "7a3defd1f3b642bc229a518351f3feb23a69ddaf0349414562edbeeca40d60ad"
+      },
+      "status": "registry_archive_checksum_verified"
+    },
+    {
+      "id": "aqua-registry@2026.5.3",
+      "name": "aqua-registry",
+      "version": "2026.5.3",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-agent-env@0.1.0",
+      "name": "mise-agent-env",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-bootstrap@0.1.0",
+      "name": "mise-bootstrap",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-brew-metadata@0.1.0",
+      "name": "mise-brew-metadata",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-brew-relocation@0.1.0",
+      "name": "mise-brew-relocation",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-cache-core@0.1.0",
+      "name": "mise-cache-core",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-interactive-config@2026.1.12",
+      "name": "mise-interactive-config",
+      "version": "2026.1.12",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-settings@2026.9.0",
+      "name": "mise-settings",
+      "version": "2026.9.0",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    },
+    {
+      "id": "mise-sigstore@0.1.0",
+      "name": "mise-sigstore",
+      "version": "0.1.0",
+      "declared_license": "MIT",
+      "package_checksum": null,
+      "review_status": "unreviewed",
+      "status": "no_unique_registry_archive",
+      "source_kind": "fork-workspace"
+    }
+  ],
+  "audit": {
+    "network": "disabled Docker container",
+    "registry_archives_verified": 89,
+    "fork_workspace_packages": 9,
+    "compressed_limit_bytes": 33554432,
+    "expanded_limit_bytes": 134217728,
+    "entry_limit": 20000,
+    "metadata_entry_limit_bytes": 2097152,
+    "extraction": "none; only Cargo.toml and .cargo_vcs_info.json read",
+    "input_evidence_index": "candidate-notice-evidence.json",
+    "input_workflow": "https://github.com/oyzuai/mise/actions/runs/36992169356"
+  }
+}

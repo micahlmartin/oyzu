@@ -478,3 +478,24 @@ Clippy and all eight scenarios pass on Linux, Windows and macOS in run
 `36977793983` at fork `136d65573`.
 This adds no Java layout API and performs no JDK acquisition, publisher verification
 or execution. It is parser-reuse evidence, not production Java qualification.
+
+### Missing-notice source pointers
+
+The [source-pointer inventory](../proposals/OEP-0003-mise-integration/missing-notice-source-pointers.json)
+records the 98 unique package identities without observed notices across the
+current candidate's three target reports. An offline cache audit verified 89
+registry `.crate` archives against the package checksums in those retained reports,
+then read their original `Cargo.toml` and `.cargo_vcs_info.json` without extraction
+or execution. The inventory retains repository URLs, publisher-provided commit
+and repository-path metadata, and the exact metadata-byte hashes. Nine fork
+workspace packages require separate root/workspace notice review.
+
+This is a source-review starting point, not recovered notices or proof of license
+applicability. The audit bounds compressed archives to 32 MiB, expanded tar bytes
+to 128 MiB, members to 20,000 and each inspected metadata file to 2 MiB. To repeat,
+use the exact retained reports and cached crate versions, verify each report's
+package checksum before reading metadata, and compare the recorded metadata
+hashes. Keep original archives outside the checkout. Inspect source at the recorded
+commit to establish applicable copyright/license text, local modifications and
+redistribution duties; do not substitute an unrelated current repository license.
+All dispositions remain unreviewed and approval flags remain false.

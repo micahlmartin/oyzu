@@ -1284,3 +1284,19 @@ human approval in fork PR 2 and all evidence approval flags remain false. Owner
 assignment is not substituted for review. This refresh prepares reviewable source
 evidence; it is neither exact shipping-graph review nor production admission.
 The maintained reference gives the current download and verification commands.
+
+## Checkpoint 103: missing-notice source provenance audit
+
+The union of missing-notice identities across the current three reports is 98
+packages. An offline, no-extraction audit verified 89 cached registry crate
+archives against their retained package checksums and captured original manifest
+and VCS metadata hashes plus repository/commit/path pointers. The remaining nine
+are fork workspace packages and need root/workspace notice applicability review.
+The new source-pointer inventory records these facts without treating any notice
+as recovered or any license as approved.
+
+The initial age-core inspection confirms its cached crate omits standalone license
+files and supplies a repository commit/path. Larger groups include 19 packages
+pointing to conda/rattler, 13 to aubepkg/aube and nine to prefix-dev/sigstore-rust.
+These groupings prioritize source review; they do not prove common license coverage.
+No dependency, upstream source or production approval changed.
