@@ -458,3 +458,13 @@ Clippy and formatting checks. It does not edit either product's Cargo graph. Nat
 workflow [37027499477](https://github.com/micahlmartin/oyzu/actions/runs/37027499477)
 passed on all three hosts at `87973b366e67cd72f116cc2af84404a14d9e623b`. This does not convert the candidate to
 an approved dependency or extend the probe's 21-case coverage into a full audit.
+
+The unmodified published 0.7.3 source archive also passes all 35 default-feature
+library unit tests on Windows GNU (Rust 1.94.0) and Linux (Rust 1.95.0). Linux ran
+locked and offline with networking disabled after explicit dependency provisioning;
+the first offline attempt lacked an optional dependency's registry entry and did
+not run tests. The generated test lockfile is retained separately in the candidate
+evidence because it includes development/optional resolution beyond the consumer
+probe graph. This does not extend the consumer notice audit to that larger graph.
+The source and original licenses remain outside the product repositories. The
+published suite has not run on macOS; the separate 21-case consumer probe has.
