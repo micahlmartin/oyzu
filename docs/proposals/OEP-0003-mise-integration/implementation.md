@@ -20,8 +20,10 @@ TM-01 now has draft versioned layout and receipt JSON schemas with shared
 invalid-shape fixtures checked by the schema validator and Rust runtime. A draft
 backend descriptor schema and shape fixtures now encode the specified identity
 fields; bounded Rust parsing, shared shape tests and canonical identity inspection
-are implemented. Compiled descriptor admission remains outstanding. Worker
-and selection-grant schemas remain outstanding.
+are implemented. Compiled descriptor admission remains outstanding. The selection-grant signed-payload schema now has synthetic shape fixtures,
+including offline-operation and resolve-only restrictions; signature, context and
+monotonic lifecycle enforcement remain unimplemented. The worker schema remains
+outstanding.
 
 TM-03 now has a first frozen selection boundary: given an already resolved
 workspace, working directory, profile, request digest and platform, it chooses

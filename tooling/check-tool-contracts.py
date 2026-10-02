@@ -59,6 +59,11 @@ def check_contract(name, schema_path, fixture_path, cases_path, valid_path=None)
 
 
 def main():
+    check_contract("selection grant", "docs/contracts/tools-v1/selection-grant.schema.json",
+                   "tests/fixtures/tool-grant/payload.json", "tests/fixtures/tool-grant/invalid-shapes.json",
+                   "tests/fixtures/tool-grant/valid-shapes.json")
+    check_contract("offline selection grant", "docs/contracts/tools-v1/selection-grant.schema.json",
+                   "tests/fixtures/tool-grant/offline-payload.json", "tests/fixtures/tool-grant/offline-invalid-shapes.json")
     check_contract("backend descriptor", "docs/contracts/tools-v1/backend-descriptor.schema.json",
                    "tests/fixtures/tool-backend/descriptor.json", "tests/fixtures/tool-backend/invalid-shapes.json",
                    "tests/fixtures/tool-backend/valid-shapes.json")

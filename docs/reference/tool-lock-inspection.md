@@ -791,3 +791,30 @@ changed-lock checks, GOROOT lookup and real compilation/execution. Linux
 foreign-target verification also passed with networking disabled. Updated native
 CI confirmation is tracked separately in the
 [tool-management status](../tool-management-status.md).
+
+### Draft tool-selection grant payload fixtures
+
+`docs/contracts/tools-v1/selection-grant.schema.json` defines a proposed closed
+payload shape for a future compact signed grant. The fixture files under
+`tests/fixtures/tool-grant/` are unsigned synthetic data and grant no authority.
+Run `python tooling/check-tool-contracts.py` with the existing pinned design
+requirements to check them offline; no agent, management account or signing key
+is needed, and no configuration or store data is modified.
+
+The shape requires protocol/request/context/decision identity, policy revision,
+selection digest, operation list, validity, offline flag, revocation epoch,
+issuer/audience/tenant/subject. It rejects unknown fields, missing bindings,
+duplicate/unknown operations, wrong audience/protocol, malformed digest/UUID and
+non-integer or unsafe numeric fields. An allow payload is the only grant shape;
+resolve cannot share an operation list with execution, and offline-enabled grants
+list only activate/exec/build. Times are proposed whole Unix UTC seconds. These
+are new draft wire choices, not an accepted or deployed service contract.
+
+This schema does not verify a JWS, compare a response with an authenticated request,
+check current policy or enforce expiry. The required future runtime must use pinned
+Ed25519 keys with the tool protocol's exact `alg=EdDSA` header, reject duplicate JSON
+keys, bind every identity and operation, enforce the 60-second online/900-second
+offline caps, and maintain monotonic expiry and invalidation in agent memory.
+The existing configuration-policy verifier uses a different `alg=Ed25519` header
+and policy audience; it must not be loosened or directly treated as a tool-grant
+verifier. No tool-selection authorizer or grant-backed launch path is enabled.

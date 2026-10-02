@@ -202,6 +202,14 @@ authorizes later install or exec. Acquisition still requires a separate broker
 lease for its exact sources/artifacts. Never send upstream credentials in this
 response or persist the grant in a project/lock/bundle.
 
+The [draft signed-payload schema](../../contracts/tools-v1/selection-grant.schema.json)
+uses whole Unix UTC seconds for `not_before`/`not_after`, bounded to safe JSON
+integers. These proposed wire encodings are not an accepted public API. The schema
+covers allow payloads only; deny/needs-evidence responses have no grant. A resolve
+payload contains only the resolve operation, and an offline-enabled payload lists
+only activate/exec/build; install/discovery require separate online authorization.
+Shape validation cannot check lifetime differences, signatures or current context.
+
 Grant payload contains those decision/binding/validity fields plus issuer,
 audience `oyzu.tool-selection`, tenant and authenticated subject identity. Use
 compact JWS with Ed25519 (`alg=EdDSA`), pinned `kid` from the protected management

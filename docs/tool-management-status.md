@@ -1374,3 +1374,19 @@ Clippy. Full Windows locked tests, strict Clippy, formatting and all nine CLI ta
 scenarios passed. Workflow YAML and documentation checks passed. Native CI for
 this increment remains pending; two real store/compiler cases do not substitute
 for production resolver, broker, policy, native Linux/macOS or backend admission.
+
+## Checkpoint 109: draft tool-selection grant payload schema
+
+TM-01 now includes the closed allow-grant payload schema with synthetic fixtures.
+The checker passed four valid/34 invalid ordinary mutations and one valid/two
+invalid offline cases, alongside existing tool contracts. Fields, safe integers,
+protocol/audience and digest/UUID shapes, resolve-only scope and offline operation
+restrictions are explicit. Unix-second validity encoding and separated offline
+operation scope remain proposed wire choices requiring maintainer review.
+
+Inspection confirmed the existing policy signature verifier uses the Ed25519
+algorithm label, whereas this OEP specifies EdDSA. No policy behavior was changed.
+Tool signature verification, request/context binding, lifetime enforcement, agent
+lifecycle and runtime/schema agreement remain unimplemented; unsigned fixtures
+are not grants. Contract/reference documentation and the implementation sequence
+now state the exact boundary. Documentation checks passed.

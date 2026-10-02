@@ -1,0 +1,16 @@
+[
+  {
+    "name": "offline install denied",
+    "pointer": "/operations",
+    "value": [
+      "install"
+    ]
+  },
+  {
+    "name": "offline discovery denied",
+    "pointer": "/operations",
+    "value": [
+      "resolve"
+    ]
+  }
+]
