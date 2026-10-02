@@ -118,3 +118,25 @@ the complete user flows. Deferred hardening is tracked separately from functiona
 acceptance, without claiming a production security or distribution qualification.
 
 On 2026-10-02 the maintainer explicitly added Rust/rustup installation to the active OEP-0003 functional scope. Reuse mise backend behavior through the maintained library boundary; inspect and prove native-installer transport and storage integration rather than implementing a parallel Rust installer. This records scope and direction, not approval of an untested design or completed Rust installation.
+
+
+## Tool installation policy end state and current delivery sequence
+
+On 2026-10-02 the maintainer clarified the OEP-0003 end state: standalone public
+CLI use requires no platform account or corporate service and may install
+supported tools through their backends' normal public acquisition paths. When
+server policy is enforced, it is an allowlist of tools available for installation
+and use. The client must reject tools not permitted by that policy, including
+implicit installer dependencies; cached installation does not confer permission.
+Every installation-related download must use the approved server/proxy route,
+including metadata, bootstrap installers, components, child managers and invoked
+scripts. An unrouteable backend must be unavailable in enforced mode, without
+silent direct-download fallback.
+
+The corporate installation proxy is not a prerequisite for the current functional
+implementation. Continue proving real standalone installation through normal
+backend acquisition, including Rust/rustup. Record the eventual routing boundary
+for each backend, but do not build the corporate proxy before proving installation.
+Direct standalone installation is not policy-enforced acceptance and must never
+be used as fallback when enforced policy cannot be satisfied. Licensing, notice
+preservation and existing explicit constraints remain applicable.

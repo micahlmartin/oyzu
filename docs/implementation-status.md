@@ -124,6 +124,11 @@ its rustup installation and environment behavior, but our current embedding API
 does not expose that installation path. The [reuse investigation and first proof](proposals/OEP-0003-mise-integration/implementation.md#rust-backend-reuse-and-first-proof)
 records transport, private-home and store integration work. No Oyzu Rust install
 has run; separately provisioned build toolchains are not product evidence.
+The maintainer clarified that direct normal-backend acquisition is authorized for
+current standalone installation work. Corporate proxy implementation is not a
+prerequisite. The final enforced mode requires a server allowlist for installation
+and use plus complete approved routing of installer/dependency downloads; direct
+standalone success will not be reported as enforced-mode qualification.
 
 ## Builder objective
 

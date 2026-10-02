@@ -4,6 +4,26 @@ Normative draft companion to [OEP-0003](README.md). The production broker's
 existing URL authorization and Docker isolation are useful foundations, not a
 complete cached-tool authorization service or native installation sandbox.
 
+## Maintainer clarification: standalone now, enforced routing end state
+
+The [2026-10-02 decision](../../decisions.md#tool-installation-policy-end-state-and-current-delivery-sequence)
+sets the delivery sequence. Standalone public CLI installation may use supported
+backends' normal public paths without a platform account. Implement and exercise
+those paths now; the corporate proxy is not a prerequisite for this first proof.
+The gates below retain their end-state meaning, but routing qualification must
+not block direct standalone functional integration or be claimed by its success.
+
+In policy-enforced mode, server policy is an allowlist for installation and use.
+The client rejects absent/disallowed tools before installation or launch, including
+implicit tool dependencies and cached selections. Canonical aliases cannot bypass
+that decision. All acquisition associated with installation must use approved
+server routes: catalogs, checksums, archives, bootstrap binaries, components,
+child package managers and installer-script downloads. Each enabled backend must
+identify how its complete acquisition path is routed. A backend without that
+capability is unavailable in enforced mode; no silent public fallback is allowed.
+This is the required end state, not a claim that client configuration alone
+provides machine-wide enforcement against programs run outside Oyzu.
+
 ## Backend admission and reuse
 
 Each compiled admission descriptor identifies canonical backend, allowed tools,

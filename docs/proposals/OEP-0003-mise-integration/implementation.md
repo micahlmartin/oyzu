@@ -355,6 +355,15 @@ metadata operations rather than a complete backend installation operation.
 The current HTTP callback cannot intercept HTTP performed inside rustup.
 Simply adding rust to that allowlist would therefore not meet Oyzu's contracts.
 
+### Delivery sequence clarified by the maintainer
+
+Prove standalone Rust installation using upstream's normal download path first.
+The corporate proxy is not required for that proof. The mirror/broker design below
+is the enforced-mode end state and subsequent integration work, not a prerequisite
+for the first installed Cargo compiling code. Keep enforced mode unavailable for
+Rust until its server allowlist and complete acquisition routing are connected;
+never fall back from enforced mode to this direct standalone path.
+
 ### Integration direction
 
 Add a native-installer operation to the private fork boundary, consuming an
@@ -409,6 +418,7 @@ Reuse the same installed-environment contract for exec, which, shell and shims.
    installing Rust alone is not evidence that system linkers were installed.
 
 Pass evidence is the real selected compiler and Cargo building/running code,
-recorded lock/store identities, unchanged frozen lock bytes and observed host
-broker traffic. Missing transport or relocation behavior is an actual integration
+recorded lock/store identities and unchanged frozen lock bytes. Direct public
+traffic is allowed for the initial standalone proof; observed exclusive approved
+server/broker traffic is additional evidence for the later enforced-mode proof. Missing transport or relocation behavior is an actual integration
 blocker to resolve. Broader fault injection and isolation hardening remain deferred.
