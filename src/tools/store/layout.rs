@@ -131,12 +131,11 @@ pub(in crate::tools) fn stage(
     );
     // Unsupported transforms are errors, never silently ignored.
     ensure!(
-        matches!(plan.archive_kind.as_str(), "tar" | "tar.gz")
-            && plan.payload_subtree == "."
-            && plan.executable_paths.is_empty(),
+        matches!(plan.archive_kind.as_str(), "tar" | "tar.gz") && plan.payload_subtree == ".",
         "archive layout transform is not implemented"
     );
     plan.extraction_bounds.validate()?;
+    validate_executable_paths(&plan.executable_paths)?;
     if let Some(prefix) = &plan.strip_prefix {
         access::relative(prefix)?;
     }
@@ -152,13 +151,18 @@ pub(in crate::tools) fn stage(
         root.entries()?.is_empty(),
         "candidate staging must be empty"
     );
-    let tree = archive::unpack_layout(
+    let payload = root.create_directory("payload")?;
+    let mut tree = archive::unpack_layout(
         blob,
-        root.create_directory("payload")?,
+        payload.duplicate()?,
         plan.archive_kind == "tar.gz",
         plan.strip_prefix.as_deref(),
         &plan.extraction_bounds,
     )?;
+    if !plan.executable_paths.is_empty() {
+        mark_executable(&payload, &plan.executable_paths)?;
+        tree = super::tree::inspect_directory(&payload)?;
+    }
     check_payload(&plan, &tree)?;
     let mut dependencies: Vec<_> = distribution
         .dependencies
@@ -184,6 +188,51 @@ pub(in crate::tools) fn stage(
     file.sync_all()?;
     root.sync()?;
     Ok(installation.clone())
+}
+
+fn validate_executable_paths(paths: &[String]) -> Result<()> {
+    ensure!(paths.len() <= 4096, "too many executable paths");
+    ensure!(
+        cfg!(unix) || paths.is_empty(),
+        "Unix executable transforms are unavailable on this host"
+    );
+    let mut previous = None;
+    for path in paths {
+        access::relative(path)?;
+        ensure!(
+            previous.is_none_or(|p| p < path.as_str()),
+            "executable paths must be sorted and unique"
+        );
+        previous = Some(path.as_str());
+    }
+    Ok(())
+}
+
+fn mark_executable(payload: &Directory, paths: &[String]) -> Result<()> {
+    for path in paths {
+        let mut parent = payload.duplicate()?;
+        let mut parts = path.split('/').peekable();
+        while let Some(part) = parts.next() {
+            if parts.peek().is_some() {
+                parent = parent.child(part)?;
+            } else {
+                // No-follow file opens reject symlinks, special files and
+                // external hardlinks. Never chmod by an ambient path.
+                let file = parent.file(part)?;
+                ensure!(
+                    access::identity(&file)?.links == 1,
+                    "executable path has hardlinks"
+                );
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    file.set_permissions(std::fs::Permissions::from_mode(0o700))?;
+                }
+                file.sync_all()?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_required(paths: &[RequiredPath]) -> Result<()> {

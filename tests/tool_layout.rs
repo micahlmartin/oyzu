@@ -222,7 +222,7 @@ fn rejects_invalid_templates_transforms_and_bounds_without_receipt() {
     for mutate in [
         |p: &mut Value| p["archive_kind"] = json!("zip"),
         |p: &mut Value| p["payload_subtree"] = json!("other"),
-        |p: &mut Value| p["executable_paths"] = json!(["bin/node"]),
+        |p: &mut Value| p["executable_paths"] = json!(["../node"]),
         |p: &mut Value| p["strip_prefix"] = json!("../escape"),
         |p: &mut Value| p["extraction_bounds"]["max_entries"] = json!(0),
         |p: &mut Value| p["extraction_bounds"]["max_depth"] = json!(65),
@@ -257,6 +257,63 @@ fn rejects_entries_outside_prefix_and_enforces_smaller_extraction_limits() {
         fixture.layout["extraction_bounds"][field] = json!(value);
         fixture.prepare();
         assert!(fixture.stage().is_err(), "{field}");
+        assert!(!fixture.candidate().join("receipt.json").exists());
+    }
+}
+
+#[test]
+fn declared_executable_paths_are_host_specific_bounded_and_receipt_bound() {
+    let mut fixture = Fixture::new();
+    let mut builder = tar::Builder::new(Vec::new());
+    let mut header = tar::Header::new_gnu();
+    header.set_mode(0o600);
+    header.set_size(4);
+    header.set_cksum();
+    builder
+        .append_data(&mut header, "release/bin/node", &b"data"[..])
+        .unwrap();
+    fixture.bytes = builder.into_inner().unwrap();
+    fixture.layout["executable_paths"] = json!(["bin/node"]);
+    fixture.prepare();
+    if cfg!(windows) {
+        assert!(fixture.stage().is_err());
+        assert_eq!(fs::read_dir(fixture.candidate()).unwrap().count(), 0);
+        return;
+    }
+    fixture.stage().unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(
+            fs::metadata(fixture.candidate().join("payload/bin/node"))
+                .unwrap()
+                .permissions()
+                .mode()
+                & 0o7777,
+            0o700
+        );
+    }
+    let lease = tools::lease_installation_selection(
+        &fixture.lock,
+        &fixture.store,
+        Some(&fixture.staging),
+        ".",
+        "default",
+        fixture.platform,
+        &fixture.installer,
+    )
+    .unwrap();
+    drop(lease);
+    for paths in [
+        json!(["bin/node", "bin/node"]),
+        json!(["bin/node", "bin"]),
+        json!(["bin"]),
+        json!(["missing"]),
+    ] {
+        let mut fixture = Fixture::new();
+        fixture.layout["executable_paths"] = paths;
+        fixture.prepare();
+        assert!(fixture.stage().is_err());
         assert!(!fixture.candidate().join("receipt.json").exists());
     }
 }

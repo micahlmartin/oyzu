@@ -345,8 +345,15 @@ the closed field names. Rust adds portable path, byte, graph, identity and conte
 checks that JSON Schema cannot establish.
 
 Currently supported plans use `tar` or `tar.gz`, optional `strip_prefix`,
-`payload_subtree: "."` and an empty `executable_paths` array. Other archive kinds,
-subtree projection and executable overrides fail explicitly. Entries outside the
+`payload_subtree: "."`. Other archive kinds and subtree projection fail explicitly.
+On Unix, `executable_paths` may contain at most 4096 sorted, unique portable
+payload-relative file paths. Each must resolve through ordinary directories to
+a regular file with one hardlink; symlinks are rejected at every component. The
+finalizer sets exactly private mode `0700` through the opened handle, flushes it,
+and recomputes the payload tree before authoring the receipt. It never executes
+the file. Windows requires an empty list because Unix permissions are not a
+Windows launch contract. A transform failure leaves uncommitted staging without
+a receipt; discard that staging and retry in a new empty directory. Entries outside the
 strip prefix are rejected, including a prefix ancestor that is not an ordinary
 empty directory. Strip-prefix removal does not rewrite symlink targets; the final
 contained link graph must remain valid. Required paths are a sorted unique list

@@ -477,3 +477,21 @@ all nine compiled CLI task scenarios passed. Linux passed the duplicated-handle
 regression, all 16 receipt/recovery cases and strict all-target Clippy. Documentation
 structure passed. Fork run `36974808859` passes notice inventory and guard tests
 but fails its human-review gate; no approval is inferred from owner assignment.
+
+## Checkpoint 60: declared Unix executable layout paths
+
+TM-04 now applies the existing layout contract's `executable_paths` on Unix.
+It validates a bounded sorted unique portable path list before extraction, opens
+each ordinary file through no-follow directory handles, requires one hardlink,
+sets private mode 0700 and flushes the file. The receipt binds a freshly observed
+tree after these changes. Windows rejects nonempty lists before staging writes;
+no Unix permission operation is silently treated as a Windows launcher rule.
+The regression materializes a nonexecutable archive member, marks it executable,
+and publishes it through full receipt verification; invalid, duplicate, unsorted,
+missing and directory paths cannot produce receipts. No fixture payload runs.
+This is layout behavior, not backend installation qualification.
+
+Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and nine
+real CLI task scenarios passed. Linux passed all nine layout tests and strict
+all-target Clippy. Documentation structure passed. Native macOS confirmation
+is pending; this does not complete TM-04 or any backend acceptance row.
