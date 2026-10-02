@@ -75,7 +75,15 @@ impl Runtime for Native {
             Err(_) => return Ok(Refresh::TransportFailure),
         };
         let mut bytes = Vec::new();
-        response.take(2 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
+        if response
+            .take(2 * 1024 * 1024 + 1)
+            .read_to_end(&mut bytes)
+            .is_err()
+        {
+            // An interrupted response supplies no policy. The agent may still
+            // authorize against an independently verified offline snapshot.
+            return Ok(Refresh::TransportFailure);
+        }
         let value = super::policy::strict_json_limit(&bytes, 2 * 1024 * 1024)?;
         Ok(Refresh::Snapshot(
             value["configurationSnapshot"]
@@ -89,6 +97,80 @@ impl Runtime for Native {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{io::Write, net::TcpListener, thread};
+
+    fn response(status: u16, body: &str, announced_length: usize) -> (Result<Refresh>, Value) {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let endpoint = format!(
+            "http://{}/v1/build-contexts:resolve",
+            listener.local_addr().unwrap()
+        );
+        let reply = format!(
+            "HTTP/1.1 {status} Test\r\nContent-Length: {announced_length}\r\nConnection: close\r\n\r\n{body}"
+        );
+        let server = thread::spawn(move || {
+            let (mut socket, _) = listener.accept().unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut header = Vec::new();
+            let mut byte = [0];
+            while !header.ends_with(b"\r\n\r\n") {
+                socket.read_exact(&mut byte).unwrap();
+                header.push(byte[0]);
+                assert!(header.len() < 8192);
+            }
+            let header = String::from_utf8(header).unwrap();
+            assert!(header.starts_with("POST /v1/build-contexts:resolve HTTP/1.1\r\n"));
+            let length: usize = header
+                .lines()
+                .find_map(|line| {
+                    let (name, value) = line.split_once(':')?;
+                    name.eq_ignore_ascii_case("content-length")
+                        .then(|| value.trim().parse().unwrap())
+                })
+                .unwrap();
+            let mut body = vec![0; length];
+            socket.read_exact(&mut body).unwrap();
+            socket.write_all(reply.as_bytes()).unwrap();
+            serde_json::from_slice(&body).unwrap()
+        });
+        // HTTP is confined to the transport fixture. Production enrollment
+        // validation requires HTTPS before constructing a refresh endpoint.
+        let request = serde_json::json!({"purpose":"configuration","configurationContext":{"subjectId":null}});
+        let result = Native::new().unwrap().refresh(&endpoint, &request);
+        let observed = server.join().unwrap();
+        assert_eq!(observed, request);
+        (result, observed)
+    }
+
+    #[test]
+    fn refresh_transport_distinguishes_denial_interruption_and_invalid_policy() {
+        let body = r#"{"configurationSnapshot":"test-envelope"}"#;
+        assert!(
+            matches!(response(200, body, body.len()).0.unwrap(), Refresh::Snapshot(value) if value == "test-envelope")
+        );
+        assert!(matches!(
+            response(403, "private denial", 14).0.unwrap(),
+            Refresh::Denied
+        ));
+        assert!(matches!(
+            response(503, "", 0).0.unwrap(),
+            Refresh::TransportFailure
+        ));
+        assert!(matches!(
+            response(200, body, body.len() + 20).0.unwrap(),
+            Refresh::TransportFailure
+        ));
+        for body in [
+            r#"{"configurationSnapshot":"a","configurationSnapshot":"b"}"#,
+            r#"{"configurationSnapshot":42}"#,
+            "private non-JSON response",
+        ] {
+            let error = response(200, body, body.len()).0.err().unwrap();
+            assert!(!format!("{error:#}").contains(body));
+        }
+    }
 
     // Opt in on a provisioned host: ordinary unit tests must not require an
     // unlocked credential store or mutate a developer's native keychain.
