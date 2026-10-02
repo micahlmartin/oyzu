@@ -45,6 +45,8 @@ Existing broad public modules, dynamic records and partially combined responsibi
 
 ## Interfaces that earn their place
 
+Node's `mocha` module owns exact invocation adaptation; its runtime composes native Mocha reporters and invokes native c8. Framework detection remains in `node/detection/frameworks`, manager lifecycle behavior stays native, and shared report collection remains engine-owned. The common Node toolchain image provisions c8 alongside quality tools, but coverage integration stays with reporting rather than the lint/format adapter.
+
 ### Choose the smallest structure
 
 | When adding or changing... | Start with... | Extract or expand when... |

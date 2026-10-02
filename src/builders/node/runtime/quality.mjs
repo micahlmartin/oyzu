@@ -119,7 +119,8 @@ if (biome) {
         overrideConfig:[js.configs.recommended,
           ...ts.configs.recommended.map(config => ({...config, files:['**/*.{ts,mts,cts,tsx}']})),
           {files:['**/*.{js,mjs,cjs,jsx,ts,mts,cts,tsx}'], languageOptions:{globals:{...globals.node,...(process.env.OYZU_NODE_BROWSER === '1' ? globals.browser : {})}, parserOptions:{ecmaFeatures:{jsx:true}}}},
-          ...(process.env.OYZU_NODE_TEST_FRAMEWORK === 'jest' ? [{files:['**/*.{test,spec}.{js,cjs,mjs,ts,tsx,jsx}','**/__tests__/**'],languageOptions:{globals:globals.jest}}] : [])]});
+          ...(process.env.OYZU_NODE_TEST_FRAMEWORK === 'jest' ? [{files:['**/*.{test,spec}.{js,cjs,mjs,ts,tsx,jsx}','**/__tests__/**'],languageOptions:{globals:globals.jest}}] : []),
+          ...(process.env.OYZU_NODE_TEST_FRAMEWORK === 'mocha' ? [{files:['**/*.{test,spec}.{js,cjs,mjs,ts,tsx,jsx}','**/{test,tests}/**'],languageOptions:{globals:globals.mocha}}] : [])]});
       results.push(...await defaults.lintFiles(withoutConfig));
     }
   }

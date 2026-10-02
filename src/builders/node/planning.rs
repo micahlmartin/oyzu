@@ -36,6 +36,16 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         .context("missing resolved Node test framework")?
         .selected();
     let script = package["scripts"]["test"].as_str();
+    if framework == "mocha" {
+        plan.env.insert(
+            "OYZU_NODE_REPORTING_HOME".into(),
+            "/opt/oyzu-node-quality".into(),
+        );
+        plan.fixed_env.insert(
+            "OYZU_NODE_REPORTING_HOME".into(),
+            "/opt/oyzu-node-quality".into(),
+        );
+    }
     if framework == "vitest"
         && script.is_none_or(super::vitest::recognized)
         && !["dependencies", "devDependencies", "optionalDependencies"]
@@ -44,7 +54,15 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     {
         bail!("{id}: vitest requires a declared and captured native framework dependency");
     }
-    if !["node-test", "jest", "vitest"].contains(&framework) && script.is_none() {
+    if framework == "mocha"
+        && script.is_none_or(super::mocha::recognized)
+        && !["dependencies", "devDependencies", "optionalDependencies"]
+            .iter()
+            .any(|field| package[*field].get("mocha").is_some())
+    {
+        bail!("{id}: mocha requires a declared and captured native framework dependency");
+    }
+    if !["node-test", "jest", "vitest", "mocha"].contains(&framework) && script.is_none() {
         bail!("{id}: {framework} test/report integration is not implemented yet; refusing to omit its test operation");
     }
     let command = if framework == "jest" && script.is_none_or(super::jest::recognized) {
@@ -58,6 +76,12 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             manager.script("test", true)
         } else {
             super::super::strings(super::vitest::DEFAULT)
+        })
+    } else if framework == "mocha" && script.is_none_or(super::mocha::recognized) {
+        super::mocha::wrap(if script.is_some() {
+            manager.script("test", true)
+        } else {
+            super::super::strings(super::mocha::DEFAULT)
         })
     } else if script.is_some() {
         manager.script("test", script == Some("node --test"))

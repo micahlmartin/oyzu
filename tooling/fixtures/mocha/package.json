@@ -1,0 +1,8 @@
+{
+  "name": "oyzu-mocha-contract",
+  "version": "1.0.0",
+  "type": "module",
+  "files": ["src"],
+  "scripts": {"build": "node --check src/greeting.js", "test": "mocha"},
+  "devDependencies": {"mocha": "11.8.0"}
+}
