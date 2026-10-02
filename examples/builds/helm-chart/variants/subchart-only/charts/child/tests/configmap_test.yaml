@@ -1,0 +1,9 @@
+suite: subchart contract
+templates:
+  - templates/configmap.yaml
+tests:
+  - it: preserves the answer
+    asserts:
+      - equal:
+          path: data.answer
+          value: "42"

@@ -65,10 +65,10 @@ def main():
         suite_file = tests/'deployment_test.yaml'
         source = (ROOT/'examples/builds/helm-chart/variants/deployment_test.yaml').read_text()
         suite_file.write_text(source)
-        def cli_test(expected):
+        def cli_test(expected, directory=project):
             if args.cli:
                 env = {**os.environ, 'PATH':str(Path(helm).parent)+os.pathsep+os.environ.get('PATH','')}
-                result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'run','test'],env=env,capture_output=True,text=True,encoding='utf-8',timeout=120)
+                result = subprocess.run([str(args.cli.resolve()),'-C',str(directory),'run','test'],env=env,capture_output=True,text=True,encoding='utf-8',timeout=120)
                 assert (result.returncode==0)==expected, (result.stdout,result.stderr)
         if args.cli:
             result = subprocess.run([str(args.cli.resolve()),'-C',str(project),'run','list','--json'],env={**os.environ,'PATH':''},capture_output=True,text=True,timeout=30)
@@ -107,7 +107,24 @@ def main():
         assert validate(project/'chart','application',report,rendered,helm,unit_report) != 0
         assert ET.parse(unit_report).findall('.//failure')
         assert baseline == {p.name:p.read_bytes() for p in (tests/'__snapshot__').glob('*.snap')}
-    print('Native Helm reports: rendering/schema checks, native unittest assertions/JUnit, malformed suites, failure evidence, library validation and stale-output rejection passed')
+        # Native subchart suites must be selected without any root test suite.
+        subcharts = base/'subchart-only'
+        shutil.copytree(ROOT/'examples/builds/helm-chart/variants/subchart-only', subcharts)
+        if args.cli:
+            listed = subprocess.run([str(args.cli.resolve()),'-C',str(subcharts),'run','list','--json'],
+                                    env={**os.environ,'PATH':''},capture_output=True,text=True,timeout=30)
+            assert listed.returncode==0, listed.stderr
+            assert json.loads(listed.stdout)['project:test']['argv']==['helm','unittest','--strict','.']
+        assert validate(subcharts,'application',report,rendered,helm,unit_report)==0
+        unit = ET.parse(unit_report)
+        assert len(unit.findall('.//testcase'))==1 and not unit.findall('.//failure')
+        child_suite = subcharts/'charts/child/tests/configmap_test.yaml'
+        cli_test(True, subcharts)
+        child_suite.write_text(child_suite.read_text().replace('value: "42"','value: "99"'))
+        assert validate(subcharts,'application',report,rendered,helm,unit_report)!=0
+        assert len(ET.parse(unit_report).findall('.//failure'))==1
+        cli_test(False, subcharts)
+    print('Native Helm reports: rendering/schema checks, native unittest assertions/JUnit, subchart-only suites, malformed suites, failure evidence, library validation and stale-output rejection passed')
 
 
 if __name__ == '__main__':

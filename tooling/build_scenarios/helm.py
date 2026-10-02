@@ -128,3 +128,29 @@ def verify(root, base, invoke, validate, source_files, verified):
     failed = validate(library/'dist')
     assert not failed['artifacts']
     assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+
+    subcharts = base/'helm-subchart-only'
+    shutil.copytree(root/'examples/builds/helm-chart/variants/subchart-only',subcharts)
+    assert invoke(subcharts,'run','list','--json')['project:test']['argv']==['helm','unittest','--strict','.']
+    before = source_files(subcharts)
+    invoke(subcharts,'build')
+    manifest = validate(subcharts/'dist')
+    assert manifest['status']=='succeeded' and source_files(subcharts)==before
+    tests = [r for r in manifest['reports'] if r['kind']=='test']
+    assert len(tests)==2 and all(r['summary']['passed']==1 for r in tests)
+    assert manifest['targets'][0]['extensions']['oyzu.dev/discovery']['test-framework']['selected']=='helm-unittest'
+    assert len(manifest['artifacts'])==2
+    artifact = next(a for a in manifest['artifacts'] if a['name']=='chart')
+    assert '-dev.g' in artifact['version']
+    with tarfile.open(subcharts/'dist'/artifact['path']) as archive:
+        assert yaml.safe_load(archive.extractfile('parent/Chart.yaml'))['version']==artifact['version']
+        assert 'parent/charts/child/templates/configmap.yaml' in archive.getnames()
+    child_suite = subcharts/'charts/child/tests/configmap_test.yaml'
+    child_suite.write_text(child_suite.read_text().replace('value: "42"','value: "99"'))
+    before = source_files(subcharts)
+    invoke(subcharts,'build',success=False)
+    failed = validate(subcharts/'dist')
+    assert not failed['artifacts'] and source_files(subcharts)==before
+    assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+    assert any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
+    verified.append('Helm subchart-only suites: static native plugin selection, snapshot chart/render artifacts, native assertion JUnit and artifact rejection after a subchart failure')

@@ -80,7 +80,7 @@ src/
       planning.rs             # Snapshot OCI output and typed BuildKit action intent
       runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
-      detection.rs            # Native unittest suite evidence and validation fallback
+      detection.rs            # Bounded root/unpacked-subchart suite evidence and validation fallback
       metadata.rs             # Chart discovery and contained local dependency order
       preparation.rs          # Native lock handling and captured chart closure
       planning.rs             # Packaging, linting and rendering commands

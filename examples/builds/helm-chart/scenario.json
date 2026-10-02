@@ -34,6 +34,11 @@
       "name": "missing-snapshot-baseline",
       "change": "Copy variants/deployment_snapshot_test.yaml into project/chart/tests/ without a native snapshot baseline.",
       "expect": "Captured testing fails if native unittest creates a baseline, even when its JUnit reports success. Review and commit native baselines before building."
+    },
+    {
+      "name": "subchart-only",
+      "change": "Use variants/subchart-only as the project; change child expected answer from 42 to 99 for the negative case.",
+      "expect": "Discover and execute native subchart assertions without a parent suite; retain both reports and block snapshot artifacts after failure."
     }
   ],
   "nativeChecks": [
@@ -75,7 +80,11 @@
     "project/chart/values.schema.json",
     "project/chart/values.yaml",
     "variants/deployment_test.yaml",
-    "variants/deployment_snapshot_test.yaml"
+    "variants/deployment_snapshot_test.yaml",
+    "variants/subchart-only/Chart.yaml",
+    "variants/subchart-only/charts/child/Chart.yaml",
+    "variants/subchart-only/charts/child/templates/configmap.yaml",
+    "variants/subchart-only/charts/child/tests/configmap_test.yaml"
   ],
   "hosts": {
     "intended": [
