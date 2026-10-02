@@ -89,7 +89,7 @@ This is an explicitly provisioned image-input profile. Registry acquisition thro
 
 The new platform unit checks exercise arm64 image planning with an amd64 worker, mismatched capture rejection, native-only builder admission, materialization mismatch, and OCI inspection against target identity. The native parser checks target execution requirements without running project code. The Linux captured Docker suite now also requires actual arm64 OCI assembly from the EX-026 scratch fixture on an amd64 worker, JUnit/quality gates, unchanged sources, repeatable snapshot archives, and pre-action foreign `RUN` rejection. This new cross-target case is pending CI; earlier same-platform successes below do not prove it passed.
 
-Native image-adapter tests run from `src/builders/docker/runtime/images` with provisioned Go 1.24.13 and its checked-in module/checksum locks:
+Native image-adapter tests run from `src/dependencies/runtime/images` with provisioned Go 1.24.13 and its checked-in module/checksum locks:
 
 ```text
 go test -mod=readonly ./...
@@ -102,5 +102,7 @@ CI runs native metadata/conversion checks on Windows/macOS/Linux after compiling
 Native API references: [BuildKit OCI named contexts](https://github.com/moby/buildkit/blob/v0.25.0/frontend/dockerui/namedcontext.go), [go-containerregistry layouts](https://github.com/google/go-containerregistry/tree/v0.20.6/pkg/v1/layout) and [Docker archive support](https://github.com/google/go-containerregistry/tree/v0.20.6/pkg/v1/tarball). The toolchain preserves dependency licenses/notices alongside the compiled adapter.
 
 ## Dockerfile-free packaging status
+
+Provisioned image capture is shared through `dependencies/images`; Dockerfile parsing still determines Docker's required references. The capture path preserves existing immutable config/platform checks and OCI-store evidence. This internal relocation adds no registry fallback or configuration precedence rule.
 
 Application `container: true` integration remains unfinished. The executor now has an internal [typed assembly boundary](../container-assembly.md) that generates definitions in private storage, but current application builders do not yet supply runtime profiles and packaging actions through it. Existing Dockerfile builds continue to use their captured source definition. The worker verifies the bytes actually staged for BuildKit against the planned digest, so a definition changed during copying is rejected rather than executed.

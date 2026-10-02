@@ -1,9 +1,23 @@
 //! Image-input preparation. Registry acquisition can feed the same immutable
 //! OCI-store contract later; this profile consumes explicitly provisioned images.
-use crate::{builders::PreparationContext, executor, snapshot};
+use crate::{executor, platform::Platform, snapshot};
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
-use std::{collections::BTreeMap, fs, time::Duration};
+use std::{collections::BTreeMap, fs, path::Path, time::Duration};
+
+#[cfg(test)]
+mod native;
+
+/// Capture approved, already provisioned image references into a caller-owned
+/// fresh preparation directory. The supplied executor contains the pinned native
+/// OCI converter. Callers own configuration admission and runtime compatibility;
+/// this boundary verifies content/platform identities and never pulls images.
+pub(crate) struct Capture<'a> {
+    pub destination: &'a Path,
+    pub image: &'a executor::Image,
+    pub target_platform: &'a Platform,
+    pub execution_name: &'a str,
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -15,8 +29,8 @@ struct Identity {
     architecture: String,
 }
 
-pub(super) fn capture(
-    context: &PreparationContext<'_>,
+pub(crate) fn capture(
+    context: Capture<'_>,
     references: &[String],
 ) -> Result<Vec<executor::ImageInput>> {
     if references.is_empty() {
@@ -49,14 +63,17 @@ pub(super) fn capture(
         let resolved =
             executor::export_image(reference, &archive, &request, context.target_platform)?;
         let store = format!("images/base-{index}");
-        let argv = crate::builders::strings(&[
+        let argv: Vec<String> = [
             "oyzu-docker-images",
             "/dependencies/image.tar",
             &format!("/out/{store}"),
             &resolved.digest,
             &format!("{}/{}", resolved.os, resolved.arch),
             reference,
-        ]);
+        ]
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
         let result = executor::execute_with_mounts(
             executor::Request {
                 argv: &argv,

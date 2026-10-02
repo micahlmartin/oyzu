@@ -114,8 +114,8 @@ jobs:
       - name: Native Docker metadata and OCI image inputs
         shell: bash
         run: |
-          for adapter in metadata images; do
-            cd "$GITHUB_WORKSPACE/src/builders/docker/runtime/$adapter"
+          for adapter in src/builders/docker/runtime/metadata src/dependencies/runtime/images; do
+            cd "$GITHUB_WORKSPACE/$adapter"
             go mod download
             go mod verify
             test -z "$(gofmt -l .)"
@@ -250,6 +250,7 @@ jobs:
         run: |
           rustup toolchain install 1.94.0 --profile minimal
           cargo +1.94.0 test --locked --lib executor::worker::native_recipe::generated_recipe_builds_reproducible_native_oci_without_a_source_dockerfile -- --ignored --exact
+          cargo +1.94.0 test --locked --lib dependencies::images::native::captured_base_feeds_generated_assembly_without_source_dockerfile -- --ignored --exact
       - name: Verify native worker isolation and reproducible OCI export
         run: |
           chmod +x cli/oyzu

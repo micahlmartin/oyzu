@@ -38,7 +38,15 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let metadata: Metadata = serde_json::from_slice(&fs::read(&path)?)?;
     metadata.validate(&platform_name)?;
     metadata.validate_execution(&context.image.platform()?, context.target_platform)?;
-    let images = super::images::capture(&context, &metadata.image_references()?)?;
+    let images = crate::dependencies::images::capture(
+        crate::dependencies::images::Capture {
+            destination: context.destination,
+            image: context.image,
+            target_platform: context.target_platform,
+            execution_name: context.execution_name,
+        },
+        &metadata.image_references()?,
+    )?;
     // Host provisioning is explicit, and the selected boundary is part of the
     // prepared record/plan. Never change host security settings during a build.
     let apparmor = context

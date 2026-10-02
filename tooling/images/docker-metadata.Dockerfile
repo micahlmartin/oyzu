@@ -19,9 +19,9 @@ RUN mkdir /notices && go list -m -f '{{.Path}} {{.Dir}}' all | while read module
     done
 
 WORKDIR /images
-COPY src/builders/docker/runtime/images/go.mod src/builders/docker/runtime/images/go.sum ./
+COPY src/dependencies/runtime/images/go.mod src/dependencies/runtime/images/go.sum ./
 RUN go mod download && go mod verify
-COPY src/builders/docker/runtime/images/*.go ./
+COPY src/dependencies/runtime/images/*.go ./
 RUN --network=none GOPROXY=off GOSUMDB=off go test -mod=readonly ./... && \
     CGO_ENABLED=0 GOPROXY=off GOSUMDB=off go build -mod=readonly -trimpath -o /oyzu-docker-images .
 RUN mkdir /image-notices && go list -m -f '{{.Path}} {{.Dir}}' all | while read module directory; do \

@@ -1,7 +1,6 @@
 mod configuration;
 use crate::builders::task::insert;
 use crate::builders::task::unavailable;
-mod images;
 mod metadata;
 mod planning;
 mod preparation;
