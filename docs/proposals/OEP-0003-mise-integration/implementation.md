@@ -144,7 +144,7 @@ enable an advertised capability merely because its interfaces or fixtures exist.
 | TM-03: exact resolver | TM-01/02 | Alias canonicalization, scope/profile/native constraints, all-platform dependency DAG validation, explicit update/migration/CAS lock writing; no install during graph validation; MISE-01/08 |
 | TM-04: installation store | TM-01 | Content-addressed blobs, secure extraction, receipts/tree manifests, per-key process locks, leases, recovery/quarantine/prune; changed-lock cached regression fails safely; MISE-05/07/13 |
 | TM-05: worker and broker | TM-02/04 | Same-binary private-channel worker; streaming host broker, artifact handles and target layout plans; actual executor containment, limits/cancellation/credential tests; MISE-04/09/13 |
-| TM-06: core prebuilt admission | TM-03/04/05 | Node then Go, Temurin Java, PBS Python and jq, each exact/range and each admitted platform; verification and foreign-target layout parity; MISE-12 |
+| TM-06: core prebuilt admission | TM-03/04/05 | Node then Go, Temurin Java, PBS Python and jq, plus the explicitly added native Rust/rustup path, each exact/range and each admitted platform; verification and foreign-target layout parity; MISE-12 |
 | TM-07: exec and shims | TM-03/04/06 | Native launch descriptors, Windows Job Objects, Unix supervisor, versioned executable shims, typed interpreter entrypoints, direct exec and lease retention; MISE-03/10 |
 | TM-08: shell lifecycle | TM-07 | Upstream-generated Bash/Zsh/PowerShell hooks, independent reversible state, local invalidation, missing-selection behavior, profile editing; MISE-02/06/16 |
 | TM-09: managed selection | TM-01/05/07 | Public authorizer client/conformance server, authenticated agent IPC, signed grants, expiry/logout/revocation, policy capability negotiation and mediated-launch mode; MISE-11 |
@@ -328,3 +328,87 @@ matrix, source/license review is recorded, public-only builds succeed, user docs
 describe actual behavior, and no known experiment failure is represented as a
 passing product result. Draft acceptance requires separate maintainer review;
 implementation completion cannot self-approve the design.
+
+## Rust backend reuse and first proof
+
+The maintainer added Rust installation to the active functional scope on
+2026-10-02. This investigation inspected the maintained fork at
+`9290bcac695c8ff8a56760ccebd785d5062b459c`; it is source evidence, not an executed
+Rust installation. The extension design below remains proposed. Existing manually
+provisioned Rust and successful compilation of Oyzu do not prove this capability.
+
+### What upstream already owns
+
+In `src/plugins/core/rust.rs`, `RustPlugin::install_version_` resolves a runtime,
+initializes rustup when needed, builds `rustup toolchain install` arguments for
+profile/components/targets, executes the command and tests `rustc -V`.
+`RustOptions` parses these options; native toolchain-file parsing already exists.
+`rustup_env` supplies CARGO_HOME, RUSTUP_HOME and RUSTUP_TOOLCHAIN. Version listing,
+rolling nightly resolution and the general Backend install lifecycle also exist.
+These behaviors should remain upstream-owned rather than be rewritten in Oyzu.
+
+The backend is not an archive-only installer. It downloads rustup-init through
+mise HTTP, then invokes rustup as a subprocess. Its installation path links to
+rustup's proxy bin directory, and it may discover an external rustup on PATH.
+The embedding Session currently admits only node/go/java/python and exposes
+metadata operations rather than a complete backend installation operation.
+The current HTTP callback cannot intercept HTTP performed inside rustup.
+Simply adding rust to that allowlist would therefore not meet Oyzu's contracts.
+
+### Integration direction
+
+Add a native-installer operation to the private fork boundary, consuming an
+explicit resolved tool request, options and operation-private roots. Invoke
+upstream backend installation and environment logic; do not invoke the mise CLI
+or implement another rustup command builder in Oyzu. Adapt the backend's runtime
+selection at the embedding seam so explicit private homes cannot adopt ambient
+rustup state. Keep normal standalone mise behavior intact.
+
+Oyzu's acquisition owner must mediate rustup distribution traffic as well as
+mise HTTP. The proposed controlled-proof transport is a temporary local
+Rust distribution mirror backed by the host broker/cache, selected with rustup's
+supported distribution/update roots. Verify rustup's exact mirror behavior in the
+spike, including bootstrap and component requests; do not treat environment
+settings alone as proof. Corporate credentials remain in the broker. Capture
+all fetched installer, manifest and component identities for frozen replay.
+Cargo crate/Git acquisition during a build is separate from Rust distribution
+acquisition and must not be claimed covered by this mirror.
+
+The installation owner must bridge the private rustup result into the existing
+lock/store/receipt contracts: exact compiler/channel identity, host target,
+profile, components and additional targets contribute to selection identity.
+Determine the complete installed component closure before publication. Do not
+publish a link to mutable ambient homes. Verify whether staged private homes
+can be relocated intact or require direct toolchain launch descriptors; this is
+an integration experiment, not an assumption that copying rustup proxies works.
+Keep mutable Cargo cache/config state separate from verified compiler payloads.
+Reuse the same installed-environment contract for exec, which, shell and shims.
+
+### First real acceptance scenario
+
+1. Build/provision the Oyzu frontend using the existing bootstrap toolchain, then
+   run the test in a separate environment with no rustup/cargo/rustc on PATH and
+   empty private Rust homes. Keep required system linker/SDK prerequisites visible.
+2. Declare an exact Rust version in Oyzu TOML and run `oyzu install`. Proposed
+   simple syntax is `[tools] rust = "1.95.0"`; component/target configuration must
+   follow the existing OEP request contract, not introduce a project language.
+3. Run `oyzu which cargo`, `oyzu exec -- rustc --version` and
+   `oyzu exec -- cargo --version`; demonstrate that all resolve the recorded
+   installation. Compile and run a dependency-free Rust program first.
+4. Build an unchanged Oyzu checkout through the installed Cargo. Record separately
+   its crate/Git dependencies and linker prerequisites; the frontend's Rust 1.95
+   requirement differs from the repository's default Rust 1.94 toolchain file and
+   must be handled explicitly, never by silently editing that file. Exercise
+   both the default build and the mise-enabled build with compatible selections.
+5. Repeat frozen with network disabled and captured dependencies available. Then
+   switch exact Rust versions, verify native toolchain-file/component requirements,
+   and run cargo through activated shells. Confirm ordinary execution does not
+   acquire a different compiler implicitly.
+6. Extend the same proof to corporate routing and all three native hosts. Windows
+   MSVC build tools/SDK and macOS command-line tools are explicit prerequisites;
+   installing Rust alone is not evidence that system linkers were installed.
+
+Pass evidence is the real selected compiler and Cargo building/running code,
+recorded lock/store identities, unchanged frozen lock bytes and observed host
+broker traffic. Missing transport or relocation behavior is an actual integration
+blocker to resolve. Broader fault injection and isolation hardening remain deferred.

@@ -21,7 +21,8 @@ Descriptors are reviewed release data; a project cannot add or alter them.
 | Aqua | Pinned jq registry entry only; reuse registry interpretation and asset verification | Registry identity, release metadata/archive/checksum and target entrypoint; other registry entries remain disabled |
 | Native npm tools | Reuse mise native npm backend with exact locked Node/npm and builder-owned native registry adapter | Full native dependency closure, metadata rewrite integrity, frozen replay, lifecycle admission and Windows typed script launch |
 | asdf/vfox and arbitrary scripts | Disabled; no arbitrary plugin fetch/execute | Separate pinned plugin identity, complete outbound inventory, source integrity and qualified script executor amendment |
-| Source builds / rustup / other managers | Disabled in this slice | Captured build inputs and qualified executor/manager descriptor; no system compiler fallback |
+| Rust/rustup | Required implementation; not yet available | Reuse upstream native installer with private homes, host-mediated distribution acquisition and a locked component closure; see [implementation](implementation.md#rust-backend-reuse-and-first-proof) |
+| Source builds / other managers | Disabled in this slice | Captured build inputs and qualified executor/manager descriptor; no system compiler fallback |
 
 For core Go, the initial reviewed discovery adapter reads the official Go release
 JSON catalog through a logical metadata source, maps its exact versions into the

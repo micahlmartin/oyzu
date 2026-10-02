@@ -94,7 +94,7 @@ checkpoint, not completion of OEP-0003 or distribution approval.
 | Area | Working implementation and evidence | Remaining functional acceptance |
 | --- | --- | --- |
 | Configuration and resolution | Oyzu TOML, format-2 locks, Node/Go mixed roots, explicit selective updates and canonical registry names; real Linux execution and unchanged-lock checks | Native manifest constraints, scoped/profile/multi-platform lock creation and updates, explicit migration |
-| Installation and transport | Real Node/Go archives, shared store, frozen reuse and cached restore; authenticated Node proxy flow | Java, PBS Python, jq, npm tool closures; corporate Go and additional backend proxy acceptance |
+| Installation and transport | Real Node/Go archives, shared store, frozen reuse and cached restore; authenticated Node proxy flow | Rust/rustup, Java, PBS Python, jq, npm tool closures; corporate Go and additional backend proxy acceptance |
 | Commands and shells | Exec, which, environment rendering, native shims, Bash/Zsh/PowerShell activation and explicit profile editing | Remaining shell lifecycle, command coverage, interactive process/signal behavior and pruning |
 | Managed operation and builds | Contracts and component foundations only; standalone managed mode is rejected | Real managed selection/grants, public conformance and service interoperability, builder requirements/materialization/identity handoff |
 | Release and upstream maintenance | Public fork pin, retained MIT notice and documented maintenance procedure | Shipped dependency notices/SBOM and distribution review, actual upgrade/rollback rehearsal and complete native functional matrix |
@@ -118,6 +118,12 @@ prerequisites, recovery and limitations. The [checkpoint journal](tool-managemen
 retains detailed evidence. Hardening, including additional fault-injection,
 worker isolation and robustness work, is reserved for future goals and is not
 represented as completed or used to block remaining functional implementation.
+
+Rust/rustup is now explicitly required. Source inspection confirms mise already owns
+its rustup installation and environment behavior, but our current embedding API
+does not expose that installation path. The [reuse investigation and first proof](proposals/OEP-0003-mise-integration/implementation.md#rust-backend-reuse-and-first-proof)
+records transport, private-home and store integration work. No Oyzu Rust install
+has run; separately provisioned build toolchains are not product evidence.
 
 ## Builder objective
 

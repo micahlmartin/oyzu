@@ -116,3 +116,5 @@ usability and user acceptance, reserving hardening for future goals. Existing
 hardening work remains available but must not displace connecting and exercising
 the complete user flows. Deferred hardening is tracked separately from functional
 acceptance, without claiming a production security or distribution qualification.
+
+On 2026-10-02 the maintainer explicitly added Rust/rustup installation to the active OEP-0003 functional scope. Reuse mise backend behavior through the maintained library boundary; inspect and prove native-installer transport and storage integration rather than implementing a parallel Rust installer. This records scope and direction, not approval of an untested design or completed Rust installation.
