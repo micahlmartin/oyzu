@@ -23,7 +23,7 @@ cargo build --locked --example oyzu-mise-spike --no-default-features --features 
 The unmodified probe calls the actual configuration constructor needed to bypass
 mise discovery. At the pin it fails with E0624 (private associated function).
 The patched harness supplies a narrow empty-config entrypoint, prevents shim
-lookup of an ambient mise executable, guards Node HTTP requests/redirects, and
+lookup of an ambient mise executable, guards upstream HTTP requests/redirects, and
 exposes verbatim PATH joining for live-shell updates.
 The guard is experimental process-local routing, not an OS sandbox or production
 connector. The patch includes upstream context covered by [its preserved MIT
@@ -105,3 +105,31 @@ current positive control uses Docker Desktop's `host.docker.internal`; the
 recorded host is Windows and the enforced worker is Linux x64. No native Windows
 sandbox is implied. Source credentials are generated test canaries, never real
 accounts or credentials, and only credential-presence booleans enter the report.
+
+Run the additional qualification cases separately:
+
+```sh
+python tooling/mise-experiment/run_broker.py --driver /absolute/broker-host-binary --work /absolute/fixtures --worker script_worker.py
+python tooling/mise-experiment/run_limits.py --binary /absolute/broker-host/target/debug/limits --output /absolute/limits-results.json
+python tooling/mise-experiment/run_executor_denial.py --driver /absolute/broker-host-binary --work /absolute/fixtures --output /absolute/executor-denial.json
+python tooling/mise-experiment/run.py --work /absolute/fixtures --binary /absolute/windows/oyzu-mise-spike.exe --windows-shim-mode hardlink
+```
+
+The driver build above also builds the `limits` binary. The limits case transfers
+over 1 GiB of generated loopback response data to measure actual production
+boundaries. It needs no upstream download. The script case uses the provisioned,
+unchanged asdf Go plugin and verifies that its unmediated curl acquisition fails.
+
+The final full broker suite deliberately exits nonzero: its cached installation
+test detects that changing the Oyzu lock digest still permits execution. Do not
+turn this into a passing result by ignoring the exit. Linux and macOS lifecycle
+runs pass; native Windows retains a child-termination failure, plus an argument
+failure in default file-shim mode. Hardlink mode fixes the measured argument
+case, but does not fix child cleanup or qualify cross-volume upgrades.
+
+Broad backend fixtures run sequentially, releasing the preceding tool's scratch
+installation to stay within the production executor's resource limits. Native
+npm is the exception: Node and Prettier are installed together as explicit locked
+tools. These cases do not measure a large shared installation store. They use
+Oyzu-owned TOML and draft locks throughout; the experiment does not implement
+automatic multi-tool lock creation or ship installation in the production CLI.

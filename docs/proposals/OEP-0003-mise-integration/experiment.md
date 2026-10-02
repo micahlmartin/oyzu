@@ -3,7 +3,10 @@
 Status: experiment completed; recommendation remains a draft, not an accepted
 design or shipped capability.
 Expanded qualification of broader backends, macOS and production broker/network
-enforcement is now [authorized and in progress](qualification.md).
+enforcement is [completed with mixed outcomes](qualification.md). Representative
+backend reuse and native macOS pass; cached digest binding, Windows child cleanup
+and scripted acquisition expose integration gaps. Production integration is not
+qualified, and the design remains a draft.
 Started: 2026-10-01. Related drafts: [OEP-0003](README.md),
 [tool acquisition](../OEP-0004-tool-acquisition-and-locking/implementation.md),
 and [shell lifecycle](../OEP-0008-environment-and-shells/README.md).

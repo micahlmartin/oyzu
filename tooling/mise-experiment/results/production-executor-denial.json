@@ -1,0 +1,9 @@
+{
+  "case": "actual-executor-missing-image-denied",
+  "status": "passed",
+  "exit": 1,
+  "diagnostic": "Error: Docker image oyzu-qualification-missing:f9bcdd8313694a0db58343e8d9eee910 unavailable: pre-provision it before building (Error response from daemon: No such image: oyzu-qualification-missing:f9bcdd8313694a0db58343e8d9eee910)",
+  "output_directory_empty": true,
+  "driver_sha256": "0876ef9e89d4b94f42361706b8108025bf0401526b7f142e2c7ed28cc63d3f22",
+  "scope": "real Docker inspection and production executor; no image pull or host execution fallback"
+}

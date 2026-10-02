@@ -163,6 +163,7 @@ def main():
                   "python": origin + "approved/python/", "tuf": "https://tuf-repo-cdn.sigstore.dev/",
                   "jq": origin + "approved/jq/", "asdf": origin + "approved/asdf/", "npm": origin + "approved/npm/"},
                   "go": go, "java": java, "python": python, "jq": jq, "plugin": plugin, "prettier": prettier, "node": item,
+                  "host_canary_path": str(root / "private/credential-canary.txt"),
                   "sha256": item["sha256"], "egress_ip": positive["ip"], "egress_port": server.server_port}
         (root / "workspace/worker.json").write_text(json.dumps(worker))
         configuration = {

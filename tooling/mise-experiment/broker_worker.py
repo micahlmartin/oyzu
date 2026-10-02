@@ -147,13 +147,15 @@ def main():
         environment = dict(previous_environment, OYZU_SPIKE_STATE="/tmp/mise-go",
                            OYZU_SPIKE_ROUTE=bridge + "/go", OYZU_SPIKE_ARTIFACTS=str(artifacts))
         try:
-            call("install")
-            assert call("exec", "--", "go", "version") == "go version go1.24.1 linux/amd64"
+            installation = json.loads(call("install"))
+            version_output = call("exec", "--", "go", "version")
+            assert version_output == "go version go1.24.1 linux/amd64"
             before = len(server.requests)
-            assert call("exec", "--", "go", "env", "GOROOT").endswith("/go/1.24.1")
+            goroot = call("exec", "--", "go", "env", "GOROOT")
+            assert goroot.endswith("/go/1.24.1")
             assert len(server.requests) == before
             assert (project / "oyzu.lock").read_text() == lock
-            return "real core Go archive installed through broker; frozen execution and GOROOT verified"
+            return {"installation": installation, "version_output": version_output, "GOROOT": goroot, "frozen_execution": True}
         finally:
             project, environment = previous_project, previous_environment
     case("broker-core-go-frozen-install-exec", go_install)
@@ -178,16 +180,20 @@ def main():
                            OYZU_SPIKE_ROUTE=bridge + "/java", OYZU_SPIKE_ARTIFACTS=str(artifacts),
                            OYZU_SPIKE_URL_REPLACEMENTS=json.dumps({java["metadata_url"]: bridge + "/java/metadata.json"}))
         try:
-            call("install")
+            installation = json.loads(call("install"))
             before = len(server.requests)
             result = subprocess.run([binary, "exec", "--", "java", "-version"], cwd=project,
                                     env=environment, capture_output=True, text=True, timeout=30)
             assert result.returncode == 0, result.stderr
             assert '1.8.0_442' in result.stderr, result.stderr
+            (project / "QualificationEnv.java").write_text('public class QualificationEnv { public static void main(String[] args) { System.out.println(System.getenv("JAVA_HOME")); } }')
+            call("exec", "--", "javac", "QualificationEnv.java")
+            java_home = call("exec", "--", "java", "-cp", ".", "QualificationEnv")
+            assert str(Path(java_home) / "bin") in installation["paths"]
             assert len(server.requests) == before
             assert (project / "oyzu.lock").read_text() == lock
             assert any("/java/metadata.json" in request for request in server.requests)
-            return "real Temurin JDK, metadata and archive through broker; frozen execution verified"
+            return {"installation": installation, "version_output": result.stderr.strip(), "JAVA_HOME": java_home, "frozen_execution": True}
         finally:
             project, environment = previous_project, previous_environment
     case("broker-core-java-frozen-install-exec", java_install)
@@ -221,13 +227,15 @@ def main():
                 assert "attestation" in result.stderr.lower(), result.stderr
                 assert (project / "oyzu.lock").read_text() == lock
                 return {"exit": result.returncode, "diagnostic": result.stderr.strip()}
-            call("install")
+            installation = json.loads(call("install"))
             before = len(server.requests)
-            assert call("exec", "--", "python", "--version") == "Python 3.12.9"
+            version_output = call("exec", "--", "python", "--version")
+            assert version_output == "Python 3.12.9"
+            runtime = json.loads(call("exec", "--", "python", "-c", "import json,sys; print(json.dumps({'executable':sys.executable,'prefix':sys.prefix}))"))
             assert len(server.requests) == before
             assert (project / "oyzu.lock").read_text() == lock
             assert any("/python/api/" in request for request in server.requests)
-            return "real CPython archive and GitHub attestations through broker; verification enabled; frozen execution verified"
+            return {"installation": installation, "version_output": version_output, "runtime": runtime, "provenance_verified": True, "frozen_execution": True}
         finally:
             project, environment = previous_project, previous_environment
     case("broker-core-python-provenance-install-exec", python_install)
@@ -253,13 +261,16 @@ def main():
                            OYZU_SPIKE_URL_REPLACEMENTS=json.dumps({"https://api.github.com": bridge + "/jq/api",
                                "https://github.com/jqlang/jq/releases/download": bridge + "/jq/release"}))
         try:
-            call("install")
+            installation = json.loads(call("install"))
             before = len(server.requests)
-            assert call("exec", "--", "jq", "--version") == "jq-1.7.1"
+            version_output = call("exec", "--", "jq", "--version")
+            assert version_output == "jq-1.7.1"
+            runtime_path = json.loads(call("exec", "--", "jq", "-n", "env.PATH"))
+            assert installation["paths"][0] in runtime_path.split(os.pathsep)
             assert call("exec", "--", "jq", "-n", "{answer: (6 * 7)}") == '{\n  "answer": 42\n}'
             assert len(server.requests) == before
             assert (project / "oyzu.lock").read_text() == lock
-            return "real aqua:jqlang/jq backend with baked pinned registry; broker acquisition and frozen execution"
+            return {"installation": installation, "version_output": version_output, "PATH": runtime_path, "registry": "baked pinned snapshot", "frozen_execution": True}
         finally:
             project, environment = previous_project, previous_environment
     case("broker-aqua-jq-install-exec", aqua_install)
@@ -288,7 +299,7 @@ def main():
                            OYZU_SPIKE_BACKENDS=json.dumps({"prettier": "npm:prettier"}),
                            npm_config_registry=bridge + "/npm/", npm_config_audit="false", npm_config_fund="false")
         try:
-            call("install")
+            installation = json.loads(call("install"))
             before = len(server.requests)
             assert call("exec", "--", "prettier", "--version") == "3.5.3"
             assert call("exec", "--", "node", "--version") == "v22.14.0"
@@ -314,7 +325,7 @@ def main():
                                     capture_output=True, text=True, timeout=90)
             assert result.returncode != 0 and "checksum" in result.stderr.lower(), result.stderr
             (project / "oyzu.lock").write_text(lock)
-            return {"native_npm_version": npm_version, "frozen_execution": True,
+            return {"installation": installation, "native_npm_version": npm_version, "frozen_execution": True,
                     "missing_and_cyclic_dependencies_rejected_without_acquisition": True,
                     "bad_package_digest_rejected": result.stderr.strip()}
         finally:
@@ -346,7 +357,38 @@ def main():
         Path("/out/worker-environment.json").write_text(json.dumps(dict(os.environ)))
         return "network none, read-only root, no capabilities, no-new-privileges, no Docker socket"
     case("production-worker-isolation", isolation)
+    def host_file_attempts():
+        attempted = [config["host_canary_path"], "/private/credential-canary.txt",
+                     "/broker/../private/credential-canary.txt", "/proc/1/root/private/credential-canary.txt"]
+        for candidate in attempted:
+            try:
+                Path(candidate).read_bytes()
+            except OSError:
+                pass
+            else:
+                raise AssertionError("host-only file became readable through " + candidate)
+        # PID 1 is the worker, not the host. The host runner scans these bytes
+        # for its canary without disclosing the canary to the worker first.
+        Path("/out/pid1-environment.bin").write_bytes(Path("/proc/1/environ").read_bytes())
+        return {"unreadable_paths": attempted, "pid1_environment_captured_for_host_canary_scan": True}
+    case("host-private-file-read-attempts-denied", host_file_attempts)
+    # Audit, rather than assume, whether an existing install is bound to the
+    # distribution digest currently selected by the Oyzu lock.
+    audit_project = Path("/workspace/cached-identity-audit")
+    audit_project.mkdir()
+    (audit_project / "oyzu.toml").write_text('[tools]\nnode = "22"\n')
+    (audit_project / "oyzu.lock").write_text(original_lock.decode().replace(config["sha256"], "0" * 64))
+    audit_env = dict(environment, OYZU_SPIKE_STATE="/tmp/mise-npm")
+    before = len(server.requests)
+    audit = subprocess.run([binary, "exec", "--", "node", "--version"], cwd=audit_project,
+                           env=audit_env, capture_output=True, text=True, timeout=30)
+    results.append({"case": "cached-install-lock-digest-binding", "status": "passed" if audit.returncode else "failed",
+                    "detail": {"exit": audit.returncode, "stdout": audit.stdout.strip(), "stderr": audit.stderr.strip(),
+                               "acquisition_requests": len(server.requests) - before,
+                               "expected": "reject a cached install selected with a different distribution digest"}})
+    Path("/out/worker-results.json").write_text(json.dumps(results, indent=2))
     server.shutdown()
+    assert audit.returncode != 0, "cached install accepted a different locked distribution digest"
     print(json.dumps({"cases": len(results), "status": "passed"}))
 
 

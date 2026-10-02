@@ -1,7 +1,8 @@
 # Expanded mise qualification
 
-Status: authorized qualification in progress; measured outcomes below are not
-claims of shipping product support.
+Status: qualification experiment completed with passing and falsified hypotheses;
+production integration remains unqualified. This is a draft design record, not
+an accepted design or a claim of shipping product support.
 This extends the completed [Node experiment](experiment.md) following the
 maintainer request to qualify broader backends, macOS and production broker/
 network enforcement. Existing passing results remain evidence for their original
@@ -55,13 +56,99 @@ Rust/task/documentation checks. No design is marked accepted by a passing test.
 
 ## Completion record
 
-Pending: completion of the backend matrix and source inventory; additional native
-platform edge cases; the remaining enforced acquisition/attack matrix; final
-cross-platform regression and evidence audit. Initial native macOS and real
-broker evidence are recorded below. Completion requires actual outcomes for every item above,
-not merely adding test scripts or CI configuration.
+The final audit below records an outcome and its limits for each hypothesis.
+Completion means the representative qualification experiment was executed and
+reported, including failures. It does not mean every backend works, all outbound
+paths have been mediated, or the production integration is ready.
 
-### First production-broker evidence
+| Hypothesis | Measured outcome | Qualification limit |
+| --- | --- | --- |
+| Oyzu files drive multiple backend families | Core Node, Go, Java, Python, Aqua/jq and native npm/Prettier install and execute; unchanged asdf Go plugin executes but its acquisition is denied | Broad backend cases are Linux x64; scripted acquisition, general version discovery and arbitrary package graphs remain unqualified |
+| Native shell/exec behavior is portable | Linux 36/36 and macOS ARM64 35/35; Windows hardlink mode 32/33, file mode 31/33 | Windows child termination fails; `.cmd` argument fidelity fails; no macOS x64 or MSVC claim |
+| Real broker supplies acquisition safely | Approved metadata, archives and attestations succeed; denied sources, redirects, tampering, credential leakage and exact resource limits are exercised | Source URL authorization does not authorize cached tool selection; no deployed corporate service was available |
+| Real executor contains acquisition | Windows-host/Linux-worker direct IP, DNS, proxy, child-client and host-file attempts are denied; unavailable image fails closed | No native Windows/macOS sandbox qualification; no universal sandbox-escape claim |
+| Frozen execution preserves identity end to end | Frozen execution makes no acquisition and preserves Oyzu files; fresh checksum rejection passes | Cached installation accepts a changed lock digest: this hypothesis is falsified for the prototype |
+
+The reuse recommendation is conditional: keep Oyzu's TOML and lock as the public
+contract and use the linked mise library behind an adapter. Oyzu must own cached
+installation identity and selection authorization, broker transport policy and
+Windows process lifecycle. A small maintained upstream patch is feasible for the
+tested paths; mise's backends are not uniformly compatible with HTTP URL routing.
+No separate mise executable or mise project configuration is needed by the
+passing cases. None of these findings authorizes production tool installation.
+
+### Final evidence audit
+
+The [final broker audit](../../../tooling/mise-experiment/results/production-broker-final-audit.json)
+records 25 passing cases and one failed cached-identity case. Its nonzero exit is
+intentional evidence of that failure, not a passing qualification run. The report
+contains source/binary/image hashes, exact fixture identities, actual backend
+version output, installation paths and runtime environment observations. Go,
+Java, Python and Aqua observations come from the installed tools; Java's
+`JAVA_HOME` is read by a compiled Java program. Node and Prettier execute from the
+explicitly locked dependency toolset. The [final asdf run](../../../tooling/mise-experiment/results/production-broker-asdf-final.json)
+independently repeats the scripted acquisition denial with the current frontend.
+
+The [cached-identity failure](../../../tooling/mise-experiment/results/production-broker-cached-identity-initial.json)
+also reproduces in the final audit: after installing real Node, changing the
+distribution digest to 64 zeroes still executes `v22.14.0` with zero acquisition
+requests. The prototype has no installation receipt binding that cached directory
+to the selected distribution digest. Fresh-download checksum verification does
+not establish cached integrity. The public broker authorizes acquisition URLs;
+it provides no cached-version revocation service. The prototype's local denial
+flag is not evidence of corporate authorization.
+
+The [production Fetcher boundary tests](../../../tooling/mise-experiment/results/production-broker-limits.json)
+allow 4,096 requests and reject the next; allow a 128 MiB response and reject one
+byte more; allow 1 GiB cumulatively and reject the next byte; and stop after five
+redirect attempts. They call the actual production `Fetcher`, with independent
+origin request counts. The [unavailable-image test](../../../tooling/mise-experiment/results/production-executor-denial.json)
+calls the actual executor and verifies rejection with an empty output directory,
+without pulling an image or falling back to host execution.
+
+The final worker audit attempts reads of the host canary path, guessed private
+mount paths, traversal from the broker mount and `/proc/1/root`. All fail. Worker
+and PID 1 environments are scanned on the host for the generated credential
+canary; it is absent. This supplements the actual acquisition and network bypass
+tests, rather than treating the process-local HTTP guard as a security boundary.
+
+The [final native macOS artifact](../../../tooling/mise-experiment/results/macos-lifecycle.json)
+passes all 35 cases on macOS 26.6.2 ARM64 using Rust 1.95.0
+(`59807616e`, 2026-04-14), at commit
+`aecf0442aad4235fdb32a6c550e7b50a02f0fe06`:
+[CI run 36955882473](https://github.com/micahlmartin/oyzu/actions/runs/36955882473),
+artifact `11206151767`. Normalized harness hashes match the executed commit.
+This includes arguments, unusual paths, symlink selection, termination,
+concurrent installation and Bash/Zsh activation lifecycle. The [final Windows file-mode run](../../../tooling/mise-experiment/results/windows-file-lifecycle.json)
+reproduces both Windows failures with the same frontend source; the hardlink and
+Linux lifecycle results below use that source too. Windows uses a junction for
+the linked-project case; Unix hosts use a symlink.
+
+Final verification also passed the production crate's 71 Rust tests,
+`cargo clippy --locked --all-targets -- -D warnings`, `cargo fmt --all -- --check`,
+and eight real CLI development-task scenarios. These do not qualify complete
+builder scenarios or production installation. The experiment's independent Rust
+driver passed Clippy/format checks; the Linux frontend passed its build and
+checks with the already documented upstream lint exception. Production source
+was not changed by this qualification.
+
+### Remaining product work
+
+Before integration, define and verify immutable installation receipts and cache
+reuse rules, authoritative corporate selection/revocation policy, Windows child
+cleanup and a supported shim layout. Decide how native clients and scripts reach
+the broker without exposing credentials or bypassing lock integrity. The tested
+asdf plugin cannot do so through mise's HTTP replacement setting alone.
+
+General backend version discovery (including Go's Git subprocess), plugin identity
+inside the lock, arbitrary npm dependency/lifecycle graphs, automatic multi-tool
+lock creation, source-built tools, multi-workspace process-global state, shared
+store capacity and cross-volume frontend upgrades remain unqualified. Broader
+backend coverage on native macOS/Windows and native sandbox enforcement are also
+outside the demonstrated results. These are explicit limitations, not inferred
+successes from the representative matrix.
+
+### Historical first production-broker evidence
 
 The [Windows-host/Linux-worker run](../../../tooling/mise-experiment/results/production-broker-windows-host.json)
 passes ten cases through the actual `oyzu::broker::Session` and
@@ -91,8 +178,9 @@ records 30 passing cases on native Darwin ARM64. Normalized harness hashes match
 the executed Git commit. Both real Node distributions, Bash/Zsh lifecycle with
 duplicate PATH entries and user edits, lock ownership, direct exec, shims and
 concurrent installation are covered. This does not prove macOS x64 or native
-macOS network enforcement; additional platform edge cases remain open.
-The broader backend matrix, further attack cases and final regression remain open.
+macOS network enforcement. At this checkpoint, additional platform edge cases,
+the broader backend matrix, further attack cases and final regression remained
+open; the final audit above records the subsequent results.
 
 ### Expanded core-backend and attack evidence
 
@@ -230,7 +318,7 @@ passes all 31 Windows cases, including the argument that the `.cmd` shim changed
 The experiment selects upstream's existing hardlink mode; it does not introduce
 a replacement parser or invoke a separate mise executable. That mode requires a
 compatible same-volume layout and is not a qualified cross-volume or frontend
-upgrade solution. The additional edge cases still require native macOS execution.
+upgrade solution. The final macOS artifact above covers the additional edge cases.
 
 The [Linux lifecycle run](../../../tooling/mise-experiment/results/linux-lifecycle.json)
 passes 36 cases, including selection through a symlink and termination of the
@@ -242,7 +330,7 @@ The prototype's Windows `Command::status` path therefore does not yet provide
 process-tree cleanup. This is separate from the production Docker executor's
 worker isolation and must not be described as qualified native cancellation.
 
-### Outbound-path inventory started
+### Outbound-path inventory and unqualified paths
 
 Pinned-source inspection already shows why additional backends need independent
 qualification rather than inheriting the Node result:

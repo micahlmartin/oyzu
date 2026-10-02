@@ -9,9 +9,14 @@ library compiles on Linux, but the compile-only external configuration probe
 fails because its discovery-free constructor is private. The completed patched
 experiment passes 31 Linux and 28 native Windows cases with real Node tools,
 Oyzu-owned TOML/locks, shell lifecycle, exec, shims and a synthetic proxy route.
-It recommends a small maintained fork, with macOS, broader backends and production
-broker/enforcement integration still unqualified. No installation, shell or
-managed backend capability is claimed for the shipped Oyzu CLI.
+The [expanded qualification](proposals/OEP-0003-mise-integration/qualification.md)
+adds native macOS, representative core/Aqua/npm backends and the actual public
+broker and Docker executor. Linux passes 36 cases and macOS 35; Windows retains
+child-cleanup and file-shim argument failures. Cached lock-digest binding fails,
+and scripted acquisition is contained but not successfully brokered. The report
+recommends conditional library reuse through an Oyzu-owned adapter, not production
+readiness. No installation, shell or managed backend capability is claimed for
+the shipped Oyzu CLI.
 
 The active objective is the complete builder system, all applicable sample scenarios passing through real Oyzu behavior, snapshot artifacts, and CI that builds the CLI before running scenario verification. Tool installation is excluded. The checkpoints below do not redefine completion around a subset.
 
