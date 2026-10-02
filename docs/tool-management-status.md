@@ -1300,3 +1300,19 @@ files and supplies a repository commit/path. Larger groups include 19 packages
 pointing to conda/rattler, 13 to aubepkg/aube and nine to prefix-dev/sigstore-rust.
 These groupings prioritize source review; they do not prove common license coverage.
 No dependency, upstream source or production approval changed.
+
+## Checkpoint 104: exact-commit supplemental notice collection
+
+Preserved 18 original root notice files from 14 source commits identified in the
+checksum-verified crate metadata audit. These commits correspond to 45 package
+entries across rage, aube, rattler and sigstore-rust. Downloaded bytes were checked
+against commit-tree Git blob identities, SHA-256 and sizes, then independently
+rechecked from retained local files. The supplemental evidence index records
+immutable URLs and binds the source-pointer inventory; original text remains
+outside the checkout. No package disposition changed.
+
+Aube's root also contains a separate licenses directory, explicitly left unreviewed
+in this root-file inventory. Source/package applicability, nested notices, headers,
+shipping graph and obligations still need review; collection does not close the
+license gate or reduce the original missing-notice counts. Documentation structure
+checks passed.

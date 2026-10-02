@@ -499,3 +499,21 @@ hashes. Keep original archives outside the checkout. Inspect source at the recor
 commit to establish applicable copyright/license text, local modifications and
 redistribution duties; do not substitute an unrelated current repository license.
 All dispositions remain unreviewed and approval flags remain false.
+
+The [supplemental notice index](../proposals/OEP-0003-mise-integration/supplemental-notice-evidence.json)
+records 18 original root notice files fetched at 14 exact source commits for 45
+package entries in the rage, aube, rattler and sigstore-rust repository groups.
+Each retained file matches its commit tree's Git blob identity and its recorded
+SHA-256 and size. Original bytes remain outside the checkout; the index gives
+immutable source URLs and relative retention paths for retrieval and rechecking.
+It also binds the source-pointer inventory's exact bytes. Re-fetch only those
+commit-bound URLs and verify both hashes and size before replacing a missing
+retained copy. Repository renames or unavailable commits require investigation,
+not fallback to a default branch.
+
+This supplements the original crate reports without changing their missing-notice
+counts or dispositions. Root notice applicability to the individual crate, source
+headers, bundled native code and distribution duties still require review. Aube's
+separate `licenses/` directory is explicitly recorded as unreviewed; root LICENSE
+alone is not presented as complete coverage. All source-admission and release
+approval flags remain false.
