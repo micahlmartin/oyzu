@@ -168,7 +168,7 @@ impl Constraints {
     ) -> Result<()> {
         self.check_consistency()?;
         for (key, entries) in &self.entries {
-            if removed.contains(key) {
+            if removed.contains(key) && entries.iter().any(|(_, entry)| entry.enforced()) {
                 bail!("CONFIG_OVERRIDE_DENIED: cannot remove constrained {key}");
             }
             let mut members = Vec::new();

@@ -515,3 +515,64 @@ fn project_capture_rejects_aggregate_entries_before_resolution() {
         .to_string()
         .contains("CONFIG_LIMIT"));
 }
+
+#[test]
+fn administrative_defaults_remain_removable_but_constraints_do_not() {
+    let registry = Registry::default();
+    for (key, default) in [
+        ("env.EXAMPLE", json!("default")),
+        ("tasks.example", json!({"argv":["example"]})),
+    ] {
+        for locked in [false, true] {
+            let entry = if locked {
+                json!({"locked": true, "value": default})
+            } else {
+                json!({"default": default})
+            };
+            let policy = oyzu::config::policy::Policy::parse(
+                &serde_json::to_vec(&json!({
+                    "schemaVersion":1,
+                    "kind":"local-admin-policy",
+                    "settings":{key:entry},
+                    "profiles":{},
+                    "requiredCapabilities":[]
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            let mut constraints = Constraints::default();
+            let administrative = policy
+                .source(
+                    "admin",
+                    Path::new("."),
+                    Scope::Admin,
+                    &registry,
+                    &mut constraints,
+                )
+                .unwrap();
+            let project = source(
+                "project",
+                Scope::Project,
+                &format!("[overrides]\nremove=['{key}']\n"),
+            );
+            let resolved = resolve(
+                &[administrative, project],
+                &registry,
+                false,
+                &Selection::default(),
+                constraints,
+                false,
+            );
+            if locked {
+                assert!(resolved
+                    .unwrap_err()
+                    .to_string()
+                    .contains("CONFIG_OVERRIDE_DENIED"));
+            } else {
+                let resolved = resolved.unwrap();
+                assert!(resolved.get(key).is_none());
+                assert!(resolved.removed.contains(key));
+            }
+        }
+    }
+}

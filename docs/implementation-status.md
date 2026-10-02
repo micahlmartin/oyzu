@@ -429,3 +429,5 @@ Local Rust checks exercise actual OCI bytes, malformed configuration types, wron
 Integration reference: [OCI image configuration](https://github.com/opencontainers/image-spec/blob/main/config.md). Optional null fields and vendor extensions remain supported; these assertions do not constitute runtime smoke tests or authenticated provenance.
 
 Human-readable task lists and outcome statuses consume the resolved `ui.color` preference. Automatic color follows the output stream terminal state; explicit always/never preferences work through captured profiles and target scopes. CLI regression coverage verifies forced/plain/piped output, parseable unstyled JSON and an unchanged computation digest across color preferences.
+
+Administrative defaults for removable environment/task entries remain ordinary defaults: a project tombstone can remove them. Removal is rejected when an actual administrative constraint applies. Regression coverage resolves parsed administrative JSON with both default-only and locked entries for both setting families (CFG-09/10).
