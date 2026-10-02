@@ -1,5 +1,7 @@
 //! Private rootless BuildKit worker. Application RUN never receives a host socket.
 #[cfg(test)]
+mod native_dependencies;
+#[cfg(test)]
 mod native_recipe;
 use super::files::{file, input, output_file};
 use super::{docker_path, run, Execution, Mode, Request};
@@ -214,11 +216,18 @@ pub(super) fn execute(
         dockerfile_digest,
         generated_recipe,
         images,
+        dependency_context,
         ..
     } = mode
     else {
         unreachable!()
     };
+    if dependency_context
+        .as_ref()
+        .is_some_and(|context| &context.platform != target_platform)
+    {
+        bail!("dependency context platform differs from image target");
+    }
     let cwd = request
         .cwd
         .strip_prefix("/workspace/")
@@ -253,7 +262,7 @@ pub(super) fn execute(
         &root,
         &definition,
         dockerfile_digest,
-        generated_recipe.as_ref(),
+        generated_recipe.as_deref(),
         images,
     )?;
     // Native ignore evaluation already selected source inputs. A separate
@@ -303,6 +312,16 @@ pub(super) fn execute(
                 true,
             )?;
         }
+    }
+    if let Some(context) = dependency_context {
+        let prepared = mounts
+            .iter()
+            .find(|m| m.destination == "/dependencies" && m.readonly)
+            .context("captured dependency context requires prepared dependencies")?;
+        let destination = private.path().join("packages");
+        context.capture(prepared.source, &destination, target_platform)?;
+        normalize_context(&destination)?;
+        bind(&mut start, &destination, "/inputs/dependencies", true)?;
     }
     start.args([
         &request.image.digest,

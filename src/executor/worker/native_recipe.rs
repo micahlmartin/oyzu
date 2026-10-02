@@ -39,7 +39,8 @@ fn generated_recipe_builds_reproducible_native_oci_without_a_source_dockerfile()
         apparmor_profile: std::env::var("OYZU_TEST_RECIPE_APPARMOR_PROFILE")
             .expect("set OYZU_TEST_RECIPE_APPARMOR_PROFILE to the provisioned test profile"),
         dockerfile_digest: recipe.digest(&[]).unwrap(),
-        generated_recipe: Some(recipe),
+        generated_recipe: Some(Box::new(recipe)),
+        dependency_context: None,
         images: vec![],
     };
     let platform = "linux/amd64".parse().unwrap();

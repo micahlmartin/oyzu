@@ -213,7 +213,8 @@ mod tests {
             context_files: vec!["input/app".into()],
             apparmor_profile: "unconfined".into(),
             dockerfile_digest: recipe.digest(&[]).unwrap(),
-            generated_recipe: Some(recipe),
+            generated_recipe: Some(Box::new(recipe)),
+            dependency_context: None,
             images: vec![],
         };
         mode.validate().unwrap();

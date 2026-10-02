@@ -62,9 +62,11 @@ pub(crate) enum Mode {
         apparmor_profile: String,
         dockerfile_digest: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        generated_recipe: Option<super::recipe::Recipe>,
+        generated_recipe: Option<Box<super::recipe::Recipe>>,
         #[serde(default)]
         images: Vec<ImageInput>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        dependency_context: Option<Box<super::dependency_context::DependencyContext>>,
     },
 }
 
@@ -81,7 +83,10 @@ impl Mode {
                 format!("/out/{report}"),
             ]),
             Self::Buildkit {
-                image_name, images, ..
+                image_name,
+                images,
+                dependency_context,
+                ..
             } => {
                 let mut args: Vec<String> = [
                     "buildctl",
@@ -125,6 +130,14 @@ impl Mode {
                         ),
                     ]);
                 }
+                if dependency_context.is_some() {
+                    args.extend([
+                        "--local".into(),
+                        "dependencies=/inputs/dependencies".into(),
+                        "--opt".into(),
+                        "context:dependencies=local:dependencies".into(),
+                    ]);
+                }
                 Some(args)
             }
         }
@@ -147,9 +160,16 @@ impl Mode {
             dockerfile_digest,
             generated_recipe,
             images,
+            dependency_context,
         } = self
         {
             let mut names = std::collections::BTreeMap::new();
+            if let Some(context) = dependency_context {
+                context.validate()?;
+                if images.iter().any(|image| image.name == "dependencies") {
+                    bail!("dependency context conflicts with a captured image context");
+                }
+            }
             if images.len() > 64 {
                 bail!("too many captured base images");
             }
@@ -238,6 +258,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn dependency_context_is_explicit_and_cannot_shadow_a_captured_base() {
+        let record = serde_json::json!({
+            "kind":"buildkit", "output":"image.tar", "image_name":"oyzu/context:1",
+            "context_files":[], "apparmor_profile":"unconfined",
+            "dockerfile_digest":format!("sha256:{}", "1".repeat(64)), "images":[],
+            "dependency_context":{"store":"contexts/packages", "tree_digest":format!("sha256:{}", "2".repeat(64)), "platform":{"os":"linux","arch":"amd64"}}
+        });
+        let mode: Mode = serde_json::from_value(record.clone()).unwrap();
+        mode.validate().unwrap();
+        let argv = mode.argv("linux/amd64").unwrap();
+        assert!(argv
+            .windows(2)
+            .any(|a| a == ["--local", "dependencies=/inputs/dependencies"]));
+        assert!(argv
+            .windows(2)
+            .any(|a| a == ["--opt", "context:dependencies=local:dependencies"]));
+        assert!(argv.contains(&"force-network-mode=none".into()));
+        let mut collision = record.clone();
+        collision["images"] = serde_json::json!([{"reference":"dependencies", "name":"dependencies", "store":"images/base-0", "manifest":format!("sha256:{}", "3".repeat(64)), "config":format!("sha256:{}", "4".repeat(64)), "tree_digest":format!("sha256:{}", "5".repeat(64))}]);
+        assert!(serde_json::from_value::<Mode>(collision)
+            .unwrap()
+            .validate()
+            .is_err());
+        let mut old = record;
+        old.as_object_mut().unwrap().remove("dependency_context");
+        let old: Mode = serde_json::from_value(old).unwrap();
+        old.validate().unwrap();
+        assert!(serde_json::to_value(&old)
+            .unwrap()
+            .get("dependency_context")
+            .is_none());
+        assert!(!old
+            .argv("linux/amd64")
+            .unwrap()
+            .iter()
+            .any(|a| a.starts_with("context:dependencies=")));
+    }
+
+    #[test]
     fn equivalent_image_references_share_a_context_but_conflicts_fail() {
         let image = ImageInput {
             reference: "alpine:3.22".into(),
@@ -257,6 +316,7 @@ mod tests {
             apparmor_profile: "unconfined".into(),
             dockerfile_digest: format!("sha256:{}", "4".repeat(64)),
             generated_recipe: None,
+            dependency_context: None,
             images: vec![image, alias],
         };
         mode.validate().unwrap();

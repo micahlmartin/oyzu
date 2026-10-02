@@ -251,6 +251,7 @@ jobs:
           rustup toolchain install 1.94.0 --profile minimal
           cargo +1.94.0 test --locked --lib executor::worker::native_recipe::generated_recipe_builds_reproducible_native_oci_without_a_source_dockerfile -- --ignored --exact
           cargo +1.94.0 test --locked --lib dependencies::images::native::captured_base_feeds_generated_assembly_without_source_dockerfile -- --ignored --exact
+          cargo +1.94.0 test --locked --lib executor::worker::native_dependencies::named_dependency_context_is_exact_readonly_offline_and_reproducible -- --ignored --exact
       - name: Verify native worker isolation and reproducible OCI export
         run: |
           chmod +x cli/oyzu

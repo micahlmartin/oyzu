@@ -1,4 +1,5 @@
 //! Container execution never mounts the live checkout, user home or Docker socket.
+mod dependency_context;
 mod files;
 mod images;
 mod mode;
