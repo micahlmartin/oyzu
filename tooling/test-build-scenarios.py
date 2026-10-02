@@ -17,7 +17,7 @@ import email
 import xml.etree.ElementTree as ET
 
 from jsonschema import Draft202012Validator, FormatChecker
-from build_scenarios import ant, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_workspaces, python_application, python_legacy, python_quality, rust, vitest
+from build_scenarios import ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, node, node_managers, node_preflight, node_workspaces, python_application, python_legacy, python_quality, rust, vitest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,6 +98,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="oyzu-build-check-") as temporary:
         base = Path(temporary)
         node.verify_overrides(ROOT,base,invoke,validate,source_files,verified)
+        concurrency.verify(ROOT,base,invoke,validate,source_files,verified)
         node_preflight.verify(ROOT,base,invoke,validate,source_files,verified)
         node_managers.verify(ROOT,base,invoke,validate,source_files,verified)
         node_workspaces.verify(ROOT,base,invoke,validate,source_files,verified)

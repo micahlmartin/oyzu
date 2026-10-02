@@ -26,6 +26,7 @@ Start with the [platform vision](vision/VIS-001-platform.md), then the [architec
 | Find implemented behavior | [Reference status](reference/README.md) and [implementation status](implementation-status.md) |
 | Extend an ecosystem adapter | [Builder code organization](builder-code-organization.md) |
 | Contribute code or introduce a subsystem | [Code map and engineering guide](code-organization.md), [contribution workflow](../CONTRIBUTING.md), [agent instructions](../AGENTS.md) |
+| Document new functionality and keep current behavior accurate | [Documentation maintenance standard](documentation.md), [current reference index](reference/README.md) |
 
 ## Document authority
 

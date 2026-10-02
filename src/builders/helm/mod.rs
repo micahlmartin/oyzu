@@ -28,6 +28,9 @@ pub(super) const RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Helm {
+    fn acquisition_requires_network(&self) -> bool {
+        false
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok(IMAGE)
     }
@@ -43,6 +46,7 @@ impl Builder for Helm {
 
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["helm"],
             ids: &["helm/chart"],
         }
     }

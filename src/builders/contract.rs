@@ -12,14 +12,23 @@ use std::{
 
 pub(crate) struct Descriptor {
     pub ids: &'static [&'static str],
+    pub tools: &'static [&'static str],
 }
 
 /// Discovery and planning read captured source only. Acquisition must use the scoped
 /// broker and executor; project code never receives host credentials or network access.
 pub(crate) trait Builder: Sync {
     fn descriptor(&self) -> Descriptor;
+    fn register_settings(&self, _registry: &mut crate::config::registry::Registry) -> Result<()> {
+        Ok(())
+    }
     fn detect(&self, path: &Path) -> Option<&'static str>;
     fn discover(&self, target: &mut Target) -> Result<()>;
+
+    /// Whether dependency preparation may contact an upstream broker.
+    fn acquisition_requires_network(&self) -> bool {
+        true
+    }
 
     /// Resolve native arguments/environment only after an explicit development task run.
     /// Static discovery and captured build planning must never call this hook.
@@ -75,6 +84,7 @@ pub(crate) struct DevelopmentCommand {
 }
 
 pub(crate) struct PreparationContext<'a> {
+    pub configuration: Option<&'a crate::config::resolve::EffectiveConfig>,
     pub target: &'a Target,
     pub destination: &'a Path,
     pub image: &'a Image,

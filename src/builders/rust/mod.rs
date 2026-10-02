@@ -39,6 +39,7 @@ impl Builder for Rust {
 
     fn descriptor(&self) -> Descriptor {
         Descriptor {
+            tools: &["rust"],
             ids: &["rust/app", "rust/library"],
         }
     }
