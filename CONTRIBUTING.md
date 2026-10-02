@@ -37,6 +37,12 @@ Use this table to narrow your first change, then consult the [code map](docs/cod
 
 An implementation issue should name one outcome, link its owner and existing contract, and state how to verify it. Keep unresolved design choices visible. These are issue-writing guidelines, not additional forms or an approval step for routine changes.
 
+When directing an AI agent, a useful starting prompt is:
+
+> Read AGENTS.md and the code map. Implement [one observable outcome], using [issue/example] as the expected behavior. Find the owning subsystem and existing contracts before editing. Keep ecosystem details with their adapter and reuse shared configuration, scheduling, execution and reporting rules. Update the relevant documentation, run the applicable checks, and report the changed boundaries, verification results and remaining limitations. Preserve unrelated work.
+
+Replace the brackets with your task; this is an optional starting point, not a required tool or submission format. Review the resulting implementation and evidence against the requested behavior. An agent's statement that it followed the architecture is not a substitute for inspecting the diff.
+
 ## Documentation with every functionality change
 
 Documentation is part of implementation and review, not a later task. Follow the [documentation maintenance standard](docs/documentation.md) for every feature, changed behavior, deprecation or removal. Update the owning reference page in the same PR, with practical usage, defaults, outputs, failure/recovery behavior and verified limits. Add a new page to the [reference index](docs/reference/README.md) when no existing page owns the feature. Implementation checkpoints and draft OEPs supplement this reference; they do not replace it.
