@@ -37,6 +37,28 @@ fn provider_selection_preserves_ambiguity_and_managed_admission_before_effects()
         execution_name: "must-not-launch",
     };
     assert_eq!(select(&context).unwrap().id(), "python/pip");
+    fs::write(
+        root.path().join("pyproject.toml"),
+        "[project]\nname='demo'\nversion='1.0'\n",
+    )
+    .unwrap();
+    fs::write(root.path().join("uv.lock"), "fixture").unwrap();
+    assert!(select(&context)
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("unambiguous implemented"));
+    context.dependency_selector = Some("python/uv");
+    assert_eq!(select(&context).unwrap().id(), "python/uv");
+    context.dependency_selector = Some("python/poetry");
+    assert!(select(&context)
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("native manifest"));
+    fs::write(root.path().join("poetry.lock"), "fixture").unwrap();
+    assert_eq!(select(&context).unwrap().id(), "python/poetry");
+    context.dependency_selector = None;
     fs::write(root.path().join("package.json"), "{}").unwrap();
     assert!(select(&context)
         .err()

@@ -57,7 +57,11 @@ impl Builder for Python {
     fn dependency_providers(
         &self,
     ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
-        &[&dependency_context::Pip]
+        &[
+            &dependency_context::PythonStore::Pip,
+            &dependency_context::PythonStore::Uv,
+            &dependency_context::PythonStore::Poetry,
+        ]
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)

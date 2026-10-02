@@ -6,6 +6,7 @@ The same helper provides offline install/build/report operations after freeze.
 """
 import email
 import functools
+import hashlib
 import importlib.util
 from html.parser import HTMLParser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -144,7 +145,7 @@ class Bridge(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
-def locked_export(manager, destination):
+def locked_export(manager, destination, runtime_only=False):
     """Use native lock semantics without loading project-supplied plugins."""
     if manager=='uv':
         lock=tomllib.loads(Path('uv.lock').read_text())
@@ -152,7 +153,8 @@ def locked_export(manager, destination):
             registry=package.get('source',{}).get('registry')
             if registry and registry.rstrip('/')!='https://pypi.org/simple':
                 raise ValueError('uv lock references an unconfigured source')
-        run(['uv','export','--locked','--offline','--no-python-downloads','--no-managed-python','--python',sys.executable,'--no-emit-project','--format','requirements-txt','--output-file',str(destination)],stdout=subprocess.DEVNULL)
+        groups = ['--no-default-groups'] if runtime_only else []
+        run(['uv','export','--locked','--offline','--no-python-downloads','--no-managed-python','--python',sys.executable,'--no-emit-project','--format','requirements-txt','--output-file',str(destination),*groups],stdout=subprocess.DEVNULL)
     elif manager=='poetry':
         from cleo.io.null_io import NullIO
         from poetry.factory import Factory
@@ -165,7 +167,7 @@ def locked_export(manager, destination):
         poetry=Factory().create_poetry(Path.cwd(),disable_plugins=True,disable_cache=True)
         if not poetry.locker.is_locked() or not poetry.locker.is_fresh():
             raise ValueError('Poetry lock is missing or stale; update it with poetry lock')
-        groups=poetry.package.dependency_group_names(include_optional=False)
+        groups=['main'] if runtime_only else poetry.package.dependency_group_names(include_optional=False)
         Exporter(poetry,NullIO()).only_groups(groups).with_urls(False).export('requirements.txt',destination.parent,destination.name)
 
 
@@ -175,7 +177,7 @@ def acquire(runtime_only=False):
     constraints=[]
     export=Path('/out')/(manager+'-export.txt')
     if manager in {'uv','poetry'}:
-        locked_export(manager,export)
+        locked_export(manager,export,runtime_only=runtime_only)
         from pip._vendor.packaging.requirements import Requirement
         for line in export.read_text().replace('\\\n',' ').splitlines():
             line=line.strip()
@@ -188,9 +190,14 @@ def acquire(runtime_only=False):
             constraints.append(declaration)
         Path('/out/constraints.txt').write_text('\n'.join(constraints)+'\n')
         constraint_args=['-c','/out/constraints.txt']
-    requirements,purposes=requirement_lines(constraints, runtime_only=runtime_only)
-    # Include native groups, including legacy Poetry requirements, as roots.
-    requirements.extend(constraints)
+    if runtime_only and manager in {'uv','poetry'}:
+        from pip._vendor.packaging.utils import canonicalize_name
+        requirements=list(constraints)
+        purposes={canonicalize_name(Requirement(item).name):'runtime' for item in constraints}
+    else:
+        requirements,purposes=requirement_lines(constraints, runtime_only=runtime_only)
+        # Include native groups, including legacy Poetry requirements, as roots.
+        requirements.extend(constraints)
     server=ThreadingHTTPServer(('127.0.0.1',0),Bridge)
     threading.Thread(target=server.serve_forever,daemon=True).start()
     index='http://127.0.0.1:'+str(server.server_port)+'/index/'
@@ -202,10 +209,28 @@ def acquire(runtime_only=False):
         run(args+constraint_args+requirements)
     if manager in {'uv','poetry'}:
         run(args+['--no-deps','--require-hashes','-r',str(export)])
-    if Path('requirements.txt').exists():
+    if Path('requirements.txt').exists() and (not runtime_only or manager=='pip'):
         run(args+['--no-deps','-r','requirements.txt'])
     server.shutdown()
     inventory(purposes,requirements)
+    if runtime_only:
+        write_install_manifest(Path('/out'))
+
+
+def write_install_manifest(destination):
+    """Pin the resolved native wheel closure for an offline hash-checked install.
+
+    Resolution, marker evaluation and lock validation have already completed;
+    this does not resolve dependencies or reinterpret the source lock.
+    """
+    store=destination/'wheels'
+    lines=[]
+    for wheel in sorted(store.glob('*.whl')):
+        metadata=wheel_metadata(wheel)
+        with wheel.open('rb') as source:
+            checksum=hashlib.file_digest(source, 'sha256').hexdigest()
+        lines.append(f'{metadata["Name"]}=={metadata["Version"]} --hash=sha256:{checksum}')
+    (store/'requirements.txt').write_text('\n'.join(lines)+'\n', encoding='utf-8', newline='\n')
 
 
 def wheel_metadata(path):

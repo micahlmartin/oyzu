@@ -49,7 +49,7 @@ if [[ "$mode" == provision ]]; then
     test "$(docker run --rm --pull=never --network=none oyzu-toolchain/go:1.24-mod0.25.0-linux-arm64 go env GOOS GOARCH)" = $'linux\narm64'
     test "$(docker run --rm --pull=never --network=none oyzu-toolchain/node:npm11.11.0-node22-linux-arm64 node -p 'process.platform+"/"+process.arch')" = linux/arm64
   fi
-  if selected python core; then
+  if selected python core docker; then
     docker pull python:3.12-slim-bookworm
     docker pull python:3.12-bookworm
     docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim
@@ -80,6 +80,10 @@ if [[ "$mode" == provision ]]; then
     sudo apparmor_parser -r tooling/images/buildkit.apparmor
   fi
 else
+  if selected docker; then
+    docker run --rm --pull=never --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim tooling/test-python-context.py --manager uv
+    docker run --rm --pull=never --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/poetry:2.5.1-python3.12 tooling/test-python-context.py --manager poetry
+  fi
   if selected node; then
     .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager pnpm --native-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs
     .ci-python/bin/python tooling/test-node-registry-acquisition.py --manager pnpm --patches --native-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs

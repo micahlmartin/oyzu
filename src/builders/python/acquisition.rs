@@ -11,24 +11,27 @@ pub(super) const POETRY_IMAGE: &str = "oyzu-toolchain/poetry:2.5.1-python3.12";
 pub(super) const PYTHON_HELPER: &str = include_str!("runtime/adapter.py");
 
 pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
-    capture(context, false)
+    capture(context, None)
 }
 
-pub(super) fn prepare_runtime(context: PreparationContext<'_>) -> Result<Prepared> {
-    capture(context, true)
+pub(super) fn prepare_runtime(
+    context: PreparationContext<'_>,
+    provider: &super::dependency_context::PythonStore,
+) -> Result<Prepared> {
+    capture(context, Some(provider))
 }
 
-fn capture(context: PreparationContext<'_>, runtime_only: bool) -> Result<Prepared> {
+fn capture(
+    context: PreparationContext<'_>,
+    provider: Option<&super::dependency_context::PythonStore>,
+) -> Result<Prepared> {
+    let runtime_only = provider.is_some();
     let root = &context.target.path;
     let destination = context.destination;
     let image = context.image;
     let source_digest = context.source_digest;
     let name = context.execution_name;
-    let manager = if runtime_only {
-        "pip"
-    } else {
-        context.target.manager.as_str()
-    };
+    let manager = provider.map_or(context.target.manager.as_str(), |p| p.manager());
     fs::create_dir(destination)?;
     let control = tempfile::tempdir()?;
     let helper = control.path().join("helper");
@@ -132,8 +135,10 @@ fn capture(context: PreparationContext<'_>, runtime_only: bool) -> Result<Prepar
         Ok(json!({"id":p["id"],"name":p["name"],"version":p["version"],"sourceId":"pypi","digest":snapshot::file_digest(&path)?,"size":info.len(),"purpose":p["purpose"],"dependencies":p["dependencies"],"verification":"digest-only"}))
     }).collect::<Result<_>>()?;
     let platform = json!({"os":image.os,"arch":image.arch,"runtime":metadata["python"]});
-    let locks: &[&str] = if runtime_only {
-        &["requirements.txt"]
+    let runtime_lock;
+    let locks: &[&str] = if let Some(provider) = provider {
+        runtime_lock = [provider.lock()];
+        &runtime_lock
     } else {
         &["uv.lock", "poetry.lock", "requirements.txt"]
     };

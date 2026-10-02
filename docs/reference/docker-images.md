@@ -108,7 +108,7 @@ Provisioned image capture is shared through `dependencies/images`; Dockerfile pa
 The first application `container: true` integration is [Python application packaging](python-containers.md), whose default and override profiles passed Linux CI. It uses the internal [typed assembly boundary](../container-assembly.md) and shared captured-base acquisition. Additional runtime profiles, application-container matrices and startup smoke tests remain unfinished. Existing Dockerfile builds continue to use their captured source definition. The worker verifies the bytes actually staged for BuildKit against the planned digest, so a definition changed during copying is rejected rather than executed.
 
 
-The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The first Docker package-manager integration is the experimental pip profile below; its end-to-end native CI result is pending. Other managers, private sources and full EX-058 credential-policy acceptance remain unfinished.
+The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The first Docker package-manager integrations are the experimental pip, uv and Poetry profiles below; their end-to-end native CI results are pending. Other ecosystems, private sources and full EX-058 credential-policy acceptance remain unfinished.
 
 ## Offline pip dependency context (experimental)
 
@@ -123,12 +123,13 @@ image:
 FROM python:3.13-slim-bookworm
 WORKDIR /app
 COPY requirements.txt .
-RUN --mount=type=bind,from=dependencies,target=/dependencies pip install --no-index --no-cache-dir --no-compile --find-links=/dependencies -r requirements.txt
+RUN --mount=type=bind,from=dependencies,target=/dependencies \
+    pip install --no-index --no-cache-dir --no-compile --find-links=/dependencies -r requirements.txt
 COPY app.py .
 CMD ["python", "app.py"]
 ```
 
-Supply application files with the Dockerfile's ordinary COPY instructions. `--no-compile` avoids installation-time bytecode timestamps in this example; arbitrary Dockerfile commands are not automatically made reproducible. A requirements entry such as `six==1.17.0` is resolved by pip inside the exact provisioned base image, using that image's Python, pip, ABI and platform. Preparation downloads binary wheels through Oyzu's scoped public-PyPI broker. It does not add application-build, test or quality tools to this runtime store. No project code or source build runs during resolution. The subsequent Docker build remains offline and installs from the captured store; Oyzu does not rewrite RUN commands.
+Supply application files with the Dockerfile's ordinary COPY instructions. `--no-compile` avoids installation-time bytecode timestamps in this example; use `python -B` for build-time import checks to avoid creating timestamped bytecode afterward. Arbitrary Dockerfile commands are not automatically made reproducible. A requirements entry such as `six==1.17.0` is resolved by pip inside the exact provisioned base image, using that image's Python, pip, ABI and platform. Preparation downloads binary wheels through Oyzu's scoped public-PyPI broker. It does not add application-build, test or quality tools to this runtime store. No project code or source build runs during resolution. The subsequent Docker build remains offline and installs from the captured store; Oyzu does not rewrite RUN commands.
 
 When other ecosystem manifests make automatic selection ambiguous, the finite override is:
 
@@ -138,12 +139,31 @@ image:
   dependencies: python/pip
 ```
 
-This field is frozen build inventory, not an additional TOML precedence layer. The only implemented provider is currently `python/pip`, consuming `requirements.txt`. Unknown providers and missing native manifests fail explicitly. A selector without an external `dependencies` reference also fails. A Dockerfile stage actually named `dependencies` remains a native stage, not a package-store request. Other external names retain image-reference behavior.
+This field is frozen build inventory, not an additional TOML precedence layer. The implemented Python providers are:
+
+| Provider | Required native inputs | Tools already required in the consumer image |
+| --- | --- | --- |
+| `python/pip` | `requirements.txt` | Python and pip |
+| `python/uv` | `pyproject.toml` and `uv.lock` | Python, pip and uv |
+| `python/poetry` | `pyproject.toml` and `poetry.lock` | Python, pip, Poetry and its export plugin |
+
+One matching provider can be inferred; multiple matching managers require an explicit selector, even within Python. Unknown providers and missing native manifests fail explicitly. A selector without an external `dependencies` reference also fails. A Dockerfile stage actually named `dependencies` remains a native stage, not a package-store request. Other external names retain image-reference behavior.
+
+uv uses its [native locked, offline exporter](https://docs.astral.sh/uv/reference/cli/#uv-export) with `--no-default-groups`; Poetry uses its [native export plugin](https://github.com/python-poetry/poetry-plugin-export) restricted to the main group, with project plugins disabled. Runtime stores exclude development/default groups and optional extras. Stale locks and lock hash mismatches fail. The same native lock/source restrictions as Python preparation apply; local/path/VCS dependencies and arbitrary extra indices are not implemented by this profile. An explicit locked provider consumes its own lock, not a neighboring requirements file.
+
+All three providers include a generated `requirements.txt` beside the resolved wheels. It pins the complete selected closure with SHA-256 hashes. This is a projection of the already-resolved native inputs; it does not replace the source lock or perform another dependency resolution. For a uv/Poetry project, an offline Dockerfile step can consume it without copying or exporting the project lock itself:
+
+```dockerfile
+RUN --mount=type=bind,from=dependencies,target=/dependencies \
+    pip install --no-index --no-deps --require-hashes --no-cache-dir --no-compile --find-links=/dependencies -r /dependencies/requirements.txt
+```
+
+uv's native `uv pip install` can consume the same hashed requirements. This is not transparent support for arbitrary `uv sync` or `poetry install` commands/cache layouts. Missing native tools in the base fail preparation; Oyzu never installs them. Native tests currently provision uv 0.12.21 with Python 3.12, and Poetry 2.5.1/export 1.10.1 with Python 3.12. Other tool versions require qualification.
 
 The base image must already exist locally and provide Python 3.11 or later with pip; the first native fixture uses Python 3.13. The worker and artifact platform must match for package preparation, even for a Dockerfile that only copies store files. Consumers using earlier named stages resolve to their original base. Multiple distinct consuming bases, `scratch` consumers and incompatible platforms fail rather than sharing an unchecked closure. Preparation resolves the already-captured immutable base config, not a tag that may have moved. Commands that subsequently change the interpreter or libraries in a stage remain the Dockerfile author's responsibility; the initial runtime binding does not prove compatibility after arbitrary stage mutations.
 
-The prepared dependency record retains wheel identities, digests, source/lock identities, actual interpreter version, pip version, immutable runtime config and a separate store-tree digest. Only the wheel subtree enters BuildKit's private named context; broker/control state stays outside it. The context is read-only by default for the shown native bind mount. Build output remains the normal versioned OCI archive with integrity/platform JUnit and Docker quality gates. Integrity evidence is not a release authorization or proof that a package's contents are trustworthy.
+The prepared dependency record retains wheel identities, digests, source/lock identities, actual interpreter and manager versions, immutable runtime config and a separate store-tree digest. Only the wheel subtree and generated hashed requirements enter BuildKit's private named context; broker/control state stays outside it. The context is read-only by default for the shown native bind mount. Build output remains the normal versioned OCI archive with integrity/platform JUnit and Docker quality gates. Integrity evidence is not a release authorization or proof that a package's contents are trustworthy.
 
 The initial profile uses the existing public PyPI and Python-hosted-files routes. Direct URL requirements, alternate-index directives and source distributions are rejected. Native requirement constraints/hashes retain their existing pip validation. This preparation needs upstream availability; there is no persistent offline acquisition cache yet. Managed acquisition and enforced connector routes fail closed until approved connector bindings exist. No registry token is supplied to the image, build arguments or Dockerfile. This does not yet implement the private-registry canary and all-manager credential requirements of EX-058. Remote syntax frontends and secret mounts remain unsupported by the captured Docker profile.
 
-On failure, inspect the retained diagnostic and native logs, correct the manifest/provider or provisioned runtime, and start a new build. Preparation failures produce no action artifacts; failed offline RUN commands block packaging. The Linux Docker CI group provisions Python 3.13 and exercises native resolution/install/import, exact package/runtime evidence, versioned output, repeatability, implicit tasks, ambiguity/explicit selection and forbidden build-time network fetching. Its first native result remains pending; unit and adapter tests are narrower evidence.
+On failure, inspect the retained diagnostic and native logs, correct the manifest/provider or provisioned runtime, and start a new build. Preparation failures produce no action artifacts; failed offline RUN commands block packaging. The Linux Docker CI group provisions the three Python profiles and exercises native resolution/install/import, exact package/runtime evidence, versioned output, repeatability, implicit tasks, ambiguity/explicit selection, excluded development groups, lock-hash rejection and forbidden build-time network fetching. Its first native results remain pending. Provisioned Windows uv/Poetry probes have verified native export, unchanged locks, hashed offline installation/import, wheel-tamper rejection and stale-lock rejection; these narrower probes do not establish Docker isolation or container output.
