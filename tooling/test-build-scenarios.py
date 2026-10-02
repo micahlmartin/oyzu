@@ -146,7 +146,7 @@ def main():
         nonlocal invocation
         started = time.monotonic()
         print(f"[{root.name}] oyzu {' '.join(command)}", flush=True)
-        result = subprocess.run([str(cli), "-C", str(root), *command], capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run([str(cli), "-C", str(root), *( ["--json"] if command and command[0] == "build" else [] ), *command], capture_output=True, text=True, timeout=timeout)
         print(f"[{root.name}] exit {result.returncode} after {time.monotonic()-started:.1f}s", flush=True)
         if evidence and command and command[0]=='build' and '--plan' not in command:
             invocation += 1

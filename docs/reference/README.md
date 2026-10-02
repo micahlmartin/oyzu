@@ -10,6 +10,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
 | [Build bundles](build-bundles.md) | Workspace locking, staging, history, destination-change checks, failure evidence and recovery limits |
 | [Build tasks](build-tasks.md) | Builder stages, cross-target prerequisites, hooks, private workspace ownership, report gates and failure behavior |
+| [Build logging](build-logging.md) | Live scoped progress, commands, multiplexed output, human summaries, JSON mode and retained events |
 | [Affected builds](affected-builds.md) | Local Git baseline comparison, changed target/consumer selection, conservative fallbacks and evidence limits |
 | [Direct test reports](direct-tests.md) | Integrated host test bundles, native output preservation, hook/report failure gates and explicit provenance limits |
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |

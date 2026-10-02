@@ -355,7 +355,18 @@ pub(super) fn execute(
         active: true,
     };
     let started = Instant::now();
-    let launch = run(start, &request)?;
+    request.log.progress("Starting isolated BuildKit worker");
+    let start_argv: Vec<_> = std::iter::once(start.get_program())
+        .chain(start.get_args())
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+    let launch = run(
+        start,
+        &Request {
+            argv: &start_argv,
+            ..request.clone()
+        },
+    )?;
     if launch.code != 0 {
         return Ok(launch);
     }

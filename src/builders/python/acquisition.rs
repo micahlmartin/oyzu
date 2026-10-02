@@ -85,6 +85,7 @@ fn capture(
     let stderr = control.path().join("stderr");
     let execution = executor::execute_with_mounts(
         executor::Request {
+            log: context.log.clone(),
             image,
             workspace: root,
             output: destination,

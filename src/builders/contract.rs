@@ -156,6 +156,7 @@ pub(crate) struct DevelopmentCommand {
 }
 
 pub(crate) struct PreparationContext<'a> {
+    pub log: crate::logging::Log,
     /// The admitted owner's immutable snapshot. Adapters may consume registered
     /// values but must never resolve sources or recompute defaults here.
     pub configuration: &'a crate::config::resolve::EffectiveConfig,

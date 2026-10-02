@@ -764,7 +764,13 @@ fn cli_rejects_unknown_build_target_before_toolchain_resolution() {
     let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
         .arg("-C")
         .arg(root.path())
-        .args(["build", "missing", "--image", "npm=not-provisioned:test"])
+        .args([
+            "--json",
+            "build",
+            "missing",
+            "--image",
+            "npm=not-provisioned:test",
+        ])
         .output()
         .unwrap();
     assert_eq!(result.status.code(), Some(1));
@@ -806,7 +812,13 @@ fn cli_platform_binding_failures_precede_toolchain_resolution() {
         let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
             .arg("-C")
             .arg(root.path())
-            .args(["build", target, "--image", "npm=must-not-resolve:test"])
+            .args([
+                "--json",
+                "build",
+                target,
+                "--image",
+                "npm=must-not-resolve:test",
+            ])
             .output()
             .unwrap();
         assert_eq!(result.status.code(), Some(1));
@@ -874,4 +886,36 @@ fn inspector_binds_runtime_and_artifact_variant_identity_to_the_plan() {
         .unwrap_err()
         .to_string()
         .contains("target/variant differs"));
+}
+
+#[test]
+fn json_build_keeps_discovery_warnings_in_structured_events() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[build]\nfuture_setting = true\n",
+    )
+    .unwrap();
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("--root")
+        .arg(root.path())
+        .args(["--json", "build", "missing"])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    let text = String::from_utf8(result.stderr).unwrap();
+    let events: Vec<Value> = text
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert!(events.iter().any(|e| e["event"]["message"]
+        .as_str()
+        .is_some_and(|m| m.contains("future_setting"))));
+    let manifest: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(manifest["status"], "failed");
 }

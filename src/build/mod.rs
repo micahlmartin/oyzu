@@ -12,7 +12,8 @@ mod selection;
 mod task_graph;
 mod variants;
 
-use crate::{builders, discovery, records, snapshot};
+use crate::{builders, discovery, logging::Log, records, snapshot};
+
 use anyhow::{bail, Result};
 use execution::{execute_plan, ExecutionRecords};
 pub use planning::plan;
@@ -24,6 +25,34 @@ use std::{
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
+
+/// Logical target selection before native preparation and matrix expansion.
+pub enum Targets<'a> {
+    Explicit(&'a [String]),
+    Affected(&'a str),
+}
+pub(super) struct RunContext<'a> {
+    id: &'a str,
+    log: &'a Log,
+}
+
+/// Build with explicit progress output. The logger observes execution; it never
+/// changes selection, configuration, native failure gates or returned evidence.
+pub fn run_logged(
+    root: &Path,
+    images: &[String],
+    plan_only: bool,
+    options: &crate::config::session::Options,
+    targets: Targets<'_>,
+    log: &Log,
+) -> Result<Value> {
+    match targets {
+        Targets::Explicit(ids) => run_selection(root, images, plan_only, options, ids, None, log),
+        Targets::Affected(reference) => {
+            run_selection(root, images, plan_only, options, &[], Some(reference), log)
+        }
+    }
+}
 
 /// Read-only content verification for a build bundle or exported OCI layout tar.
 /// This does not authenticate the producer or establish release eligibility.
@@ -72,7 +101,15 @@ pub fn run_selected_with_options(
     options: &crate::config::session::Options,
     requested: &[String],
 ) -> Result<Value> {
-    run_selection(root, images, plan_only, options, requested, None)
+    run_selection(
+        root,
+        images,
+        plan_only,
+        options,
+        requested,
+        None,
+        &Log::default(),
+    )
 }
 
 /// Compare captured source with a local Git baseline, select impacted owners and
@@ -84,7 +121,15 @@ pub fn run_affected_with_options(
     options: &crate::config::session::Options,
     baseline: &str,
 ) -> Result<Value> {
-    run_selection(root, images, plan_only, options, &[], Some(baseline))
+    run_selection(
+        root,
+        images,
+        plan_only,
+        options,
+        &[],
+        Some(baseline),
+        &Log::default(),
+    )
 }
 
 fn run_selection(
@@ -94,16 +139,23 @@ fn run_selection(
     options: &crate::config::session::Options,
     requested: &[String],
     affected: Option<&str>,
+    log: &Log,
 ) -> Result<Value> {
+    log.scope("preflight")
+        .progress("Resolving workspace and configuration");
     let root = crate::config::session::workspace_root(root, options.root.as_deref())?;
     // Capture and validate all administrative policy before any build side effects.
     let session = crate::config::session::Session::open(&root, options)?;
     // Native discovery failures still produce the ordinary failed build bundle.
-    let workspace = discovery::discover_with_session(session, Some("sh"));
+    let workspace = discovery::discover_with_session_logged(session, Some("sh"), Some(log));
     let transaction = crate::bundle_store::Transaction::begin(&root)?;
     let temp = tempfile::Builder::new().prefix("oyzu-build-").tempdir()?;
     let source_path = temp.path().join("source");
     let bundle = transaction.path();
+    fs::create_dir_all(bundle.join("logs"))?;
+    log.journal(&bundle.join("logs/events.jsonl"))?;
+    log.scope("preflight")
+        .progress("Discovering builders and validating inputs");
     let out = temp.path().join("outputs");
     fs::create_dir(&out)?;
     let run_id = format!(
@@ -120,7 +172,13 @@ fn run_selection(
         let mut workspace = workspace?;
         workspace.invocation_configuration()?;
         let mut selection = selection::Selection::new(&workspace, requested)?;
+        log.scope("source").progress("Capturing repository inputs");
         let source = snapshot::capture(&root, &source_path)?;
+        log.scope("source").progress(&format!(
+            "Captured {} entries: {}",
+            source.entries.len(),
+            source.digest
+        ));
         if let Some(reference) = affected {
             selection = selection::Selection::affected(&workspace, &source, reference)?;
         }
@@ -173,6 +231,10 @@ fn run_selection(
                     bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
                 }
             }
+            log.scope("preflight").progress(&format!(
+                "Resolving provisioned toolchains for {}",
+                pending.iter().cloned().collect::<Vec<_>>().join(", ")
+            ));
             resolved.extend(resolve_images(&workspace, images, &pending)?);
             for id in pending {
                 let target = &workspace.targets[&id];
@@ -187,7 +249,10 @@ fn run_selection(
                         .and_then(|c| c.platform.as_deref()),
                     &resolved[&id],
                 )?;
+                let preparation_log = log.scope(format!("{id}:preflight"));
+                preparation_log.progress("Preparing toolchain metadata and capturing dependencies");
                 if let Some(prepared) = builder.prepare(builders::PreparationContext {
+                    log: preparation_log.clone(),
                     configuration: workspace.target_configuration(&id)?,
                     dependency_selector: workspace
                         .declarations
@@ -203,6 +268,7 @@ fn run_selection(
                 })? {
                     dependencies.insert(id.clone(), prepared);
                 }
+                preparation_log.finished("ready", Some(0), None);
                 let intent = planning::intent(&workspace, &id, &source, dependencies.get(&id))?;
                 intents.insert(id, intent);
             }
@@ -211,6 +277,8 @@ fn run_selection(
                 break;
             }
         }
+        log.scope("plan")
+            .progress("Resolving actions, dependencies and artifact names");
         let mut plan = planning::compile(&workspace, &source, &resolved, &dependencies, &intents)?;
         containers::augment(
             &workspace,
@@ -219,11 +287,17 @@ fn run_selection(
             &mut resolved,
             &mut dependencies,
             temp.path(),
-            &run_id,
+            &RunContext { id: &run_id, log },
         )?;
         indices::plan(&workspace, &variants, &mut plan)?;
         plan["extensions"]["oyzu.dev/selection"] = selection.record();
         manifest["extensions"]["oyzu.dev/selection"] = selection.record();
+        log.scope("plan").progress(&format!(
+            "{} targets, {} actions, {} planned artifacts",
+            plan["targets"].as_array().map_or(0, Vec::len),
+            plan["actions"].as_array().map_or(0, Vec::len),
+            plan["artifacts"].as_array().map_or(0, Vec::len)
+        ));
         if plan_only {
             return Ok(plan);
         }
@@ -257,7 +331,7 @@ fn run_selection(
             bundle,
             &resolved,
             &dependencies,
-            &run_id,
+            &RunContext { id: &run_id, log },
         )?;
         let success = actions.iter().all(|a| a["status"] == "succeeded");
         manifest["actions"] = json!(actions);
@@ -272,12 +346,16 @@ fn run_selection(
         Ok(plan)
     })();
     if plan_only {
+        log.close_journal();
         return result;
     }
     if let Err(error) = result {
+        log.progress(&format!("ERROR: {error:#}"));
         manifest["status"] = json!("failed");
         manifest["diagnostics"].as_array_mut().unwrap().push(json!({"code":"build-failed","phase":"build","severity":"error","message":format!("{error:#}")}));
     }
+    log.finished(manifest["status"].as_str().unwrap_or("failed"), None, None);
+    log.close_journal();
     records::write(&bundle.join("envelope.json"), &envelope)?;
     manifest["envelopeDigest"] = json!(snapshot::file_digest(&bundle.join("envelope.json"))?);
     records::write(&bundle.join("manifest.json"), &manifest)?;

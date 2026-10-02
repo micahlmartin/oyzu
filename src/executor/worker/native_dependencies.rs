@@ -29,6 +29,7 @@ fn named_dependency_context_is_exact_readonly_offline_and_reproducible() {
     .unwrap();
     let images = dependencies::images::capture(
         dependencies::images::Capture {
+            log: crate::logging::Log::default(),
             destination: &prepared,
             image: &worker,
             target_platform: &platform,
@@ -76,6 +77,7 @@ fn named_dependency_context_is_exact_readonly_offline_and_reproducible() {
         let stderr = root.path().join(format!("{attempt}.stderr"));
         let result = executor::execute_mode(
             Request {
+                log: crate::logging::Log::default(),
                 image: &worker,
                 workspace: &source,
                 output: &output,

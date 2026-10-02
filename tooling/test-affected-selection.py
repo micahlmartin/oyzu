@@ -16,7 +16,7 @@ with tempfile.TemporaryDirectory(prefix='oyzu affected ') as directory:
     shutil.copytree(root/'examples/builds/affected-graph/variants/targets',project)
     baseline=initialize(Path(directory))
     def invoke(*args,success=True):
-        result=subprocess.run([str(cli),'--root',str(project),*args],capture_output=True,text=True,timeout=120)
+        result=subprocess.run([str(cli),'--json','--root',str(project),*args],capture_output=True,text=True,timeout=120)
         assert (result.returncode==0)==success,result.stdout+result.stderr
         return json.loads(result.stdout) if success else result.stderr
     plan=invoke('build','--affected',baseline,'--plan')

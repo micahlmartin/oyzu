@@ -22,6 +22,7 @@ fn captured_base_feeds_generated_assembly_without_source_dockerfile() {
     let references = vec!["oyzu-fixture/alpine:amd64".to_owned()];
     let inputs = capture(
         Capture {
+            log: crate::logging::Log::default(),
             destination: &dependencies,
             image: &worker,
             target_platform: &platform,
@@ -72,6 +73,7 @@ fn captured_base_feeds_generated_assembly_without_source_dockerfile() {
         let stderr = root.path().join(format!("{attempt}.stderr"));
         let result = executor::execute_mode(
             executor::Request {
+                log: crate::logging::Log::default(),
                 image: &worker,
                 workspace: &source,
                 output: &output,

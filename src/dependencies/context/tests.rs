@@ -27,6 +27,7 @@ fn provider_selection_preserves_ambiguity_and_managed_admission_before_effects()
     let destination = root.path().join("not-created");
     let platform = runtime.platform().unwrap();
     let mut context = builders::PreparationContext {
+        log: crate::logging::Log::default(),
         configuration: &configuration,
         dependency_selector: None,
         target: &target,

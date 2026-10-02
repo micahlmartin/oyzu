@@ -88,6 +88,7 @@ pub(crate) fn prepare(
     }
     let control = tempfile::tempdir()?;
     let prepared = provider.prepare(builders::PreparationContext {
+        log: context.log.clone(),
         configuration: context.configuration,
         dependency_selector: None,
         target: context.target,

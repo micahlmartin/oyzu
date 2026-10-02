@@ -14,8 +14,10 @@ pub(super) fn augment(
     images: &mut BTreeMap<String, executor::Image>,
     prepared: &mut BTreeMap<String, dependencies::Prepared>,
     temp: &Path,
-    run_id: &str,
+    run: &super::RunContext<'_>,
 ) -> Result<()> {
+    let run_id = run.id;
+    let log = run.log.scope("container:preflight");
     let originals = plan["targets"]
         .as_array()
         .context("missing targets")?
@@ -84,6 +86,7 @@ pub(super) fn augment(
         let stdout = control.path().join("stdout");
         let stderr = control.path().join("stderr");
         let probe = executor::execute(executor::Request {
+            log: log.clone(),
             image: &runtime,
             workspace: &probe_workspace,
             output: &probe_output,
@@ -106,6 +109,7 @@ pub(super) fn augment(
         }
         let bindings = dependencies::images::capture(
             dependencies::images::Capture {
+                log: log.clone(),
                 destination: &destination,
                 image: &worker,
                 target_platform: &platform,

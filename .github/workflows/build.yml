@@ -367,6 +367,17 @@ jobs:
           path: build-evidence
           if-no-files-found: ignore
           retention-days: 14
+      - name: Verify live parallel build logging
+        if: ${{ !cancelled() && matrix.suite == 'rust' && steps.provision.outcome == 'success' }}
+        run: .ci-python/bin/python tooling/test-build-logging.py --cli cli/oyzu --evidence-dir logging-evidence
+      - name: Retain logging acceptance output
+        if: ${{ always() && matrix.suite == 'rust' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oyzu-build-logging-evidence
+          path: logging-evidence
+          if-no-files-found: ignore
+          retention-days: 14
 
   build-scenarios-complete:
     name: Captured build suite acceptance

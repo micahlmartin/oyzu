@@ -61,6 +61,7 @@ fn generated_recipe_builds_reproducible_native_oci_without_a_source_dockerfile()
         let stderr = root.path().join(format!("stderr-{attempt}"));
         let result = crate::executor::execute_mode(
             Request {
+                log: crate::logging::Log::default(),
                 image: &image,
                 workspace: &workspace,
                 output: &output,

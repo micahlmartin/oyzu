@@ -8,6 +8,7 @@ pub mod discovery;
 pub mod executor;
 pub mod invocation;
 mod launch;
+pub mod logging;
 pub mod model;
 mod names;
 mod oci;

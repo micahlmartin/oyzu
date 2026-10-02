@@ -35,6 +35,7 @@ pub(crate) fn capture(
     let stderr = control.path().join("stderr");
     let result = executor::execute_with_mounts(
         executor::Request {
+            log: context.log.clone(),
             image: context.image,
             workspace: &workspace,
             output: context.destination,

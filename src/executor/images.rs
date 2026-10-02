@@ -24,7 +24,17 @@ pub(crate) fn export_image(
         .args(["image", "save", "--output"])
         .arg(destination)
         .arg(&image.digest);
-    let result = run(command, request)?;
+    let argv: Vec<_> = std::iter::once(command.get_program())
+        .chain(command.get_args())
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+    let result = run(
+        command,
+        &Request {
+            argv: &argv,
+            ..request.clone()
+        },
+    )?;
     if result.code != 0 {
         bail!("provisioned image export failed; inspect acquisition logs");
     }

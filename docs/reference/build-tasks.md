@@ -2,6 +2,8 @@
 
 `oyzu build` composes the selected builders' stages with discovered tasks, explicit replacements, prerequisites and hooks. It captures source and dependencies before executing the resulting graph in private target workspaces. Provision the CLI's native toolchain images and supported Docker executor first; see [image provisioning](README.md) and [acceptance checks](build-verification.md). This reference describes the current experimental executor, not native Windows/macOS target compilation.
 
+Builds now show [live progress and multiplexed command output](build-logging.md) by default. Add `--json` when consuming the final manifest/plan programmatically.
+
 ## Select targets
 
 ```text

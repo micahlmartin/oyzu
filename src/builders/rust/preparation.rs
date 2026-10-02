@@ -62,7 +62,11 @@ fn capture(context: PreparationContext<'_>, purpose: Purpose) -> Result<Prepared
     let workspace = control.path().join("workspace");
     snapshot::capture(root, &workspace)?;
     fs::create_dir(context.destination)?;
-    let packages = super::acquisition::capture(&workspace.join("Cargo.lock"), context.destination)?;
+    let packages = super::acquisition::capture(
+        &workspace.join("Cargo.lock"),
+        context.destination,
+        &context.log,
+    )?;
     let native_output = control.path().join("native-output");
     fs::create_dir(&native_output)?;
     let runner = Native {
@@ -123,9 +127,9 @@ fn capture(context: PreparationContext<'_>, purpose: Purpose) -> Result<Prepared
             projected.validate()?;
             records::write(
                 &context.destination.join("binaries.json"),
-                &json!({"schemaVersion":1,"binaries":projected.binaries()?.iter().map(|(package, target)| {
-                    json!({"packageId":package.id,"name":target.name})
-                }).collect::<Vec<_>>()}),
+                &json!({"schemaVersion":2,"binaries":projected.binaries()?.iter().map(|(package, target)| {
+                    Ok(json!({"manifestPath":super::metadata::relative(&package.manifest_path)?,"name":target.name}))
+                }).collect::<Result<Vec<_>>>()?}),
             )?;
             let nextest = runner.run(&["cargo", "nextest", "--version"])?;
             let coverage = runner.run(&["cargo", "llvm-cov", "--version"])?;
@@ -152,7 +156,7 @@ fn capture(context: PreparationContext<'_>, purpose: Purpose) -> Result<Prepared
             fs::write(context.destination.join("host.txt"), host)?;
             (
                 "rust/cargo-workspace",
-                "4",
+                "5",
                 json!({"oyzu.dev/cargo-workspace":{"original":original,"projected":projected},
                     "oyzu.dev/cargo-tools":{"rustc":rustc.trim(),"nextest":nextest.trim(),"llvmCov":coverage.trim()}}),
             )
@@ -189,6 +193,7 @@ impl Native<'_, '_> {
         let command = command(args.iter().map(|s| s.to_string()).collect());
         let result = executor::execute_with_mounts(
             executor::Request {
+                log: self.context.log.clone(),
                 image: self.context.image,
                 workspace: self.workspace,
                 output: self.output,

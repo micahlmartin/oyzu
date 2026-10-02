@@ -19,6 +19,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let platform_name = context.target_platform.to_string();
     let argv = crate::builders::strings(&["sh", "-ec", "oyzu-docker-metadata /workspace \"$1\" \"$2\" > /out/metadata.json\nbuildctl --version > /out/manager-version.txt\nhadolint --version > /out/linter-version.txt\ndockerfmt version > /out/formatter-version.txt", "oyzu-docker-preparation", &platform_name, executor::BUILDKIT_SOURCE_DATE_EPOCH]);
     let result = executor::execute(executor::Request {
+        log: context.log.clone(),
         image: context.image,
         workspace: &workspace,
         output: context.destination,
@@ -45,6 +46,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     metadata.validate_execution(&context.image.platform()?, context.target_platform)?;
     let images = crate::dependencies::images::capture(
         crate::dependencies::images::Capture {
+            log: context.log.clone(),
             destination: context.destination,
             image: context.image,
             target_platform: context.target_platform,

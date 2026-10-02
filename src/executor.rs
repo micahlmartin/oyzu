@@ -110,7 +110,9 @@ pub(crate) fn resolve_for(reference: &str, profile: Profile) -> Result<Image> {
     Ok(image)
 }
 
+#[derive(Clone)]
 pub struct Request<'a> {
+    pub log: crate::logging::Log,
     pub image: &'a Image,
     pub workspace: &'a Path,
     pub output: &'a Path,
@@ -205,11 +207,43 @@ fn run(mut command: Command, request: &Request<'_>) -> Result<Execution> {
     let stderr = fs::File::create(request.stderr)?;
     command.stdin(Stdio::null()).stdout(stdout).stderr(stderr);
     let start = Instant::now();
+    request.log.command(request.argv, request.cwd);
+    let mut followers = if request.log.active() {
+        vec![
+            crate::logging::Follow::open(request.stdout, "stdout", &request.log)?,
+            crate::logging::Follow::open(request.stderr, "stderr", &request.log)?,
+        ]
+    } else {
+        Vec::new()
+    };
+    let mut heartbeat = Instant::now();
     let mut child = command
         .spawn()
         .context("cannot launch container executor")?;
     loop {
+        for follower in &mut followers {
+            follower.drain(false)?;
+        }
+        if heartbeat.elapsed() >= Duration::from_secs(10) {
+            request.log.progress(&format!(
+                "RUNNING for {:.0}s",
+                start.elapsed().as_secs_f64()
+            ));
+            heartbeat = Instant::now();
+        }
         if let Some(status) = child.try_wait()? {
+            for follower in &mut followers {
+                follower.drain(true)?;
+            }
+            request.log.finished(
+                if status.success() {
+                    "command-succeeded"
+                } else {
+                    "command-failed"
+                },
+                status.code(),
+                Some(start.elapsed().as_millis() as u64),
+            );
             return Ok(Execution {
                 code: status.code().unwrap_or(1),
                 duration_ms: start.elapsed().as_millis() as u64,
@@ -228,6 +262,14 @@ fn run(mut command: Command, request: &Request<'_>) -> Result<Execution> {
                 .status();
             let _ = child.kill();
             let _ = child.wait();
+            for follower in &mut followers {
+                follower.drain(true)?;
+            }
+            request.log.progress(if too_large {
+                "FAILED: command log size limit exceeded"
+            } else {
+                "FAILED: command timed out"
+            });
             return Ok(Execution {
                 code: if too_large { 125 } else { 124 },
                 duration_ms: start.elapsed().as_millis() as u64,

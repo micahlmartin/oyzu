@@ -100,12 +100,29 @@ fn run() -> Result<i32> {
             targets,
             affected,
         } => {
-            let result = if let Some(reference) = affected {
-                build::run_affected_with_options(&directory, image, *plan, &options, reference)?
+            let log = oyzu::logging::Log::console(if cli.json {
+                oyzu::logging::Format::Json
             } else {
-                build::run_selected_with_options(&directory, image, *plan, &options, targets)?
+                oyzu::logging::Format::Text
+            });
+            let selection = if let Some(reference) = affected {
+                build::Targets::Affected(reference)
+            } else {
+                build::Targets::Explicit(targets)
             };
-            println!("{}", serde_json::to_string_pretty(&result)?);
+            let result =
+                match build::run_logged(&directory, image, *plan, &options, selection, &log) {
+                    Ok(result) => result,
+                    Err(error) => {
+                        log.progress(&format!("ERROR: {error:#}"));
+                        return Ok(2);
+                    }
+                };
+            if cli.json {
+                println!("{}", serde_json::to_string_pretty(&result)?);
+            } else {
+                presentation::build_result(&result, *plan, &directory);
+            }
             return Ok(if *plan || result["status"] == "succeeded" {
                 0
             } else {

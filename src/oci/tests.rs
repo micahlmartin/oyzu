@@ -86,6 +86,7 @@ fn engine_image_assertions_record_integrity_platform_failures_and_refuse_stale_r
         let argv = mode.argv(&format!("linux/{arch}")).unwrap();
         crate::executor::execute_mode(
             crate::executor::Request {
+                log: crate::logging::Log::default(),
                 image: &image,
                 workspace: temp.path(),
                 output: temp.path(),

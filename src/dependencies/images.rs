@@ -13,6 +13,7 @@ mod native;
 /// OCI converter. Callers own configuration admission and runtime compatibility;
 /// this boundary verifies content/platform identities and never pulls images.
 pub(crate) struct Capture<'a> {
+    pub log: crate::logging::Log,
     pub destination: &'a Path,
     pub image: &'a executor::Image,
     pub target_platform: &'a Platform,
@@ -48,6 +49,7 @@ pub(crate) fn capture(
     let mut images = Vec::new();
     for (index, reference) in references.iter().enumerate() {
         let request = executor::Request {
+            log: context.log.clone(),
             image: context.image,
             workspace: &workspace,
             output: context.destination,
