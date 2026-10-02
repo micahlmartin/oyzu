@@ -104,6 +104,31 @@ impl Agent {
             Some(&state.water),
         )
     }
+    fn observed_time(&self, previous: i64) -> Result<i64> {
+        let now = self.runtime.now()?;
+        if now < previous {
+            bail!("POLICY_CLOCK_UNCERTAIN: clock moved backward during refresh");
+        }
+        Ok(now)
+    }
+    fn acquired(
+        &self,
+        snapshot: VerifiedPolicySnapshot,
+        online: bool,
+        previous: i64,
+    ) -> Result<Acquired> {
+        snapshot.authorize(
+            if self.context.execution_class == "ci" {
+                Operation::CiBuild
+            } else {
+                Operation::LocalBuild
+            },
+            self.observed_time(previous)?,
+            online,
+            true,
+        )?;
+        Ok(Acquired { snapshot, online })
+    }
     pub fn acquire(&self, force: bool) -> Result<Acquired> {
         secure_directory(&self.directory)?;
         let lock = fs::OpenOptions::new()
@@ -132,10 +157,7 @@ impl Agent {
                         state.water.observed_at = time;
                         self.save(state)?;
                     }
-                    return Ok(Acquired {
-                        snapshot: snapshot.clone(),
-                        online: false,
-                    });
+                    return self.acquired(snapshot.clone(), false, time);
                 }
             }
         }
@@ -147,7 +169,7 @@ impl Agent {
         let envelope = match self.runtime.refresh(&endpoint, &request)? {
             super::policy_runtime::Refresh::Snapshot(envelope) => envelope,
             super::policy_runtime::Refresh::TransportFailure => {
-                return self.offline(force, ci, cached, state, time)
+                return self.offline(force, ci, cached, state, self.observed_time(time)?)
             }
             super::policy_runtime::Refresh::Denied => {
                 if let Some(mut state) = state {
@@ -159,11 +181,20 @@ impl Agent {
                 );
             }
         };
-        // A successful online context reconciliation may repair a backward clock
-        // observation, but never weakens the sequence or payload high-water check.
+        let time = self.observed_time(time)?;
+        // Online reconciliation uses current administrative pins without resetting
+        // the sequence high-water mark. Rotation requires a newer signed response.
+        let binding = crate::records::digest(
+            "oyzu.management.v1",
+            &serde_json::to_value(&self.bootstrap)?,
+        )?;
+        let rotated = state
+            .as_ref()
+            .is_some_and(|state| state.water.bootstrap_digest != binding);
         let online_water = state.as_ref().map(|state| {
             let mut water = state.water.clone();
             water.observed_at = water.observed_at.min(time);
+            water.bootstrap_digest = binding;
             water
         });
         let snapshot = VerifiedPolicySnapshot::verify(
@@ -173,6 +204,14 @@ impl Agent {
             time,
             online_water.as_ref(),
         )?;
+        let water = snapshot.high_water(&self.bootstrap, time)?;
+        if rotated
+            && state
+                .as_ref()
+                .is_some_and(|state| water.sequence <= state.water.sequence)
+        {
+            bail!("POLICY_INVALID: bootstrap reconciliation requires a newer policy sequence");
+        }
         use sha2::{Digest, Sha256};
         let entry = format!("{:x}", Sha256::digest(envelope.as_bytes()));
         let mut file = tempfile::NamedTempFile::new_in(&self.directory)?;
@@ -186,26 +225,13 @@ impl Agent {
         fs::File::open(&self.directory)?.sync_all()?;
         // The OS-protected pointer is the commit point, after durable immutable bytes.
         self.save(&State {
-            water: snapshot.high_water(&self.bootstrap, time)?,
+            water,
             entry,
             denied: false,
             failures: 0,
             retry_after: 0,
         })?;
-        snapshot.authorize(
-            if ci {
-                Operation::CiBuild
-            } else {
-                Operation::LocalBuild
-            },
-            time,
-            true,
-            true,
-        )?;
-        Ok(Acquired {
-            snapshot,
-            online: true,
-        })
+        self.acquired(snapshot, true, time)
     }
     fn offline(
         &self,
@@ -242,10 +268,7 @@ impl Agent {
                 .min(snapshot.deadline());
             self.save(&state)?;
         }
-        Ok(Acquired {
-            snapshot,
-            online: false,
-        })
+        self.acquired(snapshot, false, time)
     }
     pub fn status(&self) -> Result<serde_json::Value> {
         let state = self.state()?;
@@ -284,6 +307,7 @@ fn secure_directory(path: &Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     mod processes;
+    mod transitions;
     use super::super::policy_runtime::{Refresh, Runtime};
     use super::*;
     use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
@@ -296,6 +320,8 @@ mod tests {
         denied: Mutex<bool>,
         fail_store: Mutex<bool>,
         refresh_calls: std::sync::atomic::AtomicUsize,
+        refresh_elapsed: std::sync::atomic::AtomicI64,
+        store_elapsed: std::sync::atomic::AtomicI64,
     }
     impl Runtime for Fake {
         fn now(&self) -> Result<i64> {
@@ -309,9 +335,14 @@ mod tests {
                 bail!("injected integrity store failure");
             }
             *self.state.lock().unwrap() = Some(value.into());
+            *self.time.lock().unwrap() +=
+                self.store_elapsed.load(std::sync::atomic::Ordering::SeqCst);
             Ok(())
         }
         fn refresh(&self, _: &str, _: &serde_json::Value) -> Result<Refresh> {
+            *self.time.lock().unwrap() += self
+                .refresh_elapsed
+                .load(std::sync::atomic::Ordering::SeqCst);
             self.refresh_calls
                 .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             if *self.denied.lock().unwrap() {
@@ -349,6 +380,8 @@ mod tests {
             denied: Mutex::new(false),
             fail_store: Mutex::new(false),
             refresh_calls: std::sync::atomic::AtomicUsize::new(0),
+            refresh_elapsed: std::sync::atomic::AtomicI64::new(0),
+            store_elapsed: std::sync::atomic::AtomicI64::new(0),
         });
         let mut agent = Agent::new(bootstrap, &locations, root, false).unwrap();
         agent.runtime = runtime.clone();
@@ -359,7 +392,7 @@ mod tests {
         let payload = json!({"schemaVersion":1,"kind":"managed-policy","snapshotId":"test","revision":format!("r{sequence}"),"organizationId":"test","enrollmentId":"test","audience":"oyzu-config","contextDigest":agent.context.digest().unwrap(),"sequence":sequence,"issuedAt":"2026-10-01T00:00:00Z","refreshAfter":"2026-10-01T00:15:00Z","expiresAt":"2026-10-03T00:00:00Z","offline":{"localBuilds":true,"maxAgeSeconds":86400},"requiredCapabilities":[],"settings":{},"profiles":{}});
         let input = format!(
             "{}.{}",
-            URL_SAFE_NO_PAD.encode(br#"{"alg":"Ed25519","kid":"test","typ":"oyzu-policy+jws"}"#),
+            URL_SAFE_NO_PAD.encode(serde_json::to_vec(&json!({"alg":"Ed25519","kid":agent.bootstrap.policy_keys.last().unwrap().kid,"typ":"oyzu-policy+jws"})).unwrap()),
             URL_SAFE_NO_PAD.encode(serde_json_canonicalizer::to_vec(&payload).unwrap())
         );
         format!(
