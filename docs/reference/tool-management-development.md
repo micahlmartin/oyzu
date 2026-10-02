@@ -688,6 +688,12 @@ no ambient rustup installation supplies the compiler. A compatible system linker
 and SDK are prerequisites, particularly MSVC build tools on Windows and command
 line tools on macOS. Installing Rust does not install those system prerequisites.
 
-Acceptance is exercised by `tooling/test-tool-rust.py`; current run outcomes are
-recorded in implementation status. This section describes the implementation
-under verification, not completed three-platform qualification.
+Acceptance is exercised by `tooling/test-tool-rust.py`. At `9ddf621`, Linux amd64
+passed real installation with ambient Rust removed from PATH, store-owned
+Cargo/rustc/rustdoc version checks, dependency-free compilation and program
+execution, frozen reuse with unchanged lock bytes, and building the actual Oyzu
+checkout's default frontend using the installed compiler. The last check reused
+the provisioned Cargo dependency cache; it does not establish dependency capture
+or an isolated Oyzu build. A subsequent run with container networking disabled
+restored the removed installation from its cached snapshot and compiled the sample
+project again. Native Windows/macOS Rust qualification remains pending.

@@ -395,6 +395,18 @@ Reuse the same installed-environment contract for exec, which, shell and shims.
 
 ### First real acceptance scenario
 
+Implementation checkpoint: frontend `9ddf621` and fork
+`1da2a9fa009ada755cbcc96e5d944fe1cd61072c` connect the existing Rust backend
+to the normal `oyzu install rust` entry point. Linux installed Rust 1.95.0,
+published the actual sysroot through Oyzu's cached archive/store contracts,
+compiled and ran a program, retained frozen lock bytes and built the default
+Oyzu frontend with that installed Cargo. The current minimal-profile payload
+uses direct toolchain binaries rather than relocated rustup proxies. Its snapshot
+digest does not capture the original bootstrap/component download closure.
+The broader scenario below remains the acceptance direction; this checkpoint
+does not establish managed routing, native-host qualification, extra components
+or toolchain-file discovery. See the [current reference](../../reference/tool-management-development.md#rust-installation-through-mise).
+
 1. Build/provision the Oyzu frontend using the existing bootstrap toolchain, then
    run the test in a separate environment with no rustup/cargo/rustc on PATH and
    empty private Rust homes. Keep required system linker/SDK prerequisites visible.

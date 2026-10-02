@@ -127,8 +127,11 @@ The Rust-enabled fork pin is `1da2a9fa009ada755cbcc96e5d944fe1cd61072c`.
 On Linux amd64, real installation, store-owned Cargo/rustc/rustdoc version checks,
 and dependency-free Cargo compilation/program execution passed with ambient Rust
 removed from PATH. The payload retains bundled Cargo licenses and Rust copyright
-files. Frozen replay, rebuilding Oyzu with the installed compiler and native
-Windows/macOS Rust qualification remain under verification at this checkpoint.
+files. Frozen reuse preserved the exact lock bytes, and the installed compiler
+built the actual Oyzu checkout's default frontend. With container networking
+disabled, Oyzu restored the removed installation from its cached snapshot and
+the restored Cargo compiled the sample project again. Native Windows/macOS Rust
+qualification remains pending in run `37067597727`.
 See the [current reference](reference/tool-management-development.md#rust-installation-through-mise)
 and [reuse investigation](proposals/OEP-0003-mise-integration/implementation.md#rust-backend-reuse-and-first-proof).
 The maintainer clarified that direct normal-backend acquisition is authorized for

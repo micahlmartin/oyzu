@@ -2841,3 +2841,18 @@ switching and shell qualification remain functional follow-ups. Generated archiv
 hashes are snapshot integrity evidence, not publisher signature evidence. The
 server allowlist and complete installer routing remain the enforced-mode end
 state; current direct acquisition is authorized. Hardening remains deferred.
+
+Checkpoint 173 acceptance follow-up: the full Linux online runner completed,
+including unchanged frozen locks and building the actual Oyzu default frontend
+with the installed Cargo/rustc. It reused a provisioned Cargo dependency cache;
+this is compiler-use evidence, not captured dependency/build isolation evidence.
+A subsequent container with networking disabled restored the removed installation
+from cached bytes, verified all three published commands, and compiled/executed
+the sample program again. The runner's final repeated frozen check is in progress.
+Native Rust workflow run `37067597727` is still building on all three hosts.
+
+The offline runner completed successfully, including its final repeated frozen
+installation and unchanged-lock assertion. Linux installation, real compiler use,
+Oyzu self-build and cached restoration with networking disabled are now verified.
+Native Windows/macOS Rust qualification remains pending; macOS has reached the
+real Rust installation step. Documentation structure and diff checks pass.
