@@ -773,4 +773,6 @@ and strict library/example Clippy. The fresh replay child checks both input hash
 selected filenames/releases and declared checksums for all three targets, requiring
 six supplied-transport requests. Unknown routes fail. This is stronger than private
 selector replay but still does not acquire artifacts or verify publishers. Native
-CI now captures checksum inputs and runs both replays; new native results are pending.
+CI captures checksum inputs and runs both replays.
+[Run 37026158376](https://github.com/oyzuai/mise/actions/runs/37026158376)
+passed on Windows, macOS and Linux at this exact fork revision.

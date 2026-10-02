@@ -2157,3 +2157,17 @@ The later public real-metadata replay at bb56ea990 is a separate run and remains
 pending. These checks establish metadata behavior, not installation, publisher
 verification, native worker supervision or distribution approval. Documentation
 and diff checks pass; OEP-0003 remains active.
+
+## Checkpoint 149: public Python metadata replay passes natively
+
+Fork run 37026158376 completed successfully on Windows, macOS and Linux at
+bb56ea99001b7b743738a564192b9ff9bebd1f4d. This supersedes the pending
+public replay result in checkpoints 146/148. The workflow passed ordinary
+embedding scenarios, private Python decoder replay and public Session replay
+against independently captured real catalogs/checksum manifests on each host.
+The reference now links the completed run and its precise scope.
+
+This completes that metadata validation run, not full Python admission. Version
+constraint resolution, acquired artifact/publisher verification, installation,
+worker supervision, production wiring and shipping approval remain unfinished.
+Documentation and diff checks pass; OEP-0003 remains active.
