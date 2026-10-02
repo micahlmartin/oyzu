@@ -1,4 +1,4 @@
-"""Qualify real Oyzu broker/executor acquisition using real Node archives."""
+"""Qualify real Oyzu broker/executor acquisition using real backend artifacts."""
 import argparse
 import hashlib
 import http.server
@@ -9,6 +9,7 @@ import subprocess
 import threading
 import time
 import uuid
+from urllib.parse import urlsplit
 
 
 def main():
@@ -48,6 +49,24 @@ def main():
     java_metadata = (args.work / "backend-archives/java-linux-x64.json").read_bytes()
     assert hashlib.sha256(java_archive.read_bytes()).hexdigest() == java["sha256"]
     assert hashlib.sha256(java_metadata).hexdigest() == java["metadata_sha256"]
+    python = backend_inventory["python"]
+    python_archive = args.work / "backend-archives" / python["filename"]
+    attestations = (args.work / "backend-archives/python-attestations.json").read_bytes()
+    assert hashlib.sha256(python_archive.read_bytes()).hexdigest() == python["sha256"]
+    assert hashlib.sha256(attestations).hexdigest() == python["attestation_sha256"]
+    invalid = json.loads(attestations)
+    for attestation in invalid["attestations"]:
+        for signature in attestation["bundle"]["dsseEnvelope"]["signatures"]:
+            sig = signature["sig"]
+            signature["sig"] = ("A" if sig[0] != "A" else "B") + sig[1:]
+    invalid_attestations = json.dumps(invalid).encode()
+    jq = backend_inventory["jq"]
+    jq_archive = args.work / "backend-archives" / jq["filename"]
+    jq_release = (args.work / "backend-archives/jq-release.json").read_bytes()
+    jq_checksums = (args.work / "backend-archives/jq-sha256sum.txt").read_bytes()
+    assert hashlib.sha256(jq_archive.read_bytes()).hexdigest() == jq["sha256"]
+    assert hashlib.sha256(jq_release).hexdigest() == jq["release_sha256"]
+    assert hashlib.sha256(jq_checksums).hexdigest() == jq["checksums_sha256"]
     requests = []
 
     class Origin(http.server.BaseHTTPRequestHandler):
@@ -84,6 +103,18 @@ def main():
                 status, body = 200, java_archive.read_bytes()
             elif self.path == "/approved/java/metadata.json":
                 status, body = 200, java_metadata
+            elif self.path == "/approved/python/" + python["filename"]:
+                status, body = 200, python_archive.read_bytes()
+            elif urlsplit(self.path).path == "/approved/python/api/repos/astral-sh/python-build-standalone/attestations/sha256:" + python["sha256"]:
+                status, body = 200, attestations
+            elif urlsplit(self.path).path == "/approved/python/invalid-api/repos/astral-sh/python-build-standalone/attestations/sha256:" + python["sha256"]:
+                status, body = 200, invalid_attestations
+            elif self.path in ("/approved/jq/jq-linux-amd64", "/approved/jq/release/jq-1.7.1/jq-linux-amd64"):
+                status, body = 200, jq_archive.read_bytes()
+            elif self.path == "/approved/jq/release/jq-1.7.1/sha256sum.txt":
+                status, body = 200, jq_checksums
+            elif self.path == "/approved/jq/api/repos/jqlang/jq/releases/tags/jq-1.7.1":
+                status, body = 200, jq_release
             else:
                 status, body = 404, b"not found"
             self.send_response(status)
@@ -113,7 +144,10 @@ def main():
         worker = {"origin": origin, "routes": {"node": origin + "approved/node/",
                   "tampered": origin + "approved/node/tampered/",
                   "unavailable": origin + "approved/node/unavailable/",
-                  "go": origin + "approved/go/", "java": origin + "approved/java/"}, "go": go, "java": java,
+                  "go": origin + "approved/go/", "java": origin + "approved/java/",
+                  "python": origin + "approved/python/", "tuf": "https://tuf-repo-cdn.sigstore.dev/",
+                  "jq": origin + "approved/jq/"},
+                  "go": go, "java": java, "python": python, "jq": jq,
                   "sha256": item["sha256"], "egress_ip": positive["ip"], "egress_port": server.server_port}
         (root / "workspace/worker.json").write_text(json.dumps(worker))
         configuration = {
@@ -121,7 +155,10 @@ def main():
             "spool": str(root / "spool"), "private": str(root / "private"),
             "sources": [{"id": "node-fixture", "base": origin + "approved/node/", "authorization": "Bearer " + canary},
                         {"id": "go-fixture", "base": origin + "approved/go/", "authorization": "Bearer " + canary},
-                        {"id": "java-fixture", "base": origin + "approved/java/", "authorization": "Bearer " + canary}],
+                        {"id": "java-fixture", "base": origin + "approved/java/", "authorization": "Bearer " + canary},
+                        {"id": "python-fixture", "base": origin + "approved/python/", "authorization": "Bearer " + canary},
+                        {"id": "jq-fixture", "base": origin + "approved/jq/", "authorization": "Bearer " + canary},
+                        {"id": "sigstore-public-tuf", "base": "https://tuf-repo-cdn.sigstore.dev/", "authorization": None}],
             "argv": ["python3", "/opt/qualification/broker_worker.py"],
             "env": {"PYTHONDONTWRITEBYTECODE": "1"}, "timeout_seconds": 600,
             "name": "oyzu-broker-" + uuid.uuid4().hex[:12],
@@ -136,6 +173,8 @@ def main():
         evidence["identity"] = identity
         evidence["backend_artifacts"] = backend_inventory
         evidence["worker_stderr"] = (root / "output/stderr.log").read_text() if (root / "output/stderr.log").exists() else None
+        if (root / "output/bridge-requests.json").exists():
+            evidence["bridge_requests"] = json.loads((root / "output/bridge-requests.json").read_text())
         result_file = root / "output/worker-results.json"
         if result_file.exists():
             evidence["cases"] = json.loads(result_file.read_text())

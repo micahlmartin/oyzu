@@ -4,6 +4,7 @@ Routes are host-supplied public source locations, never authorization material.
 The production broker independently authorizes every request and redirect.
 """
 import http.server
+import hashlib
 import threading
 from urllib.parse import urlsplit
 
@@ -16,10 +17,13 @@ def start(routes):
             self.server.requests.append(self.path)
             path = urlsplit(self.path)
             route, separator, relative = path.path.lstrip("/").partition("/")
-            if not separator or route not in routes or path.query or path.fragment:
+            if not separator or route not in routes or path.fragment:
                 self.send_error(403)
                 return
-            info, body = fetch(routes[route] + relative)
+            info, body = fetch(routes[route] + relative + ("?" + path.query if path.query else ""))
+            self.server.responses.append({"path": self.path, "status": info["status"],
+                                          "source": info["sourceId"], "size": len(body),
+                                          "sha256": hashlib.sha256(body).hexdigest()})
             self.send_response(info["status"])
             self.send_header("Content-Type", info["contentType"])
             self.send_header("Content-Length", str(len(body)))
@@ -40,5 +44,6 @@ def start(routes):
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     server.requests = []
+    server.responses = []
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, f"http://127.0.0.1:{server.server_port}"

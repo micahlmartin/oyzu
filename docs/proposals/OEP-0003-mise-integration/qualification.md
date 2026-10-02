@@ -128,8 +128,46 @@ relaxed.
 The expanded Rust frontend and HTTP patch built and passed the experiment's
 Clippy/format checks on Linux (with the previously documented upstream
 `collapsible_match` lint exception). The [Linux Node regression](../../../tooling/mise-experiment/results/linux-expanded-core-regression.json)
-again passes all 31 cases. Windows and macOS have not yet rerun this expanded
-frontend; their earlier results apply to the earlier recorded source.
+again passes all 31 cases. The [native Windows regression](../../../tooling/mise-experiment/results/windows-expanded-core-regression.json)
+passes all 28 existing cases against the expanded frontend. The macOS rerun is
+still in progress; its earlier result applies to the earlier recorded source.
+
+### Python provenance evidence
+
+The [Python expansion](../../../tooling/mise-experiment/results/production-broker-python-linux.json)
+passes 22 cases, including real CPython 3.12.9 installation and frozen execution.
+The backend verifies the independently locked archive digest and genuine GitHub
+artifact attestations. Sigstore's signed trust metadata is fetched from its
+public TUF repository by the **actual host broker**, through an approved source
+route. The worker remains offline. Response identities and digests are included
+in the evidence; metadata is validated against the verifier's embedded trust
+root, not trusted merely because the broker delivered it.
+
+A second installation receives the same valid archive and a bundle whose DSSE
+signature has been modified. It fails with `DSSE signature verification failed:
+no valid signatures found`. Neither the upstream attestation setting nor the
+cryptographic verifier was disabled. Existing upstream URL replacements route
+both GitHub API and TUF requests; the bridge now preserves query strings needed
+by the attestation API while the production broker still authorizes each URL.
+
+The [first Python attempt](../../../tooling/mise-experiment/results/production-broker-python-cache-initial.json)
+failed because Sigstore attempted to create its cache under the worker's
+read-only home. The passing run supplies an explicit scratch home/cache. This is
+an integration requirement for verification helpers in a read-only worker, not a
+reason to weaken verification or make the root filesystem writable.
+
+### Aqua registry evidence
+
+The [Aqua expansion](../../../tooling/mise-experiment/results/production-broker-aqua-linux.json)
+passes 23 cases. Mise's real `aqua:jqlang/jq` backend installs the official jq
+1.7.1 Linux binary through the broker, then executes its version command and a
+JSON expression without further acquisition or lock changes. The backend uses
+the registry snapshot baked into the pinned mise source; its metadata names
+`aquaproj/aqua-registry` commit `de88b84179743a8f44ad9f279a9dc4522e25f371`.
+This covers one Aqua package and platform, not every registry verification mode.
+The [initial jq test](../../../tooling/mise-experiment/results/production-broker-aqua-initial.json)
+installed successfully but failed on an invalid test expression. Parenthesizing
+the arithmetic corrected the harness; no backend code was changed for that fix.
 
 ### Outbound-path inventory started
 
@@ -140,7 +178,7 @@ qualification rather than inheriting the Node result:
 | --- | --- | --- |
 | Core Go | Version listing invokes `git ls-remote`; installation constructs a mirror URL and fetches its `.sha256` companion | Mediate Git metadata and checksum acquisition, not only an archive override |
 | Core Java | Even a locked archive URL is followed by a Java-metadata lookup for installation layout | Supply approved metadata as well as archive bytes |
-| Core Python | Precompiled installation has lock-integrity and provenance-verification branches | Preserve the selected verification strength and deny uncaptured helper/provenance downloads |
-| Aqua registry | Pending inventory | Pin registry/tool metadata and qualify release/checksum/verification paths |
-| Script/plugin backend | Pending inventory | Pin real plugin code; contain its own clients and child processes |
+| Core Python | Precompiled installation has lock-integrity and provenance-verification branches | Genuine and invalid attestations exercised through the broker; version discovery remains open |
+| Aqua registry | Registry is baked into the pinned source from `aquaproj/aqua-registry` commit `de88b84179743a8f44ad9f279a9dc4522e25f371`; locked asset names are checked against that registry | Real jq acquisition and frozen execution pass; other verification modes remain open |
+| Script/plugin backend | `asdf-community/asdf-golang` at `a75b761963d8e6eda1a185c73476da8a75b8d300` invokes curl against a hard-coded HTTPS archive/checksum URL; mise's asdf backend explicitly delegates downloads to scripts | Pin plugin code separately; test native-client containment and binding to the Oyzu distribution digest |
 | Native package-manager backend | Pending inventory | Capture dependency resolution and lifecycle downloads through approved routes |

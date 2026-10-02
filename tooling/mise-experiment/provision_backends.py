@@ -56,6 +56,47 @@ def main():
                              size=java_archive.stat().st_size, locked_version="temurin-8.0.442+6",
                              metadata_url=java_metadata_url,
                              metadata_sha256=hashlib.sha256(java_metadata).hexdigest())
+    python_name = "cpython-3.12.9+20250317-x86_64-unknown-linux-gnu-install_only.tar.gz"
+    python_url = "https://github.com/astral-sh/python-build-standalone/releases/download/20250317/" + python_name
+    python_archive = destination / python_name
+    checksum = subprocess.check_output(["curl", "--fail", "--silent", "--show-error", "--location",
+                                        python_url + ".sha256"], text=True).strip()
+    assert len(checksum) == 64 and all(c in "0123456789abcdef" for c in checksum)
+    if not python_archive.exists():
+        temporary = python_archive.with_suffix(".partial")
+        subprocess.run(["curl", "--fail", "--silent", "--show-error", "--location",
+                        python_url, "--output", str(temporary)], check=True)
+        temporary.replace(python_archive)
+    with python_archive.open("rb") as content:
+        assert hashlib.file_digest(content, "sha256").hexdigest() == checksum
+    attestation_url = "https://api.github.com/repos/astral-sh/python-build-standalone/attestations/sha256:" + checksum
+    attestations = destination / "python-attestations.json"
+    subprocess.run(["curl", "--fail", "--silent", "--show-error", "--location", attestation_url,
+                    "--output", str(attestations)], check=True)
+    assert json.loads(attestations.read_bytes())["attestations"]
+    inventory["python"] = dict(filename=python_name, version="3.12.9", url=python_url,
+                               sha256=checksum, size=python_archive.stat().st_size,
+                               attestation_url=attestation_url,
+                               attestation_sha256=hashlib.sha256(attestations.read_bytes()).hexdigest())
+    jq_url = "https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64"
+    jq_checksums = subprocess.check_output(["curl", "--fail", "--silent", "--show-error", "--location",
+                                           jq_url.rsplit("/", 1)[0] + "/sha256sum.txt"])
+    jq_digest = next(line.split()[0] for line in jq_checksums.decode().splitlines()
+                     if line.split()[-1] == "jq-linux-amd64")
+    jq_archive = destination / "jq-linux-amd64"
+    if not jq_archive.exists():
+        subprocess.run(["curl", "--fail", "--silent", "--show-error", "--location",
+                        jq_url, "--output", str(jq_archive)], check=True)
+    with jq_archive.open("rb") as content:
+        assert hashlib.file_digest(content, "sha256").hexdigest() == jq_digest
+    (destination / "jq-sha256sum.txt").write_bytes(jq_checksums)
+    jq_release = subprocess.check_output(["curl", "--fail", "--silent", "--show-error", "--location",
+                                          "https://api.github.com/repos/jqlang/jq/releases/tags/jq-1.7.1"])
+    (destination / "jq-release.json").write_bytes(jq_release)
+    inventory["jq"] = dict(filename=jq_archive.name, version="1.7.1", url=jq_url,
+                           sha256=jq_digest, size=jq_archive.stat().st_size,
+                           release_sha256=hashlib.sha256(jq_release).hexdigest(),
+                           checksums_sha256=hashlib.sha256(jq_checksums).hexdigest())
     (destination / "inventory-linux-x64.json").write_text(json.dumps(inventory, indent=2))
     print(json.dumps(inventory, indent=2))
 

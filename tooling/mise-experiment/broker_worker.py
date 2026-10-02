@@ -19,11 +19,16 @@ def main():
     project = Path("/workspace/project")
     project.mkdir()
     (project / "oyzu.toml").write_text('[tools]\nnode = "22"\n')
-    environment = dict(os.environ, OYZU_SPIKE_STATE="/tmp/mise-state", OYZU_SPIKE_ROUTE=bridge + "/node")
+    Path("/tmp/qualification-home").mkdir()
+    environment = dict(os.environ, HOME="/tmp/qualification-home", XDG_CACHE_HOME="/tmp/qualification-cache",
+                       OYZU_SPIKE_STATE="/tmp/mise-state", OYZU_SPIKE_ROUTE=bridge + "/node")
     results = []
 
     def case(name, fn):
-        detail = fn()
+        try:
+            detail = fn()
+        finally:
+            Path("/out/bridge-requests.json").write_text(json.dumps(server.responses, indent=2))
         results.append({"case": name, "status": "passed", "detail": detail})
         Path("/out/worker-results.json").write_text(json.dumps(results, indent=2))
 
@@ -186,6 +191,78 @@ def main():
         finally:
             project, environment = previous_project, previous_environment
     case("broker-core-java-frozen-install-exec", java_install)
+
+    def python_install(invalid=False):
+        nonlocal project, environment
+        previous_project, previous_environment = project, environment
+        project = Path("/workspace/python-invalid" if invalid else "/workspace/python-project")
+        project.mkdir()
+        python = config["python"]
+        version = python["version"]
+        (project / "oyzu.toml").write_text('[tools]\npython = ' + json.dumps(version) + '\n')
+        lock = original_lock.decode().replace('core:node', 'core:python').replace('request = "22"', 'request = ' + json.dumps(version))
+        lock = lock.replace('22.14.0', version).replace(config["sha256"], python["sha256"])
+        node_size = tomllib.loads(original_lock.decode())["tool"][0]["distribution"][0]["size"]
+        lock = lock.replace(f'size = {node_size}', f'size = {python["size"]}').replace('node-fixture', 'python-fixture')
+        (project / "oyzu.lock").write_text(lock)
+        artifacts = project / "artifact-routes.json"
+        artifacts.write_text(json.dumps({"python-fixture:sha256:" + python["sha256"]: bridge + "/python/" + python["filename"]}))
+        shutil.rmtree("/tmp/mise-python" if invalid else "/tmp/mise-java")
+        api_route = "/python/invalid-api" if invalid else "/python/api"
+        environment = dict(previous_environment, OYZU_SPIKE_STATE="/tmp/mise-python",
+                           OYZU_SPIKE_ROUTE=bridge + "/python", OYZU_SPIKE_ARTIFACTS=str(artifacts),
+                           OYZU_SPIKE_URL_REPLACEMENTS=json.dumps({"https://api.github.com": bridge + api_route,
+                               "https://tuf-repo-cdn.sigstore.dev": bridge + "/tuf"}))
+        try:
+            if invalid:
+                result = subprocess.run([binary, "install"], cwd=project, env=environment,
+                                        capture_output=True, text=True, timeout=240)
+                assert result.returncode != 0, "invalid signature was accepted"
+                assert "attestation" in result.stderr.lower(), result.stderr
+                assert (project / "oyzu.lock").read_text() == lock
+                return {"exit": result.returncode, "diagnostic": result.stderr.strip()}
+            call("install")
+            before = len(server.requests)
+            assert call("exec", "--", "python", "--version") == "Python 3.12.9"
+            assert len(server.requests) == before
+            assert (project / "oyzu.lock").read_text() == lock
+            assert any("/python/api/" in request for request in server.requests)
+            return "real CPython archive and GitHub attestations through broker; verification enabled; frozen execution verified"
+        finally:
+            project, environment = previous_project, previous_environment
+    case("broker-core-python-provenance-install-exec", python_install)
+    case("broker-core-python-invalid-attestation-denied", lambda: python_install(True))
+
+    def aqua_install():
+        nonlocal project, environment
+        previous_project, previous_environment = project, environment
+        project = Path("/workspace/jq-project")
+        project.mkdir()
+        jq = config["jq"]
+        (project / "oyzu.toml").write_text('[tools]\njq = "1.7.1"\n')
+        lock = original_lock.decode().replace('core:node', 'aqua:jqlang/jq').replace('request = "22"', 'request = "1.7.1"')
+        lock = lock.replace('22.14.0', '1.7.1').replace(config["sha256"], jq["sha256"])
+        node_size = tomllib.loads(original_lock.decode())["tool"][0]["distribution"][0]["size"]
+        lock = lock.replace(f'size = {node_size}', f'size = {jq["size"]}').replace('node-fixture', 'jq-fixture')
+        (project / "oyzu.lock").write_text(lock)
+        artifacts = project / "artifact-routes.json"
+        artifacts.write_text(json.dumps({"jq-fixture:sha256:" + jq["sha256"]: bridge + "/jq/jq-linux-amd64"}))
+        environment = dict(previous_environment, OYZU_SPIKE_STATE="/tmp/mise-jq",
+                           OYZU_SPIKE_ROUTE=bridge + "/jq", OYZU_SPIKE_ARTIFACTS=str(artifacts),
+                           OYZU_SPIKE_BACKENDS=json.dumps({"jq": "aqua:jqlang/jq"}),
+                           OYZU_SPIKE_URL_REPLACEMENTS=json.dumps({"https://api.github.com": bridge + "/jq/api",
+                               "https://github.com/jqlang/jq/releases/download": bridge + "/jq/release"}))
+        try:
+            call("install")
+            before = len(server.requests)
+            assert call("exec", "--", "jq", "--version") == "jq-1.7.1"
+            assert call("exec", "--", "jq", "-n", "{answer: (6 * 7)}") == '{\n  "answer": 42\n}'
+            assert len(server.requests) == before
+            assert (project / "oyzu.lock").read_text() == lock
+            return "real aqua:jqlang/jq backend with baked pinned registry; broker acquisition and frozen execution"
+        finally:
+            project, environment = previous_project, previous_environment
+    case("broker-aqua-jq-install-exec", aqua_install)
 
     def credential_error():
         info, body = fetch(config["origin"] + "approved/node/error")
