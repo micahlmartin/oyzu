@@ -91,8 +91,11 @@ pub(crate) fn execute(command: &Command, directory: &Path, options: &Options) ->
         } = command
         {
             Some(if *json_value {
-                serde_json::from_str(value)
-                    .map_err(|_| anyhow::anyhow!("CONFIG_INVALID_VALUE: malformed JSON value"))?
+                super::policy::strict_json(value.as_bytes()).map_err(|_| {
+                    anyhow::anyhow!(
+                        "CONFIG_INVALID_VALUE: malformed, duplicate-key or oversized JSON value"
+                    )
+                })?
             } else {
                 let def = registry
                     .definition(key)

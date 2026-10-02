@@ -254,3 +254,37 @@ fn configured_task_color_is_presentation_only_and_json_stays_plain() {
         digest = Some(current);
     }
 }
+
+#[test]
+fn structured_edits_reject_duplicate_keys_and_excessive_depth_without_writing() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path();
+    let original = "# preserve exactly\n[build]\njobs = 2\n";
+    fs::write(root.join("oyzu.toml"), original).unwrap();
+    let nested = format!("{}0{}", "{\"nested\":".repeat(34), "}".repeat(34));
+    for input in [
+        r#"{"argv":["first"],"argv":["private-supplied-value"]}"#,
+        r#"{"argv":["example"],"env":{"TOKEN":"first","TOKEN":"private-supplied-value"}}"#,
+        &nested,
+    ] {
+        let result = run(
+            root,
+            &[
+                "config",
+                "set",
+                "tasks.example",
+                input,
+                "--json-value",
+                "--project",
+            ],
+        );
+        assert!(!result.status.success());
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(error.contains("CONFIG_INVALID_VALUE"), "{error}");
+        assert!(!error.contains("private-supplied-value"));
+        assert_eq!(
+            fs::read_to_string(root.join("oyzu.toml")).unwrap(),
+            original
+        );
+    }
+}
