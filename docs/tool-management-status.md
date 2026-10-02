@@ -630,3 +630,19 @@ all eight scenarios pass; 20 compliance tests ran with one Windows symlink skip,
 and the notice inventory remains consistent. Native Windows/macOS verification
 is pending. This does not establish archive layout, cryptographic verification,
 installation or Java execution parity.
+
+## Checkpoint 70: ZIP reuse boundary inspection
+
+The maintained fork uses `zip` 8.6.0. Its cached original manifest declares MIT
+and Rust 1.88, and its original MIT copyright/permission notice is present. No
+source or dependency was imported into Oyzu. Source inspection found that
+`read/zip_archive.rs` builds an IndexMap keyed by raw filename, collapsing duplicate
+central-directory entries, and allocates the metadata vector before caller entry
+limits can run. `read/stream.rs` stops central-directory visitation on a parsing
+error. Neither high-level entry count nor successful streaming visitation alone
+proves the OEP's duplicate, metadata-bound and malformed-directory obligations.
+
+This changes the planned ZIP integration: add bounded metadata validation before
+using the decoder, with duplicate/local-central consistency fixtures and real
+Windows archive parity. ZIP remains unsupported; no library or licensing approval
+is inferred from this inspection.

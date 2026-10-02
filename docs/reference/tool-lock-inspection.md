@@ -426,3 +426,19 @@ A checked-in golden identity and per-field mutation tests verify identity bindin
 formatting differences do not change it. Compiled descriptor admission, provenance
 validation, source licensing approval and compatibility remain separate unimplemented
 gates. A self-consistent malicious descriptor can pass inspection.
+
+### ZIP implementation constraint
+
+ZIP is still rejected. Inspection of the maintained fork's `zip` 8.6.0 dependency
+found that its high-level archive reader builds a filename-indexed map that
+collapses duplicate names, after allocating central-directory metadata. Checking
+only `ZipArchive::len()` and then applying Oyzu path checks would therefore miss
+duplicate records and apply resource limits too late. Its streaming visitor also
+ends central-directory parsing on an error, so successful visitation alone does
+not establish a valid complete directory.
+
+ZIP implementation must validate bounded central-directory metadata, duplicate
+records and local/central consistency before publication, while retaining verified
+blob identity, anchored extraction, portable paths, expansion limits and CRC/error
+propagation. Do not substitute the library's convenience extraction method for
+these store guarantees. No ZIP dependency or support is introduced by this finding.
