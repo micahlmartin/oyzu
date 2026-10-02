@@ -10,13 +10,13 @@ Link the tracking issue and OEP, if applicable.
 
 For code changes, name the owning subsystem and any interface or shared-behavior change. Briefly identify the AI tool used and how the generated change was directed and reviewed. Full prompts or chat logs are not required. See CONTRIBUTING.md for the AI-built workflow and current license status.
 
-Review prompts (answer only where relevant): Does an existing subsystem already own this behavior? Does a new trait represent a real extension boundary? Can the change stay within the adapter and its registration, or does a shared contract need to evolve? Are unsupported capabilities explicit rather than successful no-ops? Check the [boundary review examples](../docs/code-organization.md#review-boundaries-in-practice); passing tests does not establish correct ownership.
+Keep this proportional to the change. Address these questions where relevant:
 
-For a new subsystem, link its module-level responsibility comment and code-map entry so reviewers can see its entry points and the responsibilities it delegates.
+- **Ownership:** Which subsystem owns the rule, and what existing behavior is reused? For a new subsystem, link its responsibility comment and code-map entry.
+- **Boundary:** Which contract changes, and which implementations and consumers are affected? Explain why any new abstraction is needed; shared extractions should remove superseded copies.
+- **Evidence:** Which observable behavior and failure cases verify the change? Report the actual checks below, including native integration and platform coverage where applicable.
 
-For a shared contract change, identify the affected implementations and consumers and how their common obligations were verified. Check the [extension decision guide](../docs/code-organization.md#placing-a-new-extension) when deciding where new behavior belongs.
-
-For shared-code extraction, name the common invariant and its owner, confirm affected callers use it, and remove superseded copies. Keep native differences in their adapters; see [reuse guidance](../docs/code-organization.md#extracting-shared-behavior).
+Use the [engineering guide](../docs/code-organization.md#review-boundaries-in-practice) for detailed review examples. Routine fixes do not require a new design document or an answer to every architectural question.
 
 ## Validation
 
