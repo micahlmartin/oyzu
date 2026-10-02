@@ -12,6 +12,9 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert plan == invoke(project, 'build', '--plan'), 'Helm plans are not repeatable'
     invoke(project, 'build')
     manifest = validate(project/'dist')
+    assert any(r['kind']=='test' and r['summary']['passed']==1 for r in manifest['reports'])
+    assert not any(r['kind']=='coverage' for r in manifest['reports'])
+    assert manifest['targets'][0]['extensions']['oyzu.dev/coverage-applicability']['status']=='inapplicable'
     assert source_files(project) == before
     invoke(project, 'inspect', 'dist')
     artifact = next(a for a in manifest['artifacts'] if a['name']=='chart')
@@ -51,6 +54,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     failed = validate(project/'dist')
     assert not failed['artifacts']
     assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+    assert any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
     assert source_files(project) == before
     verified.append('Helm: native stale lock rejection and invalid values fail without publishing artifacts or editing source')
 
@@ -60,7 +64,9 @@ def verify(root, base, invoke, validate, source_files, verified):
     invoke(library, 'build')
     manifest = validate(library/'dist')
     assert len(manifest['artifacts']) == 1
-    assert not any(a['id']=='project:test' for a in manifest['actions'])
+    assert next(a for a in manifest['actions'] if a['id']=='project:test')['status']=='succeeded'
+    assert any(r['kind']=='test' and r['summary']['passed']==1 for r in manifest['reports'])
+    assert manifest['targets'][0]['extensions']['oyzu.dev/coverage-applicability']['status']=='inapplicable'
     assert next(a for a in manifest['actions'] if a['id']=='project:lint')['status']=='succeeded'
     artifact = manifest['artifacts'][0]
     with tarfile.open(library/'dist'/artifact['path']) as archive:
@@ -69,4 +75,11 @@ def verify(root, base, invoke, validate, source_files, verified):
         assert chart['version'] == artifact['version']
         assert 'labels/templates/_helpers.tpl' in archive.getnames()
     assert source_files(library) == before
-    verified.append('Helm library chart is inferred, linted and packaged without treating it as an installable application')
+    verified.append('Helm application and library charts retain native validation JUnit and explicit coverage inapplicability without cluster execution')
+
+    # Replacing the test body cannot erase the builder-owned JUnit obligation.
+    (library/'oyzu.toml').write_text('[tasks."project:test"]\nargv=["sh","-c","true"]\n')
+    invoke(library, 'build', success=False)
+    failed = validate(library/'dist')
+    assert not failed['artifacts']
+    assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'

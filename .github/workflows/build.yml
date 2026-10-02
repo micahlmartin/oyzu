@@ -165,6 +165,7 @@ jobs:
           .ci-python/bin/python tooling/test-python-adapter.py
           .ci-python/bin/python tooling/test-python-reporting.py
           .ci-python/bin/python tooling/test-helm-archive.py
+          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/helm:3.22.0 tooling/test-helm-reporting.py
           .ci-python/bin/python tooling/test-ant-adapter.py
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/maven:3.9.11-jdk17 tooling/test-maven-metadata.py --maven-home /opt/maven --java-home /opt/java/openjdk
           docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/gradle:8.14.3-jdk17 tooling/test-gradle-metadata.py --gradle-home /opt/gradle-8.14.3 --java-home /opt/java/openjdk
