@@ -176,7 +176,44 @@ Windows/macOS jobs were still finishing evidence/cache steps when inspected.
 This qualifies those checks for the catalog-source correction, not the later
 catalog-file binding or the full installation/backend matrix.
 
-### Target metadata
+### Real metadata replay qualification
+
+From the Oyzu checkout, Python 3.11+ can provision public metadata fixtures:
+
+```text
+python tooling/mise-upstream/capture_go_metadata.py --version 1.24.13 --version 1.25.0 --output /outside/repository/go-metadata.json
+```
+
+Use a native absolute path outside the repository whose parent exists. Output must
+not already exist. The helper fetches the official release catalog and each exact
+target checksum sidecar over HTTPS, checks identity/hash agreement and retains
+original UTF-8 response bodies, byte sizes, SHA-256 values and six expected fields
+per version/target. It accepts one to sixteen unique canonical numeric versions;
+missing, unstable, ambiguous or contradictory records fail without fallback.
+Catalog responses are bounded to 16 MiB, sidecars to 128 bytes and release file
+lists to 4,096 entries. Network reads use a 30-second socket timeout, not a global
+operation deadline. This host provisioning helper uses Python's normal HTTPS/proxy
+configuration; it is not the isolated product broker. No archive is downloaded.
+Acquisition failures create no output; a write failure removes the newly created
+partial file. Rerun with another output path after resolving the failure.
+
+In the fork checkout, set `OYZU_GO_METADATA_FIXTURE` to the captured file and run
+the library conformance command described above. The example adds a fresh-process
+`go-real-metadata` scenario, checks captured byte hashes and compares exact version,
+target, URL, declared size/hash and catalog digest. Only captured URLs are served;
+network fallback is absent. The parent bounds fixtures to 32 MiB and copies them
+into private worker state without forwarding the environment variable. Without
+the variable, the ordinary synthetic conformance suite remains unchanged.
+
+Go 1.24.13 and 1.25.0 for all three initial targets passed Linux Rust 1.95 replay
+with Docker `--network none`, alongside twenty-two existing scenarios. A changed
+expected size produced a failing replay. Provisioning tests, Clippy, formatting and
+compliance inventory checks passed. This qualifies real metadata interpretation,
+not archive content, publisher signatures, installation, native Go execution or
+legal approval. Native Windows/macOS replay remains pending. Retain the fixture
+outside the checkout; a later catalog capture can have a different digest.
+
+### Target metadata API
 
 The fork exposes async `session.go_archive_metadata("1.24.13", target)`.
 It requires Go session admission, an exact canonical stable version and one of the

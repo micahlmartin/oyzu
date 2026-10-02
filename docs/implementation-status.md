@@ -1039,3 +1039,21 @@ This supersedes checkpoint 87's pending native runtime checks. It does not apply
 to checkpoint 88's later target-file binding at `0d58ad7c1`; its run 36991065278
 was independently confirmed live and still preparing native jobs. Production
 installation, source approval and the remaining OEP gates stay outstanding.
+
+## Mise integration checkpoint 90: real Go metadata captured and replayed offline
+
+The first-party fixture provisioner captured official metadata for Go 1.24.13 and
+1.25.0 on Linux amd64 GNU, Darwin arm64 and Windows amd64 MSVC: six expected archive
+records and seven exact response bodies. The fork's optional fresh-worker replay
+passed all six cases and the twenty-two existing scenarios on Linux Rust 1.95 with
+Docker networking disabled. A changed expected size failed the actual library-result
+comparison. No Go archive was downloaded or executed.
+
+The capture's 2,527,192-byte fixture is retained outside the repository; its hash,
+source, case identities and limitations are recorded in
+[the replay evidence index](proposals/OEP-0003-mise-integration/go-metadata-replay-evidence.json).
+Eight upstream-tooling tests, strict library/example Clippy, formatting, compliance
+inventory/tests and documentation checks passed. The maintenance reference and code
+map describe the independent fixture oracle and optional fork replay. Native replay,
+archive/layout qualification, licensing approval and production wiring remain
+outstanding. Fixture capture/replay does not complete TM-06 or the OEP.

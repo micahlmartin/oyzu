@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "scope": "real-go-metadata-replay-evidence",
+  "captured_at": "2026-10-02T09:42:34.580328+00:00",
+  "fixture_sha256": "sha256:f893aed8cc719b14e4770bc6130f7680bb5bdca42bf6966138c2741dd80c01f4",
+  "fixture_bytes": 2527192,
+  "catalog_source": "https://go.dev/dl/?mode=json&include=all",
+  "host": "Linux container / Windows host",
+  "rust": "1.95.0",
+  "network_during_replay": "Docker --network none",
+  "result": "six real target cases passed; changed expected size rejected",
+  "expected": [
+    {
+      "version": "1.24.13",
+      "target": "linux/amd64/gnu",
+      "archive_url": "https://dl.google.com/go/go1.24.13.linux-amd64.tar.gz",
+      "declared_size": 78709986,
+      "declared_sha256": "sha256:1fc94b57134d51669c72173ad5d49fd62afb0f1db9bf3f798fd98ee423f8d730",
+      "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+    },
+    {
+      "version": "1.24.13",
+      "target": "darwin/arm64/native",
+      "archive_url": "https://dl.google.com/go/go1.24.13.darwin-arm64.tar.gz",
+      "declared_size": 76442495,
+      "declared_sha256": "sha256:f282d882c3353485e2fc6c634606d85caf36e855167d59b996dbeae19fa7629a",
+      "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+    },
+    {
+      "version": "1.24.13",
+      "target": "windows/amd64/msvc",
+      "archive_url": "https://dl.google.com/go/go1.24.13.windows-amd64.zip",
+      "declared_size": 87295983,
+      "declared_sha256": "sha256:40b16bc8f00540a2cb02dff4de72b73e966fdd8d65f95e33d8e4080b48a2459a",
+      "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+    },
+    {
+      "version": "1.25.0",
+      "target": "linux/amd64/gnu",
+      "archive_url": "https://dl.google.com/go/go1.25.0.linux-amd64.tar.gz",
+      "declared_size": 59659213,
+      "declared_sha256": "sha256:2852af0cb20a13139b3448992e69b868e50ed0f8a1e5940ee1de9e19a123b613",
+      "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+    },
+    {
+      "version": "1.25.0",
+      "target": "darwin/arm64/native",
+      "archive_url": "https://dl.google.com/go/go1.25.0.darwin-arm64.tar.gz",
+      "declared_size": 57906112,
+      "declared_sha256": "sha256:544932844156d8172f7a28f77f2ac9c15a23046698b6243f633b0a0b00c0749c",
+      "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+    },
+    {
+      "version": "1.25.0",
+      "target": "windows/amd64/msvc",
+      "archive_url": "https://dl.google.com/go/go1.25.0.windows-amd64.zip",
+      "declared_size": 67418204,
+      "declared_sha256": "sha256:89efb4f9b30812eee083cc1770fdd2913c14d301064f6454851428f9707d190b",
+      "catalog_sha256": "sha256:1ed915f72633d0a72eaa2f462740153db4fe347cb56f7d1e25ec44868568f13e"
+    }
+  ],
+  "legal_approval": false,
+  "release_ready": false,
+  "limitations": [
+    "Full fixture retained outside repository; index does not reconstruct its bytes",
+    "No archives downloaded or executed",
+    "Not signature verification, source admission or full backend qualification",
+    "Native Windows/macOS replay not yet performed"
+  ],
+  "replay_implementation_revision": "29ed9c2ae484adb2ef7d81545ebedebc724e44fc"
+}
