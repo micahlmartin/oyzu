@@ -1,6 +1,6 @@
 //! Receipt/content matching. A match is not backend admission or authorization.
 use super::{
-    access::{self, Directory},
+    access::{self, Directory, Kind},
     tree::{self, TreeEntry},
 };
 use crate::tools::lock::{self, Lock, Verification};
@@ -78,23 +78,44 @@ pub(in crate::tools) fn verify(
     platform: &str,
     installer: &str,
 ) -> Result<String> {
+    let root = Directory::open(store)?.child("installs")?;
+    verify_with(lock, scope, profile, platform, installer, |key| {
+        root.child(&key[7..])
+    })
+}
+
+pub(super) fn verify_with(
+    lock: &Lock,
+    scope: &str,
+    profile: &str,
+    platform: &str,
+    installer: &str,
+    directory: impl Fn(&str) -> Result<Directory>,
+) -> Result<String> {
     lock::digest(installer)?;
     let selection = lock
         .selections
         .iter()
         .find(|s| s.scope == scope && s.profile == profile && s.platform == platform)
         .context("locked selection is unavailable")?;
-    let root = Directory::open(store)?.child("installs")?;
     let mut records = BTreeMap::new();
     let mut total_entries = 0usize;
     let mut total_bytes = 0u64;
     for (key, installation_key) in &selection.installation_keys {
-        let directory = root.child(
-            installation_key
-                .strip_prefix("sha256:")
-                .context("invalid installation key")?,
-        )?;
+        let directory = directory(installation_key)?;
+        ensure!(
+            directory.entries()?
+                == vec![
+                    ("payload".into(), Kind::Directory),
+                    ("receipt.json".into(), Kind::File)
+                ],
+            "installation directory contains unexpected or redirected entries"
+        );
         let file = directory.file("receipt.json")?;
+        ensure!(
+            access::identity(&file)?.links == 1,
+            "receipt has external hardlinks"
+        );
         let mut bytes = Vec::new();
         file.take(2 * 1024 * 1024 + 1).read_to_end(&mut bytes)?;
         let value = crate::config::policy::strict_json_limit(&bytes, 2 * 1024 * 1024)?;

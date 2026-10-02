@@ -11,6 +11,26 @@ struct Fixture {
     installer: String,
 }
 impl Fixture {
+    fn stage(&self) -> PathBuf {
+        let staging = self._temp.path().join("staging");
+        fs::create_dir(&staging).unwrap();
+        fs::rename(self.store.join("installs"), staging.join("installs")).unwrap();
+        staging
+    }
+    fn lease(
+        &self,
+        staging: Option<&std::path::Path>,
+    ) -> anyhow::Result<oyzu::tools::InstallationLease> {
+        oyzu::tools::lease_installation_selection(
+            &self.lock,
+            &self.store,
+            staging,
+            ".",
+            "default",
+            self.platform,
+            &self.installer,
+        )
+    }
     fn new() -> Self {
         let temp = tempfile::tempdir().unwrap();
         let store = temp.path().join("store");
@@ -256,5 +276,211 @@ fn dependency_payload_is_rehashed_even_when_parent_is_unchanged() {
     .unwrap();
     assert!(fixture.verify().is_ok());
     fs::write(child.join("payload/bin/node"), b"changed dependency only").unwrap();
+    assert!(fixture.verify().is_err());
+}
+
+#[test]
+fn publishes_whole_directory_then_retains_os_lease_without_changing_lock() {
+    let fixture = Fixture::new();
+    let original = fs::read(&fixture.lock).unwrap();
+    let staging = fixture.stage();
+    assert!(fixture.lease(None).is_err());
+    let lease = fixture.lease(Some(&staging)).unwrap();
+    assert_eq!(lease.selection_digest, fixture.verify().unwrap());
+    assert_eq!(fs::read(&fixture.lock).unwrap(), original);
+    let key = fixture.receipt["installation_key"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("sha256:")
+        .unwrap();
+    assert!(!staging.join("installs").join(key).exists());
+    let guard = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(fixture.store.join("locks").join(format!("{key}.lease")))
+        .unwrap();
+    assert!(matches!(
+        guard.try_lock(),
+        Err(std::fs::TryLockError::WouldBlock)
+    ));
+    let second = fixture.lease(None).unwrap();
+    drop(lease);
+    assert!(matches!(
+        guard.try_lock(),
+        Err(std::fs::TryLockError::WouldBlock)
+    ));
+    drop(second);
+    guard.try_lock().unwrap();
+}
+
+#[test]
+fn invalid_staging_never_publishes_and_corrupt_committed_content_is_not_replaced() {
+    let fixture = Fixture::new();
+    let staging = fixture.stage();
+    let key = fixture.receipt["installation_key"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("sha256:")
+        .unwrap();
+    let candidate = staging.join("installs").join(key);
+    fs::write(candidate.join("payload/bin/node"), b"bad staging").unwrap();
+    assert!(fixture.lease(Some(&staging)).is_err());
+    assert!(!fixture.install.exists());
+    assert!(candidate.exists());
+    fs::write(
+        candidate.join("payload/bin/node"),
+        b"not executed by this fixture",
+    )
+    .unwrap();
+    drop(fixture.lease(Some(&staging)).unwrap());
+    fs::write(fixture.install.join("payload/bin/node"), b"bad committed").unwrap();
+    assert!(fixture.lease(Some(&staging)).is_err());
+    assert_eq!(
+        fs::read(fixture.install.join("payload/bin/node")).unwrap(),
+        b"bad committed"
+    );
+}
+
+#[test]
+#[ignore = "child fixture invoked by cross-process publication test"]
+fn publication_child() {
+    let store = PathBuf::from(std::env::var_os("OYZU_TEST_STORE").unwrap());
+    let lock = PathBuf::from(std::env::var_os("OYZU_TEST_LOCK").unwrap());
+    let staging = PathBuf::from(std::env::var_os("OYZU_TEST_STAGING").unwrap());
+    let platform = std::env::var("OYZU_TEST_PLATFORM").unwrap();
+    let installer = std::env::var("OYZU_TEST_INSTALLER").unwrap();
+    let _lease = oyzu::tools::lease_installation_selection(
+        &lock,
+        &store,
+        Some(&staging),
+        ".",
+        "default",
+        &platform,
+        &installer,
+    )
+    .unwrap();
+    if let Some(ready) = std::env::var_os("OYZU_TEST_READY") {
+        fs::write(ready, b"lease held").unwrap();
+        loop {
+            std::thread::park();
+        }
+    }
+}
+
+#[test]
+fn separate_publishers_reuse_one_commit_and_process_exit_releases_leases() {
+    use std::process::{Command, Stdio};
+    let fixture = Fixture::new();
+    let staging = fixture.stage();
+    let spawn = || {
+        Command::new(std::env::current_exe().unwrap())
+            .args(["--ignored", "--exact", "publication_child", "--nocapture"])
+            .env("OYZU_TEST_STORE", &fixture.store)
+            .env("OYZU_TEST_LOCK", &fixture.lock)
+            .env("OYZU_TEST_STAGING", &staging)
+            .env("OYZU_TEST_PLATFORM", fixture.platform)
+            .env("OYZU_TEST_INSTALLER", &fixture.installer)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap()
+    };
+    let first = spawn();
+    let second = spawn();
+    for child in [first, second] {
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    assert_eq!(
+        fs::read_dir(fixture.store.join("installs"))
+            .unwrap()
+            .count(),
+        1
+    );
+    assert!(fixture.verify().is_ok());
+    let key = fixture.receipt["installation_key"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("sha256:")
+        .unwrap();
+    let guard = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(fixture.store.join("locks").join(format!("{key}.lease")))
+        .unwrap();
+    guard.try_lock().unwrap();
+}
+
+#[test]
+fn terminated_owner_releases_kernel_lease_and_retains_valid_commit() {
+    use std::{
+        process::{Command, Stdio},
+        time::{Duration, Instant},
+    };
+    let fixture = Fixture::new();
+    let staging = fixture.stage();
+    let ready = fixture._temp.path().join("ready");
+    let mut child = Command::new(std::env::current_exe().unwrap())
+        .args(["--ignored", "--exact", "publication_child", "--nocapture"])
+        .env("OYZU_TEST_STORE", &fixture.store)
+        .env("OYZU_TEST_LOCK", &fixture.lock)
+        .env("OYZU_TEST_STAGING", &staging)
+        .env("OYZU_TEST_PLATFORM", fixture.platform)
+        .env("OYZU_TEST_INSTALLER", &fixture.installer)
+        .env("OYZU_TEST_READY", &ready)
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while !ready.exists() {
+        if Instant::now() > deadline || child.try_wait().unwrap().is_some() {
+            let _ = child.kill();
+            let output = child.wait_with_output().unwrap();
+            panic!(
+                "lease owner did not become ready: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let key = fixture.receipt["installation_key"]
+        .as_str()
+        .unwrap()
+        .strip_prefix("sha256:")
+        .unwrap();
+    let guard = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(fixture.store.join("locks").join(format!("{key}.lease")))
+        .unwrap();
+    let blocked = matches!(guard.try_lock(), Err(std::fs::TryLockError::WouldBlock));
+    child.kill().unwrap();
+    child.wait().unwrap();
+    assert!(blocked);
+    guard.try_lock().unwrap();
+    assert!(fixture.verify().is_ok());
+}
+
+#[test]
+fn rejects_extra_installation_files_and_linked_receipts() {
+    let fixture = Fixture::new();
+    fs::write(
+        fixture.install.join("unexpected"),
+        b"not part of the installation",
+    )
+    .unwrap();
+    assert!(fixture.verify().is_err());
+    fs::remove_file(fixture.install.join("unexpected")).unwrap();
+    fs::hard_link(
+        fixture.install.join("receipt.json"),
+        fixture._temp.path().join("external-receipt"),
+    )
+    .unwrap();
     assert!(fixture.verify().is_err());
 }

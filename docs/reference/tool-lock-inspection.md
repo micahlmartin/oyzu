@@ -100,7 +100,7 @@ verification also fail. Limits cannot be raised by project input.
 a malicious same-user writer. The scanner reads all bytes and uses no mtime-only
 cache, but a trusted receipt comparison, healthy monitor or private managed
 materialization is still required at the selection/execution boundary. Those
-receipt/publication operations are not implemented yet.
+admitted-selection and private managed-execution operations remain unfinished.
 
 ## Archive materialization foundation
 
@@ -178,4 +178,45 @@ This verifies receipt/content binding, not receipt authenticity or compatibility
 with an admitted layout plan. A caller must separately check backend/layout
 admission, verification evidence, policy, leases and current authority before
 using the data. A self-consistent altered receipt and tree is not an authorized
-installation. Publication and lease management remain separate unfinished work.
+installation. The initial publication/OS-lease operation is described below;
+admission, lifecycle integration and recovery remain separate unfinished work.
+
+## Publication and OS lease foundation
+
+`tools::lease_installation_selection` accepts the same exact selection and
+installer identity plus optional staging. The caller must provision trusted,
+private, physical store/staging roots and complete policy and backend/layout
+admission first. The library does not choose an application state root, grant
+authorization or turn arbitrary supplied receipts into approved installations.
+Staging uses `installs/<installation-key-hex>/{receipt.json,payload/}`. Extra root
+entries, redirected objects and hardlinked receipts fail.
+
+Mutation locks live permanently under `locks/<key-hex>` and are acquired in
+lexical order. All selected existing/candidate receipts and payloads are checked
+before any new member is published. Regular files and receipts are flushed;
+Unix also syncs directories. Linux uses `renameat2(RENAME_NOREPLACE)`, macOS uses
+`renameatx_np(RENAME_EXCL)`, and Windows uses a write-through `MoveFileExW` without
+replacement or cross-volume copying. Failure never deletes an existing install.
+Windows directory fsync is unavailable; missing/damaged state after a crash must
+still fail subsequent verification. macOS execution of this new native path
+remains pending qualification.
+
+Publication is atomic per installation, not across the whole closure. An error
+after an earlier member committed may leave valid unreferenced entries; the
+source lock is never edited. Failed or unused staging is retained for explicit
+recovery. Existing valid entries are reused, while corrupt entries fail without
+automatic replacement, quarantine or public download fallback.
+
+Shared OS lease locks under `locks/<key-hex>.lease` are acquired before mutation
+locks are released. The returned `InstallationLease` must remain alive until the
+whole consumer action ends. Both lock kinds use a bounded 30-second contention
+deadline. Lock files are never removed/replaced during ordinary operation.
+Prune must acquire mutation first, then try an exclusive lease; this protocol
+has not yet been connected to a prune command. Process exit releases kernel locks.
+
+This is a cooperative-store foundation. Durable lease/session JSON records,
+operation owner/start-time journals, workspace reference tracking, crash recovery,
+quarantine, prune, shell-session retention and supervised child-tree lifetime
+integration remain outstanding. A lease alone neither prevents same-user file
+tampering nor kills descendants when a supervisor dies. The complete MISE-05
+fault-injection and power-loss matrix is not yet satisfied.

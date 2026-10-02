@@ -16,6 +16,76 @@ pub(in crate::tools::store) struct Directory {
 }
 
 impl Directory {
+    pub fn lock_file(&self, name: &str) -> Result<File> {
+        component(name)?;
+        let name = native_name(name)?;
+        let fd = unsafe {
+            libc::openat(
+                self.handle.as_raw_fd(),
+                name.as_ptr(),
+                libc::O_RDWR
+                    | libc::O_CREAT
+                    | libc::O_NOFOLLOW
+                    | libc::O_NONBLOCK
+                    | libc::O_CLOEXEC,
+                0o600,
+            )
+        };
+        let file = owned(fd)?;
+        ensure!(
+            file.metadata()?.is_file() && file.metadata()?.nlink() == 1,
+            "store lock must be a regular file without other links"
+        );
+        Ok(file)
+    }
+
+    pub fn sync_file(&self, name: &str) -> Result<()> {
+        self.file(name)?.sync_all()?;
+        Ok(())
+    }
+    pub fn sync(&self) -> Result<()> {
+        self.handle.sync_all()?;
+        Ok(())
+    }
+
+    pub fn publish(&self, name: &str, destination: &Self, target: &str) -> Result<()> {
+        component(name)?;
+        component(target)?;
+        let name = native_name(name)?;
+        let target = native_name(target)?;
+        #[cfg(target_os = "linux")]
+        let result = unsafe {
+            libc::renameat2(
+                self.handle.as_raw_fd(),
+                name.as_ptr(),
+                destination.handle.as_raw_fd(),
+                target.as_ptr(),
+                libc::RENAME_NOREPLACE,
+            )
+        };
+        #[cfg(target_os = "macos")]
+        let result = unsafe {
+            libc::renameatx_np(
+                self.handle.as_raw_fd(),
+                name.as_ptr(),
+                destination.handle.as_raw_fd(),
+                target.as_ptr(),
+                libc::RENAME_EXCL,
+            )
+        };
+        #[cfg(not(any(target_os = "linux", target_os = "macos")))]
+        anyhow::bail!("atomic no-replace store publication is unsupported on this host");
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        ensure!(
+            result == 0,
+            "atomic store publication failed: {}",
+            io::Error::last_os_error()
+        );
+        destination.sync()?;
+        self.sync()?;
+        Ok(())
+    }
+
     pub fn duplicate(&self) -> Result<Self> {
         Ok(Self {
             handle: self.handle.try_clone()?,

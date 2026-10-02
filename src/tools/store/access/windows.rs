@@ -22,6 +22,76 @@ pub(in crate::tools::store) struct Directory {
 }
 
 impl Directory {
+    pub fn lock_file(&self, name: &str) -> Result<File> {
+        component(name)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(self.path.join(name))?;
+        ensure!(
+            file.metadata()?.is_file()
+                && file.metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0
+                && identity(&file)?.links == 1,
+            "store lock must be a regular file without links"
+        );
+        Ok(file)
+    }
+
+    pub fn sync_file(&self, name: &str) -> Result<()> {
+        component(name)?;
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT)
+            .open(self.path.join(name))?;
+        ensure!(
+            file.metadata()?.is_file()
+                && file.metadata()?.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT == 0,
+            "cannot sync redirected payload file"
+        );
+        file.sync_all()?;
+        Ok(())
+    }
+    // Windows has no portable directory fsync; publication requests write-through
+    // and all regular payload/receipt files are flushed before moving.
+    pub fn sync(&self) -> Result<()> {
+        Ok(())
+    }
+
+    pub fn publish(&self, name: &str, destination: &Self, target: &str) -> Result<()> {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Storage::FileSystem::{MoveFileExW, MOVEFILE_WRITE_THROUGH};
+        component(name)?;
+        component(target)?;
+        let from: Vec<u16> = self
+            .path
+            .join(name)
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
+        let to: Vec<u16> = destination
+            .path
+            .join(target)
+            .as_os_str()
+            .encode_wide()
+            .chain(Some(0))
+            .collect();
+        // No REPLACE_EXISTING or COPY_ALLOWED: collisions and cross-volume moves fail.
+        let result = unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), MOVEFILE_WRITE_THROUGH) };
+        ensure!(
+            result != 0,
+            "atomic store publication failed: {}",
+            std::io::Error::last_os_error()
+        );
+        Ok(())
+    }
+
     pub fn duplicate(&self) -> Result<Self> {
         Ok(Self {
             path: self.path.clone(),

@@ -2,6 +2,7 @@
 //! execution authority; backend admission and receipt validation are separate.
 mod lock;
 mod store;
+pub use store::InstallationLease;
 pub use store::{TreeEntry, TreeInspection};
 
 use anyhow::{ensure, Context, Result};
@@ -103,6 +104,37 @@ pub fn verify_installation_selection(
     store::verify(
         &lock,
         &std::path::absolute(store)?,
+        scope,
+        profile,
+        platform,
+        installer,
+    )
+}
+
+/// Verify an exact closure, optionally publish missing members from an owned
+/// staging store, and retain OS leases. Caller must separately admit the layout,
+/// backend and authorization. Staging has installs/<key-hex>/{receipt.json,payload}.
+/// No existing installation is overwritten. A partial publication failure leaves
+/// only individually committed, unreferenced entries; it never edits the lock.
+pub fn lease_installation_selection(
+    lock_path: &Path,
+    store: &Path,
+    staging: Option<&Path>,
+    scope: &str,
+    profile: &str,
+    platform: &str,
+    installer: &str,
+) -> Result<InstallationLease> {
+    let mut bytes = Vec::new();
+    File::open(lock_path)?
+        .take(lock::MAX_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)?;
+    let lock = lock::parse(&bytes)?;
+    let staging = staging.map(std::path::absolute).transpose()?;
+    store::transact(
+        &lock,
+        &std::path::absolute(store)?,
+        staging.as_deref(),
         scope,
         profile,
         platform,

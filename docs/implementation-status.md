@@ -814,3 +814,37 @@ in [run 36966809734](https://github.com/oyzuai/mise/actions/runs/36966809734).
 Windows and macOS had passed the library Clippy step and were running the
 conformance step when inspected. Those pending results are not inferred passes.
 The compliance review gate still awaits the owner's recorded decision.
+
+## Checkpoint 42: atomic installation publication and cooperative leases
+
+TM-04 now publishes verified candidate installations through native no-replace
+directory moves, after validating the entire selected closure. Permanent,
+lexically ordered per-installation OS mutation locks serialize publishers;
+shared kernel leases are acquired before releasing those locks. Existing
+committed content is rehashed and never overwritten, including corrupt entries.
+Receipts must be single-link regular files and installation roots contain only
+the payload and receipt. Publication is atomic per installation, not across an
+entire closure. The [store contract](reference/tool-lock-inspection.md#publication-and-os-lease-foundation)
+states platform durability limits and caller responsibilities.
+
+Windows GNU and Linux Docker Rust 1.94 passed all 11 receipt/publication tests
+(plus one ignored child fixture invoked by the process tests), including two
+separate publishers, shared lease contention, forced owner termination, invalid
+staging and rejection of linked receipts. The native no-replace unit test passed
+on both hosts. The full Windows suite, strict all-target Clippy and all nine
+compiled CLI task scenarios passed during this increment; the final additional
+receipt cases were then rerun on both hosts with strict Clippy. Formatting and
+documentation structure checks passed. macOS publication is not yet qualified.
+
+This is a library foundation, not a working install or execution flow. Operation
+journals, recovery, workspace/session references, pruning, backend layout
+admission, receipt authoring and supervised child-tree lifetime integration are
+still outstanding. A lease establishes cooperative liveness, not authorization
+or protection from another process running as the same user.
+
+Fork [run 36967923522](https://github.com/oyzuai/mise/actions/runs/36967923522)
+passed Linux library/conformance checks. macOS failed because the cleared child
+environment acquired `__CF_USER_TEXT_ENCODING`; the diagnostic prints variable
+names only. A macOS-specific exception is being validated. Windows remained
+pending when inspected. These results do not establish native qualification or
+licensing approval; @micahlmartin owns both technical and licensing decisions.
