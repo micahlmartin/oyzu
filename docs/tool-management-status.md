@@ -523,3 +523,21 @@ and requires rejection instead of a partial inventory. All 20 compliance tests
 ran on Windows (one symlink skip); the dependency/notice inventory is unchanged
 and consistent. Native evidence collection remains pending, and no license
 disposition or release approval has changed.
+
+## Checkpoint 63: three-target candidate evidence and cache provisioning
+
+Local offline collection at fork `bb3ba5b25` reports Linux 955, Darwin ARM64
+952 and Windows MSVC 975 candidate packages. The Linux-mounted Windows checkout
+is reported modified; these reports are exploratory, not clean-release evidence.
+A separately downloaded Linux CI artifact from run `36975506849` binds clean
+merge revision `b7914105eb84460a64bee20ca13784fed603e10d`, contains 955
+packages, and has SHA-256
+`3277f4125d6d0e05b8929cdc4132088bba2b2301d68af9f8c675f69dbbbdcf1f`.
+It reports 98 packages without collector-recognized notice files; source-level
+review remains necessary. No license expression has been approved or selected.
+
+Target-specific `cargo fetch` missed GNU support packages needed by Windows
+metadata collection. Fork `76192a7eb` provisions the exact metadata query and
+feature set before offline collection instead. Local Windows collection then
+succeeded. Compliance tests pass (19 passed, one Windows symlink skip), notices
+remain consistent, and the updated CI matrix is pending.
