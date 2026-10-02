@@ -58,13 +58,19 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     }
     super::quality::discover(target);
     if manager == "npm" && value.get("workspaces").is_some() {
-        for name in ["build", "format:check"] {
-            super::super::unavailable(
+        if !target.tasks.contains_key("build") {
+            insert(
                 target,
-                name,
-                "Captured npm workspace operation; direct development integration remains pending",
+                "build",
+                &["npm", "run", "build", "--workspaces"],
+                true,
             );
         }
+        super::super::unavailable(
+            target,
+            "format:check",
+            "Captured npm workspace operation; direct development integration remains pending",
+        );
     }
     Ok(())
 }

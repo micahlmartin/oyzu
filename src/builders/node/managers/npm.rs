@@ -10,6 +10,12 @@ use anyhow::{bail, Result};
 
 pub(super) struct Npm;
 impl Manager for Npm {
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        workspace::development_command(task)
+    }
     fn workspace_plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         workspace::plan(context)
     }

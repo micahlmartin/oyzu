@@ -17,6 +17,7 @@ The intended Oyzu interface is:
 oyzu build
 ```
 
+`oyzu run list` also exposes an implicit `build` task. After installing the project's native dependencies, `oyzu run build` invokes declared member build scripts in dependency order when no root build script exists. Members without a build script are reported as having no requested compilation. This development task does not package snapshot artifacts; `oyzu build` owns the captured build and dist bundle.
 
 No build YAML is required for this scenario. Configuration, where present, demonstrates only the feature under discussion.
 

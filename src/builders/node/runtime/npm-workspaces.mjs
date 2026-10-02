@@ -5,14 +5,14 @@ import {nativeRequire} from './npm-native.mjs';
 
 export async function members(workspace, packageJson) {
   if (packageJson.workspaces == null) return [];
-  if (packageJson.private !== true && (!nativeRequire('semver').valid(packageJson.version) ||
-      typeof packageJson.name !== 'string' || !nativeRequire('validate-npm-package-name')(packageJson.name).validForNewPackages)) {
-    throw new Error('Publishable npm workspace root requires a valid native name/version');
-  }
   const patterns = Array.isArray(packageJson.workspaces) ? packageJson.workspaces : packageJson.workspaces?.packages;
   if (!Array.isArray(patterns) || patterns.some(p => typeof p !== 'string' || !p ||
       p.includes('..') || /[\\:]/.test(p) || p.replace(/^!/, '').startsWith('/') || p.split('/').includes('node_modules'))) {
     throw new Error('npm workspace patterns must stay within captured source');
+  }
+  if (packageJson.private !== true && (!nativeRequire('semver').valid(packageJson.version) ||
+      typeof packageJson.name !== 'string' || !nativeRequire('validate-npm-package-name')(packageJson.name).validForNewPackages)) {
+    throw new Error('Publishable npm workspace root requires a valid native name/version');
   }
   const root = realpathSync(workspace);
   const mapping = await nativeRequire('@npmcli/map-workspaces')({cwd: root, pkg: packageJson});

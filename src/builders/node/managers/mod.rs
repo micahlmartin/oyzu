@@ -18,6 +18,14 @@ pub(super) trait Manager: Sync {
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>>;
     fn configure(&self, context: &PlanningContext<'_>, plan: &mut BuilderPlan) -> Result<()>;
     fn package(&self, target: &str, filename: &str) -> CommandSpec;
+    /// Resolve owned native invocation only for explicit development execution.
+    /// None leaves the discovered command unchanged; errors must propagate.
+    fn development_command(
+        &self,
+        _task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        Ok(None)
+    }
     /// Translate captured native workspace facts into intent without executing
     /// tools. Return an explicit unsupported error until the manager owns its
     /// module/version/report semantics; never silently pack only the root.

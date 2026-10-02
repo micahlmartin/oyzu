@@ -83,6 +83,8 @@ def main():
         root_package = project/'package.json'
         root_package.write_text(json.dumps({'workspaces':['../outside']}))
         assert 'must stay within captured source' in execute('acquire', output, project, False).stderr
+        root_package.write_text(json.dumps({'name':'public-root','version':'invalid','workspaces':['packages/*']}))
+        assert 'requires a valid native name/version' in execute('acquire', output, project, False).stderr
     print('Native npm workspaces: stable module/edge capture, private flags, offline link replay, native tests, lifecycle isolation and stale/escaping input rejection passed')
 
 

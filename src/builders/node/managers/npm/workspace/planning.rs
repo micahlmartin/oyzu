@@ -10,7 +10,7 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
-fn ordered(metadata: &Metadata) -> Result<Vec<&Member>> {
+pub(super) fn ordered(metadata: &Metadata) -> Result<Vec<&Member>> {
     let mut pending: BTreeMap<_, _> = metadata
         .members
         .iter()

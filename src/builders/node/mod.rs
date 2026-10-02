@@ -87,6 +87,11 @@ impl Builder for Node {
         &self,
         task: &Task,
     ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        if let Ok(manager) = managers::get(&task.provider) {
+            if let Some(command) = manager.development_command(task)? {
+                return Ok(Some(command));
+            }
+        }
         Ok(quality::development(task))
     }
     fn descriptor(&self) -> Descriptor {
