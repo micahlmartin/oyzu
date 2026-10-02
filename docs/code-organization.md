@@ -84,6 +84,23 @@ When behavior is genuinely shared, move it to a named owner with a narrow contra
 
 ## A small change workflow
 
+### Review boundaries in practice
+
+Use these examples when reviewing generated changes. They describe ownership rules, not additional runtime features or a requirement to split every subsystem into a crate.
+
+| Proposed change | Boundary to preserve |
+| --- | --- |
+| A builder interprets local overrides independently | Configuration owns precedence and validation; the builder consumes resolved settings |
+| A detector launches a package manager to decide what a project contains | Static detection produces evidence from supplied inputs; permitted native execution belongs to an explicit effectful operation |
+| A new framework adds its own pre/post hook runner | The framework declares its task; the task engine owns hook ordering and failure propagation |
+| A scheduler branches on a particular framework or package manager | The adapter declares typed intent through the shared contract; registration selects implementations |
+| Two builders independently collect and validate the same report format | Reuse the report owner; keep framework-specific command construction in each adapter |
+| A shared function gains flags for unrelated ecosystem exceptions | Check whether the semantics are actually shared; keep native differences in owned adapters |
+
+A review should be able to identify the rule's owner, the contract crossing each changed boundary and the evidence that verifies it. Correct new violations within the change. Record unrelated existing debt as a bounded follow-up with its owner; do not expand a small contribution into an architectural rewrite. This is a short review habit, not a separate approval process or mandatory design document.
+
+### Make the change
+
 1. Locate the owner in this map and read its implementation, tests and relevant OEP/example. State the observable outcome before generating the change.
 2. Add or extend the smallest necessary contract. For a new detector, return evidence and let the resolver decide; for a builder, declare work and let shared execution/collection enforce it. See the [builder extension guide](builder-code-organization.md) and [detector contract](proposals/OEP-0006-discovery-and-planning/detectors.md).
 3. Keep implementation, ecosystem runtime assets and focused tests near their owner. Use `tests/` for public operation interactions, `tooling/` for repository validation/native conformance, and `examples/` for authored product contracts. Production behavior belongs in the library or owned runtime adapters, not in the acceptance harness.
@@ -97,7 +114,7 @@ For a new subsystem, a short module-level responsibility/invariant comment, a na
 These sources inform our engineering choices; their contribution policies are not Oyzu's AI-authorship policy.
 
 - [rust-analyzer architecture](https://rust-analyzer.github.io/book/contributing/architecture.html) documents a code map, explicit API boundaries and architectural invariants. Oyzu adopts that clarity about ownership and permitted dependencies, without reproducing its crate count.
-- [uv's contribution guide](https://github.com/astral-sh/uv/blob/main/CONTRIBUTING.md#crate-structure) makes its crate dependency hierarchy inspectable. Oyzu likewise makes ownership and dependency direction visible in this map, starting with modules rather than adopting another project's crate layout.
+- [uv's contribution guide](https://docs.astral.sh/uv/reference/contributing/#crate-structure) makes its crate dependency hierarchy inspectable. Oyzu likewise makes ownership and dependency direction visible in this map, starting with modules rather than adopting another project's crate layout.
 - [Cargo's library architecture](https://doc.rust-lang.org/stable/nightly-rustc/src/cargo/lib.rs.html) separates command wrappers from reusable operations. Oyzu keeps presentation at its entry points so operations can serve CLI, CI and later agent/UI consumers.
 - [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/future-proofing.html) and [rust-analyzer's style guide](https://rust-analyzer.github.io/book/contributing/style.html) inform narrow visibility, invariant-preserving types and deliberate API commitments. Traits serve actual boundaries rather than becoming a universal abstraction layer.
 - [Bazel rules](https://bazel.build/extending/rules) distinguish analysis, declared actions and execution. Oyzu applies that separation to builder intent and shared execution while keeping project configuration minimal.
