@@ -723,3 +723,26 @@ replay, formatting, strict library/example Clippy and all 25 embedding scenarios
 pass, including invalid-input, catalog-only transport, offline and unadmitted
 Python cases. Native API results remain pending. The production Oyzu CLI does
 not yet expose this API and Python backend admission remains incomplete.
+
+### Experimental Python declared checksum API
+
+`Session::python_archive_metadata(version, target, locked_filename)` first performs
+the catalog lookup above, then fetches that selected release's `SHA256SUMS` through
+the supplied transport. It returns the catalog artifact, declared artifact SHA-256,
+checksum manifest URL and exact manifest-byte SHA-256. It shares the catalog API's
+version, target, admission and locked-filename rules.
+
+The checksum response is bounded to 8 MiB and parsed by the same strict parser as
+Node metadata, with at most 4,096 unique filenames. Invalid UTF-8, malformed entries,
+invalid digests, duplicate names and a missing selected filename fail. Transport
+failure does not produce partial metadata. Repeated calls can observe different
+catalog/checksum snapshots; returned hashes identify the inputs actually observed.
+Offline operation requires supplied transport to replay both inputs.
+
+No artifact is downloaded or executed. An unsigned checksum declaration does not
+authenticate its publisher, validate attestations or establish actual artifact
+integrity. Those acquisition and verification obligations remain with Oyzu. At fork revision
+`36e1b5a54d81badd5eea17391c60568755e4b9c9`, Linux formatting, strict
+library/example Clippy and all 28 embedding harness scenarios pass, including
+valid, duplicate and missing checksum cases. Native results remain pending.
+This API is not exposed by the production CLI.

@@ -2087,3 +2087,19 @@ skips. Native API CI is pending. No production mise import is introduced.
 This advances TM-03/TM-06 metadata handling, not Python version resolution,
 artifact checksum/attestation verification, installation or distribution approval.
 Documentation and diff checks pass. OEP-0003 remains in progress.
+
+## Checkpoint 144: Python declared checksum metadata
+
+Fork 36e1b5a54d81badd5eea17391c60568755e4b9c9 composes Python catalog
+selection with bounded release SHA256SUMS acquisition through supplied transport.
+The shared strict parser requires a unique checksum for the exact selected file;
+the result preserves both catalog and checksum snapshot identities. Linux passes
+formatting, strict library/example Clippy and all 28 harness scenarios, including
+valid, duplicate and missing checksums across all three initial target tuples.
+Compliance inventory remains consistent and 24 guard tests pass (two skips).
+Native validation remains pending. The maintenance reference defines the API and
+limits; documentation and diff checks pass.
+
+No artifact bytes, publisher attestation or installation are verified by these
+metadata scenarios. Version discovery, production worker/broker integration and
+shipping approval remain outstanding. Full OEP-0003 remains in progress.
