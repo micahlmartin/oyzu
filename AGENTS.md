@@ -9,7 +9,9 @@ Oyzu is a 100% AI-built project. All first-party implementation code, tests and 
 
 ## Implementation priority: prove the whole flow first
 
-Getting the proposed solution working end to end is the first priority for every implementation. Hardening comes afterward and has an explicitly bounded scope; it is not an open-ended prerequisite to demonstrating the feature.
+Getting the proposed solution working end to end is the first priority for every implementation. The primary purpose of implementing a proposal is to prove that its complete solution works through the product. Hardening comes afterward and has an explicitly bounded scope; it is not an open-ended prerequisite to demonstrating the feature.
+
+**Default next action: advance the earliest unproved part of the user flow.** Before the first end-to-end proof, a component refinement is in scope only when an observed blocker or an explicit functional or safety requirement makes it necessary for that proof. After the proof, close the agreed functional scenario gaps. Do not choose speculative edge cases merely because they are easier to test than connecting the remaining subsystems.
 
 **This delivery order takes precedence over exhaustive checklists or component-first sequences in older plans and proposals.** Before expanding a subsystem, connect it to the real user flow. An OEP's primary implementation milestone is evidence that its proposed solution works through the actual product, not completion of every defensive refinement it describes. Keep required functional and safety guarantees intact; classify later qualification separately rather than treating the entire proposal as one undifferentiated completion checklist.
 

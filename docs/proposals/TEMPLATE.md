@@ -38,7 +38,7 @@ Make the finish line concrete before implementation:
 - **Functional completion:** the finite set of required user scenarios, including failures essential to correct behavior.
 - **Deferred qualification:** additional hardening and its rationale, with no implied commitment to implement it in this milestone.
 
-For every follow-up, identify which missing or failing functional scenario it closes. Otherwise place it in deferred qualification. The detailed design sections below are not an instruction to exhaust every edge case before demonstrating the proposal.
+For every follow-up, identify which missing or failing functional scenario it closes. Otherwise place it in deferred qualification. Before the first proof, prioritize connecting the next missing part of the user flow over refining an already working component. The detailed design sections below are not an instruction to exhaust every edge case before demonstrating the proposal.
 
 ## Contracts and design
 

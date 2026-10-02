@@ -12,6 +12,8 @@ The detailed [build implementation work packages](build-implementation.md) refin
 
 ## Complete slices
 
+Follow the [implementation priority](../AGENTS.md#implementation-priority-prove-the-whole-flow-first): the first milestone of each slice is a real end-to-end demonstration of its proposed user outcome. Connect only the necessary portions of its subsystems to obtain that result, then complete the agreed functional scenarios. The sequence below is not a requirement to exhaust the internals or hardening of one subsystem before connecting the next.
+
 | Slice | User outcome | Designs | Initial example families |
 | --- | --- | --- | --- |
 | 1. Tools and environment | Install/lock tools; switch projects; run headlessly on three hosts | OEP-0002/0003/0004/0008 | EX-001–005, EX-046–047 |
@@ -40,6 +42,10 @@ Small PRs explain the resulting behavior and relevant validation. New configurat
 
 ## Graduation gates
 
-A slice is complete when meaningful acceptance tests pass, failure cases are covered, relevant OS behavior is demonstrated, secrets/provenance claims are accurate, and user reference matches implementation. Documentation checks alone never satisfy product tests.
+Functional implementation is complete when the agreed user scenarios and their end-to-end acceptance checks pass, required failure behavior and host coverage are demonstrated, and the user reference accurately describes the result and its limits. Record the real commands and resulting artifacts or other usable outputs. Documentation checks and isolated component tests alone never satisfy this milestone.
+
+Stop the implementation milestone at that point and present the working solution for maintainer evaluation. Additional compatibility, resilience, performance, reproducibility and defensive refinements belong to separately selected hardening work unless explicitly required for the functional milestone. Keep observed failures visible and explain their impact; do not weaken existing safety boundaries or required acceptance checks.
+
+Production graduation is a separate decision. Maintainers choose the required degree of hardening and its finite acceptance criteria after reviewing the demonstrated solution; a growing list of possible improvements must not keep functional implementation open indefinitely.
 
 A release declares exact supported builders/managers/hosts and known limitations. Future capabilities—remote execution, plugin distribution, hosted CI/CD, and a first-party registry—remain separate deliverables until proposals and examples establish their contracts.
