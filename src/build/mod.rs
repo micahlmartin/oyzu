@@ -1,5 +1,6 @@
 //! Captured-source build lifecycle (OEP-0006/0007/0012).
 mod bundle;
+mod containers;
 mod directory;
 mod execution;
 mod indices;
@@ -124,6 +125,18 @@ pub fn run_selected_with_options(
                 let target = &workspace.targets[id];
                 let builder = builders::get(&target.builder)?;
                 if let Some(config) = workspace.configuration.get(id) {
+                    if containers::requested(
+                        workspace
+                            .declarations
+                            .targets
+                            .get(id)
+                            .and_then(|d| d.container.as_ref()),
+                    )? {
+                        crate::config::enforcement::execution_preflight(
+                            config,
+                            builders::get("docker/image")?.descriptor().tools,
+                        )?;
+                    }
                     crate::config::enforcement::execution_preflight(
                         config,
                         builder.descriptor().tools,
@@ -167,6 +180,15 @@ pub fn run_selected_with_options(
             }
         }
         let mut plan = planning::compile(&workspace, &source, &resolved, &dependencies, &intents)?;
+        containers::augment(
+            &workspace,
+            &source,
+            &mut plan,
+            &mut resolved,
+            &mut dependencies,
+            temp.path(),
+            &run_id,
+        )?;
         indices::plan(&workspace, &variants, &mut plan)?;
         plan["extensions"]["oyzu.dev/selection"] = selection.record();
         manifest["extensions"]["oyzu.dev/selection"] = selection.record();

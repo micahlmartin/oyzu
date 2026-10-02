@@ -49,7 +49,8 @@ pub(super) fn target_order(
         }
     }
     for (id, c) in configs.iter().filter(|(id, _)| selected.contains(*id)) {
-        if !c.matrix.is_empty() || c.container.is_some() || c.bindings.is_some() {
+        super::containers::requested(c.container.as_ref())?;
+        if !c.matrix.is_empty() || c.bindings.is_some() {
             bail!("{id}: platform expansion and packaging options are not implemented yet");
         }
     }
@@ -74,7 +75,7 @@ pub(super) fn target_order(
     Ok(done)
 }
 
-fn action(
+pub(super) fn action(
     id: &str,
     target: &str,
     operation: &str,
@@ -115,6 +116,15 @@ pub(super) fn plan_with_dependencies(
     dependencies: &BTreeMap<String, dependencies::Prepared>,
 ) -> Result<Value> {
     verify_inventory_source(workspace, source)?;
+    if workspace.declarations.targets.values().any(|c| {
+        c.container
+            .as_ref()
+            .is_some_and(|v| v != &serde_yaml::Value::Bool(false))
+    }) {
+        bail!(
+            "container planning requires captured runtime inputs; use the captured build lifecycle"
+        );
+    }
     let mut intents = BTreeMap::new();
     for id in workspace.targets.keys() {
         intents.insert(

@@ -9,6 +9,7 @@ mod worker;
 use anyhow::{bail, Context, Result};
 pub(crate) use images::export_image;
 pub(crate) use mode::{ImageInput, Mode, Profile, BUILDKIT_SOURCE_DATE_EPOCH};
+pub(crate) use recipe::{Base as ImageBase, Copy as ImageCopy, Recipe as ImageRecipe};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{

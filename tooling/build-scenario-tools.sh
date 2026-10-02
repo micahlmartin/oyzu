@@ -71,7 +71,7 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/maven:3.9.11-jdk17 --file tooling/images/maven.Dockerfile .
     docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile .
   fi
-  if selected docker go; then
+  if selected docker go python; then
     docker pull alpine:3.22
     docker tag alpine:3.22 oyzu-fixture/alpine:amd64
     docker build --tag oyzu-toolchain/docker:buildkit0.25.0 --file tooling/images/docker-metadata.Dockerfile .

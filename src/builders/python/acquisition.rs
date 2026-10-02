@@ -99,7 +99,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         );
     }
     let metadata = records::read(&destination.join("packages.json"))?;
-    let mut extensions = json!({"oyzu.dev/python-runtime":{"roots":metadata["runtimeRoots"]}});
+    let mut extensions = json!({"oyzu.dev/python-runtime":{"roots":metadata["runtimeRoots"],"implementation":metadata["implementation"]}});
     if super::legacy::matches(root) {
         extensions["oyzu.dev/python-legacy"] = super::legacy::capture(&context, &helper)?;
     }

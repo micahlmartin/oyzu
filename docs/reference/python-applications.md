@@ -53,7 +53,7 @@ The archive requires pure Python wheels and zip-compatible code/data. Native ext
 
 Requirements-only applications continue using conventional `app.py` or `__main__.py` without invented distribution metadata and retain their existing `0.0.0-dev.g<source>` snapshot versions. Both application paths share archive writing, archive-source tests and packaging checks. No Oyzu test/output configuration is required.
 
-Dockerfile-free containers, pinned runtime base assembly and multi-platform application images remain unfinished. The `.pyz` is an application artifact, not a container; the optional container example remains a design contract.
+Optional [Dockerfile-free Python container assembly](python-containers.md) now consumes this exact tested archive through a captured CPython 3.12 profile. Its new native acceptance case remains pending CI. Runtime overrides, application-container matrices, image startup smoke tests and full profile/policy qualification remain unfinished.
 
 ## Verification
 

@@ -89,7 +89,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(a for a in failed['actions'] if a['id']=='frontend:test')['status']=='failed'
     assert any(r['target']=='frontend' and r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
     assert not any(a['id']=='image:build' and a['status']=='succeeded' for a in failed['actions'])
-    verified.append('Vite: captured dependencies, native config/plugin outputs and metadata, directory snapshot, JUnit/coverage, quality gates, flattened Docker input, repeatability, native outDir, tamper and failed-producer rejection; EX-050 matrix remains pending')
+    verified.append('Vite: captured dependencies, native config/plugin outputs and metadata, directory snapshot, JUnit/coverage, quality gates, flattened Docker input, repeatability, native outDir, tamper and failed-producer rejection; this group covers single-platform assembly; matrix qualification belongs to the Docker platform-execution group')
     verify_conventional(root, base, invoke, validate, source_files, verified)
 
 
@@ -100,7 +100,7 @@ def verify_conventional(root, base, invoke, validate, source_files, verified):
     format_sources(root, project/'frontend')
     before = source_files(project)
     # Exercise the authored producer with the image matrix still present, but
-    # not selected. Matrix expansion is separately required for full EX-050.
+    # not selected. The Docker platform-execution group checks the authored matrix.
     invoke(project, 'build', 'frontend')
     producer = validate(project/'dist')
     assert producer['status'] == 'succeeded' and source_files(project) == before
@@ -140,4 +140,4 @@ def verify_conventional(root, base, invoke, validate, source_files, verified):
     assert source_files(project) == before
     assert next(a for a in failed['actions'] if a['id'] == 'frontend:package')['status'] == 'failed'
     assert not any(a['id'] == 'image:build' and a['status'] == 'succeeded' for a in failed['actions'])
-    verified.append('EX-050 custom producer: explicit app default dist, snapshot directory, JUnit/coverage, native-platform Docker materialization, repeatability and missing-output failure; full platform matrix remains pending')
+    verified.append('EX-050 custom producer: explicit app default dist, snapshot directory, JUnit/coverage, native-platform Docker materialization, repeatability and missing-output failure; matrix qualification belongs to the Docker platform-execution group')

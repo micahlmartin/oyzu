@@ -2,7 +2,7 @@
 
 Apply the repository-wide [code organization rules](code-organization.md) alongside this ecosystem-specific guide.
 
-Dockerfile-free packaging is being implemented through a shared [container assembly boundary](container-assembly.md). Builders own runtime/ABI choices and successful application outputs; the executor owns the bounded generated definition and isolated worker. Do not introduce per-language Dockerfile writers or recompile the application during packaging. The `container: true` CLI integration remains unfinished.
+Dockerfile-free packaging uses a shared [container assembly boundary](container-assembly.md). `Builder::container_profile` supplies language-owned runtime/artifact requirements; `build/containers` composes acquisition and derived packaging actions, and the executor owns the bounded generated definition and isolated worker. Do not introduce per-language Dockerfile writers or recompile the application during packaging. The first Python profile is implemented with native acceptance pending; general profiles remain unfinished.
 
 Provisioned base-image capture and its native converter live under `dependencies/images` and `dependencies/runtime/images`. Docker owns parsing image requirements from Dockerfiles and consumes this shared acquisition contract. Application builders must use the same contract after configuration admission, while retaining their own language-runtime compatibility checks.
 

@@ -19,6 +19,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | [Node applications](node-applications.md) | Vite native outputs, explicit custom-app dist convention, versioned directory artifacts, Docker materialization, tasks/reports and current limits |
 | [Python testing](python-testing.md) | Native pytest collection, root/configured suites, manager commands, report preparation, no-tests outcomes and evidence limits |
 | [Python applications](python-applications.md) | Native-wheel console archives, runtime dependencies, snapshot artifacts, archive-source tests and format limits |
+| [Python containers](python-containers.md) | Experimental Dockerfile-free assembly from tested application archives, runtime capture, OCI outputs and current limits |
 | [Helm charts](helm.md) | Local chart dependencies, snapshot packaging, native unittest discovery, independent JUnit reports, baseline integrity and remaining limits |
 | [Go builds](go.md) | Native workspace tasks, applications, module snapshot zip/mod/info artifacts, projected local dependencies, reports and remaining limits |
 | [Rust builds](rust.md) | Captured crates.io inputs, Cargo workspaces, native feature-gated binary selection, compiler-message artifacts, snapshot crates and JUnit/coverage |

@@ -281,7 +281,7 @@ def inventory(purposes, roots, destination=Path('/out')):
         name = canonicalize_name(item.name)
         if purposes.get(name) == 'runtime' and (item.marker is None or item.marker.evaluate()):
             runtime_roots.add(packages[name]['id'])
-    (destination/'packages.json').write_text(json.dumps({'packages':list(packages.values()),'runtimeRoots':sorted(runtime_roots),'python':sys.version.split()[0],'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
+    (destination/'packages.json').write_text(json.dumps({'packages':list(packages.values()),'runtimeRoots':sorted(runtime_roots),'python':sys.version.split()[0],'implementation':sys.implementation.name,'pip':pip.__version__,'managerVersion':manager_version},sort_keys=True))
 
 
 def prepare():

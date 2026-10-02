@@ -110,6 +110,17 @@ pub(crate) trait Builder: Sync {
         &[]
     }
 
+    /// Runtime and exact already-packaged output for optional container assembly.
+    /// Returning None means this native profile is not supported. No I/O or
+    /// configuration resolution is permitted; preparation supplies native facts.
+    fn container_profile(
+        &self,
+        _target: &Target,
+        _prepared: Option<&Prepared>,
+    ) -> Result<Option<super::ContainerProfile>> {
+        Ok(None)
+    }
+
     /// Add native reporting to an exactly recognized replacement command. Unknown
     /// bodies stay unchanged and must satisfy the operation's report contract.
     /// This cannot replace or remove required reports, hooks or sandbox constraints.
