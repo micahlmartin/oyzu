@@ -19,7 +19,25 @@ oyzu build
 oyzu inspect dist
 ```
 
-Planning includes input preparation and therefore requires the provisioned images. `oyzu run build` remains a native development command; it does not provide this captured-build boundary. Supported executor inputs currently target the selected Linux toolchain's OS/architecture. Windows and macOS hosts require a suitable Linux Docker environment; native Windows images, emulation and platform matrices remain unfinished.
+Planning includes input preparation and therefore requires the provisioned images. `oyzu run build` remains a native development command; it does not provide this captured-build boundary. Windows and macOS hosts require a suitable Linux Docker environment; native Windows images, emulation and platform matrices remain unfinished.
+
+### Artifact target and worker platform
+
+An explicit target can differ from the BuildKit worker for image assembly that does not execute target code:
+
+```yaml
+image:
+  uses: docker/image
+  platform: linux/arm64
+```
+
+With a Dockerfile containing only `FROM scratch` and `COPY` operations, a provisioned amd64 worker can assemble this arm64 image. Supported explicit Docker targets are currently `linux/amd64` and `linux/arm64`. Omitted `platform` retains the selected worker's platform; this increment does not introduce a new global default. Use canonical names: aliases, architecture-variant suffixes and unsupported OS/architectures fail admission. No image or emulator is installed automatically.
+
+Preparation records the toolchain platform under `manager.platform` and the artifact target under `targetPlatform`. Plans retain tool/worker identity separately from target identity, pass the artifact target to BuildKit, and check that captured facts match the request and resolved toolchain. Base image inputs must match the artifact target. A locally provisioned base with the wrong architecture fails before export; a matching tag alone is insufficient. Materialized producers must also have the same artifact OS/architecture as their consumer. This change does not propagate a requested platform back to producers or establish platform independence.
+
+The native parser records required `targetExecution` evidence for any `RUN`, including commands in intermediate stages. Until suitable native/emulated executor admission is implemented, a Dockerfile with `RUN` requires matching worker and target platforms. A foreign-platform `RUN` fails preparation before application actions, even if the host happens to have an emulator. OCI integrity/platform assertions verify bytes and metadata; they do not execute the image or replace required application tests.
+
+Every OCI image is checked against its artifact target during default testing, collection and bundle inspection. A valid image for the wrong architecture cannot be retained as a successful output merely because its archive hash is valid. Snapshot artifacts, JUnit and lint/read-only-format gates otherwise retain their existing behavior. This is single-target assembly; multi-platform expansion, producer propagation and complete OCI indices remain unfinished.
 
 ## Capture, execution and evidence
 
@@ -31,7 +49,7 @@ Planning includes input preparation and therefore requires the provisioned image
 
 Inputs are recorded under `extensions.oyzu.dev/docker.images` in the target's `dist/dependencies/<target>.json`; `imageSource` identifies the current `provisioned-daemon` source. These identities also affect the dependency and build plan digests. The OCI manifest digest may differ from a registry's original manifest identity because a Docker save transport does not preserve every registry representation. The config identity and captured content are verified; no original registry provenance is invented.
 
-The same extension's `metadata.selection` records `targetPlatform` and `sourceDateEpoch`. Preparation supplies these facts to the native adapter, and planning rejects facts that differ from the selected executor. The export epoch has one owner in the executor contract and is used both during selection and native export; it is currently `315532800` (1980-01-01 UTC).
+The same extension's `metadata.selection` records `targetPlatform` and `sourceDateEpoch`. Preparation supplies these facts to the native adapter, and planning rejects facts that differ from the selected artifact target or export epoch. The export epoch has one owner in the executor contract and is used both during selection and native export; it is currently `315532800` (1980-01-01 UTC).
 
 Successful builds retain the versioned `<target>-<snapshot-version>.oci.tar` artifact and its OCI digest in `dist/manifest.json`, plus default integrity/platform JUnit and native quality results. Container integrity checks do not measure application code coverage; materialized producers retain their own test/coverage evidence. Snapshot versions still derive from source identity; changed base inputs change the plan/content digests even if that version string is unchanged.
 
@@ -49,11 +67,11 @@ RUN test -f /etc/alpine-release
 
 Only global declarations before the first `FROM` participate in base/platform selection. Defaults expand in declaration order using BuildKit's native quoting, escape and parameter-expansion rules. Later declarations with values replace earlier ones; declarations without a value retain an existing default. A missing value can use a native expression such as `${BASE:-alpine:3.22}`. An empty resolved base or explicit platform fails preparation. Stage-local arguments do not become global defaults, and host environment variables are never consulted.
 
-Captured metadata records resolved stage bases/platforms and image requirements; source identity still binds the original Dockerfile. An argument resolving to `scratch` or a prior stage does not create an external image dependency. Resolved platforms remain subject to the selected executor's platform constraint.
+Captured metadata records resolved stage bases/platforms and image requirements; source identity still binds the original Dockerfile. An argument resolving to `scratch` or a prior stage does not create an external image dependency. Resolved stage platforms must match the selected artifact target; mixed-platform stages remain unsupported.
 
 Automatic `TARGETPLATFORM`, `TARGETOS`, `TARGETOSVERSION`, `TARGETARCH` and `TARGETVARIANT` use the captured target platform, parsed by the same pinned containerd platform library used by BuildKit. `TARGETSTAGE` names the final stage, or `default` when it is unnamed. Global declarations retain native scope and can replace these defaults. For example, `ARG BASE=registry.example/runtime:${TARGETARCH}` selects a provisioned architecture-specific image without reading the host architecture.
 
-The executor supplies `SOURCE_DATE_EPOCH` as a build argument. A global declaration makes that value available to image selection and overrides any Dockerfile default for it. Without a global declaration, it is not part of global selection scope. A stage-local declaration can expose it to native `RUN` commands independently. These facts do not enable emulation or platform matrices; the image and selected execution platform must still match. Native lint/format policy continues to apply, including Hadolint's checks on explicit `FROM --platform` flags.
+The executor supplies `SOURCE_DATE_EPOCH` as a build argument. A global declaration makes that value available to image selection and overrides any Dockerfile default for it. Without a global declaration, it is not part of global selection scope. A stage-local declaration can expose it to native `RUN` commands independently. These facts do not enable emulation or platform matrices; `RUN` still requires matching target and worker platforms. Native lint/format policy continues to apply, including Hadolint's checks on explicit `FROM --platform` flags.
 
 Automatic worker arguments (`BUILDPLATFORM`, `BUILDOS`, `BUILDOSVERSION`, `BUILDARCH`, `BUILDVARIANT`) still require captured worker facts. References fail with a captured-argument integration diagnostic, including fallback expressions; the target platform is not assumed to describe the worker. Public build-argument overrides and stage-local mount expansion remain unfinished.
 
@@ -63,11 +81,13 @@ A missing image fails preparation with a provisioning diagnostic; there is no au
 
 There are at most 64 distinct image references, a 10 GiB transport/captured-tree limit and 100,000 transport entries per image. Transport inspection rejects traversal, duplicate member names and transport links without extracting layer files on the host. The offline adapter is also constrained by executor resource/time limits. Images using unsupported transport forms fail explicitly. Equivalent references such as `alpine:3.22` and `docker.io/library/alpine:3.22` share one BuildKit context when their captured manifest, config and store-tree identities agree. Both requested references remain in the evidence. Conflicting identities fail planning; reference order never chooses between different images.
 
-Rebuild custom Docker toolchain images for the current metadata adapter, which requires explicit target-platform and epoch arguments, and for `oyzu-docker-images`. Prepared dependency layout version 4 adds required selection facts to the image bindings introduced by version 3. Regenerate captures/plans made by older adapters; missing or mismatched selection facts cannot silently acquire new defaults. Scratch-only plans still work with an empty image list and explicit selection facts. No project-file migration is required.
+Rebuild custom Docker toolchain images for the current metadata adapter, which requires explicit target-platform and epoch arguments, and for `oyzu-docker-images`. Prepared dependency layout version 5 requires `targetExecution` metadata and distinguishes tool execution from artifact target facts. Older metadata without that field fails rather than assuming no target execution. Regenerate captures/plans made by older adapters; missing or mismatched selection facts cannot silently acquire new defaults. Scratch-only plans still work with an empty image list and explicit selection facts. No project-file migration is required.
 
 This is an explicitly provisioned image-input profile. Registry acquisition through approved connectors, managed source authorization, package dependencies inside images, secret brokerage, Dockerfile-free application packaging, caching and full platform matrices remain required work. The existence of an image in a local daemon is not an enterprise trust or release-eligibility assertion.
 
 ## Verification
+
+The new platform unit checks exercise arm64 image planning with an amd64 worker, mismatched capture rejection, native-only builder admission, materialization mismatch, and OCI inspection against target identity. The native parser checks target execution requirements without running project code. The Linux captured Docker suite now also requires actual arm64 OCI assembly from the EX-026 scratch fixture on an amd64 worker, JUnit/quality gates, unchanged sources, repeatable snapshot archives, and pre-action foreign `RUN` rejection. This new cross-target case is pending CI; earlier same-platform successes below do not prove it passed.
 
 Native image-adapter tests run from `src/builders/docker/runtime/images` with provisioned Go 1.24.13 and its checked-in module/checksum locks:
 

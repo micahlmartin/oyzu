@@ -177,6 +177,7 @@ pub(super) fn execute(
     mounts: &[super::Mount<'_>],
     mode: &Mode,
     materialized: &[String],
+    target_platform: &crate::platform::Platform,
 ) -> Result<Execution> {
     let Mode::Buildkit {
         output,
@@ -330,9 +331,7 @@ pub(super) fn execute(
         fs::write(request.stderr, [logs.stdout, logs.stderr].concat())?;
         return Err(error);
     }
-    let expected = mode
-        .argv(&format!("{}/{}", request.image.os, request.image.arch))
-        .unwrap();
+    let expected = mode.argv(&target_platform.to_string()).unwrap();
     if request.argv != expected {
         bail!("BuildKit command differs from its typed plan");
     }

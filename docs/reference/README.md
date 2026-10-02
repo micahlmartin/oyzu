@@ -23,7 +23,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | [Java quality](java-quality.md) | Shared native lint and read-only formatting defaults, explicit formatting, overrides and provisioning for Maven/Gradle/Ant |
 | [Maven builds](maven.md) | Native reactors, captured repositories, snapshot JAR/POM/WAR artifacts, effective Surefire/Failsafe report directories and coverage |
 | [Dockerfile quality](docker-quality.md) | Native lint/format defaults, read-only build gates, explicit formatting, ignored configuration preservation and toolchain prerequisites |
-| [Docker image inputs](docker-images.md) | Provisioned base capture, immutable OCI contexts, offline workers, input evidence, provisioning and remaining acquisition limits |
+| [Docker image inputs](docker-images.md) | Provisioned base capture, immutable OCI contexts, separate worker/artifact platforms, offline assembly, evidence and current limits |
 | [Builder acceptance checks](build-verification.md) | Suite selection, native tool provisioning, compiled-CLI CI ordering, retained evidence and verification limits |
 | [Directory artifacts](directory-artifacts.md) | Engine collection/inspection, complete inventories, verified materialization and remaining native-output/platform integration |
 | [Acquisition transport](acquisition-transport.md) | Scoped routes, credential isolation, bounded retries, sanitized failures and remaining queue/cancellation limits |

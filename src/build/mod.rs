@@ -138,11 +138,20 @@ pub fn run_selected_with_options(
                 let destination = temp.path().join(format!("dependencies-{id}"));
                 let execution_name = format!("oyzu-acquire-{run_id}-{id}");
                 let builder = builders::get(&target.builder)?;
+                let target_platform = builder.target_platform(
+                    workspace
+                        .declarations
+                        .targets
+                        .get(&id)
+                        .and_then(|c| c.platform.as_deref()),
+                    &resolved[&id],
+                )?;
                 if let Some(prepared) = builder.prepare(builders::PreparationContext {
                     configuration: workspace.configuration.get(&id),
                     target,
                     destination: &destination,
                     image: &resolved[&id],
+                    target_platform: &target_platform,
                     source_digest: &source.digest,
                     execution_name: &execution_name,
                 })? {

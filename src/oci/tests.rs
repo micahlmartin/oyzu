@@ -158,7 +158,7 @@ fn engine_image_assertions_record_integrity_platform_failures_and_refuse_stale_r
             reference: "fixture".into(),
             digest: format!("sha256:{}", "1".repeat(64)),
             os: "linux".into(),
-            arch: arch.into(),
+            arch: "arm64".into(),
         };
         let mode = crate::executor::Mode::OciValidation {
             input: "image.tar".into(),
@@ -181,6 +181,7 @@ fn engine_image_assertions_record_integrity_platform_failures_and_refuse_stale_r
             &[],
             &mode,
             &[],
+            &format!("linux/{arch}").parse().unwrap(),
         )
     };
     assert_eq!(verify("amd64", "passed.xml").unwrap().code, 0);
@@ -285,8 +286,17 @@ fn bundle_inspection_rejects_wrong_publication_identity_even_with_valid_archive_
     archive(&files, &path, false);
     fs::write(temp.path().join("envelope.json"), b"{}").unwrap();
     let mut manifest = json!({"kind":"build-manifest","status":"failed","envelopePath":"envelope.json","envelopeDigest":crate::snapshot::file_digest(&temp.path().join("envelope.json")).unwrap(),"artifacts":[{"kind":"oci-image","path":"image.tar","size":fs::metadata(&path).unwrap().len(),"digest":crate::snapshot::file_digest(&path).unwrap(),"ociDigest":root["digest"]}],"reports":[]});
+    manifest["targets"] = json!([{"id":"image", "platform":{"os":"linux", "arch":"amd64"}}]);
+    manifest["artifacts"][0]["target"] = json!("image");
     crate::records::write(&temp.path().join("manifest.json"), &manifest).unwrap();
     crate::build::inspect(temp.path()).unwrap();
+    manifest["targets"][0]["platform"]["arch"] = json!("arm64");
+    crate::records::write(&temp.path().join("manifest.json"), &manifest).unwrap();
+    assert!(crate::build::inspect(temp.path())
+        .unwrap_err()
+        .to_string()
+        .contains("image platform"));
+    manifest["targets"][0]["platform"]["arch"] = json!("amd64");
     manifest["artifacts"][0]["ociDigest"] = json!(format!("sha256:{}", "0".repeat(64)));
     crate::records::write(&temp.path().join("manifest.json"), &manifest).unwrap();
     assert!(crate::build::inspect(temp.path()).is_err());

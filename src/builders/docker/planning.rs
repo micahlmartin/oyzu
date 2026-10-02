@@ -50,6 +50,14 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             ],
         ),
     );
+    plan.target_platform = Some(serde_json::from_value(platform.clone())?);
+    plan.execution_platform = Some(serde_json::from_value(
+        dependency.record["manager"]["platform"].clone(),
+    )?);
+    metadata.validate_execution(
+        plan.execution_platform.as_ref().unwrap(),
+        plan.target_platform.as_ref().unwrap(),
+    )?;
     let mut selected = metadata.context.files.clone();
     selected.push("Dockerfile".into());
     if let Some(ignore_file) = &metadata.context.ignore_file {

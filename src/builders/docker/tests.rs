@@ -8,7 +8,7 @@ use serde_json::json;
 use std::fs;
 
 fn metadata() -> serde_json::Value {
-    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}})
+    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","targetExecution":false,"stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}})
 }
 
 #[test]
@@ -25,6 +25,9 @@ fn native_selection_facts_must_match_execution() {
     }
     let mut old = metadata();
     old.as_object_mut().unwrap().remove("selection");
+    assert!(serde_json::from_value::<super::metadata::Metadata>(old).is_err());
+    let mut old = metadata();
+    old.as_object_mut().unwrap().remove("targetExecution");
     assert!(serde_json::from_value::<super::metadata::Metadata>(old).is_err());
 }
 
@@ -68,7 +71,7 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
     let prepared = Prepared {
         root: capture.path().into(),
         digest: format!("sha256:{}", "1".repeat(64)),
-        record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
+        record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
     };
     let plan = Docker
         .plan(PlanningContext {
@@ -161,7 +164,7 @@ fn external_images_require_captured_bindings_and_use_native_offline_contexts() {
     let mut prepared = Prepared {
         root: control.path().into(),
         digest: format!("sha256:{}", "0".repeat(64)),
-        record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
+        record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
     };
     assert!(Docker
         .plan(PlanningContext {

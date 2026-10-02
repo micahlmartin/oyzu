@@ -28,6 +28,17 @@ impl Builder for Docker {
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/docker:buildkit0.25.0")
     }
+    fn target_platform(
+        &self,
+        requested: Option<&str>,
+        image: &crate::executor::Image,
+    ) -> Result<crate::platform::Platform> {
+        let target = crate::platform::Platform::requested(requested, &image.platform()?)?;
+        if target.os() != "linux" || !matches!(target.arch(), "amd64" | "arm64") {
+            anyhow::bail!("Docker target platform {target} is not supported; expected linux/amd64 or linux/arm64");
+        }
+        Ok(target)
+    }
     fn prepare(
         &self,
         context: PreparationContext<'_>,

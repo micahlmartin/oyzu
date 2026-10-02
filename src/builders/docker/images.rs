@@ -46,7 +46,8 @@ pub(super) fn capture(
             name: context.execution_name,
         };
         let archive = transport.join("image.tar");
-        let resolved = executor::export_image(reference, &archive, &request)?;
+        let resolved =
+            executor::export_image(reference, &archive, &request, context.target_platform)?;
         let store = format!("images/base-{index}");
         let argv = crate::builders::strings(&[
             "oyzu-docker-images",

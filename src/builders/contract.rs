@@ -2,6 +2,7 @@ use crate::{
     dependencies::Prepared,
     executor::{Image, Mode, Profile},
     model::{Target, Task},
+    platform::Platform,
     snapshot::Snapshot,
 };
 use anyhow::{bail, Result};
@@ -62,6 +63,18 @@ pub(crate) trait Builder: Sync {
         Ok(None)
     }
 
+    /// Admit an artifact target before preparation. The default requires native
+    /// execution; adapters with a real cross-target packaging capability opt in.
+    /// Admission does not establish that target application tests executed.
+    fn target_platform(&self, requested: Option<&str>, image: &Image) -> Result<Platform> {
+        let execution = image.platform()?;
+        let target = Platform::requested(requested, &execution)?;
+        if target != execution {
+            bail!("required platform {target} differs from execution platform {execution}; native target execution is required by this builder");
+        }
+        Ok(target)
+    }
+
     /// Select an already provisioned image for concrete runtime axes. Adapters
     /// admitting variants must verify the actual runtime during preparation;
     /// an image reference alone is not runtime-version evidence.
@@ -112,6 +125,7 @@ pub(crate) struct PreparationContext<'a> {
     pub target: &'a Target,
     pub destination: &'a Path,
     pub image: &'a Image,
+    pub target_platform: &'a Platform,
     pub source_digest: &'a str,
     pub execution_name: &'a str,
 }
@@ -130,6 +144,11 @@ pub(crate) struct RuntimeFile {
 /// Ecosystem intent. The engine expands hooks, adds constraints and serializes
 /// the wire contract; adapters cannot change scheduling or sandbox enforcement.
 pub(crate) struct BuilderPlan {
+    /// If preparation established a target, compilation must verify it against
+    /// the admitted request. This is evidence, not permission to change targets.
+    pub target_platform: Option<Platform>,
+    /// Captured native tool execution identity, when established by preparation.
+    pub execution_platform: Option<Platform>,
     pub version: String,
     pub env: BTreeMap<String, String>,
     /// Captured toolchain facts that task overrides cannot silently change.
@@ -194,6 +213,8 @@ impl BuilderPlan {
 
     pub fn new(version: String, package: CommandSpec) -> Self {
         Self {
+            target_platform: None,
+            execution_platform: None,
             env: BTreeMap::from([
                 ("HOME".into(), "/tmp/oyzu-home".into()),
                 ("CI".into(), "true".into()),

@@ -10,6 +10,7 @@ pub(super) struct Metadata {
     pub requirements: Vec<Requirement>,
     pub context: ContextFiles,
     pub selection: SelectionFacts,
+    pub target_execution: bool,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -44,6 +45,16 @@ pub(super) struct ContextFiles {
 }
 
 impl Metadata {
+    pub fn validate_execution(
+        &self,
+        execution: &crate::platform::Platform,
+        target: &crate::platform::Platform,
+    ) -> Result<()> {
+        if self.target_execution && execution != target {
+            bail!("Dockerfile RUN requires native target execution for {target}; worker is {execution}; emulation admission is not implemented");
+        }
+        Ok(())
+    }
     pub fn image_references(&self) -> Result<Vec<String>> {
         let mut references = std::collections::BTreeSet::new();
         for requirement in &self.requirements {
@@ -71,7 +82,7 @@ impl Metadata {
         if self.selection.target_platform != platform
             || self.selection.source_date_epoch != crate::executor::BUILDKIT_SOURCE_DATE_EPOCH
         {
-            bail!("Docker argument selection facts differ from the planned executor");
+            bail!("Docker argument selection facts differ from the planned target or export epoch");
         }
         self.image_references()?;
         if self.schema_version != "v1alpha1"

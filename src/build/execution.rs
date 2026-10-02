@@ -250,6 +250,11 @@ pub(super) fn execute_plan(
                             if intent["kind"] != verified.kind {
                                 bail!("OCI output does not match planned image/index kind");
                             }
+                            if verified.kind == "oci-image" {
+                                verified.require_target(&serde_json::from_value(
+                                    a["targetPlatform"].clone(),
+                                )?)?;
+                            }
                             artifact["ociDigest"] = json!(verified.digest);
                         }
                         Ok(artifact)
@@ -353,6 +358,7 @@ fn launch(a: &Value, index: usize, context: &LaunchContext<'_>) -> Result<Execut
         &mounts,
         &mode,
         &materialized,
+        &serde_json::from_value(a["targetPlatform"].clone())?,
     );
     let mut duration = None;
     let mut failure = None;

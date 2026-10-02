@@ -7,6 +7,7 @@ pub(crate) fn export_image(
     reference: &str,
     destination: &Path,
     request: &Request<'_>,
+    target: &crate::platform::Platform,
 ) -> Result<Image> {
     if reference.is_empty()
         || reference.len() > 512
@@ -21,7 +22,7 @@ pub(crate) fn export_image(
         bail!("image export destination already exists");
     }
     let image = resolve_for(reference, Profile::ImageInput)?;
-    if image.os != request.image.os || image.arch != request.image.arch {
+    if image.platform()? != *target {
         bail!("provisioned base image platform differs from the selected build platform");
     }
     let mut command = Command::new("docker");

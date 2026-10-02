@@ -11,6 +11,7 @@ mod launch;
 pub mod model;
 mod names;
 mod oci;
+mod platform;
 pub mod records;
 pub mod reports;
 pub mod snapshot;

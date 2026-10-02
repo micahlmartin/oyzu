@@ -26,6 +26,12 @@ pub struct Image {
     pub arch: String,
 }
 
+impl Image {
+    pub(crate) fn platform(&self) -> Result<crate::platform::Platform> {
+        format!("{}/{}", self.os, self.arch).parse()
+    }
+}
+
 #[derive(Debug)]
 pub struct Execution {
     pub code: i32,
@@ -228,12 +234,17 @@ pub(crate) fn execute_mode(
     mounts: &[Mount<'_>],
     mode: &Mode,
     materialized: &[String],
+    target_platform: &crate::platform::Platform,
 ) -> Result<Execution> {
     mode.validate()?;
     match mode {
         Mode::Process => execute_with_mounts(request, mounts),
-        Mode::OciValidation { input, report } => validation::execute(request, input, report),
-        Mode::Buildkit { .. } => worker::execute(request, mounts, mode, materialized),
+        Mode::OciValidation { input, report } => {
+            validation::execute(request, input, report, target_platform)
+        }
+        Mode::Buildkit { .. } => {
+            worker::execute(request, mounts, mode, materialized, target_platform)
+        }
     }
 }
 

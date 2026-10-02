@@ -28,7 +28,52 @@ def image_contents(path):
         return root['digest'], config, contents
 
 
+def verify_target_platform(root, base, invoke, validate, source_files, verified):
+    project = base/'docker-arm64-assembly'
+    shutil.copytree(root/'examples/builds/docker-offline/project', project)
+    (project/'build.yaml').write_text('image:\n  uses: docker/image\n  platform: linux/arm64\n')
+    before = source_files(project)
+    invoke(project, 'build')
+    manifest = validate(project/'dist')
+    assert manifest['status'] == 'succeeded' and source_files(project) == before
+    artifact, = manifest['artifacts']
+    digest, config, files = image_contents(project/'dist'/artifact['path'])
+    assert artifact['kind'] == 'oci-image' and '-dev.g' in artifact['version']
+    assert config['os'] == 'linux' and config['architecture'] == 'arm64'
+    assert files['greeting.txt'] == (project/'greeting.txt').read_bytes()
+    assert manifest['targets'][0]['platform'] == {'os':'linux', 'arch':'arm64'}
+    plan = json.loads((project/'dist/plan.json').read_text())
+    assert plan['tools'][0]['platform'] == {'os':'linux', 'arch':'amd64'}
+    assert all(a['executionPlatform'] == {'os':'linux', 'arch':'amd64'} and
+               a['targetPlatform'] == {'os':'linux', 'arch':'arm64'} for a in plan['actions'])
+    dependency = json.loads((project/'dist/dependencies/image.json').read_text())
+    assert dependency['manager']['platform'] == {'os':'linux', 'arch':'amd64'}
+    assert dependency['targetPlatform'] == {'os':'linux', 'arch':'arm64'}
+    assert dependency['extensions']['oyzu.dev/docker']['metadata']['selection']['targetPlatform'] == 'linux/arm64'
+    assert dependency['extensions']['oyzu.dev/docker']['metadata']['targetExecution'] is False
+    assert next(r for r in manifest['reports'] if r['kind'] == 'test')['summary']['passed'] == 2
+    invoke(project, 'inspect', 'dist')
+    repeated = invoke(project, 'build')
+    assert repeated['planDigest'] == manifest['planDigest']
+    assert repeated['artifacts'][0]['ociDigest'] == digest
+    assert repeated['artifacts'][0]['digest'] == artifact['digest']
+    (project/'Dockerfile').write_text('FROM alpine:3.22\nCOPY greeting.txt /greeting.txt\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert 'base image platform differs' in failed['diagnostics'][0]['message']
+    # An existing worker or host emulator is not authorization/evidence for
+    # target execution. The native parser must identify RUN before actions.
+    (project/'Dockerfile').write_text('FROM scratch\nRUN ["/application"]\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['actions'] and not failed['artifacts']
+    assert 'native target execution' in failed['diagnostics'][0]['message']
+    verified.append('Docker arm64 assembly on amd64: distinct worker/target facts, native OCI bytes, snapshot/JUnit/quality, repeatability, mismatched base and foreign RUN rejection; no target application execution claimed')
+
+
 def verify(root, base, invoke, validate, source_files, verified):
+    verify_target_platform(root, base, invoke, validate, source_files, verified)
     project = base / 'docker-offline'
     shutil.copytree(root / 'examples/builds/docker-offline/project', project)
     before = source_files(project)

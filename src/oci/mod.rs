@@ -103,6 +103,23 @@ pub(crate) struct Verified {
     pub platforms: BTreeSet<Platform>,
 }
 
+impl Verified {
+    /// A platform-specific image must match its planned artifact target, which
+    /// need not be the platform of the worker that assembled it.
+    pub(crate) fn require_target(&self, target: &crate::platform::Platform) -> Result<()> {
+        if self.kind != "oci-image"
+            || self.platforms.len() != 1
+            || !self
+                .platforms
+                .iter()
+                .all(|p| p.os == target.os() && p.architecture == target.arch())
+        {
+            bail!("image platform does not match planned {target}");
+        }
+        Ok(())
+    }
+}
+
 /// The layout's single root descriptor is the publication identity. An image
 /// index may contain multiple platform manifests; a partial closure is invalid.
 pub(crate) fn verify(path: &Path) -> Result<Verified> {

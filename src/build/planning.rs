@@ -76,14 +76,17 @@ fn action(
     argv: Vec<String>,
     cwd: &str,
     env: &BTreeMap<String, String>,
-    execution: (&executor::Image, &str, &executor::Mode),
+    execution: (
+        &executor::Image,
+        &str,
+        &executor::Mode,
+        &crate::platform::Platform,
+    ),
 ) -> Value {
-    let (image, source, mode) = execution;
-    let argv = mode
-        .argv(&format!("{}/{}", image.os, image.arch))
-        .unwrap_or(argv);
+    let (image, source, mode, target_platform) = execution;
+    let argv = mode.argv(&target_platform.to_string()).unwrap_or(argv);
     let mut action = json!({"id":id,"target":target,"operation":operation,"dependsOn":[],"argv":argv,"cwd":cwd,"env":env,
-        "tools":[target],"executionPlatform":platform(image),"targetPlatform":platform(image),
+        "tools":[target],"executionPlatform":platform(image),"targetPlatform":target_platform,
         "inputs":[{"kind":"tree","digest":source,"mount":"workspace"}],"outputs":[],"reports":[],
         "required":true,"cacheable":false,"network":"none",
         "limits":{"timeoutSeconds":600,"cpu":2,"memoryBytes":2147483648u64,"outputBytes":16777216}});
@@ -151,6 +154,31 @@ pub(super) fn compile(
     let mut tools = Vec::new();
     let builder_digest = snapshot::file_digest(&std::env::current_exe()?)?;
     let configs = &workspace.declarations.targets;
+    let mut platforms = BTreeMap::new();
+    for id in &order {
+        let target = &workspace.targets[id];
+        let image = images
+            .get(id)
+            .with_context(|| format!("{id}: no resolved toolchain image"))?;
+        let platform = builders::get(&target.builder)?
+            .target_platform(configs.get(id).and_then(|c| c.platform.as_deref()), image)?;
+        let execution = image.platform()?;
+        if intents[id]
+            .execution_platform
+            .as_ref()
+            .is_some_and(|captured| captured != &execution)
+        {
+            bail!("{id}: captured execution platform differs from resolved toolchain");
+        }
+        if intents[id]
+            .target_platform
+            .as_ref()
+            .is_some_and(|captured| captured != &platform)
+        {
+            bail!("{id}: captured artifact target platform differs from requested {platform}");
+        }
+        platforms.insert(id.clone(), platform);
+    }
     let mut materialized = BTreeMap::new();
     let task_graph = super::task_graph::TaskGraph::new(workspace, intents)?;
     for id in order {
@@ -158,12 +186,7 @@ pub(super) fn compile(
         let image = images
             .get(&id)
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
-        if let Some(required) = configs.get(&id).and_then(|c| c.platform.as_ref()) {
-            let actual = format!("{}/{}", image.os, image.arch);
-            if required != &actual {
-                bail!("{id}: required platform {required} does not match resolved toolchain {actual}; cross-platform execution is not implemented yet");
-            }
-        }
+        let target_platform = &platforms[&id];
         let builder = builders::get(&target.builder)?;
         if let Some(config) = workspace.configuration.get(&id) {
             crate::config::enforcement::execution_preflight(config, builder.descriptor().tools)?;
@@ -182,14 +205,14 @@ pub(super) fn compile(
                     &config.materialize,
                     &cwd,
                     &artifacts,
-                    images,
+                    &platforms,
                     &id,
                     source,
                     projection.as_ref(),
                 )?,
             );
         }
-        let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":target.variant,"platform":platform(image)});
+        let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":target.variant,"platform":target_platform});
         if !target.discovery.is_empty() {
             record["extensions"]["oyzu.dev/discovery"] = json!(target.discovery);
         }
@@ -213,7 +236,7 @@ pub(super) fn compile(
                 command.argv.clone(),
                 &cwd,
                 &intent.env,
-                (image, &source.digest, &command.execution),
+                (image, &source.digest, &command.execution, target_platform),
             ));
         }
         let operation_contracts: BTreeMap<_, _> = intent
@@ -288,6 +311,7 @@ pub(super) fn compile(
                     image,
                     &source.digest,
                     native.map_or(&executor::Mode::Process, |v| &v.execution),
+                    target_platform,
                 ),
             );
             a["reports"] = json!(bindings.intents);
@@ -306,7 +330,12 @@ pub(super) fn compile(
             intent.package.argv.clone(),
             &cwd,
             &intent.env,
-            (image, &source.digest, &intent.package.execution),
+            (
+                image,
+                &source.digest,
+                &intent.package.execution,
+                target_platform,
+            ),
         );
         let mut outputs = Vec::new();
         for artifact in &intent.artifacts {
@@ -564,6 +593,109 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn docker_artifact_platform_is_independent_of_its_worker_and_bound_to_capture() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("build.yaml"),
+            "image:\n  uses: docker/image\n  platform: linux/arm64\n",
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("Dockerfile"),
+            "FROM scratch\nCOPY greeting.txt /greeting.txt\n",
+        )
+        .unwrap();
+        fs::write(root.path().join("greeting.txt"), "hello\n").unwrap();
+        let control = tempfile::tempdir().unwrap();
+        let source = snapshot::capture(root.path(), &control.path().join("source")).unwrap();
+        let workspace = crate::discovery::discover(&control.path().join("source")).unwrap();
+        let worker = executor::Image {
+            reference: "buildkit:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        };
+        let images = BTreeMap::from([("image".into(), worker.clone())]);
+        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","targetExecution":false,
+            "stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},
+            "selection":{"targetPlatform":"linux/arm64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}});
+        let mut captured = BTreeMap::from([(
+            "image".into(),
+            dependencies::Prepared {
+                root: control.path().into(),
+                digest: format!("sha256:{}", "2".repeat(64)),
+                record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"arm64"},
+                "extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&workspace.root.join("Dockerfile")).unwrap()}}}),
+            },
+        )]);
+        let plan = plan_with_dependencies(&workspace, &source, &images, &captured).unwrap();
+        assert_eq!(plan["targets"][0]["platform"]["arch"], "arm64");
+        assert_eq!(plan["tools"][0]["platform"]["arch"], "amd64");
+        let actions = plan["actions"].as_array().unwrap();
+        assert!(actions
+            .iter()
+            .all(|a| a["executionPlatform"]["arch"] == "amd64"
+                && a["targetPlatform"]["arch"] == "arm64"));
+        assert!(
+            actions.iter().find(|a| a["id"] == "image:build").unwrap()["argv"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("platform=linux/arm64"))
+        );
+        assert!(
+            actions.iter().find(|a| a["id"] == "image:test").unwrap()["argv"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("linux/arm64"))
+        );
+        captured.get_mut("image").unwrap().record["extensions"]["oyzu.dev/docker"]["metadata"]
+            ["targetExecution"] = json!(true);
+        assert!(
+            plan_with_dependencies(&workspace, &source, &images, &captured)
+                .unwrap_err()
+                .to_string()
+                .contains("native target execution")
+        );
+        captured.get_mut("image").unwrap().record["extensions"]["oyzu.dev/docker"]["metadata"]
+            ["targetExecution"] = json!(false);
+        captured.get_mut("image").unwrap().record["manager"]["platform"]["arch"] = json!("arm64");
+        assert!(
+            plan_with_dependencies(&workspace, &source, &images, &captured)
+                .unwrap_err()
+                .to_string()
+                .contains("captured execution platform")
+        );
+        captured.get_mut("image").unwrap().record["manager"]["platform"]["arch"] = json!("amd64");
+        captured.get_mut("image").unwrap().record["targetPlatform"]["arch"] = json!("amd64");
+        captured.get_mut("image").unwrap().record["extensions"]["oyzu.dev/docker"]["metadata"]
+            ["selection"]["targetPlatform"] = json!("linux/amd64");
+        assert!(
+            plan_with_dependencies(&workspace, &source, &images, &captured)
+                .unwrap_err()
+                .to_string()
+                .contains("captured artifact target")
+        );
+        assert!(builders::get("go/app")
+            .unwrap()
+            .target_platform(Some("linux/arm64"), &worker)
+            .unwrap_err()
+            .to_string()
+            .contains("native target execution"));
+        for invalid in [
+            "windows/amd64",
+            "linux/arm64/v8",
+            "linux/x86_64",
+            "linux/AMD64",
+            "linux/amd64/ignored",
+        ] {
+            assert!(builders::get("docker/image")
+                .unwrap()
+                .target_platform(Some(invalid), &worker)
+                .is_err());
+        }
+    }
+
+    #[test]
     fn helm_native_suite_output_matches_named_report_collection() {
         let root = tempfile::tempdir().unwrap();
         let fixture =
@@ -751,11 +883,11 @@ mod tests {
             os: "linux".into(),
             arch: "amd64".into(),
         };
-        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","oyzu.toml"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}});
+        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","targetExecution":false,"stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","oyzu.toml"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}});
         let dependency = dependencies::Prepared {
             root: capture.path().into(),
             digest: format!("sha256:{}", "2".repeat(64)),
-            record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&workspace.root.join("Dockerfile")).unwrap()}}}),
+            record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&workspace.root.join("Dockerfile")).unwrap()}}}),
         };
         let plan = plan_with_dependencies(
             &workspace,

@@ -18,7 +18,7 @@ This uses the engine's existing tree encoding and includes directory entries exp
 
 When a directory output is selected by `materialize`, its contents appear immediately beneath the configured destination. An artifact containing `index.html` copied to `site` becomes `site/index.html`, without an extra output-directory layer. The producer must have succeeded. The engine verifies its recorded content before copying and verifies the new copy afterward. Each consumer gets independent bytes; editing them cannot alter the producer bundle. Existing destinations, overlapping mappings and collisions with captured source fail. Producer test/coverage references retain their original scope.
 
-Directory handling does not establish platform independence. The existing compatibility rule still requires matching producer and consumer execution OS/architecture. Cross-platform reuse requires additional builder facts and selection rules; arbitrary JavaScript-generated files do not receive that classification automatically.
+Directory handling does not establish platform independence. Compatibility requires matching producer and consumer artifact target OS/architecture, independently of their worker platforms. Cross-platform reuse requires additional builder facts and selection rules; arbitrary JavaScript-generated files do not receive that classification automatically. See [Docker target selection](docker-images.md#artifact-target-and-worker-platform) for the current distinction and limits.
 
 ## Limits, failures and verification
 

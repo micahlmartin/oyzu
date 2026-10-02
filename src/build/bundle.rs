@@ -123,6 +123,14 @@ pub fn inspect(root: &Path) -> Result<Value> {
                     {
                         bail!("{path}: OCI publication identity mismatch");
                     }
+                    if verified.kind == "oci-image" {
+                        let target = manifest["targets"]
+                            .as_array()
+                            .and_then(|targets| targets.iter().find(|t| t["id"] == item["target"]))
+                            .context("OCI image target is missing")?;
+                        verified
+                            .require_target(&serde_json::from_value(target["platform"].clone())?)?;
+                    }
                 }
             }
         }
