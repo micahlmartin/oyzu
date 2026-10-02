@@ -377,5 +377,5 @@
       ]
     }
   },
-  "$comment": "Shape validation only. Runtime additionally enforces portable path components, byte lengths, sorted sets, case collisions, closure references, identity hashes, admission, archive limits, filesystem types and executable permissions. The initial finalizer supports only tar/tar.gz, payload_subtree dot and no executable overrides."
+  "$comment": "Shape validation only. Runtime additionally enforces portable path components, byte lengths, sorted sets, case collisions, closure references, identity hashes, admission, archive limits, filesystem types and executable permissions. The current finalizer supports tar, tar.gz and bounded ZIP32, with payload_subtree dot. Explicit executable paths are supported on Unix and rejected on Windows; no post-install programs run. Schema acceptance of tar.xz or raw does not imply runtime support."
 }

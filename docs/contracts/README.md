@@ -1,11 +1,28 @@
 # Draft build record schemas
 
-OEP-0003's separate [archive layout schema](tools-v1/archive-layout.schema.json)
-defines the initial tool finalizer record. Its shared shape fixtures run through
-`python tooling/check-tool-contracts.py` (the same pinned design requirements)
-and the Rust finalizer tests. The schema is a draft and checks shape only; the
-[finalizer contract](../reference/tool-lock-inspection.md#data-only-candidate-finalization)
-describes semantic checks, implementation limits and admission responsibilities.
+OEP-0003's tool contracts are a separate draft family from the build records below.
+They use their own format fields and must not be treated as stable public APIs.
+
+| Tool schema | Current implementation and limits |
+| --- | --- |
+| [Archive layout](tools-v1/archive-layout.schema.json) | Data-only candidate finalization for tar, tar.gz and bounded ZIP32; optional prefix removal, dot payload subtree and explicit Unix executable paths. The broader schema vocabulary includes tar.xz/raw, which the runtime currently rejects. |
+| [Receipt](tools-v1/receipt.schema.json) | Candidate receipt parsing and whole-selection/content verification, including exact locked identities and dependency ownership. A matching receipt does not authorize execution. |
+| [Backend descriptor](tools-v1/backend-descriptor.schema.json) | Bounded descriptor parsing and canonical identity inspection. A structurally valid descriptor is not compiled backend admission or legal approval. |
+
+Run `python tooling/check-tool-contracts.py` with Python 3.11+ and the pinned
+`tooling/design-requirements.txt` dependencies. It validates shared valid/invalid
+shape fixtures with local-only schema references and duplicate-key rejection.
+Rust tests also exercise the relevant fixture corpora, then enforce semantic
+requirements the schemas do not express: sorted sets, portable path components,
+UTF-8 byte bounds, locked identity binding, content integrity and filesystem rules.
+The schema checker performs no downloads, materialization or execution and cannot
+qualify a backend. Worker and selection-grant schemas are still outstanding.
+
+See the [tool reference](../reference/tool-lock-inspection.md) for runtime limits,
+usage, failures and measured qualification. In particular, archive expansion
+defaults to 200:1; an explicit caller-admitted, identity-bound layout may request
+up to 1024:1. Passing schema validation does not admit that layout or grant a
+project permission to raise extraction bounds.
 
 These JSON Schema 2020-12 documents are proposed **v1alpha1** contracts, not stable APIs or proof of correct execution. They accompany [OEP-0019](../proposals/OEP-0019-build-records-and-conformance/README.md).
 
