@@ -95,8 +95,12 @@ class AntTesting implements BuildListener {
             if (antHome != null) project.setUserProperty("ant.home", antHome);
             project.addReference(AntJUnit.CONTEXT, new AntJUnit.Context(agent, data, nativeReports));
             project.addTaskDefinition("junit", AntJUnit.class);
-            project.setUserProperty("version", args[3]);
-            project.setUserProperty("oyzu.version", args[3]);
+            // Captured builds project a snapshot; direct tests retain the native
+            // project's version properties and do not perform publication.
+            if (!args[3].isEmpty()) {
+                project.setUserProperty("version", args[3]);
+                project.setUserProperty("oyzu.version", args[3]);
+            }
             var logger = new DefaultLogger();
             logger.setOutputPrintStream(System.out);
             logger.setErrorPrintStream(System.err);

@@ -62,12 +62,13 @@ def settings(path, url):
 <interactiveMode>false</interactiveMode></settings>''')
 
 
-def maven(state, goals, offline=False, check=True):
+def maven(state, goals, offline=False, check=True, test_plan=False):
     env = dict(os.environ, MAVEN_SKIP_RC='true', OYZU_MAVEN_WORKSPACE=str(Path.cwd()),
                OYZU_MAVEN_METADATA=str(state / 'metadata.xml'))
+    env['OYZU_MAVEN_TEST_PLAN'] = 'true' if test_plan else 'false'
     env.pop('MAVEN_ARGS', None)
     env.pop('MAVEN_OPTS', None)
-    command = ['mvn', '-B', '-ntp', '-C', '-Dstyle.color=never', '-s', str(state / 'settings.xml'), '-gs', str(state / 'settings.xml'),
+    command = ['mvn', '-B', '-e', '-ntp', '-C', '-Dstyle.color=never', '-s', str(state / 'settings.xml'), '-gs', str(state / 'settings.xml'),
                '-Dmaven.repo.local=' + str(state / 'repository'), '-Duser.home=/tmp/oyzu-home',
                '-Dmaven.ext.class.path=' + EXTENSION, '-Dproject.build.outputTimestamp=315532800']
     if offline:
@@ -148,7 +149,7 @@ def acquire(digest):
                 get('org.junit.platform:junit-platform-launcher:' + version)
         # Metadata queries after acquisition restore the entire native reactor;
         # dependency:get's -N metadata is intentionally not the planned graph.
-        maven(state, ['validate'])
+        maven(state, ['validate'], offline=True, test_plan=True)
     finally:
         server.shutdown()
         server.server_close()
@@ -178,6 +179,11 @@ def install():
 
 def build():
     state = Path.cwd() / '.oyzu-maven'
+    spec = importlib.util.spec_from_file_location('oyzu_maven_reporting', Path(__file__).with_name('maven_reporting.py'))
+    reporting = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(reporting)
+    groups = reporting.inventory(ET.parse('/dependencies/metadata.xml').findall('project'))
+    reporting.prepare(groups)
     # One native reactor lifecycle owns compilation, unit/integration tests and
     # configured checks. Never separately run test after Maven verify.
     status = maven(state, [JACOCO + ':prepare-agent', 'verify', JACOCO + ':report'], offline=True, check=False)
@@ -185,6 +191,7 @@ def build():
         # A failed lifecycle must not erase already recorded coverage. The
         # report goal does not compile or re-run tests; preserve the first code.
         maven(state, [JACOCO + ':report'], offline=True, check=False)
+    reporting.collect(groups)
     return status
 
 

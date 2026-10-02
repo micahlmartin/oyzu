@@ -1,7 +1,4 @@
-use super::super::{
-    strings, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, ReportFormat, ReportSpec,
-    TaskPlan,
-};
+use super::super::{strings, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, TaskPlan};
 use anyhow::{bail, Context, Result};
 use std::{collections::BTreeMap, fs};
 
@@ -125,22 +122,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         wrapper.extend(test.argv);
         test.argv = wrapper;
     }
-    test.reports = vec![
-        ReportSpec {
-            format: ReportFormat::Junit,
-            filename: "junit.xml",
-            source: crate::reports::ReportSource::File,
-            name: None,
-            input: None,
-        },
-        ReportSpec {
-            format: ReportFormat::Cobertura,
-            filename: "coverage.xml",
-            source: crate::reports::ReportSource::File,
-            name: None,
-            input: None,
-        },
-    ];
+    test.reports = super::testing::reports();
     plan.tasks.insert("test".into(), test);
     super::quality::plan(target, &mut plan);
     plan.artifacts = vec![
@@ -159,5 +141,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             media_type: "application/gzip",
         },
     ];
+    super::distribution_app::extend(&context, &mut plan, &name)?;
     Ok(plan)
 }

@@ -24,6 +24,107 @@ fn planned(root: &Path, temp: &Path) -> Value {
 }
 
 #[test]
+fn planning_requires_frozen_configuration_and_never_reresolves_live_files() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[build]\njobs=2\n[checks]\ncoverageMinimum=27\n",
+    )
+    .unwrap();
+    let mut workspace = discovery::discover_with_shell(root.path(), Some("sh")).unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let images = BTreeMap::from([(
+        "project".into(),
+        Image {
+            reference: "node:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        },
+    )]);
+    let plan = build::plan(&workspace, &source, &images).unwrap();
+    assert_eq!(plan["extensions"]["oyzu.dev/execution"]["jobs"], 2);
+    for action in plan["actions"].as_array().unwrap() {
+        assert_eq!(action["extensions"]["oyzu.dev/coverage-minimum"], 27);
+        assert_eq!(
+            action["extensions"]["oyzu.dev/configuration-digest"],
+            workspace.configuration["project"].digest
+        );
+    }
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[build]\njobs=32\n[checks]\ncoverageMinimum=0\n",
+    )
+    .unwrap();
+    assert_eq!(build::plan(&workspace, &source, &images).unwrap(), plan);
+
+    let target = workspace.configuration.remove("project").unwrap();
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("project: missing resolved target configuration"));
+    workspace.configuration.insert("project".into(), target);
+    workspace.root_configuration = None;
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("missing resolved invocation configuration"));
+}
+
+#[test]
+fn build_inventory_is_frozen_and_must_match_captured_source() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","scripts":{"test":"node --test"}}"#,
+    )
+    .unwrap();
+    let original = "app: {uses: node/package}\n";
+    fs::write(root.path().join("build.yaml"), original).unwrap();
+    let workspace = discovery::discover_with_shell(root.path(), Some("sh")).unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let images = BTreeMap::from([(
+        "app".into(),
+        Image {
+            reference: "node:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        },
+    )]);
+    let before = build::plan(&workspace, &source, &images).unwrap();
+    // Pure planning consumes the captured inventory, not this live file.
+    fs::write(
+        root.path().join("build.yaml"),
+        "app: {uses: node/package, matrix: {node: ['22.14.0', '24.14.1']}}\n",
+    )
+    .unwrap();
+    assert_eq!(build::plan(&workspace, &source, &images).unwrap(), before);
+    let later = tempfile::tempdir().unwrap();
+    let changed_source = snapshot::capture(root.path(), &later.path().join("source")).unwrap();
+    assert!(build::plan(&workspace, &changed_source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("changed between discovery and source capture"));
+    fs::remove_file(root.path().join("build.yaml")).unwrap();
+    let without = tempfile::tempdir().unwrap();
+    let absent_source = snapshot::capture(root.path(), &without.path().join("source")).unwrap();
+    assert!(build::plan(&workspace, &absent_source, &images).is_err());
+    let inferred = discovery::discover_with_shell(root.path(), Some("sh")).unwrap();
+    assert!(build::plan(&inferred, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("changed between discovery and source capture"));
+}
+
+#[test]
 fn plans_are_location_independent_bind_toolchain_and_keep_hooks() {
     let a = tempfile::tempdir().unwrap();
     let b = tempfile::tempdir().unwrap();
@@ -91,6 +192,59 @@ fn inspector_rejects_modified_artifact_and_path_escape() {
 }
 
 #[test]
+fn inspector_verifies_directory_inventory_without_modifying_the_bundle() {
+    let root = tempfile::tempdir().unwrap();
+    let output = tempfile::tempdir().unwrap();
+    fs::write(output.path().join("index.html"), "hello").unwrap();
+    fs::create_dir(output.path().join("empty")).unwrap();
+    let tree = snapshot::capture(output.path(), &root.path().join("site")).unwrap();
+    records::write(&root.path().join("envelope.json"), &json!({})).unwrap();
+    let mut manifest = json!({"kind":"build-manifest","status":"failed","planPath":null,
+        "envelopePath":"envelope.json","envelopeDigest":snapshot::file_digest(&root.path().join("envelope.json")).unwrap(),
+        "artifacts":[{"kind":"directory","path":"site","size":5,"digest":tree.digest,"entries":tree.entries}],"reports":[]});
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert_eq!(build::inspect(root.path()).unwrap(), manifest);
+    let inspected = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("inspect")
+        .arg(root.path())
+        .output()
+        .unwrap();
+    assert!(
+        inspected.status.success(),
+        "{}",
+        String::from_utf8_lossy(&inspected.stderr)
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&inspected.stdout).unwrap(),
+        manifest
+    );
+    assert_eq!(
+        fs::read(root.path().join("site/index.html")).unwrap(),
+        b"hello"
+    );
+    manifest["artifacts"][0]["size"] = json!(6);
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert!(build::inspect(root.path()).is_err());
+    manifest["artifacts"][0]["size"] = json!(5);
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    fs::write(root.path().join("site/new.html"), "extra").unwrap();
+    assert!(build::inspect(root.path()).is_err());
+    assert!(!std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("inspect")
+        .arg(root.path())
+        .output()
+        .unwrap()
+        .status
+        .success());
+    fs::remove_file(root.path().join("site/new.html")).unwrap();
+    fs::remove_dir(root.path().join("site/empty")).unwrap();
+    assert!(build::inspect(root.path()).is_err());
+    manifest["artifacts"][0]["path"] = json!("../site");
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert!(build::inspect(root.path()).is_err());
+}
+
+#[test]
 fn semantic_digest_canonicalizes_unicode_property_order() {
     let value = json!({"\u{e000}":1,"\u{10000}":2});
     let bytes = serde_json_canonicalizer::to_string(&value).unwrap();
@@ -130,6 +284,117 @@ fn plan_edges_preserve_target_order_without_serializing_independent_targets() {
             expected.sort();
             assert_eq!(action["dependsOn"], json!(expected));
         }
+    }
+}
+
+#[test]
+fn cross_target_prerequisites_keep_owner_reports_and_hooks() {
+    let root = tempfile::tempdir().unwrap();
+    for id in ["alpha", "beta"] {
+        fs::create_dir(root.path().join(id)).unwrap();
+        fs::write(
+            root.path().join(id).join("package.json"),
+            format!(r#"{{"name":"{id}","version":"1.0.0","scripts":{{"build":"node -e 0"}}}}"#),
+        )
+        .unwrap();
+    }
+    fs::write(
+        root.path().join("build.yaml"),
+        "alpha: {uses: node/package, path: alpha}\nbeta: {uses: node/package, path: beta}\n",
+    )
+    .unwrap();
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['beta:test']\n[tasks.\"beta:post_test\"]\nargv=['node','-e','0']\n").unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    let get = |id: &str| actions.iter().find(|a| a["id"] == id).unwrap();
+    assert_eq!(actions.iter().filter(|a| a["id"] == "beta:test").count(), 1);
+    assert_eq!(get("beta:test")["cwd"], "beta");
+    assert_eq!(get("beta:test")["tools"], json!(["beta"]));
+    assert_eq!(get("beta:test")["target"], "beta");
+    assert_eq!(get("beta:test")["reports"].as_array().unwrap().len(), 2);
+    assert_eq!(
+        get("beta:test")["extensions"]["oyzu.dev/collect-after"],
+        "beta:post_test"
+    );
+    assert!(get("alpha:pre_test")["dependsOn"]
+        .as_array()
+        .unwrap()
+        .contains(&json!("beta:post_test")));
+    assert!(get("beta:test")["env"]["OYZU_TEST_REPORT"]
+        .as_str()
+        .unwrap()
+        .contains("beta/"));
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['beta:verify']\n[tasks.\"beta:verify\"]\nargv=['node','-e','0']\ndepends_on=['helper']\n[tasks.helper]\nargv=['node','-e','0']\n").unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let inherited = planned(root.path(), capture.path());
+    let helper = inherited["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "helper")
+        .unwrap();
+    assert_eq!(helper["target"], "beta");
+    assert_eq!(helper["tools"], json!(["beta"]));
+    // Root tasks retain their declared root cwd.
+    assert_eq!(helper["cwd"], ".");
+    // Task-only dependencies are acyclic, but native build-before-test order
+    // makes these two prerequisites cyclic. Reject before execution.
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:build\"]\nargv=['node','-e','0']\ndepends_on=['beta:test']\n[tasks.\"beta:build\"]\nargv=['node','-e','0']\ndepends_on=['alpha:test']\n").unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let workspace = discovery::discover(&captured.path().join("source")).unwrap();
+    let image = Image {
+        reference: "node:test".into(),
+        digest: format!("sha256:{}", "1".repeat(64)),
+        os: "linux".into(),
+        arch: "amd64".into(),
+    };
+    let images = BTreeMap::from([("alpha".into(), image.clone()), ("beta".into(), image)]);
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("action dependency cycle"));
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"alpha:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['helper']\n[tasks.\"beta:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['helper']\n[tasks.helper]\nargv=['node','-e','0']\n").unwrap();
+    let captured = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &captured.path().join("source")).unwrap();
+    let workspace = discovery::discover(&captured.path().join("source")).unwrap();
+    assert!(build::plan(&workspace, &source, &images)
+        .unwrap_err()
+        .to_string()
+        .contains("shared root task has ambiguous build ownership"));
+}
+
+#[test]
+fn local_prerequisite_sequence_cannot_overtake_an_earlier_build_stage() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"ordered","version":"1.0.0","scripts":{"build":"node -e 0"}}"#,
+    )
+    .unwrap();
+    fs::write(root.path().join("oyzu.toml"),
+        "[tasks.\"project:pre_test\"]\nargv=['node','-e','0']\ndepends_on=['project:first','project:second']\n[tasks.\"project:first\"]\nargv=['node','-e','0']\n[tasks.\"project:second\"]\nargv=['node','-e','0']\n").unwrap();
+    let capture = tempfile::tempdir().unwrap();
+    let plan = planned(root.path(), capture.path());
+    let actions = plan["actions"].as_array().unwrap();
+    for (consumer, producer) in [
+        ("project:first", "project:build"),
+        ("project:second", "project:first"),
+        ("project:pre_test", "project:second"),
+    ] {
+        let action = actions.iter().find(|a| a["id"] == consumer).unwrap();
+        assert!(
+            action["dependsOn"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(producer)),
+            "{producer} must precede {consumer}"
+        );
     }
 }
 
@@ -486,4 +751,212 @@ argv=['custom-post']
         actions[post]["env"]["OYZU_TEST_REPORT"],
         "/out/project/reports/junit.xml"
     );
+}
+
+#[test]
+fn cli_rejects_unknown_build_target_before_toolchain_resolution() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("-C")
+        .arg(root.path())
+        .args([
+            "--json",
+            "build",
+            "missing",
+            "--image",
+            "npm=not-provisioned:test",
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let manifest: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(manifest["status"], "failed");
+    assert_eq!(manifest["actions"], json!([]));
+    assert!(manifest["diagnostics"][0]["message"]
+        .as_str()
+        .unwrap()
+        .contains("unknown build target missing"));
+    build::inspect(&root.path().join("dist")).unwrap();
+}
+
+#[test]
+fn cli_platform_binding_failures_precede_toolchain_resolution() {
+    let root = tempfile::tempdir().unwrap();
+    for name in ["image", "api", "library"] {
+        fs::create_dir(root.path().join(name)).unwrap();
+        fs::write(
+            root.path().join(name).join("package.json"),
+            r#"{"name":"demo","version":"1.0.0"}"#,
+        )
+        .unwrap();
+    }
+    let chain = "image: {uses: node/package, path: image, matrix: {platform: [linux/amd64, linux/arm64]}, materialize: [{from: api, to: input/api.tgz}]}\napi: {uses: node/package, path: api, materialize: [{from: library, to: input/library.tgz}]}\nlibrary: {uses: node/package, path: library, matrix: {platform: [linux/amd64, linux/arm64]}}\n";
+    for (yaml, target, expected) in [
+        (
+            chain.to_owned(),
+            "api",
+            "ambiguous runtime/platform variants",
+        ),
+        (
+            chain.replace("path: api,", "path: api, platform: windows/amd64,"),
+            "image",
+            "conflicts with explicit producer library",
+        ),
+    ] {
+        fs::write(root.path().join("build.yaml"), &yaml).unwrap();
+        let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+            .arg("-C")
+            .arg(root.path())
+            .args([
+                "--json",
+                "build",
+                target,
+                "--image",
+                "npm=must-not-resolve:test",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(1));
+        let manifest: Value = serde_json::from_slice(&result.stdout).unwrap();
+        assert_eq!(manifest["status"], "failed");
+        assert_eq!(manifest["actions"], json!([]));
+        assert_eq!(manifest["artifacts"], json!([]));
+        let message = manifest["diagnostics"][0]["message"].as_str().unwrap();
+        assert!(message.contains(expected), "{message}");
+        assert_eq!(
+            fs::read_to_string(root.path().join("build.yaml")).unwrap(),
+            yaml
+        );
+        build::inspect(&root.path().join("dist")).unwrap();
+    }
+}
+
+#[test]
+fn inspector_binds_selection_to_the_frozen_plan() {
+    let root = tempfile::tempdir().unwrap();
+    let selection = json!({"mode":"explicit","requested":["api"],"selected":["api"],"excluded":[{"target":"other","reason":"outside-selection"}]});
+    let plan = json!({"extensions":{"oyzu.dev/selection":selection}});
+    records::write(&root.path().join("plan.json"), &plan).unwrap();
+    records::write(&root.path().join("envelope.json"), &json!({})).unwrap();
+    let mut manifest = json!({"kind":"build-manifest","status":"failed","planPath":"plan.json",
+        "planDigest":records::digest("oyzu.plan.v1alpha1", &plan).unwrap(),
+        "envelopePath":"envelope.json","envelopeDigest":snapshot::file_digest(&root.path().join("envelope.json")).unwrap(),
+        "artifacts":[],"reports":[],"extensions":{"oyzu.dev/selection":selection}});
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    build::inspect(root.path()).unwrap();
+    manifest["extensions"]["oyzu.dev/selection"]["selected"] = json!(["api", "other"]);
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert!(build::inspect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("selection differs"));
+}
+
+#[test]
+fn inspector_binds_runtime_and_artifact_variant_identity_to_the_plan() {
+    let root = tempfile::tempdir().unwrap();
+    let target = json!({"id":"app-node22","variant":{"node":"22.14.0"}});
+    let artifact =
+        json!({"id":"app-node22/primary","target":"app-node22","variant":{"node":"22.14.0"}});
+    let plan = json!({"targets":[target],"artifacts":[artifact]});
+    records::write(&root.path().join("plan.json"), &plan).unwrap();
+    records::write(&root.path().join("envelope.json"), &json!({})).unwrap();
+    let manifest = json!({"kind":"build-manifest","status":"failed","planPath":"plan.json",
+        "planDigest":records::digest("oyzu.plan.v1alpha1", &plan).unwrap(),
+        "envelopePath":"envelope.json","envelopeDigest":snapshot::file_digest(&root.path().join("envelope.json")).unwrap(),
+        "targets":[target],"artifacts":[artifact],"reports":[]});
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    build::inspect(root.path()).unwrap();
+    let mut changed = manifest.clone();
+    changed["targets"][0]["variant"]["node"] = json!("24.14.1");
+    records::write(&root.path().join("manifest.json"), &changed).unwrap();
+    assert!(build::inspect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("target identities differ"));
+    let mut changed = manifest;
+    changed["artifacts"][0]["variant"]["node"] = json!("24.14.1");
+    records::write(&root.path().join("manifest.json"), &changed).unwrap();
+    assert!(build::inspect(root.path())
+        .unwrap_err()
+        .to_string()
+        .contains("target/variant differs"));
+}
+
+#[test]
+fn json_build_keeps_discovery_warnings_in_structured_events() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    fs::write(
+        root.path().join("oyzu.toml"),
+        "[build]\nfuture_setting = true\n",
+    )
+    .unwrap();
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("--root")
+        .arg(root.path())
+        .args(["--json", "build", "missing"])
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    let text = String::from_utf8(result.stderr).unwrap();
+    let events: Vec<Value> = text
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    assert!(events.iter().any(|e| e["event"]["message"]
+        .as_str()
+        .is_some_and(|m| m.contains("future_setting"))));
+    let manifest: Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(manifest["status"], "failed");
+}
+
+#[test]
+fn ci_failure_has_plain_timeline_and_a_summary_without_terminal_controls() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("package.json"),
+        r#"{"name":"demo","version":"1.0.0"}"#,
+    )
+    .unwrap();
+    let summary = root.path().join("summary.md");
+    let result = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("--root")
+        .arg(root.path())
+        .args(["build", "missing"])
+        .env("GITHUB_ACTIONS", "true")
+        .env("GITHUB_STEP_SUMMARY", &summary)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let stderr = String::from_utf8(result.stderr).unwrap();
+    assert!(stderr.contains("GitHub Actions (unverified)"));
+    assert_eq!(
+        stderr.matches("::group::").count(),
+        stderr.matches("::endgroup::").count()
+    );
+    assert!(!stderr.contains('\x1b'));
+    assert!(fs::read_to_string(summary)
+        .unwrap()
+        .contains("Oyzu build: failed"));
+    let explicit = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("--root")
+        .arg(root.path())
+        .args(["build", "--output", "interactive"])
+        .stdin(std::process::Stdio::null())
+        .output()
+        .unwrap();
+    assert_eq!(explicit.status.code(), Some(2));
+    assert!(String::from_utf8(explicit.stderr)
+        .unwrap()
+        .contains("requires a supported terminal"));
 }

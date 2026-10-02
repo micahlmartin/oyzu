@@ -2,6 +2,7 @@ use crate::builders::task::insert;
 mod metadata;
 mod planning;
 mod preparation;
+mod testing;
 #[cfg(test)]
 mod tests;
 use crate::builders::{
@@ -15,6 +16,24 @@ use std::path::Path;
 pub(in crate::builders) struct Maven;
 
 const RUNTIME: &[RuntimeFile] = &[
+    super::quality::RUNTIME,
+    super::reporting::RUNTIME,
+    RuntimeFile {
+        name: "maven-host.py",
+        contents: include_str!("runtime/host.py"),
+    },
+    RuntimeFile {
+        name: "OyzuMetadata.java",
+        contents: include_str!("runtime/OyzuMetadata.java"),
+    },
+    RuntimeFile {
+        name: "components.xml",
+        contents: include_str!("runtime/components.xml"),
+    },
+    RuntimeFile {
+        name: "maven_reporting.py",
+        contents: include_str!("runtime/reporting.py"),
+    },
     RuntimeFile {
         name: "maven.py",
         contents: include_str!("runtime/adapter.py"),
@@ -26,6 +45,13 @@ const RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Maven {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        testing::development(target, task)
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/maven:3.9.11-jdk17")
     }
@@ -37,6 +63,12 @@ impl Builder for Maven {
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)
+    }
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        super::quality::development(task)
     }
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         RUNTIME
@@ -84,6 +116,7 @@ impl Builder for Maven {
         insert(target, "build", &[executable, "-B", "verify"], true);
         insert(target, "test", &[executable, "-B", "test"], false);
 
+        super::quality::discover(target)?;
         Ok(())
     }
 }

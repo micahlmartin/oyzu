@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
@@ -15,7 +16,18 @@ def xml_text(value):
                    else '\ufffd' for c in value)
 
 
-def validate(chart, kind, report, rendered, helm='helm'):
+def unittest_adapter():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('oyzu_helm_charts', Path(__file__).with_name('helm-charts.py'))
+    # Source-tree native probes use the owned file's source name.
+    if not Path(spec.origin).is_file():
+        spec = importlib.util.spec_from_file_location('oyzu_helm_charts', Path(__file__).with_name('charts.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def validate(chart, kind, report, rendered, helm='helm', unittest_report=None):
     report.parent.mkdir(parents=True, exist_ok=True)
     report.unlink(missing_ok=True)
     rendered.unlink(missing_ok=True)
@@ -53,6 +65,17 @@ def validate(chart, kind, report, rendered, helm='helm'):
         pending = report.with_suffix('.pending')
         ET.ElementTree(suite).write(pending, encoding='utf-8', xml_declaration=True)
         pending.replace(report)
+    if unittest_report is not None:
+        unittest_report = unittest_report.resolve()
+        unittest_report.parent.mkdir(parents=True, exist_ok=True)
+        unittest_report.unlink(missing_ok=True)
+        try:
+            result = unittest_adapter().unittest(chart, unittest_report, helm)
+            if result:
+                code = code or result
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            print(f'Native Helm unittest could not complete: {error}', file=sys.stderr)
+            code = code or 1
     return code if code >= 0 else 128-code
 
 
@@ -62,5 +85,15 @@ if __name__ == '__main__':
     parser.add_argument('kind', choices=['application', 'library'])
     parser.add_argument('report', type=Path)
     parser.add_argument('rendered', type=Path)
+    parser.add_argument('--unittest-report', type=Path)
+    parser.add_argument('--host', action='store_true', help='Validate a private chart copy without local Oyzu state')
     args = parser.parse_args()
-    raise SystemExit(validate(args.chart, args.kind, args.report, args.rendered))
+    if args.host:
+        # A root chart also contains the live bundle lease and earlier dist
+        # output. Native Helm loads chart files recursively; keep that engine
+        # state out using the existing chart-copy boundary for host testing.
+        with tempfile.TemporaryDirectory(prefix='oyzu-helm-host-') as temporary:
+            copied = Path(temporary) / 'chart'
+            unittest_adapter().copy_chart(args.chart.resolve(), copied)
+            raise SystemExit(validate(copied, args.kind, args.report, args.rendered, unittest_report=args.unittest_report))
+    raise SystemExit(validate(args.chart, args.kind, args.report, args.rendered, unittest_report=args.unittest_report))

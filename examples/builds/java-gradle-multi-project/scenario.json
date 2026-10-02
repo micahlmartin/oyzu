@@ -16,13 +16,24 @@
   ],
   "expected": [
     "Respect subprojects plus composite-build dependency substitution.",
-    "Prepare Gradle and JDK before execution; wrapper-generated downloads must obey acquisition routing."
+    "Prepare Gradle and JDK before execution; wrapper-generated downloads must obey acquisition routing.",
+    "Expose implicit lint and read-only formatting checks; explicit format may rewrite sources, but build never does."
   ],
   "cases": [
     {
       "name": "wrapper-request",
       "change": "Generate a wrapper for an approved Gradle distribution.",
       "expect": "Validate distribution checksum and route; wrapper execution cannot bypass managed acquisition."
+    },
+    {
+      "name": "lint-failure",
+      "change": "Add an unused java.util.Random import to an application source file.",
+      "expect": "Native compilation/tests can succeed, but lint fails, artifacts are blocked, test evidence is retained and source stays unchanged."
+    },
+    {
+      "name": "format-failure",
+      "change": "Add an extra space between public and class in an application source file.",
+      "expect": "Read-only formatting fails and blocks artifacts without changing source; explicit oyzu run format can repair it."
     }
   ],
   "nativeChecks": [

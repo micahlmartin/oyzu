@@ -66,6 +66,7 @@ def main():
     command = [str(executable), '--no-daemon', '--no-watch-fs', '--console=plain', '--max-workers=2',
                '-Dorg.gradle.java.installations.auto-download=false',
                '-I', str(ROOT / 'src/builders/java/gradle/runtime/metadata.gradle'),
+               '-I', str(ROOT / 'src/builders/java/gradle/runtime/reporting.gradle'),
                '-I', str(ROOT / 'src/builders/java/gradle/runtime/integration.gradle')]
 
     def invoke(phase, goal, url, offline, success=True, change=None):

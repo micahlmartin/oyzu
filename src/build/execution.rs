@@ -1,6 +1,7 @@
 //! Execute a resolved plan and collect outcome records without ecosystem dispatch.
-use super::{bundle::capture_output, collection, materialization};
-use crate::{builders, dependencies, executor, records, snapshot};
+use super::{bundle::capture_output, directory, materialization};
+use crate::logging::TaskState;
+use crate::{builders, dependencies, executor, records, reports::collection, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
@@ -24,6 +25,7 @@ impl ExecutionRecords {
         &mut self,
         collector: &mut collection::Collector<'_>,
         boundary: &str,
+        log: &crate::logging::Log,
     ) -> Result<bool> {
         let mut failed = false;
         for (index, reports) in collector.finish(boundary)? {
@@ -34,8 +36,18 @@ impl ExecutionRecords {
                     if self.actions[index]["exitCode"] == 0 {
                         self.actions[index]["exitCode"] = json!(1);
                     }
+                    let action = &self.actions[index];
+                    log.scope(action["id"].as_str().unwrap_or(boundary))
+                        .finished(
+                            "failed",
+                            action["exitCode"].as_i64().map(|c| c as i32),
+                            action["durationMs"].as_u64(),
+                        );
                 }
                 if let Some(diagnostic) = report.diagnostic {
+                    if let Some(message) = diagnostic["message"].as_str() {
+                        log.scope(boundary).progress(message);
+                    }
                     self.diagnostics.push(diagnostic);
                 }
                 self.reports.push(report.record);
@@ -65,11 +77,14 @@ pub(super) fn execute_plan(
     bundle: &Path,
     images: &BTreeMap<String, executor::Image>,
     dependencies: &BTreeMap<String, dependencies::Prepared>,
-    run_id: &str,
+    run: &super::RunContext<'_>,
 ) -> Result<ExecutionRecords> {
     let runtime = tempfile::tempdir()?;
     let mut runtime_paths = BTreeMap::new();
     for target in plan["targets"].as_array().context("missing targets")? {
+        if super::indices::is_target(target) {
+            continue;
+        }
         let id = target["id"].as_str().context("missing target id")?;
         let builder = builders::get(target["builder"].as_str().context("missing builder id")?)?;
         if !builder.runtime_files().is_empty() {
@@ -86,8 +101,13 @@ pub(super) fn execute_plan(
     }
     let contexts = tempfile::tempdir()?;
     let mut workspaces = BTreeMap::new();
-    let targets = plan["targets"].as_array().context("missing targets")?;
-    for target in targets {
+    let targets: Vec<_> = plan["targets"]
+        .as_array()
+        .context("missing targets")?
+        .iter()
+        .filter(|target| !super::indices::is_target(target))
+        .collect();
+    for target in &targets {
         let id = target["id"].as_str().context("missing target id")?;
         let selection = &target["extensions"]["oyzu.dev/source-projection"];
         let path = if !selection.is_null() {
@@ -107,7 +127,7 @@ pub(super) fn execute_plan(
     // Each target receives a private /out root as well as a private workspace.
     // Concurrent project code cannot overwrite another target's pending outputs.
     let mut outputs = BTreeMap::new();
-    for target in targets {
+    for target in &targets {
         let id = target["id"].as_str().context("missing target id")?;
         let root = out.join(id);
         fs::create_dir_all(root.join(id).join("reports"))?;
@@ -133,11 +153,15 @@ pub(super) fn execute_plan(
     let mut initialized = BTreeSet::new();
     let mut materialization_evidence = BTreeMap::new();
     let mut records = ExecutionRecords::default();
-    fs::create_dir(bundle.join("logs"))?;
+    fs::create_dir_all(bundle.join("logs"))?;
     let actions = plan["actions"].as_array().context("missing actions")?;
     let jobs = plan["extensions"]["oyzu.dev/execution"]["jobs"]
         .as_u64()
         .unwrap_or(1);
+    run.log.scope("execute").progress(&format!(
+        "Scheduling {} actions with up to {jobs} parallel targets",
+        actions.len()
+    ));
     let schedule = super::scheduling::Schedule::new(actions, jobs)?;
     records.actions = actions.iter().map(|a| json!({"id":a["id"],"target":a["target"],"required":true,"status":"pending","producerEvidence":[],"enforced":[]})).collect();
     let context = LaunchContext {
@@ -147,25 +171,80 @@ pub(super) fn execute_plan(
         runtime_paths: &runtime_paths,
         outputs: &outputs,
         bundle,
-        run_id,
+        run,
     };
     while records.actions.iter().any(|a| a["status"] == "pending") {
         let ready = schedule.ready(&records.actions)?;
         let mut runnable = Vec::new();
         for index in ready {
             let a = &actions[index];
+            if super::indices::is_action(a) {
+                if !schedule.permitted(index, &records.actions) {
+                    records.actions[index]["status"] = json!("blocked");
+                    records.actions[index]["reason"] = json!("a required platform image failed");
+                    run.log
+                        .scope(a["id"].as_str().unwrap_or("index"))
+                        .task(TaskState::Blocked, Some("a required platform image failed"));
+                    continue;
+                }
+                let index_log = run.log.scope(a["id"].as_str().unwrap_or("index"));
+                index_log.task(TaskState::Running, None);
+                let started = std::time::Instant::now();
+                let result =
+                    super::indices::execute(a, plan, bundle, &records.artifacts, &records.actions);
+                records.actions[index]["durationMs"] = json!(started.elapsed().as_millis() as u64);
+                match result {
+                    Ok(artifact) => {
+                        records.artifacts.push(artifact);
+                        records.actions[index]["status"] = json!("succeeded");
+                        records.actions[index]["exitCode"] = json!(0);
+                        records.actions[index]["enforced"] =
+                            json!(["engine-owned-archive-assembly", "verified-oci-inputs"]);
+                    }
+                    Err(error) => {
+                        records.actions[index]["status"] = json!("failed");
+                        records.actions[index]["exitCode"] = json!(1);
+                        records.diagnostics.push(json!({"code":"oci-index-failed","phase":"collect","severity":"error","message":error.to_string(),"action":a["id"],"target":a["target"]}));
+                    }
+                }
+                index_log.finished(
+                    records.actions[index]["status"]
+                        .as_str()
+                        .unwrap_or("failed"),
+                    records.actions[index]["exitCode"]
+                        .as_i64()
+                        .map(|v| v as i32),
+                    Some(started.elapsed().as_millis() as u64),
+                );
+                continue;
+            }
             let id = a["id"].as_str().context("missing action id")?;
             let target = a["target"].as_str().context("missing action target")?;
             let mut outcome = records.actions[index].clone();
             if !schedule.permitted(index, &records.actions) {
+                let failed: Vec<_> = a["dependsOn"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|v| v.as_str())
+                    .filter(|dependency| {
+                        records
+                            .actions
+                            .iter()
+                            .any(|r| r["id"] == *dependency && r["status"] != "succeeded")
+                    })
+                    .collect();
+                let reason = format!("Required tasks did not succeed: {}", failed.join(", "));
                 outcome["status"] = json!("blocked");
-                outcome["reason"] = json!("a prerequisite failed");
+                outcome["reason"] = json!(reason);
+                run.log.scope(id).task(TaskState::Blocked, Some(&reason));
                 records.actions[index] = outcome;
                 records.collect_due(
                     collectors
                         .get_mut(target)
                         .context("missing report collector")?,
                     id,
+                    run.log,
                 )?;
                 continue;
             }
@@ -201,6 +280,8 @@ pub(super) fn execute_plan(
                     outcome["exitCode"] = json!(1);
                     records.diagnostics.push(json!({"code":"materialization-failed","phase":"execute","severity":"error","message":error.to_string(),"action":id,"target":target}));
                     records.actions[index] = outcome;
+                    run.log.scope(id).progress(&error.to_string());
+                    run.log.scope(id).finished("failed", Some(1), None);
                     continue;
                 }
             }
@@ -237,6 +318,9 @@ pub(super) fn execute_plan(
                     .filter(|v| v["producer"] == id)
                 {
                     let capture = (|| -> Result<Value> {
+                        if intent["kind"] == "directory" {
+                            return directory::capture(&outputs[target], bundle, intent);
+                        }
                         let path = intent["path"].as_str().context("missing artifact path")?;
                         let file = capture_output(&outputs[target], bundle, path)?;
                         let mut artifact = intent.clone();
@@ -246,6 +330,11 @@ pub(super) fn execute_plan(
                             let verified = crate::oci::verify(&file)?;
                             if intent["kind"] != verified.kind {
                                 bail!("OCI output does not match planned image/index kind");
+                            }
+                            if verified.kind == "oci-image" {
+                                verified.require_target(&serde_json::from_value(
+                                    a["targetPlatform"].clone(),
+                                )?)?;
                             }
                             artifact["ociDigest"] = json!(verified.digest);
                         }
@@ -267,7 +356,16 @@ pub(super) fn execute_plan(
                 outcome["enforced"] = json!(executed.mode.enforced());
             }
             records.actions[index] = outcome;
-            records.collect_due(collector, id)?;
+            records.collect_due(collector, id, run.log)?;
+            run.log.scope(id).finished(
+                records.actions[index]["status"]
+                    .as_str()
+                    .unwrap_or("failed"),
+                records.actions[index]["exitCode"]
+                    .as_i64()
+                    .map(|c| c as i32),
+                executed.duration,
+            );
         }
     }
     for collector in collectors.values() {
@@ -283,7 +381,7 @@ struct LaunchContext<'a> {
     runtime_paths: &'a BTreeMap<String, PathBuf>,
     outputs: &'a BTreeMap<String, PathBuf>,
     bundle: &'a Path,
-    run_id: &'a str,
+    run: &'a super::RunContext<'a>,
 }
 struct Executed {
     code: i32,
@@ -300,7 +398,7 @@ fn launch(a: &Value, index: usize, context: &LaunchContext<'_>) -> Result<Execut
         runtime_paths,
         outputs,
         bundle,
-        run_id,
+        run,
     } = context;
     let id = a["id"].as_str().context("missing action id")?;
     let target = a["target"].as_str().context("missing action target")?;
@@ -309,7 +407,8 @@ fn launch(a: &Value, index: usize, context: &LaunchContext<'_>) -> Result<Execut
     let argv: Vec<String> = serde_json::from_value(a["argv"].clone())?;
     let env: BTreeMap<String, String> = serde_json::from_value(a["env"].clone())?;
     let cwd = format!("/workspace/{}", a["cwd"].as_str().context("missing cwd")?);
-    eprintln!("{id}");
+    let log = run.log.scope(id);
+    log.task(TaskState::Running, None);
     let mut mounts = Vec::new();
     if let Some(prepared) = dependencies.get(target) {
         mounts.push(executor::Mount {
@@ -336,6 +435,7 @@ fn launch(a: &Value, index: usize, context: &LaunchContext<'_>) -> Result<Execut
         .collect();
     let result = executor::execute_mode(
         executor::Request {
+            log: log.clone(),
             image: &images[target],
             workspace: &workspaces[target],
             output: &outputs[target],
@@ -345,11 +445,12 @@ fn launch(a: &Value, index: usize, context: &LaunchContext<'_>) -> Result<Execut
             stdout: &stdout,
             stderr: &stderr,
             timeout: Duration::from_secs(600),
-            name: &format!("oyzu-{run_id}-{index}"),
+            name: &format!("oyzu-{}-{index}", run.id),
         },
         &mounts,
         &mode,
         &materialized,
+        &serde_json::from_value(a["targetPlatform"].clone())?,
     );
     let mut duration = None;
     let mut failure = None;
@@ -411,7 +512,11 @@ mod tests {
             ..Default::default()
         };
         assert!(records
-            .collect_due(&mut collector, "app:post_test")
+            .collect_due(
+                &mut collector,
+                "app:post_test",
+                &crate::logging::Log::default()
+            )
             .unwrap());
         assert!(records
             .actions

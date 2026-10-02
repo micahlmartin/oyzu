@@ -1,6 +1,7 @@
 //! Built-in ecosystem adapters. The engine consumes plans, never manager-specific commands.
 //!
 //! These are crate-private implementation contracts, not a stable plugin ABI.
+mod container;
 mod contract;
 mod docker;
 mod go;
@@ -14,6 +15,7 @@ mod task;
 mod tests;
 
 use anyhow::{bail, Result};
+pub(crate) use container::ContainerProfile;
 pub(crate) use contract::*;
 pub(crate) use task::unavailable;
 

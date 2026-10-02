@@ -3,11 +3,12 @@ import {copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, 
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
 import {junit} from './jest-results.mjs';
+import {testCommand} from './test-command.mjs';
 
 const testReport = process.env.OYZU_TEST_REPORT;
 const coverageReport = process.env.OYZU_COVERAGE_REPORT;
 if (!testReport || !coverageReport) throw new Error('missing required Jest report destinations');
-const [command, ...args] = process.argv.slice(2);
+const [command, ...args] = await testCommand(process.argv.slice(2));
 if (!command) throw new Error('missing native Jest invocation');
 const temporary = mkdtempSync(join(tmpdir(), 'oyzu-jest-'));
 try {

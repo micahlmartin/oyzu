@@ -1,5 +1,6 @@
 """Validate draft build-record fixtures; never execute or certify an Oyzu build."""
 import json
+import copy
 import re
 from pathlib import Path, PurePosixPath
 
@@ -107,6 +108,15 @@ def semantics(kind, value):
             if artifact["target"] not in targets or producer is None or producer["target"] != artifact["target"]:
                 errors.add("references")
             portable(artifact["path"])
+            if kind == 'manifest' and artifact['kind'] == 'directory':
+                entries = artifact['entries']
+                names = [entry['path'] for entry in entries]
+                if names != sorted(names) or len({name.casefold() for name in names}) != len(names):
+                    errors.add('paths')
+                for entry in entries:
+                    portable(entry['path'])
+                if sum(entry['size'] for entry in entries) != artifact['size']:
+                    errors.add('artifacts')
             if artifact["path"].casefold() in paths:
                 errors.add("paths")
             paths.add(artifact["path"].casefold())
@@ -192,6 +202,30 @@ def main():
             failures.append(f"{case['file']}: unexpectedly rejected: {reasons}; " + "; ".join(e.message for e in errors[:2]))
         if not case["valid"] and case["reason"] not in reasons:
             failures.append(f"{case['file']}: expected {case['reason']}, observed {reasons}")
+    # Aggregate null platforms are a narrow record capability; ordinary targets
+    # and actions must retain a concrete platform, and the member set is required.
+    for kind in ['plan', 'manifest']:
+        aggregate = read(CONTRACTS / 'fixtures' / f'{kind}-oci-index.valid.json')
+        invalid = copy.deepcopy(aggregate)
+        invalid['targets'][-1]['builder'] = 'docker/image'
+        if not list(validators[kind].iter_errors(invalid)):
+            failures.append(f'{kind}: ordinary target accepted a null platform')
+        invalid = copy.deepcopy(aggregate)
+        invalid['targets'][-1]['extensions']['oyzu.dev/oci-index']['members'] = []
+        if not list(validators[kind].iter_errors(invalid)):
+            failures.append(f'{kind}: empty aggregate member set accepted')
+    invalid = read(CONTRACTS / 'fixtures' / 'plan-oci-index.valid.json')
+    invalid['actions'][-1]['operation'] = 'build'
+    if not list(validators['plan'].iter_errors(invalid)):
+        failures.append('plan: aggregate extension accepted a different operation')
+    ordinary = copy.deepcopy(invalid)
+    del ordinary['actions'][-1]['extensions']['oyzu.dev/oci-index']
+    ordinary['actions'][-1]['operation'] = 'assemble-index'
+    if not list(validators['plan'].iter_errors(ordinary)):
+        failures.append('plan: ordinary action accepted a null target platform')
+    ordinary['actions'][-1]['targetPlatform'] = {'os': 'linux', 'arch': 'amd64'}
+    if list(validators['plan'].iter_errors(ordinary)):
+        failures.append('plan: ordinary custom operation named assemble-index was reserved')
     build_examples = sorted((ROOT / "examples").rglob("build.yaml"))
     build_examples += sorted((ROOT / "examples").rglob("*.build.yaml"))
     for path in build_examples:

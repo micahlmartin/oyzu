@@ -18,6 +18,8 @@ Implementation detail: [v1alpha1 implementation contract](implementation.md). Th
 
 ## Problem and outcome
 
+The [build logging companion](logging.md) describes the live-output implementation proof and its ownership boundaries.
+
 A reproducible plan is insufficient if commands can download undeclared dependencies or read a developer's home directory. Execution must be constrained to captured source, acquired inputs, declared environment, and controlled outputs.
 
 ## Input preparation and execution boundary

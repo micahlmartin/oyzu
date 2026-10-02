@@ -61,10 +61,18 @@ def verify(root, base, invoke, validate, source_files, verified):
     package = json.loads(package_path.read_text())
     package['scripts'].update({'lint':'node --check index.mjs', 'format:check':'node --check index.mjs'})
     package_path.write_text(json.dumps(package))
+    # Compose an implicit member runner with a sibling's native test script.
+    app_manifest = project/'packages/app/package.json'
+    app_package = json.loads(app_manifest.read_text())
+    app_package['scripts'].pop('test')
+    app_manifest.write_text(json.dumps(app_package))
     before = source_files(project)
     invoke(project, 'build')
     mixed = validate(project/'dist')
     assert source_files(project) == before and len(mixed['artifacts']) == 2
+    tests = [r for r in mixed['reports'] if r['kind'] == 'test']
+    assert len(tests) == 2 and all(r['summary']['passed'] == 1 for r in tests)
+    assert len([r for r in mixed['reports'] if r['kind'] == 'coverage']) == 2
     formatting = [a for a in mixed['actions'] if a['id'] in ['project:format-check','project:format:check']]
     assert len(formatting) == 1 and formatting[0]['status'] == 'succeeded'
     (project/'packages/app/quality.mjs').write_text('export const value = missing;\n')

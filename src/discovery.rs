@@ -29,9 +29,15 @@ pub fn discover_target(name: &str, path: &Path, explicit: Option<&str>) -> Resul
     let mut target = Target {
         name: name.into(),
         builder: builder.clone(),
+        builder_selection: if explicit.is_some() {
+            crate::model::BuilderSelection::Explicit
+        } else {
+            crate::model::BuilderSelection::Inferred
+        },
         manager: builder.clone(),
         path: path.into(),
         version: "0.0.0".into(),
+        variant: BTreeMap::new(),
         tasks: BTreeMap::new(),
         discovery: BTreeMap::new(),
     };
@@ -74,15 +80,26 @@ pub fn discover_with_options(
 }
 
 pub(crate) fn discover_with_session(
+    session: config::session::Session,
+    default_shell: Option<&str>,
+) -> Result<Workspace> {
+    discover_with_session_logged(session, default_shell, None)
+}
+
+pub(crate) fn discover_with_session_logged(
     mut session: config::session::Session,
     default_shell: Option<&str>,
+    log: Option<&crate::logging::Log>,
 ) -> Result<Workspace> {
     let root = session.root.clone();
     let selected = inventory::select(&root)?;
     for diagnostic in selected.diagnostics {
-        eprintln!(
-            "{}: {}: {}",
-            diagnostic.code, diagnostic.source, diagnostic.message
+        warning(
+            log,
+            &format!(
+                "{}: {}: {}",
+                diagnostic.code, diagnostic.source, diagnostic.message
+            ),
         );
     }
     let mut targets = BTreeMap::new();
@@ -267,9 +284,12 @@ pub(crate) fn discover_with_session(
         .flat_map(|config| &config.diagnostics)
     {
         if warnings.insert((&diagnostic.source, &diagnostic.key)) {
-            eprintln!(
-                "{}: {}: {}: {}",
-                diagnostic.code, diagnostic.source, diagnostic.key, diagnostic.message
+            warning(
+                log,
+                &format!(
+                    "{}: {}: {}: {}",
+                    diagnostic.code, diagnostic.source, diagnostic.key, diagnostic.message
+                ),
             );
         }
     }
@@ -279,5 +299,17 @@ pub(crate) fn discover_with_session(
         tasks,
         configuration: effective_configs,
         root_configuration: Some(root_effective),
+        declarations: selected.declarations,
+        build_root_overrides: BTreeMap::new(),
+        build_variant_errors: BTreeMap::new(),
     })
+}
+
+fn warning(log: Option<&crate::logging::Log>, message: &str) {
+    if let Some(log) = log {
+        log.scope("preflight")
+            .progress(&format!("WARNING: {message}"));
+    } else {
+        eprintln!("{message}");
+    }
 }

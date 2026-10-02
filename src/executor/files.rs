@@ -27,6 +27,16 @@ pub(super) fn output_file(root: &Path, relative: &str) -> Result<fs::File> {
 }
 
 pub(super) fn file(root: &Path, relative: &str) -> Result<PathBuf> {
+    let path = input(root, relative)?;
+    if !fs::metadata(&path)?.is_file() {
+        bail!("engine input is not a regular file");
+    }
+    Ok(path)
+}
+
+/// Resolve an existing contained input without permitting linked parents.
+/// The caller owns the allowed terminal kind (file or complete tree).
+pub(super) fn input(root: &Path, relative: &str) -> Result<PathBuf> {
     if !crate::snapshot::portable(relative) {
         bail!("invalid captured input path");
     }
@@ -36,9 +46,6 @@ pub(super) fn file(root: &Path, relative: &str) -> Result<PathBuf> {
         if fs::symlink_metadata(&path)?.file_type().is_symlink() {
             bail!("engine input is a symlink");
         }
-    }
-    if !fs::metadata(&path)?.is_file() {
-        bail!("engine input is not a regular file");
     }
     Ok(path)
 }

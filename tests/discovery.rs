@@ -8,6 +8,46 @@ fn write(root: &Path, path: &str, text: &str) {
 }
 
 #[test]
+fn workspace_tests_use_native_manager_membership_without_running_tools() {
+    let root = tempfile::tempdir().unwrap();
+    write(
+        root.path(),
+        "package.json",
+        r#"{"name":"root","private":true}"#,
+    );
+    write(
+        root.path(),
+        "pnpm-workspace.yaml",
+        "packages: ['packages/*']\n",
+    );
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(ws.targets["project"].manager, "pnpm");
+    assert_eq!(
+        ws.tasks["project:test"].argv,
+        ["pnpm", "--recursive", "run", "test"]
+    );
+
+    fs::remove_file(root.path().join("pnpm-workspace.yaml")).unwrap();
+    write(
+        root.path(),
+        "package.json",
+        r#"{"name":"root","private":true,"packageManager":"yarn@1.22.22","workspaces":["packages/*"]}"#,
+    );
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(
+        ws.tasks["project:test"].argv,
+        ["yarn", "workspaces", "run", "test"]
+    );
+    write(
+        root.path(),
+        "package.json",
+        r#"{"name":"root","private":true,"packageManager":"yarn@1.22.22","workspaces":["packages/*"],"scripts":{"test":"DO NOT EXECUTE"}}"#,
+    );
+    let ws = discovery::discover(root.path()).unwrap();
+    assert_eq!(ws.tasks["project:test"].argv, ["yarn", "run", "test"]);
+}
+
+#[test]
 fn native_scripts_and_go_checks_are_discovered_without_execution() {
     let root = tempfile::tempdir().unwrap();
     write(

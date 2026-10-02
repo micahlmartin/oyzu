@@ -18,3 +18,11 @@ ADD https://repo.maven.apache.org/maven2/org/hamcrest/hamcrest-core/1.3/hamcrest
 RUN echo '8e495b634469d64fb8acfa3495a065cbacc8a0fff55ce1e31007be4c16dc57d3  /opt/ant/lib/junit-4.13.2.jar' | sha256sum --check \
     && echo '66fdef91e9739348df7a096aa384a5685f4e875584cce89386a7a47251c4d8e9  /opt/ant/lib/hamcrest-core-1.3.jar' | sha256sum --check \
     && chmod 644 /opt/ant/lib/*.jar
+
+COPY tooling/provision-java-quality.py /tmp/oyzu-provision/tooling/provision-java-quality.py
+COPY tooling/provisioning.py /tmp/oyzu-provision/tooling/provisioning.py
+COPY src/builders/java/runtime /tmp/oyzu-provision/src/builders/java/runtime
+RUN python3 /tmp/oyzu-provision/tooling/provision-java-quality.py --destination /opt/oyzu-java-quality \
+    && chmod -R a+rX /opt/oyzu-java-quality \
+    && rm -rf /tmp/oyzu-provision
+ENV OYZU_JAVA_QUALITY_HOME=/opt/oyzu-java-quality

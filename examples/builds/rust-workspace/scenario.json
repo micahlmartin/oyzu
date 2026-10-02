@@ -21,9 +21,24 @@
   ],
   "cases": [
     {
+      "name": "mixed-registry",
+      "change": "Apply the Cargo-generated lock and core manifest/source overrides in variants/registry.",
+      "expect": "Build and verify all snapshot crates offline with captured itoa and unpublished local dependencies; retain reports, repeatable artifacts and unchanged inputs."
+    },
+    {
+      "name": "incomplete-crate",
+      "change": "Exclude message.txt from the core crate in the mixed-registry variation.",
+      "expect": "Workspace compilation succeeds but native archive verification fails and no artifacts are collected."
+    },
+    {
       "name": "generated-input-change",
       "change": "Edit core/message.txt.",
       "expect": "Regenerate the constant and invalidate downstream consumers."
+    },
+    {
+      "name": "doctest-failure",
+      "change": "Remove the negation from the greeting documentation assertion in core/src/lib.rs.",
+      "expect": "Native doctests fail while ordinary unit tests pass; retain a separate invocation-scoped JUnit failure and collect no artifacts."
     }
   ],
   "nativeChecks": [
@@ -41,6 +56,9 @@
     }
   ],
   "requiredFiles": [
+    "variants/registry/Cargo.lock",
+    "variants/registry/core.Cargo.toml",
+    "variants/registry/core.rs",
     "project/Cargo.lock",
     "project/Cargo.toml",
     "project/app/Cargo.toml",

@@ -13,6 +13,9 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
     target
         .discovery
         .insert("formatter".into(), profile.formatter);
+    target
+        .discovery
+        .insert("test-framework".into(), profile.framework);
     if let Some(version) = value
         .get("project")
         .and_then(|v| v.get("version"))
@@ -53,13 +56,6 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             "no task adapter for detected Python manager {}",
             target.manager
         );
-    }
-    let has_tests = target.path.join("tests").is_dir() || target.path.join("test").is_dir();
-    if !has_tests {
-        if let Some(test) = target.tasks.get_mut("test") {
-            test.availability = Some("No conventional test directory detected".into());
-            test.build_stage = false;
-        }
     }
     super::quality::discover(target);
     Ok(())

@@ -11,12 +11,27 @@ pub(super) const POETRY_IMAGE: &str = "oyzu-toolchain/poetry:2.5.1-python3.12";
 pub(super) const PYTHON_HELPER: &str = include_str!("runtime/adapter.py");
 
 pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
+    capture(context, None)
+}
+
+pub(super) fn prepare_runtime(
+    context: PreparationContext<'_>,
+    provider: &super::dependency_context::PythonStore,
+) -> Result<Prepared> {
+    capture(context, Some(provider))
+}
+
+fn capture(
+    context: PreparationContext<'_>,
+    provider: Option<&super::dependency_context::PythonStore>,
+) -> Result<Prepared> {
+    let runtime_only = provider.is_some();
     let root = &context.target.path;
     let destination = context.destination;
     let image = context.image;
     let source_digest = context.source_digest;
     let name = context.execution_name;
-    let manager = context.target.manager.as_str();
+    let manager = provider.map_or(context.target.manager.as_str(), |p| p.manager());
     fs::create_dir(destination)?;
     let control = tempfile::tempdir()?;
     let helper = control.path().join("helper");
@@ -37,32 +52,40 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         )?,
     ];
     let session = broker::Session::start(&spool, &private, sources)?;
-    let env = BTreeMap::from([
+    let mut env = BTreeMap::from([
         ("OYZU_PYTHON_MANAGER".into(), manager.into()),
-        (
-            "OYZU_PYTHON_LINTER".into(),
-            context.target.discovery["linter"].selected().into(),
-        ),
-        (
-            "OYZU_PYTHON_FORMATTER".into(),
-            context.target.discovery["formatter"].selected().into(),
-        ),
         ("UV_CACHE_DIR".into(), "/tmp/uv-cache".into()),
         ("HOME".into(), "/tmp/oyzu-home".into()),
         ("PYTHONNOUSERSITE".into(), "1".into()),
         ("PIP_CONFIG_FILE".into(), "/dev/null".into()),
         ("PIP_DISABLE_PIP_VERSION_CHECK".into(), "1".into()),
     ]);
+    if !runtime_only {
+        env.insert(
+            "OYZU_PYTHON_LINTER".into(),
+            context.target.discovery["linter"].selected().into(),
+        );
+        env.insert(
+            "OYZU_PYTHON_FORMATTER".into(),
+            context.target.discovery["formatter"].selected().into(),
+        );
+    }
     let argv = vec![
         "python".into(),
         "-I".into(),
         "/oyzu/python.py".into(),
-        "acquire".into(),
+        if runtime_only {
+            "acquire-runtime"
+        } else {
+            "acquire"
+        }
+        .into(),
     ];
     let stdout = control.path().join("stdout");
     let stderr = control.path().join("stderr");
     let execution = executor::execute_with_mounts(
         executor::Request {
+            log: context.log.clone(),
             image,
             workspace: root,
             output: destination,
@@ -99,8 +122,8 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         );
     }
     let metadata = records::read(&destination.join("packages.json"))?;
-    let mut extensions = json!({"oyzu.dev/python-runtime":{"roots":metadata["runtimeRoots"]}});
-    if super::legacy::matches(root) {
+    let mut extensions = json!({"oyzu.dev/python-runtime":{"roots":metadata["runtimeRoots"],"implementation":metadata["implementation"]}});
+    if !runtime_only && super::legacy::matches(root) {
         extensions["oyzu.dev/python-legacy"] = super::legacy::capture(&context, &helper)?;
     }
     let tree = snapshot::capture_prepared(destination, &control.path().join("frozen"))?;
@@ -113,7 +136,14 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         Ok(json!({"id":p["id"],"name":p["name"],"version":p["version"],"sourceId":"pypi","digest":snapshot::file_digest(&path)?,"size":info.len(),"purpose":p["purpose"],"dependencies":p["dependencies"],"verification":"digest-only"}))
     }).collect::<Result<_>>()?;
     let platform = json!({"os":image.os,"arch":image.arch,"runtime":metadata["python"]});
-    let lock_digests = ["uv.lock", "poetry.lock", "requirements.txt"]
+    let runtime_lock;
+    let locks: &[&str] = if let Some(provider) = provider {
+        runtime_lock = [provider.lock()];
+        &runtime_lock
+    } else {
+        &["uv.lock", "poetry.lock", "requirements.txt"]
+    };
+    let lock_digests = locks
         .iter()
         .filter_map(|file| root.join(file).is_file().then_some(root.join(file)))
         .map(|file| snapshot::file_digest(&file))

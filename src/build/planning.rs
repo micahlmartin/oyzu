@@ -1,5 +1,5 @@
 //! Translate typed builder intent into the versioned execution plan.
-use crate::{builders, config, dependencies, executor, model::Workspace, records, snapshot, tasks};
+use crate::{builders, dependencies, executor, model::Workspace, records, snapshot, tasks};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
 use std::{
@@ -21,14 +21,39 @@ fn platform(image: &executor::Image) -> Value {
     json!({"os":image.os,"arch":image.arch})
 }
 
-pub(super) fn target_order(workspace: &Workspace) -> Result<Vec<String>> {
-    let configs = config::targets(&workspace.root)?.unwrap_or_default();
-    for (id, c) in &configs {
-        if !c.matrix.is_empty() || c.container.is_some() || c.bindings.is_some() {
+/// Selection uses frozen declarations; execution must consume source containing
+/// the same inventory bytes (including an inventory being added or removed).
+pub(super) fn verify_inventory_source(
+    workspace: &Workspace,
+    source: &snapshot::Snapshot,
+) -> Result<()> {
+    let captured = source
+        .entries
+        .iter()
+        .find(|entry| entry.path == "build.yaml")
+        .and_then(|entry| entry.digest.as_ref());
+    if captured != workspace.declarations.source_digest.as_ref() {
+        bail!("build.yaml changed between discovery and source capture; rerun the build to select and plan from the same inventory");
+    }
+    Ok(())
+}
+
+pub(super) fn target_order(
+    workspace: &Workspace,
+    selected: &BTreeSet<String>,
+) -> Result<Vec<String>> {
+    let configs = &workspace.declarations.targets;
+    for id in selected {
+        if let Some(message) = workspace.build_variant_errors.get(id) {
+            bail!("{message}");
+        }
+    }
+    for (id, c) in configs.iter().filter(|(id, _)| selected.contains(*id)) {
+        if !c.matrix.is_empty() || c.bindings.is_some() {
             bail!("{id}: platform expansion and packaging options are not implemented yet");
         }
     }
-    let mut pending: BTreeSet<_> = workspace.targets.keys().cloned().collect();
+    let mut pending = selected.clone();
     let mut done = Vec::new();
     while !pending.is_empty() {
         let ready = pending
@@ -49,21 +74,24 @@ pub(super) fn target_order(workspace: &Workspace) -> Result<Vec<String>> {
     Ok(done)
 }
 
-fn action(
+pub(super) fn action(
     id: &str,
     target: &str,
     operation: &str,
     argv: Vec<String>,
     cwd: &str,
     env: &BTreeMap<String, String>,
-    execution: (&executor::Image, &str, &executor::Mode),
+    execution: (
+        &executor::Image,
+        &str,
+        &executor::Mode,
+        &crate::platform::Platform,
+    ),
 ) -> Value {
-    let (image, source, mode) = execution;
-    let argv = mode
-        .argv(&format!("{}/{}", image.os, image.arch))
-        .unwrap_or(argv);
+    let (image, source, mode, target_platform) = execution;
+    let argv = mode.argv(&target_platform.to_string()).unwrap_or(argv);
     let mut action = json!({"id":id,"target":target,"operation":operation,"dependsOn":[],"argv":argv,"cwd":cwd,"env":env,
-        "tools":[target],"executionPlatform":platform(image),"targetPlatform":platform(image),
+        "tools":[target],"executionPlatform":platform(image),"targetPlatform":target_platform,
         "inputs":[{"kind":"tree","digest":source,"mount":"workspace"}],"outputs":[],"reports":[],
         "required":true,"cacheable":false,"network":"none",
         "limits":{"timeoutSeconds":600,"cpu":2,"memoryBytes":2147483648u64,"outputBytes":16777216}});
@@ -86,37 +114,101 @@ pub(super) fn plan_with_dependencies(
     images: &BTreeMap<String, executor::Image>,
     dependencies: &BTreeMap<String, dependencies::Prepared>,
 ) -> Result<Value> {
+    verify_inventory_source(workspace, source)?;
+    workspace.invocation_configuration()?;
+    if workspace.declarations.targets.values().any(|c| {
+        c.container
+            .as_ref()
+            .is_some_and(crate::config::Container::enabled)
+    }) {
+        bail!(
+            "container planning requires captured runtime inputs; use the captured build lifecycle"
+        );
+    }
+    let mut intents = BTreeMap::new();
+    for id in workspace.targets.keys() {
+        intents.insert(
+            id.clone(),
+            intent(workspace, id, source, dependencies.get(id))?,
+        );
+    }
+    compile(workspace, source, images, dependencies, &intents)
+}
+
+pub(super) fn intent(
+    workspace: &Workspace,
+    id: &str,
+    source: &snapshot::Snapshot,
+    dependency: Option<&dependencies::Prepared>,
+) -> Result<builders::BuilderPlan> {
+    workspace.target_configuration(id)?;
+    let target = &workspace.targets[id];
+    let intent = builders::get(&target.builder)?.plan(builders::PlanningContext {
+        target,
+        source,
+        dependencies: dependency,
+    })?;
+    intent
+        .validate()
+        .with_context(|| format!("{id}: invalid builder output contract"))?;
+    Ok(intent)
+}
+
+pub(super) fn compile(
+    workspace: &Workspace,
+    source: &snapshot::Snapshot,
+    images: &BTreeMap<String, executor::Image>,
+    dependencies: &BTreeMap<String, dependencies::Prepared>,
+    intents: &BTreeMap<String, builders::BuilderPlan>,
+) -> Result<Value> {
+    verify_inventory_source(workspace, source)?;
+    let invocation = workspace.invocation_configuration()?;
+    let selected = intents.keys().cloned().collect();
+    let order = target_order(workspace, &selected)?;
     let mut planned = Vec::new();
     let mut target_records = Vec::new();
     let mut artifacts = Vec::new();
     let mut tools = Vec::new();
     let builder_digest = snapshot::file_digest(&std::env::current_exe()?)?;
-    let mut emitted = BTreeSet::new();
-    let configs = config::targets(&workspace.root)?.unwrap_or_default();
+    let configs = &workspace.declarations.targets;
+    let mut platforms = BTreeMap::new();
+    for id in &order {
+        workspace.target_configuration(id)?;
+        let target = &workspace.targets[id];
+        let image = images
+            .get(id)
+            .with_context(|| format!("{id}: no resolved toolchain image"))?;
+        let platform = builders::get(&target.builder)?
+            .target_platform(configs.get(id).and_then(|c| c.platform.as_deref()), image)?;
+        let execution = image.platform()?;
+        if intents[id]
+            .execution_platform
+            .as_ref()
+            .is_some_and(|captured| captured != &execution)
+        {
+            bail!("{id}: captured execution platform differs from resolved toolchain");
+        }
+        if intents[id]
+            .target_platform
+            .as_ref()
+            .is_some_and(|captured| captured != &platform)
+        {
+            bail!("{id}: captured artifact target platform differs from requested {platform}");
+        }
+        platforms.insert(id.clone(), platform);
+    }
     let mut materialized = BTreeMap::new();
-    for id in target_order(workspace)? {
+    let task_graph = super::task_graph::TaskGraph::new(workspace, intents)?;
+    for id in order {
         let target = &workspace.targets[&id];
         let image = images
             .get(&id)
             .with_context(|| format!("{id}: no resolved toolchain image"))?;
-        if let Some(required) = configs.get(&id).and_then(|c| c.platform.as_ref()) {
-            let actual = format!("{}/{}", image.os, image.arch);
-            if required != &actual {
-                bail!("{id}: required platform {required} does not match resolved toolchain {actual}; cross-platform execution is not implemented yet");
-            }
-        }
+        let target_platform = &platforms[&id];
         let builder = builders::get(&target.builder)?;
-        if let Some(config) = workspace.configuration.get(&id) {
-            crate::config::enforcement::execution_preflight(config, builder.descriptor().tools)?;
-        }
-        let intent = builder.plan(builders::PlanningContext {
-            target,
-            source,
-            dependencies: dependencies.get(&id),
-        })?;
-        intent
-            .validate()
-            .with_context(|| format!("{id}: invalid builder output contract"))?;
+        let configuration = workspace.target_configuration(&id)?;
+        crate::config::enforcement::execution_preflight(configuration, builder.descriptor().tools)?;
+        let intent = &intents[&id];
         let cwd = relative(&workspace.root, &target.path)?;
         let projection = intent
             .source_files
@@ -130,14 +222,14 @@ pub(super) fn plan_with_dependencies(
                     &config.materialize,
                     &cwd,
                     &artifacts,
-                    images,
+                    &platforms,
                     &id,
                     source,
                     projection.as_ref(),
                 )?,
             );
         }
-        let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":{},"platform":platform(image)});
+        let mut record = json!({"id":id,"builder":target.builder,"builderDigest":builder_digest,"path":cwd,"variant":target.variant,"platform":target_platform});
         if !target.discovery.is_empty() {
             record["extensions"]["oyzu.dev/discovery"] = json!(target.discovery);
         }
@@ -147,10 +239,8 @@ pub(super) fn plan_with_dependencies(
         if let Some(projection) = projection {
             record["extensions"]["oyzu.dev/source-projection"] = json!(projection);
         }
-        if let Some(config) = workspace.configuration.get(&id) {
-            record["extensions"]["oyzu.dev/configuration"] =
-                json!({"digest": config.digest, "profile": config.profile});
-        }
+        record["extensions"]["oyzu.dev/configuration"] =
+            json!({"digest": configuration.digest, "profile": configuration.profile});
         target_records.push(record);
         tools.push(json!({"id":id,"version":image.reference,"digest":image.digest,"platform":platform(image)}));
         for command in &intent.prepare {
@@ -161,129 +251,89 @@ pub(super) fn plan_with_dependencies(
                 command.argv.clone(),
                 &cwd,
                 &intent.env,
-                (image, &source.digest, &command.execution),
+                (image, &source.digest, &command.execution, target_platform),
             ));
         }
-        let operation_id = |stage: &str| {
-            if workspace.targets.len() == 1 && workspace.tasks.contains_key(stage) {
-                stage.to_string()
-            } else {
-                format!("{id}:{stage}")
-            }
-        };
         let operation_contracts: BTreeMap<_, _> = intent
             .tasks
             .iter()
-            .map(|(name, plan)| (operation_id(name), plan))
+            .map(|(name, plan)| (super::task_graph::operation(workspace, &id, name), plan))
             .collect();
-        let native_operations: BTreeSet<_> = operation_contracts
-            .keys()
-            .filter(|id| {
-                workspace
-                    .tasks
-                    .get(*id)
-                    .is_some_and(|task| task.provider == target.manager)
-            })
-            .cloned()
-            .collect();
-        for stage in &intent.stages {
-            // Match public task lookup for a single-target workspace: explicit
-            // root tasks own unqualified operations. Never fan a root override
-            // out across multiple targets.
-            let root_override =
-                workspace.targets.len() == 1 && workspace.tasks.contains_key(*stage);
-            let task_id = operation_id(stage);
-            let Some(task) = workspace.tasks.get(&task_id) else {
-                continue;
-            };
-            let provided = native_operations.contains(&task_id);
-            if (task.availability.is_some() && !provided)
-                || (!task.build_stage
-                    && !root_override
-                    && !operation_contracts.contains_key(&task_id))
-            {
-                continue;
+        for step in task_graph
+            .ordered
+            .iter()
+            .filter(|step| task_graph.owners[*step] == id)
+        {
+            let task = &workspace.tasks[step];
+            if task.mutates_source {
+                bail!("{step}: mutating formatter cannot run as a build check");
             }
-            let sequence = tasks::sequence_for_build(workspace, &task_id, &native_operations)?;
-            for (position, step) in sequence.iter().enumerate() {
-                if !emitted.insert(step.clone()) {
-                    continue;
-                }
-                let task = &workspace.tasks[step];
-                if task.mutates_source {
-                    bail!("{step}: mutating formatter cannot run as a build check");
-                }
-                if !task.target.is_empty() && task.target != id {
-                    bail!("{step}: cross-target task prerequisites require graph integration");
-                }
-                // The operation owns its required evidence even when TOML
-                // replaces its body. Runner-specific adaptation belongs to the
-                // builder; the engine never guesses how to modify a command.
-                // A native operation can first appear as another operation's
-                // prerequisite. Its report contract follows its identity.
-                let contract = operation_contracts.get(step).copied();
-                let native = contract.filter(|_| task.provider == target.manager);
-                let mut bindings = super::reporting::bind(&workspace.root, &id, task, contract)?;
-                let mut env = intent.env.clone();
-                env.extend(task.env.clone());
-                if let Some(owner) = tasks::hook_owner(task).and_then(|id| workspace.tasks.get(&id))
-                {
-                    let reports = super::reporting::bind(
-                        &workspace.root,
-                        &id,
-                        owner,
-                        operation_contracts.get(&owner.id()).copied(),
-                    )?;
-                    env.extend(reports.env);
-                }
-                env.extend(bindings.env);
-                if let Some(config) = workspace.configuration.get(&id) {
-                    config.validate_environment(&env)?;
-                }
-                for (name, value) in &intent.fixed_env {
-                    if env.get(name) != Some(value) {
-                        bail!("{step}: {name} must remain {value} for the captured builder capability");
-                    }
-                }
-                let instrumented = contract
-                    .filter(|_| native.is_none())
-                    .and_then(|_| builder.instrument_override(target, task, &env));
-                let native_reporting = native.is_some() || instrumented.is_some();
-                let argv = native.map_or_else(
-                    || instrumented.unwrap_or_else(|| task.argv.clone()),
-                    |v| v.argv.clone(),
-                );
-                if !native_reporting {
-                    for source in bindings.sources.values_mut() {
-                        *source = crate::reports::ReportSource::File;
-                    }
-                }
-                let post = tasks::post_hook(task);
-                let boundary = sequence[position + 1..]
-                    .iter()
-                    .find(|id| **id == post)
-                    .unwrap_or(step);
-                let mut a = action(
-                    step,
+            // The operation owns its required evidence even when TOML
+            // replaces its body. Runner-specific adaptation belongs to the
+            // builder; the engine never guesses how to modify a command.
+            // A native operation can first appear as another operation's
+            // prerequisite. Its report contract follows its identity.
+            let contract = operation_contracts.get(step).copied();
+            let native = contract.filter(|_| task.provider == target.manager);
+            let mut bindings =
+                crate::reports::bindings::bind(&workspace.root, &id, task, contract)?;
+            let mut env = intent.env.clone();
+            env.extend(task.env.clone());
+            if let Some(owner) = tasks::hook_owner(task).and_then(|id| workspace.tasks.get(&id)) {
+                let reports = crate::reports::bindings::bind(
+                    &workspace.root,
                     &id,
-                    &task.name,
-                    argv,
-                    &relative(&workspace.root, &task.cwd)?,
-                    &env,
-                    (
-                        image,
-                        &source.digest,
-                        native.map_or(&executor::Mode::Process, |v| &v.execution),
-                    ),
-                );
-                a["reports"] = json!(bindings.intents);
-                a["extensions"]["oyzu.dev/report-paths"] = json!(bindings.paths);
-                a["extensions"]["oyzu.dev/stdout-must-be-empty"] = json!(task.stdout_must_be_empty);
-                a["extensions"]["oyzu.dev/report-sources"] = json!(bindings.sources);
-                a["extensions"]["oyzu.dev/report-inputs"] = json!(bindings.inputs);
-                a["extensions"]["oyzu.dev/collect-after"] = json!(boundary);
-                planned.push(a);
+                    owner,
+                    operation_contracts.get(&owner.id()).copied(),
+                )?;
+                env.extend(reports.env);
             }
+            env.extend(bindings.env);
+            configuration.validate_environment(&env)?;
+            for (name, value) in &intent.fixed_env {
+                if env.get(name) != Some(value) {
+                    bail!("{step}: {name} must remain {value} for the captured builder capability");
+                }
+            }
+            let instrumented = contract.filter(|_| native.is_none()).and_then(|_| {
+                // Build-only aliases retain distinct graph identities;
+                // native adapters still receive the original operation name.
+                let mut operation = task.clone();
+                operation.name = super::task_graph::operation_name(workspace, step).into();
+                builder.instrument_override(target, &operation, &env)
+            });
+            let native_reporting = native.is_some() || instrumented.is_some();
+            let argv = native.map_or_else(
+                || instrumented.unwrap_or_else(|| task.argv.clone()),
+                |v| v.argv.clone(),
+            );
+            if !native_reporting {
+                for source in bindings.sources.values_mut() {
+                    *source = crate::reports::ReportSource::File;
+                }
+            }
+            let boundary = super::task_graph::completion(workspace, step);
+            let mut a = action(
+                step,
+                &id,
+                super::task_graph::operation_name(workspace, step),
+                argv,
+                &relative(&workspace.root, &task.cwd)?,
+                &env,
+                (
+                    image,
+                    &source.digest,
+                    native.map_or(&executor::Mode::Process, |v| &v.execution),
+                    target_platform,
+                ),
+            );
+            a["reports"] = json!(bindings.intents);
+            a["extensions"]["oyzu.dev/report-paths"] = json!(bindings.paths);
+            a["extensions"]["oyzu.dev/stdout-must-be-empty"] = json!(task.stdout_must_be_empty);
+            a["extensions"]["oyzu.dev/report-sources"] = json!(bindings.sources);
+            a["extensions"]["oyzu.dev/report-inputs"] = json!(bindings.inputs);
+            a["extensions"]["oyzu.dev/collect-after"] = json!(boundary);
+            planned.push(a);
         }
         let producer = format!("{id}:{}", intent.package.operation);
         let mut package = action(
@@ -293,16 +343,24 @@ pub(super) fn plan_with_dependencies(
             intent.package.argv.clone(),
             &cwd,
             &intent.env,
-            (image, &source.digest, &intent.package.execution),
+            (
+                image,
+                &source.digest,
+                &intent.package.execution,
+                target_platform,
+            ),
         );
         let mut outputs = Vec::new();
         for artifact in &intent.artifacts {
             let artifact_id = format!("{id}/{}", artifact.name);
             outputs.push(artifact_id.clone());
-            artifacts.push(json!({"id":artifact_id,"target":id,"variant":{},"name":artifact.name,"producer":producer,"kind":artifact.kind,"version":artifact.version.as_ref().unwrap_or(&intent.version),"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
+            artifacts.push(json!({"id":artifact_id,"target":id,"variant":target.variant,"name":artifact.name,"producer":producer,"kind":artifact.kind,"version":artifact.version.as_ref().unwrap_or(&intent.version),"mediaType":artifact.media_type,"path":format!("{id}/artifacts/{}",artifact.filename)}));
         }
         package["outputs"] = json!(outputs);
         planned.push(package);
+        if planned.len() > 16_384 {
+            bail!("build plan exceeds 16384 actions");
+        }
     }
     // Targets have private workspaces. Preserve their internal mutation/hook
     // sequence without inventing dependencies between unrelated targets.
@@ -318,6 +376,19 @@ pub(super) fn plan_with_dependencies(
             ))
         })
         .collect::<Result<_>>()?;
+    let preparation: BTreeMap<_, _> = planned
+        .iter()
+        .filter(|a| {
+            !task_graph.owners.contains_key(a["id"].as_str().unwrap())
+                && final_actions[a["target"].as_str().unwrap()] != a["id"].as_str().unwrap()
+        })
+        .map(|a| {
+            (
+                a["target"].as_str().unwrap().to_owned(),
+                a["id"].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect();
     let mut previous: BTreeMap<String, String> = BTreeMap::new();
     for a in &mut planned {
         if let Some(inputs) = a["target"].as_str().and_then(|id| materialized.get(id)) {
@@ -339,8 +410,46 @@ pub(super) fn plan_with_dependencies(
             .as_str()
             .context("missing action target")?
             .to_owned();
-        if let Some(p) = previous.get(&target) {
-            prerequisites.insert(p.clone());
+        let action_id = a["id"].as_str().context("missing action id")?;
+        if task_graph.owners.contains_key(action_id) {
+            let edges = task_graph
+                .dependencies
+                .get(action_id)
+                .cloned()
+                .unwrap_or_default();
+            if !edges
+                .iter()
+                .any(|id| task_graph.owners.get(id) == Some(&target))
+            {
+                prerequisites.extend(preparation.get(&target).cloned());
+            }
+            prerequisites.extend(edges);
+        } else if final_actions[&target] == action_id {
+            // Package only after every selected task owned by this target,
+            // including custom tasks requested by another target, has finished.
+            let owned: BTreeSet<_> = task_graph
+                .owners
+                .iter()
+                .filter(|(_, owner)| **owner == target)
+                .map(|(id, _)| id.clone())
+                .collect();
+            if owned.is_empty() {
+                prerequisites.extend(preparation.get(&target).cloned());
+            } else {
+                prerequisites.extend(
+                    owned
+                        .iter()
+                        .filter(|id| {
+                            !task_graph.dependencies.iter().any(|(consumer, edges)| {
+                                owned.contains(consumer) && edges.contains(*id)
+                            })
+                        })
+                        .cloned(),
+                );
+            }
+        } else {
+            prerequisites.extend(previous.get(&target).cloned());
+            previous.insert(target.clone(), action_id.into());
         }
         if let Some(config) = configs.get(&target) {
             for dependency in &config.depends_on {
@@ -352,30 +461,29 @@ pub(super) fn plan_with_dependencies(
                 );
             }
         }
-        if let Some(config) = a["target"]
-            .as_str()
-            .and_then(|id| workspace.configuration.get(id))
-        {
-            a["extensions"]["oyzu.dev/configuration-digest"] = json!(config.digest);
-            a["extensions"]["oyzu.dev/coverage-minimum"] = config
-                .get("checks.coverageMinimum")
-                .cloned()
-                .unwrap_or(json!(0));
-        }
+        let configuration = workspace.target_configuration(&target)?;
+        a["extensions"]["oyzu.dev/configuration-digest"] = json!(configuration.digest);
+        a["extensions"]["oyzu.dev/coverage-minimum"] = configuration
+            .get("checks.coverageMinimum")
+            .cloned()
+            .unwrap_or(json!(0));
         a["dependsOn"] = json!(prerequisites);
-        previous.insert(
-            target,
-            a["id"].as_str().context("missing action id")?.into(),
-        );
     }
-    validate_required_checks(workspace, &planned)?;
+    // Validate combined stage, hook, task and target edges before returning a
+    // runnable plan. Task-only cycle checks cannot see all these relationships.
+    super::scheduling::Schedule::new(&planned, 1)?;
+    validate_required_checks(workspace, &selected, &planned)?;
     let managed = workspace
         .configuration
-        .values()
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+        .map(|(_, config)| config)
         .find_map(|config| config.management.as_ref());
     let required: BTreeSet<_> = workspace
         .configuration
-        .values()
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+        .map(|(_, config)| config)
         .filter_map(|config| config.get("checks.required").and_then(Value::as_array))
         .flatten()
         .filter_map(Value::as_str)
@@ -383,6 +491,7 @@ pub(super) fn plan_with_dependencies(
     let digests: BTreeMap<_, _> = workspace
         .configuration
         .iter()
+        .filter(|(id, _)| selected.contains(*id))
         .map(|(id, config)| (id, &config.digest))
         .collect();
     let mut policy = json!({"mode":if managed.is_some(){"managed"}else{"standalone"},"enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"configuration":digests,"productionEligible":false,"executor":"docker-v1"}))?,"requiredChecks":required});
@@ -390,10 +499,14 @@ pub(super) fn plan_with_dependencies(
         policy["extensions"]["oyzu.dev/configuration-policy"] = management.clone();
     }
     // A nested target cannot raise the invocation's shared concurrency ceiling.
-    let jobs = workspace
-        .root_configuration
-        .iter()
-        .chain(workspace.configuration.values())
+    let jobs = std::iter::once(invocation)
+        .chain(
+            workspace
+                .configuration
+                .iter()
+                .filter(|(id, _)| selected.contains(*id))
+                .map(|(_, config)| config),
+        )
         .filter_map(|config| config.get("build.jobs").and_then(Value::as_u64))
         .min()
         .unwrap_or(1);
@@ -405,6 +518,7 @@ pub(super) fn plan_with_dependencies(
 pub(super) fn resolve_images(
     workspace: &Workspace,
     overrides: &[String],
+    selected: &BTreeSet<String>,
 ) -> Result<BTreeMap<String, executor::Image>> {
     let mut refs = BTreeMap::new();
     for value in overrides {
@@ -419,23 +533,47 @@ pub(super) fn resolve_images(
         }
     }
     let mut images = BTreeMap::new();
-    for (id, target) in &workspace.targets {
+    for (id, target) in workspace
+        .targets
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+    {
         let builder = builders::get(&target.builder)?;
-        let default = builder.toolchain(target)?;
+        let default = builder.variant_toolchain(target)?;
         let reference = refs
             .get(target.manager.as_str())
             .copied()
-            .unwrap_or(default);
+            .unwrap_or(&default);
+        let required = builder.execution_platform(
+            workspace
+                .declarations
+                .targets
+                .get(id)
+                .and_then(|c| c.platform.as_deref()),
+        )?;
         images.insert(
             id.clone(),
-            executor::resolve_for(reference, builder.executor_profile())?,
+            executor::resolve_toolchain(
+                reference,
+                builder.executor_profile(),
+                required.as_ref(),
+                refs.contains_key(target.manager.as_str()),
+            )?,
         );
     }
     Ok(images)
 }
 
-fn validate_required_checks(workspace: &Workspace, actions: &[Value]) -> Result<()> {
-    for (id, config) in &workspace.configuration {
+fn validate_required_checks(
+    workspace: &Workspace,
+    selected: &BTreeSet<String>,
+    actions: &[Value],
+) -> Result<()> {
+    for (id, config) in workspace
+        .configuration
+        .iter()
+        .filter(|(id, _)| selected.contains(*id))
+    {
         let checks = config
             .get("checks.required")
             .and_then(Value::as_array)
@@ -472,6 +610,166 @@ fn validate_required_checks(workspace: &Workspace, actions: &[Value]) -> Result<
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn docker_artifact_platform_is_independent_of_its_worker_and_bound_to_capture() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(
+            root.path().join("build.yaml"),
+            "image:\n  uses: docker/image\n  platform: linux/arm64\n",
+        )
+        .unwrap();
+        fs::write(
+            root.path().join("Dockerfile"),
+            "FROM scratch\nCOPY greeting.txt /greeting.txt\n",
+        )
+        .unwrap();
+        fs::write(root.path().join("greeting.txt"), "hello\n").unwrap();
+        let control = tempfile::tempdir().unwrap();
+        let source = snapshot::capture(root.path(), &control.path().join("source")).unwrap();
+        let workspace = crate::discovery::discover(&control.path().join("source")).unwrap();
+        let worker = executor::Image {
+            reference: "buildkit:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        };
+        let images = BTreeMap::from([("image".into(), worker.clone())]);
+        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","targetExecution":false,
+            "stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},
+            "selection":{"targetPlatform":"linux/arm64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}});
+        let mut captured = BTreeMap::from([(
+            "image".into(),
+            dependencies::Prepared {
+                root: control.path().into(),
+                digest: format!("sha256:{}", "2".repeat(64)),
+                record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"arm64"},
+                "extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&workspace.root.join("Dockerfile")).unwrap()}}}),
+            },
+        )]);
+        let plan = plan_with_dependencies(&workspace, &source, &images, &captured).unwrap();
+        assert_eq!(plan["targets"][0]["platform"]["arch"], "arm64");
+        assert_eq!(plan["tools"][0]["platform"]["arch"], "amd64");
+        let actions = plan["actions"].as_array().unwrap();
+        assert!(actions
+            .iter()
+            .all(|a| a["executionPlatform"]["arch"] == "amd64"
+                && a["targetPlatform"]["arch"] == "arm64"));
+        assert!(
+            actions.iter().find(|a| a["id"] == "image:build").unwrap()["argv"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("platform=linux/arm64"))
+        );
+        assert!(
+            actions.iter().find(|a| a["id"] == "image:test").unwrap()["argv"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("linux/arm64"))
+        );
+        captured.get_mut("image").unwrap().record["extensions"]["oyzu.dev/docker"]["metadata"]
+            ["targetExecution"] = json!(true);
+        assert!(
+            plan_with_dependencies(&workspace, &source, &images, &captured)
+                .unwrap_err()
+                .to_string()
+                .contains("native target execution")
+        );
+        captured.get_mut("image").unwrap().record["extensions"]["oyzu.dev/docker"]["metadata"]
+            ["targetExecution"] = json!(false);
+        captured.get_mut("image").unwrap().record["manager"]["platform"]["arch"] = json!("arm64");
+        assert!(
+            plan_with_dependencies(&workspace, &source, &images, &captured)
+                .unwrap_err()
+                .to_string()
+                .contains("captured execution platform")
+        );
+        captured.get_mut("image").unwrap().record["manager"]["platform"]["arch"] = json!("amd64");
+        captured.get_mut("image").unwrap().record["targetPlatform"]["arch"] = json!("amd64");
+        captured.get_mut("image").unwrap().record["extensions"]["oyzu.dev/docker"]["metadata"]
+            ["selection"]["targetPlatform"] = json!("linux/amd64");
+        assert!(
+            plan_with_dependencies(&workspace, &source, &images, &captured)
+                .unwrap_err()
+                .to_string()
+                .contains("captured artifact target")
+        );
+        assert!(builders::get("go/app")
+            .unwrap()
+            .target_platform(Some("linux/arm64"), &worker)
+            .unwrap_err()
+            .to_string()
+            .contains("native target execution"));
+        for invalid in [
+            "windows/amd64",
+            "linux/arm64/v8",
+            "linux/x86_64",
+            "linux/AMD64",
+            "linux/amd64/ignored",
+        ] {
+            assert!(builders::get("docker/image")
+                .unwrap()
+                .target_platform(Some(invalid), &worker)
+                .is_err());
+        }
+    }
+
+    #[test]
+    fn helm_native_suite_output_matches_named_report_collection() {
+        let root = tempfile::tempdir().unwrap();
+        let fixture =
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/builds/helm-chart/project");
+        let input = root.path().join("input");
+        snapshot::capture(&fixture, &input).unwrap();
+        fs::create_dir(input.join("chart/tests")).unwrap();
+        fs::write(
+            input.join("chart/tests/example_test.yaml"),
+            "suite: example\n",
+        )
+        .unwrap();
+        let capture = root.path().join("source");
+        let source = snapshot::capture(&input, &capture).unwrap();
+        let workspace = crate::discovery::discover(&capture).unwrap();
+        let image = executor::Image {
+            reference: "helm:test".into(),
+            digest: format!("sha256:{}", "1".repeat(64)),
+            os: "linux".into(),
+            arch: "amd64".into(),
+        };
+        let dependency = dependencies::Prepared {
+            root: capture,
+            digest: format!("sha256:{}", "2".repeat(64)),
+            record: json!({}),
+        };
+        let plan = plan_with_dependencies(
+            &workspace,
+            &source,
+            &BTreeMap::from([("project".into(), image)]),
+            &BTreeMap::from([("project".into(), dependency)]),
+        )
+        .unwrap();
+        let test = plan["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["id"] == "project:test")
+            .unwrap();
+        let paths = &test["extensions"]["oyzu.dev/report-paths"];
+        for id in ["project:test", "project:test:unittest"] {
+            let destination = format!("/out/{}", paths[id].as_str().unwrap());
+            assert!(test["argv"]
+                .as_array()
+                .unwrap()
+                .contains(&json!(destination)));
+            assert_eq!(test["extensions"]["oyzu.dev/report-sources"][id], "file");
+        }
+        assert_eq!(test["reports"].as_array().unwrap().len(), 2);
+        assert!(test["reports"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r["required"] == true));
+    }
 
     #[test]
     fn npm_workspace_plans_keep_each_artifact_and_required_report_under_override() {
@@ -604,11 +902,11 @@ mod tests {
             os: "linux".into(),
             arch: "amd64".into(),
         };
-        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","oyzu.toml"]}});
+        let metadata = json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","targetExecution":false,"stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","oyzu.toml"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}});
         let dependency = dependencies::Prepared {
             root: capture.path().into(),
             digest: format!("sha256:{}", "2".repeat(64)),
-            record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&workspace.root.join("Dockerfile")).unwrap()}}}),
+            record: json!({"manager":{"platform":{"os":"linux","arch":"amd64"}},"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&workspace.root.join("Dockerfile")).unwrap()}}}),
         };
         let plan = plan_with_dependencies(
             &workspace,
@@ -628,6 +926,8 @@ mod tests {
                 "project:pre_test",
                 "project:test",
                 "project:post_test",
+                "project:lint",
+                "project:format-check",
                 "project:package"
             ]
         );

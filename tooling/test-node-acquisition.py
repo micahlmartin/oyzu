@@ -32,8 +32,10 @@ def main():
         for src, name in [
             ('src/builders/node/runtime/npm.mjs', 'npm.mjs'),
             ('src/builders/node/runtime/npm-native.mjs', 'npm-native.mjs'),
+            ('src/builders/node/runtime/node-runtime.mjs', 'node-runtime.mjs'),
             ('src/builders/node/runtime/npm-workspaces.mjs', 'npm-workspaces.mjs'),
             ('src/builders/node/runtime/lock.mjs', 'npm_lock.mjs'),
+            ('src/builders/node/runtime/integrity.mjs', 'integrity.mjs'),
             ('src/broker/runtime/transport.mjs', 'broker_transport.mjs'),
         ]:
             shutil.copyfile(ROOT / src, runtime / name)

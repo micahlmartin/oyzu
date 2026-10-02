@@ -1,0 +1,26 @@
+import groovy.json.JsonSlurper
+
+// A composite owns its included-build tests as well as ordinary subprojects.
+// No repository routing, dependency acquisition or version changes occur here.
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    def workspace = new File(System.getenv('OYZU_GRADLE_WORKSPACE')).canonicalFile.toPath()
+    def path = workspace.relativize(root.projectDir.canonicalFile.toPath()).toString().replace(File.separatorChar, '/' as char)
+    def directory = path.isEmpty() ? '.' : path
+    def plan = new JsonSlurper().parseText(System.getenv('OYZU_GRADLE_TEST_PLAN') ?: '[]')
+    def name = 'oyzuHostTest'
+    if (root.tasks.findByName(name) != null) {
+        throw new GradleException("Reserved native adapter task already exists: ${name}")
+    }
+    root.tasks.register(name) {
+        dependsOn(plan.findAll { it.build == directory }.collect { root.tasks.getByPath(it.task) })
+        dependsOn(gradle.includedBuilds.collect { it.task(":${name}") })
+    }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    if (System.getenv('OYZU_GRADLE_DESCRIBE_ONLY') == 'true' &&
+        graph.allTasks.any { it.name != 'oyzuCollectMetadata' }) {
+        throw new GradleException('Gradle metadata observation cannot run project lifecycle tasks')
+    }
+}

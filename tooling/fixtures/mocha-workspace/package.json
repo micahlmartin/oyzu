@@ -1,0 +1,6 @@
+{
+  "name": "oyzu-mocha-workspace",
+  "version": "1.0.0",
+  "workspaces": ["packages/*"],
+  "devDependencies": {"mocha": "11.8.0"}
+}

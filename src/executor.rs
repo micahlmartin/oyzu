@@ -1,10 +1,17 @@
 //! Container execution never mounts the live checkout, user home or Docker socket.
+mod dependency_context;
 mod files;
+mod images;
 mod mode;
+mod recipe;
+mod toolchains;
 mod validation;
 mod worker;
 use anyhow::{bail, Context, Result};
-pub(crate) use mode::{Mode, Profile};
+pub(crate) use dependency_context::DependencyContext;
+pub(crate) use images::export_image;
+pub(crate) use mode::{ImageInput, Mode, Profile, BUILDKIT_SOURCE_DATE_EPOCH};
+pub(crate) use recipe::{Base as ImageBase, Copy as ImageCopy, Recipe as ImageRecipe};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -15,6 +22,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
+pub(crate) use toolchains::resolve_toolchain;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Image {
@@ -22,6 +30,12 @@ pub struct Image {
     pub digest: String,
     pub os: String,
     pub arch: String,
+}
+
+impl Image {
+    pub(crate) fn platform(&self) -> Result<crate::platform::Platform> {
+        format!("{}/{}", self.os, self.arch).parse()
+    }
 }
 
 #[derive(Debug)]
@@ -36,6 +50,9 @@ pub fn resolve(reference: &str) -> Result<Image> {
 }
 
 pub(crate) fn resolve_for(reference: &str, profile: Profile) -> Result<Image> {
+    if !crate::oci::literal_reference(reference) {
+        bail!("invalid provisioned image reference");
+    }
     let result = Command::new("docker")
         .args(["image", "inspect", reference])
         .output()
@@ -78,22 +95,21 @@ pub(crate) fn resolve_for(reference: &str, profile: Profile) -> Result<Image> {
         Profile::Process if volumes.is_some_and(|v| !v.is_empty()) => {
             bail!("builder images with implicit volumes are unsupported")
         }
-        Profile::RootlessBuildkit => {
+        Profile::RootlessBuildkit
             if !matches!(info["Config"]["User"].as_str(), Some("1000" | "1000:1000"))
                 || volumes
-                    .is_some_and(|v| v.keys().any(|k| k != "/home/user/.local/share/buildkit"))
-            {
-                bail!(
-                    "BuildKit toolchain requires UID 1000 and only its private worker-store volume"
-                );
-            }
+                    .is_some_and(|v| v.keys().any(|k| k != "/home/user/.local/share/buildkit")) =>
+        {
+            bail!("BuildKit toolchain requires UID 1000 and only its private worker-store volume");
         }
         _ => (),
     }
     Ok(image)
 }
 
+#[derive(Clone)]
 pub struct Request<'a> {
+    pub log: crate::logging::Log,
     pub image: &'a Image,
     pub workspace: &'a Path,
     pub output: &'a Path,
@@ -188,11 +204,43 @@ fn run(mut command: Command, request: &Request<'_>) -> Result<Execution> {
     let stderr = fs::File::create(request.stderr)?;
     command.stdin(Stdio::null()).stdout(stdout).stderr(stderr);
     let start = Instant::now();
+    request.log.command(request.argv, request.cwd);
+    let mut followers = if request.log.active() {
+        vec![
+            crate::logging::Follow::open(request.stdout, "stdout", &request.log)?,
+            crate::logging::Follow::open(request.stderr, "stderr", &request.log)?,
+        ]
+    } else {
+        Vec::new()
+    };
+    let mut heartbeat = Instant::now();
     let mut child = command
         .spawn()
         .context("cannot launch container executor")?;
     loop {
+        for follower in &mut followers {
+            follower.drain(false)?;
+        }
+        if heartbeat.elapsed() >= Duration::from_secs(10) {
+            request.log.progress(&format!(
+                "RUNNING for {:.0}s",
+                start.elapsed().as_secs_f64()
+            ));
+            heartbeat = Instant::now();
+        }
         if let Some(status) = child.try_wait()? {
+            for follower in &mut followers {
+                follower.drain(true)?;
+            }
+            request.log.finished(
+                if status.success() {
+                    "command-succeeded"
+                } else {
+                    "command-failed"
+                },
+                status.code(),
+                Some(start.elapsed().as_millis() as u64),
+            );
             return Ok(Execution {
                 code: status.code().unwrap_or(1),
                 duration_ms: start.elapsed().as_millis() as u64,
@@ -211,6 +259,14 @@ fn run(mut command: Command, request: &Request<'_>) -> Result<Execution> {
                 .status();
             let _ = child.kill();
             let _ = child.wait();
+            for follower in &mut followers {
+                follower.drain(true)?;
+            }
+            request.log.progress(if too_large {
+                "FAILED: command log size limit exceeded"
+            } else {
+                "FAILED: command timed out"
+            });
             return Ok(Execution {
                 code: if too_large { 125 } else { 124 },
                 duration_ms: start.elapsed().as_millis() as u64,
@@ -226,12 +282,17 @@ pub(crate) fn execute_mode(
     mounts: &[Mount<'_>],
     mode: &Mode,
     materialized: &[String],
+    target_platform: &crate::platform::Platform,
 ) -> Result<Execution> {
     mode.validate()?;
     match mode {
         Mode::Process => execute_with_mounts(request, mounts),
-        Mode::OciValidation { input, report } => validation::execute(request, input, report),
-        Mode::Buildkit { .. } => worker::execute(request, mode, materialized),
+        Mode::OciValidation { input, report } => {
+            validation::execute(request, input, report, target_platform)
+        }
+        Mode::Buildkit { .. } => {
+            worker::execute(request, mounts, mode, materialized, target_platform)
+        }
     }
 }
 

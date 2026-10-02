@@ -1,0 +1,24 @@
+[
+  {
+    "name": "resolve only",
+    "pointer": "/operations",
+    "value": [
+      "resolve"
+    ]
+  },
+  {
+    "name": "offline exec shape",
+    "pointer": "/offline_allowed",
+    "value": true
+  },
+  {
+    "name": "multiple online operations",
+    "pointer": "/operations",
+    "value": [
+      "activate",
+      "build",
+      "exec",
+      "install"
+    ]
+  }
+]

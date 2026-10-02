@@ -12,6 +12,8 @@ permissions:
 jobs:
   build-cli:
     name: Build CLI (${{ matrix.os }})
+    env:
+      RUSTUP_TOOLCHAIN: '1.94.0'
     strategy:
       fail-fast: false
       matrix:
@@ -37,6 +39,57 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
       - name: Unit and discovery integration tests
         run: cargo test --locked
+      - name: Real Node ZIP store parity and changed-lock denial
+        timeout-minutes: 10
+        shell: bash
+        env:
+          OYZU_NODE_STORE_ARCHIVE: ${{ runner.temp }}/node-v22.14.0-win-x64.zip
+          OYZU_NODE_STORE_MANIFEST: ${{ runner.temp }}/node-store-manifest.json
+        run: |
+          curl --fail --silent --show-error --location --max-time 120 --max-filesize 34906389 --output "$OYZU_NODE_STORE_ARCHIVE" https://nodejs.org/dist/v22.14.0/node-v22.14.0-win-x64.zip
+          python tooling/prepare-node-store-fixture.py --archive "$OYZU_NODE_STORE_ARCHIVE" --manifest "$OYZU_NODE_STORE_MANIFEST"
+          cargo test --locked --test tool_native_archive real_node_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+      - name: Real Go ZIP store parity and changed-lock denial
+        timeout-minutes: 10
+        shell: bash
+        env:
+          OYZU_GO_STORE_ARCHIVE: ${{ runner.temp }}/go1.24.13.windows-amd64.zip
+          OYZU_GO_STORE_MANIFEST: ${{ runner.temp }}/go-store-manifest.json
+        run: |
+          curl --fail --silent --show-error --location --max-time 180 --max-filesize 87295983 --output "$OYZU_GO_STORE_ARCHIVE" https://dl.google.com/go/go1.24.13.windows-amd64.zip
+          python tooling/prepare-go-store-fixture.py --archive "$OYZU_GO_STORE_ARCHIVE" --manifest "$OYZU_GO_STORE_MANIFEST"
+          cargo test --locked --test tool_native_archive real_go_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+      - name: Real Go 1.25 ZIP store parity and changed-lock denial
+        timeout-minutes: 10
+        shell: bash
+        env:
+          OYZU_GO125_STORE_ARCHIVE: ${{ runner.temp }}/go1.25.0.windows-amd64.zip
+          OYZU_GO125_STORE_MANIFEST: ${{ runner.temp }}/go125-store-manifest.json
+        run: |
+          curl --fail --silent --show-error --location --max-time 180 --max-filesize 67418204 --output "$OYZU_GO125_STORE_ARCHIVE" https://dl.google.com/go/go1.25.0.windows-amd64.zip
+          python tooling/prepare-go-store-fixture.py --version 1.25.0 --archive "$OYZU_GO125_STORE_ARCHIVE" --manifest "$OYZU_GO125_STORE_MANIFEST"
+          cargo test --locked --test tool_native_archive real_go125_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+      - name: Real Temurin ZIP store parity and changed-lock denial
+        timeout-minutes: 10
+        shell: bash
+        env:
+          OYZU_JAVA_STORE_ARCHIVE: ${{ runner.temp }}/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip
+          OYZU_JAVA_STORE_MANIFEST: ${{ runner.temp }}/java-store-manifest.json
+        run: |
+          curl --fail --silent --show-error --location --max-time 240 --max-filesize 204643847 --output "$OYZU_JAVA_STORE_ARCHIVE" https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip
+          python tooling/prepare-java-store-fixture.py --archive "$OYZU_JAVA_STORE_ARCHIVE" --manifest "$OYZU_JAVA_STORE_MANIFEST"
+          cargo test --locked --test tool_native_archive real_java_zip_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
+      - name: Real jq raw store parity and changed-lock denial
+        timeout-minutes: 5
+        shell: bash
+        env:
+          OYZU_JQ_STORE_ARCHIVE: ${{ runner.temp }}/jq-windows-amd64.exe
+          OYZU_JQ_STORE_MANIFEST: ${{ runner.temp }}/jq-store-manifest.json
+        run: |
+          curl --fail --silent --show-error --location --max-time 120 --max-filesize 1026560 --output "$OYZU_JQ_STORE_ARCHIVE" https://github.com/jqlang/jq/releases/download/jq-1.8.1/jq-windows-amd64.exe
+          curl --fail --silent --show-error --location --max-time 30 --max-filesize 1048576 --output "$RUNNER_TEMP/jq-COPYING" https://raw.githubusercontent.com/jqlang/jq/jq-1.8.1/COPYING
+          python tooling/prepare-jq-store-fixture.py --archive "$OYZU_JQ_STORE_ARCHIVE" --manifest "$OYZU_JQ_STORE_MANIFEST"
+          cargo test --locked --test tool_native_archive real_jq_raw_publication_parity_and_changed_lock_denial -- --ignored --exact --nocapture
       - name: Native policy integrity store
         if: runner.os == 'Windows' || runner.os == 'macOS'
         run: cargo test --locked config::policy_runtime::tests::native_integrity_store_roundtrip -- --ignored --exact
@@ -59,6 +112,12 @@ jobs:
           '
       - name: Compile release CLI
         run: cargo build --locked --release
+      - name: Native Cargo artifact message contract
+        run: python tooling/test-rust-artifacts.py
+      - name: Native Cargo doctest conformance
+        run: python tooling/test-rust-doctests.py
+      - name: Native Cargo mixed workspace packaging
+        run: python tooling/test-rust-packaging.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oyzu-${{ matrix.os }}
@@ -80,6 +139,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: '1.24.13'
@@ -88,6 +150,121 @@ jobs:
         with:
           name: oyzu-${{ matrix.os }}
           path: cli
+      - name: Native Go module archive consumption
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then ADAPTER="$GITHUB_WORKSPACE/.ci-go-modulezip.exe"; else ADAPTER="$GITHUB_WORKSPACE/.ci-go-modulezip"; fi
+          cd src/builders/go/runtime/modulezip
+          go mod download
+          go mod verify
+          test -z "$(gofmt -l . ../metadata.go)"
+          go vet ./...
+          go build -mod=readonly -trimpath -o "$ADAPTER" .
+          cd "$GITHUB_WORKSPACE"
+          python tooling/test-go-modulezip.py --adapter "$ADAPTER"
+      - name: Native Rust direct test bundles
+        shell: bash
+        env:
+          RUSTUP_TOOLCHAIN: '1.94.0'
+        run: |
+          rustup toolchain install 1.94.0 --profile minimal --component llvm-tools-preview
+          python tooling/provision-rust-reporting.py --destination .ci-rust-reporting
+          python -m pip install -r tooling/design-requirements.txt
+          export PATH="$GITHUB_WORKSPACE/.ci-rust-reporting:$PATH"
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-rust-direct.py --cli "$CLI"
+      - name: Native Docker metadata and OCI image inputs
+        shell: bash
+        run: |
+          for adapter in src/builders/docker/runtime/metadata src/dependencies/runtime/images; do
+            cd "$GITHUB_WORKSPACE/$adapter"
+            go mod download
+            go mod verify
+            test -z "$(gofmt -l .)"
+            go vet ./...
+            GOPROXY=off GOSUMDB=off go test -mod=readonly ./...
+          done
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Native Java quality tasks
+        shell: bash
+        run: |
+          python tooling/test-provisioning.py
+          python tooling/provision-java-quality.py --destination .ci-java-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-java-quality.py --cli "$CLI" --tools .ci-java-quality
+      - name: Native Ant direct test bundles
+        shell: bash
+        run: |
+          python tooling/provision-ant-reporting.py --destination .ci-ant-reporting
+          python -m pip install -r tooling/design-requirements.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-ant-direct.py --cli "$CLI" --tools .ci-ant-reporting
+      - name: Native Maven direct test bundles
+        shell: bash
+        run: |
+          python tooling/provision-maven.py --destination .ci-maven
+          python -m pip install -r tooling/design-requirements.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-maven-direct.py --cli "$CLI" --maven-home .ci-maven/apache-maven-3.9.11 --repository .ci-maven/repository --acquire
+      - name: Native Gradle direct test bundles
+        shell: bash
+        run: |
+          python tooling/provision-gradle.py --destination .ci-gradle
+          python -m pip install -r tooling/design-requirements.txt
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-gradle-direct.py --cli "$CLI" --gradle-home .ci-gradle/gradle-8.14.3 --user-home .ci-gradle/home --acquire
+      - name: Native Dockerfile quality tasks
+        shell: bash
+        run: |
+          python tooling/provision-hadolint.py --destination .ci-docker-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            FORMATTER="$GITHUB_WORKSPACE/.ci-docker-quality/dockerfmt.exe"
+            CLI=cli/oyzu.exe
+          else
+            FORMATTER="$GITHUB_WORKSPACE/.ci-docker-quality/dockerfmt"
+            CLI=cli/oyzu
+            chmod +x "$CLI"
+          fi
+          cd tooling/images/docker-quality
+          go mod download
+          go mod verify
+          CGO_ENABLED=0 GOPROXY=off GOSUMDB=off go build -mod=readonly -trimpath -o "$FORMATTER" github.com/reteps/dockerfmt
+          cd "$GITHUB_WORKSPACE"
+          python tooling/test-docker-quality.py --cli "$CLI" --tools .ci-docker-quality
+      - name: Native Helm YAML quality tasks
+        shell: bash
+        run: |
+          python tooling/provision-yamlfmt.py --destination .ci-helm-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            CLI=cli/oyzu.exe
+            FORMATTER=.ci-helm-quality/yamlfmt.exe
+          else
+            CLI=cli/oyzu
+            FORMATTER=.ci-helm-quality/yamlfmt
+            chmod +x "$CLI"
+          fi
+          python tooling/test-helm-quality.py --cli "$CLI" --yamlfmt "$FORMATTER"
+      - name: Native Python test discovery and reporting
+        shell: bash
+        run: |
+          python -m venv .ci-task-python
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            PYTHON=.ci-task-python/Scripts/python.exe
+            CLI=cli/oyzu.exe
+          else
+            PYTHON=.ci-task-python/bin/python
+            CLI=cli/oyzu
+            chmod +x "$CLI"
+          fi
+          "$PYTHON" -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2 uv==0.12.21 poetry==2.5.1 -r tooling/design-requirements.txt
+          "$PYTHON" tooling/test-python-tasks.py --cli "$CLI"
+          "$PYTHON" tooling/test-python-reporting.py
+          "$PYTHON" tooling/test-python-direct.py --cli "$CLI"
+          "$PYTHON" tooling/test-direct-test-bundles.py --cli "$CLI"
+          "$PYTHON" tooling/test-go-direct.py --cli "$CLI"
       - name: Execute compiled CLI against real task scenarios
         shell: bash
         run: |
@@ -99,23 +276,44 @@ jobs:
           python tooling/test-npm-workspace-build.py
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
+          python tooling/test-native-workspace-build.py --manager yarn
+          python tooling/test-native-workspace-build.py --manager pnpm
           python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js --tar-stream tooling/images/node-yarn/node_modules/tar-stream
           python tooling/test-node-archive.py --tar-stream tooling/images/node-yarn/node_modules/tar-stream
+          python tooling/test-node-runtime.py
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/jest
           python tooling/test-jest-reporting.py --jest-cli tooling/fixtures/jest/node_modules/jest/bin/jest.js
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/vitest
           python tooling/test-vitest-reporting.py --node-modules tooling/fixtures/vitest/node_modules
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/fixtures/mocha
+          if [ "$RUNNER_OS" = "Windows" ]; then FRAMEWORK_CLI=cli/oyzu.exe; else FRAMEWORK_CLI=cli/oyzu; fi
+          python -m pip install -r tooling/design-requirements.txt
+          python tooling/test-affected-selection.py --cli "$FRAMEWORK_CLI"
+          python tooling/test-node-framework-direct.py --cli "$FRAMEWORK_CLI"
+          python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI"
+          python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI" --manager pnpm
+          python tooling/test-npm-workspace-direct.py --cli "$FRAMEWORK_CLI" --manager yarn
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-go-metadata.py --cli cli/oyzu.exe
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
             python tooling/test-npm-workspace-tasks.py --cli cli/oyzu.exe
+            python tooling/test-npm-workspace-tests.py --cli cli/oyzu.exe
             python tooling/test-node-quality.py --cli cli/oyzu.exe
+            python tooling/test-biome-quality.py --cli cli/oyzu.exe
+            python tooling/test-node-application.py --cli cli/oyzu.exe
+            python tooling/test-node-conventional-application.py --cli cli/oyzu.exe
+            python tooling/test-mocha-reporting.py --cli cli/oyzu.exe
           else
             chmod +x cli/oyzu
             python3 tooling/test-go-metadata.py --cli cli/oyzu
             python3 tooling/test-task-scenarios.py --cli cli/oyzu
             python3 tooling/test-npm-workspace-tasks.py --cli cli/oyzu
+            python3 tooling/test-npm-workspace-tests.py --cli cli/oyzu
             python3 tooling/test-node-quality.py --cli cli/oyzu
+            python3 tooling/test-biome-quality.py --cli cli/oyzu
+            python3 tooling/test-node-application.py --cli cli/oyzu
+            python3 tooling/test-node-conventional-application.py --cli cli/oyzu
+            python3 tooling/test-mocha-reporting.py --cli cli/oyzu
           fi
 
   container-worker-contract:
@@ -131,11 +329,22 @@ jobs:
       - name: Provision native worker and probe compiler
         run: |
           docker pull moby/buildkit:v0.25.0-rootless
+          docker pull alpine:3.22
+          docker tag alpine:3.22 oyzu-fixture/alpine:amd64
           docker pull golang:1.24-bookworm
       - name: Compile and test native Dockerfile metadata adapter
         run: docker build -f tooling/images/docker-metadata.Dockerfile -t oyzu-toolchain/docker:buildkit0.25.0 .
       - name: Provision explicit worker user-namespace profile
         run: sudo apparmor_parser -r tooling/images/buildkit.apparmor
+      - name: Verify generated recipe through the native Rust executor
+        env:
+          OYZU_TEST_RECIPE_APPARMOR_PROFILE: oyzu-buildkit
+          OYZU_RECIPE_EVIDENCE_DIR: worker-recipe-evidence
+        run: |
+          rustup toolchain install 1.94.0 --profile minimal
+          cargo +1.94.0 test --locked --lib executor::worker::native_recipe::generated_recipe_builds_reproducible_native_oci_without_a_source_dockerfile -- --ignored --exact
+          cargo +1.94.0 test --locked --lib dependencies::images::native::captured_base_feeds_generated_assembly_without_source_dockerfile -- --ignored --exact
+          cargo +1.94.0 test --locked --lib executor::worker::native_dependencies::named_dependency_context_is_exact_readonly_offline_and_reproducible -- --ignored --exact
       - name: Verify native worker isolation and reproducible OCI export
         run: |
           chmod +x cli/oyzu
@@ -145,17 +354,32 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oyzu-worker-evidence
-          path: worker-evidence
+          path: |
+            worker-evidence
+            worker-recipe-evidence
           if-no-files-found: ignore
           retention-days: 14
 
   build-scenarios:
-    name: Compiled CLI captured-source builds (Linux)
+    name: Captured builds (${{ matrix.suite }}, Linux)
     needs: build-cli
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        suite: [core, dependencies, node, python, go, rust, java, helm, docker]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: matrix.suite == 'node' || matrix.suite == 'core' || matrix.suite == 'docker' || matrix.suite == 'dependencies'
+        with:
+          node-version: '22'
       - name: Provision JDK for native adapter verification
+        if: matrix.suite == 'java'
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
@@ -164,54 +388,62 @@ jobs:
         with:
           name: oyzu-ubuntu-latest
           path: cli
-      - name: Provision native toolchain images and contract validator
-        run: |
-          docker pull node:22-bookworm-slim
-          docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
-          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
-          docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
-          docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
-          docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
-          docker pull golang:1.24-bookworm
-          docker pull python:3.12-slim-bookworm
-          docker pull python:3.12-bookworm
-          docker run --rm --mount type=bind,source="$PWD",target=/repository --workdir /repository python:3.12-bookworm python -m pip download --only-binary=:all: --dest .ci-python-legacy-wheels setuptools==80.9.0 wheel==0.45.1 build==1.2.2.post1 packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 ruff==0.11.13
-          docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim
-          docker build --tag oyzu-toolchain/poetry:2.5.1-python3.12 --file tooling/images/python-poetry.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1 --file tooling/images/rust.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/maven:3.9.11-jdk17 --file tooling/images/maven.Dockerfile .
-          docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/docker:buildkit0.25.0 --file tooling/images/docker-metadata.Dockerfile .
-          sudo apparmor_parser -r tooling/images/buildkit.apparmor
-          python3 -m venv .ci-python
-          .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
-          .ci-python/bin/python -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
-          .ci-python/bin/python -m pip download --only-binary=:all: --dest .ci-python-app-wheels packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2 ruff==0.11.13
-          .ci-python/bin/python -m pip download --only-binary=:all: --dest .ci-python-quality-wheels black==25.1.0 flake8==7.3.0 ruff==0.11.13
-      - name: Build and verify native snapshot artifacts through the compiled CLI
-        env:
-          OYZU_BUILDKIT_APPARMOR_PROFILE: oyzu-buildkit
+      - name: Provision ARM emulation for platform acceptance
+        if: matrix.suite == 'docker'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+      - name: Provision suite toolchains and contract validator
+        id: provision
+        run: bash tooling/build-scenario-tools.sh provision "${{ matrix.suite }}"
+      - name: Check acceptance suite inventory
+        id: inventory
+        run: .ci-python/bin/python tooling/check-build-suites.py
+      - name: Native adapter conformance
         run: |
           chmod +x cli/oyzu
-          .ci-python/bin/python tooling/test-python-adapter.py
-          .ci-python/bin/python tooling/test-python-reporting.py
-          .ci-python/bin/python tooling/test-python-application.py --wheels .ci-python-app-wheels
-          .ci-python/bin/python tooling/test-python-quality.py --wheels .ci-python-quality-wheels
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository python:3.12-bookworm python tooling/test-python-legacy.py --wheels .ci-python-legacy-wheels
-          .ci-python/bin/python tooling/test-helm-archive.py
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/helm:3.22.0 tooling/test-helm-reporting.py
-          .ci-python/bin/python tooling/test-ant-adapter.py
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/ant:1.10.18-jdk17 tooling/test-ant-reporting.py --java-home /opt/java/openjdk --ant-home /opt/ant --jacoco-home /opt/jacoco
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/maven:3.9.11-jdk17 tooling/test-maven-metadata.py --maven-home /opt/maven --java-home /opt/java/openjdk
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/gradle:8.14.3-jdk17 tooling/test-gradle-metadata.py --gradle-home /opt/gradle-8.14.3 --java-home /opt/java/openjdk
-          .ci-python/bin/python tooling/test-build-scenarios.py --cli cli/oyzu --evidence-dir build-evidence
+          bash tooling/build-scenario-tools.sh native "${{ matrix.suite }}"
+      - name: Build and verify native snapshot artifacts through the compiled CLI
+        # Preserve native conformance failures, but still gather the independent
+        # end-to-end result when its tools and inventory were prepared correctly.
+        if: ${{ !cancelled() && steps.provision.outcome == 'success' && steps.inventory.outcome == 'success' }}
+        env:
+          OYZU_BUILDKIT_APPARMOR_PROFILE: oyzu-buildkit
+        run: .ci-python/bin/python tooling/test-build-scenarios.py --suite "${{ matrix.suite }}" --cli cli/oyzu --evidence-dir build-evidence
       - name: Retain native snapshot artifacts and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: oyzu-build-evidence
+          name: oyzu-build-evidence-${{ matrix.suite }}
           path: build-evidence
           if-no-files-found: ignore
           retention-days: 14
+      - name: Verify live parallel build logging
+        if: ${{ !cancelled() && matrix.suite == 'rust' && steps.provision.outcome == 'success' }}
+        run: .ci-python/bin/python tooling/test-build-logging.py --cli cli/oyzu --evidence-dir logging-evidence
+      - name: Verify interactive parallel build presentation
+        if: ${{ !cancelled() && matrix.suite == 'rust' && steps.provision.outcome == 'success' }}
+        run: |
+          .ci-python/bin/python -m pip install -r tooling/terminal-requirements.txt
+          .ci-python/bin/python tooling/test-build-terminal.py --cli cli/oyzu --evidence-dir terminal-evidence
+      - name: Retain logging acceptance output
+        if: ${{ always() && matrix.suite == 'rust' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: oyzu-build-logging-evidence
+          path: |
+            logging-evidence
+            terminal-evidence
+          if-no-files-found: ignore
+          retention-days: 14
+
+  build-scenarios-complete:
+    name: Captured build suite acceptance
+    if: always()
+    needs: build-scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every implemented suite to pass
+        env:
+          SUITE_RESULT: ${{ needs.build-scenarios.result }}
+        run: test "$SUITE_RESULT" = success

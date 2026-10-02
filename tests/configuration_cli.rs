@@ -288,3 +288,43 @@ fn structured_edits_reject_duplicate_keys_and_excessive_depth_without_writing() 
         );
     }
 }
+
+#[test]
+fn container_inventory_is_finite_typed_and_validated_without_execution() {
+    let tmp = tempfile::tempdir().unwrap();
+    for options in ["true", "false", "{}", "{base: 'python:3.12', user: '1000:1001', workdir: /srv/api, entrypoint: [python, /app/application.pyz]}"] {
+        fs::write(tmp.path().join("build.yaml"), format!("api:\n  uses: python/app\n  container: {options}\n")).unwrap();
+        let result = run(tmp.path(), &["config", "validate", "--strict"]);
+        assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
+    }
+    for options in [
+        "[]",
+        "'yes'",
+        "{run: 'do-not-execute'}",
+        "{user: root}",
+        "{user: '+1:2'}",
+        "{user: '4294967296:2'}",
+        "{workdir: relative}",
+        "{workdir: /../escape}",
+        "{workdir: '/app/$HOME'}",
+        "{entrypoint: python}",
+        "{entrypoint: []}",
+        "{entrypoint: ['']}",
+        "{base: ''}",
+        "{base: null}",
+        "{user: null}",
+        "{workdir: null}",
+        "{entrypoint: null}",
+        "{base: 'https://example/image'}",
+        "{base: '--help'}",
+    ] {
+        fs::write(
+            tmp.path().join("build.yaml"),
+            format!("api:\n  uses: python/app\n  container: {options}\n"),
+        )
+        .unwrap();
+        let result = run(tmp.path(), &["config", "validate"]);
+        assert!(!result.status.success(), "accepted {options}");
+        assert!(String::from_utf8_lossy(&result.stderr).contains("CONFIG_INVALID_VALUE"));
+    }
+}

@@ -2,6 +2,7 @@
 import shutil
 import subprocess
 import zipfile
+from .java_quality import verify as verify_quality
 
 
 def verify(root, base, invoke, validate, source_files, verified):
@@ -23,7 +24,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert len(tests) == 1 and tests[0]['summary']['passed'] == 1
     assert len(coverage) == 1 and coverage[0]['summary']['covered'] > 0
     assert coverage[0]['format'] == 'jacoco'
-    assert [a['id'] for a in manifest['actions']] == ['project:build', 'project:package']
+    assert [a['id'] for a in manifest['actions']] == ['project:build', 'project:lint', 'project:format-check', 'project:package']
     invoke(project, 'inspect', 'dist')
     mounts = []
     for i, artifact in enumerate(artifacts):
@@ -36,6 +37,8 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert repeated['planDigest'] == manifest['planDigest'], 'identical Gradle inputs changed the resolved plan'
     assert {a['id']: a['digest'] for a in repeated['artifacts']} == {a['id']: a['digest'] for a in artifacts}
     source = project / 'library/src/main/java/example/Greeting.java'
+    verify_quality(project, source, invoke, validate, source_files)
+    verified.append('gradle: native lint/format failures retain test evidence, block snapshots and leave source unchanged')
     source.write_text(source.read_text().replace('Hello, Oyzu!', 'Changed shared code'))
     invoke(project, 'build', success=False)
     failed = validate(project / 'dist')

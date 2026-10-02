@@ -22,6 +22,8 @@ No build YAML is required for this scenario. Configuration, where present, demon
 
 ## Native checks available now
 
+The `generated-source` check starts the `node` captured-build suite. It uses this project without adding configuration, requires the generated module in the snapshot package plus both consumers' JUnit and coverage, and checks that changed schema data reaches both tests. See [acceptance setup and current scope](../../../docs/reference/build-verification.md). The compiled Windows CLI passes the native build/test/lint/format-check flow; captured Linux execution is pending. This first proof does not establish the selective cache invalidation case below or separate generator action identities.
+
 With the named toolchains already installed, run:
 
 ```text

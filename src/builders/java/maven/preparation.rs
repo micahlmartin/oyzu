@@ -42,7 +42,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         .context("missing Maven manager version")?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
-        "adapter":{"id":"java/maven-native-repository","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"1"},
+        "adapter":{"id":"java/maven-native-repository","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"2"},
         "manager":{"id":"maven","version":version,"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[],"targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,
         "extensions":{"oyzu.dev/maven":{"repositoryInventory":true,"dependencyEdges":"not-modeled"}}});

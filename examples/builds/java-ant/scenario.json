@@ -20,13 +20,24 @@
   "expected": [
     "Infer conventional compile/test/jar where semantics are known.",
     "The custom target uses a single task override; no attempt to reverse-engineer arbitrary Ant behavior.",
-    "A Java main assertion is not a JUnit report; missing report support stays visible."
+    "A Java main assertion is not a JUnit report; missing report support stays visible.",
+    "Expose implicit lint and read-only formatting checks; explicit format may rewrite sources, but build never does."
   ],
   "cases": [
     {
       "name": "unknown-task",
       "change": "Rename verify-contract without updating the override.",
       "expect": "A precise missing-target failure."
+    },
+    {
+      "name": "lint-failure",
+      "change": "Add an unused java.util.Random import to an application source file.",
+      "expect": "Native compilation/tests can succeed, but lint fails, artifacts are blocked, test evidence is retained and source stays unchanged."
+    },
+    {
+      "name": "format-failure",
+      "change": "Add an extra space between public and class in an application source file.",
+      "expect": "Read-only formatting fails and blocks artifacts without changing source; explicit oyzu run format can repair it."
     }
   ],
   "nativeChecks": [

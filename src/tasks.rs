@@ -1,3 +1,5 @@
+mod evidence;
+
 use crate::model::{Task, Workspace};
 use anyhow::{bail, Context, Result};
 use serde::Serialize;
@@ -44,6 +46,14 @@ pub(crate) fn post_hook(task: &Task) -> String {
     hook(task, "post")
 }
 
+pub(crate) fn pre_hook(task: &Task) -> String {
+    hook(task, "pre")
+}
+
+pub(crate) fn is_hook(task: &Task) -> bool {
+    task.name.starts_with("pre_") || task.name.starts_with("post_")
+}
+
 pub(crate) fn hook_owner(task: &Task) -> Option<String> {
     let name = task
         .name
@@ -87,16 +97,15 @@ fn visit(
             order,
         )?;
     }
-    let is_hook = task.name.starts_with("pre_") || task.name.starts_with("post_");
-    if include_hooks && !is_hook {
-        let pre = hook(task, "pre");
+    if include_hooks && !is_hook(task) {
+        let pre = pre_hook(task);
         if workspace.tasks.contains_key(&pre) {
             visit(workspace, &pre, false, native, active, emitted, order)?;
         }
     }
     order.push(id.into());
     emitted.insert(id.into());
-    if include_hooks && !is_hook {
+    if include_hooks && !is_hook(task) {
         let post = hook(task, "post");
         if workspace.tasks.contains_key(&post) {
             visit(workspace, &post, false, native, active, emitted, order)?;
@@ -207,26 +216,33 @@ fn execute_with_unsets(
     })
 }
 
+fn configuration<'a>(
+    workspace: &'a Workspace,
+    id: &str,
+) -> (
+    Option<&'a crate::model::Target>,
+    Option<&'a crate::config::resolve::EffectiveConfig>,
+) {
+    let target = workspace
+        .targets
+        .get(&workspace.tasks[id].target)
+        .or_else(|| {
+            (workspace.targets.len() == 1)
+                .then(|| workspace.targets.values().next())
+                .flatten()
+        });
+    let config = target
+        .and_then(|target| workspace.configuration.get(&target.name))
+        .or(workspace.root_configuration.as_ref());
+    (target, config)
+}
+
 pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Vec<Outcome>> {
     let primary = resolve(workspace, requested)?;
     let sequence = sequence(workspace, &primary)?;
-    let configuration = |id: &str| {
-        let target = workspace
-            .targets
-            .get(&workspace.tasks[id].target)
-            .or_else(|| {
-                (workspace.targets.len() == 1)
-                    .then(|| workspace.targets.values().next())
-                    .flatten()
-            });
-        let config = target
-            .and_then(|target| workspace.configuration.get(&target.name))
-            .or(workspace.root_configuration.as_ref());
-        (target, config)
-    };
     // Admit every prerequisite and hook before executing any native command.
     for id in &sequence {
-        let (target, config) = configuration(id);
+        let (target, config) = configuration(workspace, id);
         if let Some(config) = config {
             config
                 .constraints
@@ -247,9 +263,12 @@ pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Ve
             config.validate_environment(&workspace.tasks[id].env)?;
         }
     }
+    if let Some(outcomes) = evidence::run(workspace, &primary, &sequence, args)? {
+        return Ok(outcomes);
+    }
     let mut outcomes = vec![];
     for id in sequence {
-        let (_, config) = configuration(&id);
+        let (_, config) = configuration(workspace, &id);
         let removed = config
             .map(|config| config.removed.clone())
             .unwrap_or_default();
@@ -284,8 +303,17 @@ mod tests {
             sequence_for_build(&workspace, "project:test", &native).unwrap(),
             ["project:pre_test", "project:test", "project:post_test"]
         );
-        assert!(sequence_for_build(&workspace, "project:lint", &native).is_err());
+        assert_eq!(
+            sequence_for_build(&workspace, "project:lint", &native).unwrap(),
+            ["project:lint"]
+        );
         let mut workspace = workspace;
+        workspace
+            .tasks
+            .get_mut("project:lint")
+            .unwrap()
+            .availability = Some("test profile has no linter".into());
+        assert!(sequence_for_build(&workspace, "project:lint", &native).is_err());
         workspace
             .tasks
             .get_mut("project:pre_test")

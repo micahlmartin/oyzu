@@ -8,8 +8,14 @@ import (
 	"testing"
 )
 
+var fixtureFacts = selectionFacts{"linux/amd64", "315532800"}
+
+func analyzeFixture(body []byte) (metadata, error) {
+	return analyze(body, fixtureFacts)
+}
+
 func TestNativeStagesAndHeredocs(t *testing.T) {
-	m, err := analyze([]byte("FROM scratch AS content\nCOPY <<EOF /file\nnot a FROM instruction\nEOF\nFROM content AS copy\nFROM scratch\nCOPY --from=1 /file /file\n"))
+	m, err := analyzeFixture([]byte("FROM scratch AS content\nCOPY <<EOF /file\nnot a FROM instruction\nEOF\nFROM content AS copy\nFROM scratch\nCOPY --from=1 /file /file\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -23,7 +29,6 @@ func TestExternalAndSensitiveRequirements(t *testing.T) {
 		{"FROM registry.example/base:1\n", "image", "registry.example/base:1"},
 		{"FROM 0\n", "image", "0"},
 		{"FROM self AS self\n", "image", "self"},
-		{"ARG BASE=scratch\nFROM ${BASE}\n", "dynamic-base", "${BASE}"},
 		{"FROM --platform=linux/arm64 scratch\n", "platform", "linux/arm64"},
 		{"FROM scratch\nCOPY --from=external /app /app\n", "image-or-context", "external"},
 		{"FROM scratch\nADD https://example.invalid/archive /app\n", "add-source", "https://example.invalid/archive"},
@@ -39,7 +44,7 @@ func TestExternalAndSensitiveRequirements(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.kind+"/"+c.reference, func(t *testing.T) {
-			m, err := analyze([]byte(c.body))
+			m, err := analyzeFixture([]byte(c.body))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -56,9 +61,25 @@ func TestExternalAndSensitiveRequirements(t *testing.T) {
 	}
 }
 
+func TestTargetExecutionRequirement(t *testing.T) {
+	for _, c := range []struct {
+		body     string
+		required bool
+	}{
+		{"FROM scratch\nCOPY file /file\n", false},
+		{"FROM scratch\nRUN [\"/app\"]\n", true},
+		{"FROM scratch AS build\nRUN [\"/app\"]\nFROM scratch\n", true},
+	} {
+		m, err := analyzeFixture([]byte(c.body))
+		if err != nil || m.TargetExecution != c.required {
+			t.Fatalf("target execution: %+v, %v", m, err)
+		}
+	}
+}
+
 func TestNativeParserRejectsUnknownOrMalformedInstructions(t *testing.T) {
 	for _, body := range []string{"FROM\n", "FROM scratch\nUNKNOWN anything\n", "FROM scratch\nRUN --mount=type=invalid,target=/tmp true\n", "FROM scratch\nRUN --network=hostile true\n", "# comment only\n"} {
-		if _, err := analyze([]byte(body)); err == nil {
+		if _, err := analyzeFixture([]byte(body)); err == nil {
 			t.Fatalf("accepted invalid Dockerfile: %s", body)
 		}
 	}
@@ -82,7 +103,7 @@ func TestNativeIgnoreNegationsAndDockerfileOverride(t *testing.T) {
 	for _, name := range []string{"a.tmp", "nested/b.tmp", "nested/file.txt", "cache/keep.txt", "cache/drop.txt"} {
 		write(t, root, name, "payload")
 	}
-	m, err := inspect(root)
+	m, err := inspect(root, fixtureFacts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +112,7 @@ func TestNativeIgnoreNegationsAndDockerfileOverride(t *testing.T) {
 		t.Fatalf("ignored context = %v, want %v", m.Context.Files, want)
 	}
 	write(t, root, "Dockerfile.dockerignore", "*\n!a.tmp\n")
-	m, err = inspect(root)
+	m, err = inspect(root, fixtureFacts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +124,7 @@ func TestNativeIgnoreNegationsAndDockerfileOverride(t *testing.T) {
 func TestBoundedMetadataAndNoLinkTraversal(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "Dockerfile", strings.Repeat("#", metadataLimit+1))
-	if _, err := inspect(root); err == nil {
+	if _, err := inspect(root, fixtureFacts); err == nil {
 		t.Fatal("accepted oversized Dockerfile")
 	}
 	write(t, root, "Dockerfile", "FROM scratch\n")
@@ -111,7 +132,7 @@ func TestBoundedMetadataAndNoLinkTraversal(t *testing.T) {
 	if err := os.Symlink(filepath.Join(root, "target"), filepath.Join(root, "link")); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if _, err := inspect(root); err == nil {
+	if _, err := inspect(root, fixtureFacts); err == nil {
 		t.Fatal("accepted a symlink in captured context")
 	}
 }

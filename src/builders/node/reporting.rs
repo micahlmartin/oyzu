@@ -26,7 +26,6 @@ pub(super) fn test(id: &str, mut argv: Vec<String>, instrument: bool) -> TaskPla
         ));
     }
     TaskPlan {
-        execution: Default::default(),
         argv,
         reports: vec![
             ReportSpec {
@@ -44,6 +43,7 @@ pub(super) fn test(id: &str, mut argv: Vec<String>, instrument: bool) -> TaskPla
                 input: None,
             },
         ],
+        ..Default::default()
     }
 }
 
@@ -59,6 +59,20 @@ pub(super) fn instrument_override(
     let argv: Vec<_> = task.argv.iter().map(String::as_str).collect();
     let mut command = match argv.as_slice() {
         ["node", "--test"] | ["sh", "-c", "node --test"] => strings(&["node", "--test"]),
+        [shell, "-NoProfile", "-NonInteractive", "-Command", command]
+            if matches!(
+                *shell,
+                "powershell.exe" | "powershell" | "pwsh.exe" | "pwsh"
+            ) =>
+        {
+            if *command == "node --test" {
+                strings(&["node", "--test"])
+            } else if native_script && *command == format!("{manager} run test") {
+                super::managers::get(manager).ok()?.script("test", true)
+            } else {
+                return None;
+            }
+        }
         [command, "run", "test"] if native_script && *command == manager => {
             super::managers::get(manager).ok()?.script("test", true)
         }

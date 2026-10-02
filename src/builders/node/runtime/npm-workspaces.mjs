@@ -14,7 +14,7 @@ export async function members(workspace, packageJson) {
       typeof packageJson.name !== 'string' || !nativeRequire('validate-npm-package-name')(packageJson.name).validForNewPackages)) {
     throw new Error('Publishable npm workspace root requires a valid native name/version');
   }
-  const root = realpathSync(workspace);
+  const root = realpathSync.native(workspace);
   const mapping = await nativeRequire('@npmcli/map-workspaces')({cwd: root, pkg: packageJson});
   if (mapping.size > 1024) throw new Error('npm workspace count exceeds limit');
   const result = [];
@@ -48,12 +48,12 @@ export async function members(workspace, packageJson) {
 
 export async function graph(workspace, members) {
   if (!members.length) return null;
-  // macOS /var -> /private/var (and other aliased checkout roots) must use
-  // the same canonical root as native workspace membership discovery.
-  workspace = realpathSync(workspace);
+  // Use one native canonical spelling for membership, Arborist and link identity.
+  // Windows short names and macOS /var aliases must not change ownership.
+  workspace = realpathSync.native(workspace);
   const Arborist = nativeRequire('@npmcli/arborist');
   const tree = await new Arborist({path: workspace, offline: true, ignoreScripts: true}).loadActual();
-  const paths = new Map(members.map(m => [realpathSync(join(workspace, m.path)), m.name]));
+  const paths = new Map(members.map(m => [realpathSync.native(join(workspace, m.path)), m.name]));
   const output = [];
   function edges(node) {
     const dependencies = [];
@@ -62,17 +62,24 @@ export async function graph(workspace, members) {
       // Membership is already captured above; only declared dependency edges
       // belong in the portable graph used for ordering/version projection.
       let kind = edge.type, spec = edge.spec;
+      let invalid = edge.error;
+      let optional = edge.optional;
       if (kind === 'workspace') {
         const declaration = [['optionalDependencies','optional'], ['dependencies','prod'], ['devDependencies','dev'], ['peerDependencies','peer']]
           .find(([field]) => Object.hasOwn(node.package[field] ?? {}, edge.name));
         if (!declaration) continue;
         kind = declaration[1];
+        optional = kind === 'optional';
         spec = node.package[declaration[0]][edge.name];
+        // The synthetic edge validates an absolute file: membership path, not
+        // this declaration. Ask npm to validate the actual dependency spec;
+        // native canonical link ownership is independently checked below.
+        invalid = !edge.to || !nativeRequire('@npmcli/arborist/lib/dep-valid.js')(edge.to, spec, null, node);
       }
-      if (edge.error && !edge.optional) throw new Error(`Invalid native workspace dependency ${node.name}: ${edge.name}`);
+      if (invalid && !optional) throw new Error(`Invalid native workspace dependency ${node.name}: ${edge.name}`);
       if (!edge.to) continue;
       const destination = edge.to.isLink ? edge.to.target : edge.to;
-      const target = paths.get(realpathSync(destination.path));
+      const target = paths.get(realpathSync.native(destination.path));
       if (target) dependencies.push({name: edge.name, target, kind, spec});
     }
     return dependencies.sort((a,b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
@@ -80,7 +87,10 @@ export async function graph(workspace, members) {
   for (const member of members) {
     const link = tree.children.get(member.name);
     const node = link?.isLink ? link.target : link;
-    if (!node || !node.isWorkspace || realpathSync(node.path) !== realpathSync(join(workspace, member.path))) {
+    // Arborist's isWorkspace flag can differ when an installed link retains an
+    // aliased spelling. Native membership plus the actual link destination is
+    // the ownership evidence; a copied dependency or wrong destination fails.
+    if (!link?.isLink || !node || realpathSync.native(node.path) !== realpathSync.native(join(workspace, member.path))) {
       throw new Error(`Native npm installation did not link workspace ${member.name}`);
     }
     output.push({...member, dependencies: edges(node)});

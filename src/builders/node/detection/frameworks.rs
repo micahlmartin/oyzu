@@ -18,9 +18,21 @@ const VITEST_CONFIGS: &[&str] = &[
     "vitest.config.cjs",
     "vitest.config.cts",
 ];
+const MOCHA_CONFIGS: &[&str] = &[
+    ".mocharc.cjs",
+    ".mocharc.js",
+    ".mocharc.yaml",
+    ".mocharc.yml",
+    ".mocharc.jsonc",
+    ".mocharc.json",
+];
 
 pub(super) fn inputs() -> impl Iterator<Item = &'static str> {
-    JEST_CONFIGS.iter().chain(VITEST_CONFIGS).copied()
+    JEST_CONFIGS
+        .iter()
+        .chain(VITEST_CONFIGS)
+        .chain(MOCHA_CONFIGS)
+        .copied()
 }
 
 struct NodeTest;
@@ -137,4 +149,10 @@ pub(super) static DETECTORS: &[&dyn Detector<ContextData>] = &[
         configs: VITEST_CONFIGS,
     },
     &DefaultTest,
+    &Framework {
+        id: "node/test-mocha",
+        name: "mocha",
+        commands: super::super::mocha::COMMANDS,
+        configs: MOCHA_CONFIGS,
+    },
 ];

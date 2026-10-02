@@ -1,0 +1,293 @@
+{
+  "host": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+  "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+  "binary_sha256": "6d88a7ccc4422dae267840f56de6319b38bb1433de63d931f1cf6bd1a066c552",
+  "harness_sha256": {
+    "spike.rs": "f82ee39d45e0aeec4533a0264dc98a3d66c5306d8bf987d90676b4941a864be3",
+    "embedding.patch": "3c34f6679260402df790fbd994c91b37858f74bae4ec023e2537de319814376b",
+    "run.py": "54a75208a483396312fb36aca3df9f95a6f8a28a049fe30b90212ee2d471c494",
+    "shell-test.sh": "0cfff0c759c181dc00c8a17674d515d64a69a87de9e703d9fe72853ae397a50c",
+    "shell-test.ps1": "7cd7f49bc641a4e5aea4d4feba654b198138d659b33b69f537b565f93c6a5002"
+  },
+  "harness_lf_sha256": {
+    "spike.rs": "f82ee39d45e0aeec4533a0264dc98a3d66c5306d8bf987d90676b4941a864be3",
+    "embedding.patch": "3c34f6679260402df790fbd994c91b37858f74bae4ec023e2537de319814376b",
+    "run.py": "54a75208a483396312fb36aca3df9f95a6f8a28a049fe30b90212ee2d471c494",
+    "shell-test.sh": "0cfff0c759c181dc00c8a17674d515d64a69a87de9e703d9fe72853ae397a50c",
+    "shell-test.ps1": "7cd7f49bc641a4e5aea4d4feba654b198138d659b33b69f537b565f93c6a5002"
+  },
+  "network_isolated": true,
+  "build_profile": "dev (unoptimized)",
+  "results": [
+    {
+      "case": "activation-does-not-install",
+      "status": "passed",
+      "detail": "locked tool is not installed",
+      "seconds": 0.024
+    },
+    {
+      "case": "backend-version-resolution",
+      "status": "passed",
+      "detail": "22.14.0",
+      "seconds": 0.076
+    },
+    {
+      "case": "backend-metadata-to-oyzu-lock",
+      "status": "passed",
+      "detail": {
+        "format": 1,
+        "tool": [
+          {
+            "id": "core:node",
+            "request": "22",
+            "version": "22.14.0",
+            "backend_digest": "git:da0db43e9398b46bafa95232014708a51120e731",
+            "distribution": [
+              {
+                "platform": "linux-x64",
+                "digest": "sha256:9d942932535988091034dc94cc5f42b6dc8784d6366df3a36c4c9ccb3996f0c2",
+                "size": 54108748,
+                "source_id": "node-fixture",
+                "verification": "fixture-sha256",
+                "dependencies": []
+              }
+            ]
+          }
+        ]
+      },
+      "seconds": 0.121
+    },
+    {
+      "case": "real-backend-install-a",
+      "status": "passed",
+      "detail": {
+        "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+        "versions": [
+          "22.14.0"
+        ],
+        "paths": [
+          "/work/run-1790906348397051893/state/data/installs/node/22.14.0/bin"
+        ],
+        "platform": "linux-x64",
+        "settings_mirror": "http://127.0.0.1:43449/ok/"
+      },
+      "seconds": 5.188
+    },
+    {
+      "case": "real-backend-install-b",
+      "status": "passed",
+      "detail": {
+        "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+        "versions": [
+          "24.0.0"
+        ],
+        "paths": [
+          "/work/run-1790906348397051893/state/data/installs/node/24.0.0/bin"
+        ],
+        "platform": "linux-x64",
+        "settings_mirror": "http://127.0.0.1:43449/ok/"
+      },
+      "seconds": 5.668
+    },
+    {
+      "case": "exec-22.14.0",
+      "status": "passed",
+      "detail": "v22.14.0",
+      "seconds": 0.037
+    },
+    {
+      "case": "exec-24.0.0",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.038
+    },
+    {
+      "case": "exec-arguments",
+      "status": "passed",
+      "detail": [
+        "a b",
+        "single'quote",
+        "double\"quote",
+        "$literal"
+      ],
+      "seconds": 0.06
+    },
+    {
+      "case": "exec-exit-status",
+      "status": "passed",
+      "detail": "",
+      "seconds": 0.047
+    },
+    {
+      "case": "non-utf8-environment-hook",
+      "status": "passed",
+      "detail": "hook emitted successfully",
+      "seconds": 0.038
+    },
+    {
+      "case": "ambient-mise-cannot-override-oyzu",
+      "status": "passed",
+      "detail": "v22.14.0:22",
+      "seconds": 0.053
+    },
+    {
+      "case": "nested-directory-selection",
+      "status": "passed",
+      "detail": "v22.14.0",
+      "seconds": 0.034
+    },
+    {
+      "case": "nested-project-overrides-parent",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.035
+    },
+    {
+      "case": "shell-bash",
+      "status": "passed",
+      "detail": "two independent shells: entry, switch, exit, PATH and user edits",
+      "seconds": 0.359
+    },
+    {
+      "case": "shell-zsh",
+      "status": "passed",
+      "detail": "two independent shells: entry, switch, exit, PATH and user edits",
+      "seconds": 0.466
+    },
+    {
+      "case": "cached-policy-denial",
+      "status": "passed",
+      "detail": "policy denies locked version",
+      "seconds": 0.028
+    },
+    {
+      "case": "acquisition-corrupt-denied",
+      "status": "passed",
+      "detail": "checksum mismatch",
+      "seconds": 0.098
+    },
+    {
+      "case": "acquisition-redirect-denied",
+      "status": "passed",
+      "detail": "route denied",
+      "seconds": 0.093
+    },
+    {
+      "case": "acquisition-missing-denied",
+      "status": "passed",
+      "detail": "precompiled node archive not found",
+      "seconds": 0.091
+    },
+    {
+      "case": "unavailable-proxy-denied",
+      "status": "passed",
+      "detail": "",
+      "seconds": 0.094
+    },
+    {
+      "case": "redirect-target-never-contacted",
+      "status": "passed",
+      "detail": false,
+      "seconds": 0.0
+    },
+    {
+      "case": "concurrent-install",
+      "status": "passed",
+      "detail": [
+        [
+          "22.14.0"
+        ],
+        [
+          "22.14.0"
+        ]
+      ],
+      "seconds": 5.53
+    },
+    {
+      "case": "active-version-independence",
+      "status": "passed",
+      "detail": "Node 22 stayed active while another invocation selected Node 24",
+      "seconds": 0.091
+    },
+    {
+      "case": "reshim",
+      "status": "passed",
+      "detail": "",
+      "seconds": 0.036
+    },
+    {
+      "case": "shim-without-activation",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.033
+    },
+    {
+      "case": "shim-arguments",
+      "status": "passed",
+      "detail": [
+        "a b",
+        "single'quote",
+        "double\"quote",
+        "$literal"
+      ],
+      "seconds": 0.056
+    },
+    {
+      "case": "shim-exit-status",
+      "status": "passed",
+      "detail": 37,
+      "seconds": 0.051
+    },
+    {
+      "case": "frozen-lock-and-file-ownership",
+      "status": "passed",
+      "detail": "Oyzu locks unchanged; no generated mise project files",
+      "seconds": 0.0
+    },
+    {
+      "case": "subprocess-egress-denied-by-container",
+      "status": "passed",
+      "detail": {
+        "exit": 7,
+        "stderr": "% Total    % Received % Xferd  Average Speed   Time    Time     Time  Current\n                                 Dload  Upload   Total   Spent    Left  Speed\n\r  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0\r  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0\ncurl: (7) Failed to connect to 1.1.1.1 port 80 after 0 ms: Couldn't connect to server"
+      },
+      "seconds": 0.013
+    },
+    {
+      "case": "hook-timings",
+      "status": "passed",
+      "detail": {
+        "cold_mise_cache_ms": 29.815255000016805,
+        "first_ms": 29.359333000002152,
+        "repeated_p50_ms": 31.032473000038863,
+        "repeated_p95_ms": 33.96138999994491,
+        "scope": "empty mise cache then repeated hooks; fresh process per hook; OS filesystem caches not evicted; not an upstream performance comparison"
+      },
+      "seconds": 0.687
+    },
+    {
+      "case": "paired-in-process-benchmark",
+      "status": "passed",
+      "detail": {
+        "samples": 50,
+        "core_p50_us": 1207,
+        "core_p95_us": 2247,
+        "adapter_p50_us": 1644,
+        "adapter_p95_us": 2332,
+        "scope": "same process and installed toolchain: upstream environment/diff versus those calls plus Oyzu TOML/lock adapter; no standalone mise executable"
+      },
+      "seconds": 0.178
+    }
+  ],
+  "requests": [
+    "/ok/index.json",
+    "/ok/v22.14.0/SHASUMS256.txt",
+    "HEAD /ok/v22.14.0/node-v22.14.0-linux-x64.tar.gz",
+    "/ok/v22.14.0/node-v22.14.0-linux-x64.tar.gz",
+    "/ok/v24.0.0/node-v24.0.0-linux-x64.tar.gz",
+    "/corrupt/v22.14.0/node-v22.14.0-linux-x64.tar.gz",
+    "/redirect/v22.14.0/node-v22.14.0-linux-x64.tar.gz",
+    "/missing/v22.14.0/node-v22.14.0-linux-x64.tar.gz",
+    "/ok/v22.14.0/node-v22.14.0-linux-x64.tar.gz"
+  ]
+}

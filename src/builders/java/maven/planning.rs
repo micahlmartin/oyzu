@@ -25,7 +25,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     ));
     let mut build = TaskPlan::command(&["python3", "-I", "/oyzu/maven.py", "build"]);
     let mut exports = Vec::new();
-    for project in &projects {
+    for (index, project) in projects.iter().enumerate() {
         let coordinate = format!("{}.{}", project.group, project.artifact);
         let module = crate::names::scoped("module", &coordinate);
         let duplicate = projects
@@ -68,19 +68,19 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
                 version: Some(project.version.clone()),
             });
         }
-        let tests = project.test_roots.iter().any(|path| {
-            walkdir::WalkDir::new(context.target.path.join(path))
-                .into_iter()
-                .flatten()
-                .any(|e| e.file_type().is_file())
-        });
+        let tests = super::testing::has_tests(project, &context.target.path);
         if tests {
+            if project.test_reports.is_empty() {
+                anyhow::bail!(
+                    "Maven test sources have no native Surefire/Failsafe execution in verify"
+                );
+            }
             build.reports.push(ReportSpec {
                 format: ReportFormat::Junit,
                 filename: "junit.xml",
                 source: crate::reports::ReportSource::File,
                 name: Some(module.clone()),
-                input: Some(format!("{}/surefire-reports/TEST-*.xml", project.directory)),
+                input: Some(format!(".oyzu-maven/reports/{index}/TEST-*.xml")),
             });
             build.reports.push(ReportSpec {
                 format: ReportFormat::Jacoco,
@@ -93,5 +93,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     }
     plan.package.argv.push(serde_json::to_string(&exports)?);
     plan.tasks.insert("build".into(), build);
+    super::super::quality::plan(context.target, &mut plan);
     Ok(plan)
 }

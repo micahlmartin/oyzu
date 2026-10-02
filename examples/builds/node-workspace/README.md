@@ -9,7 +9,7 @@ Status: **design contract for review**. Intended hosts: Windows, macOS, Linux. S
 
 ## Review the project
 
-Open the checked-in project roots: `project`. Source, native manifests, and Oyzu configuration are included here so we can review the intended experience directly.
+Open the checked-in project roots: `project` (npm) and `variants/yarn-classic` (Yarn), and `variants/pnpm` (pnpm). The development build/quality composition below describes npm; see the [Yarn reference](../../../docs/reference/yarn.md#workspace-builds) for its native host commands and captured-build behavior. Source, native manifests, and Oyzu configuration are included here so we can review the intended experience directly.
 
 The intended Oyzu interface is:
 
@@ -18,6 +18,10 @@ oyzu build
 ```
 
 `oyzu run list` also exposes an implicit `build` task. After installing the project's native dependencies, `oyzu run build` invokes declared member build scripts in dependency order when no root build script exists. Members without a build script are reported as having no requested compilation. This development task does not package snapshot artifacts; `oyzu build` owns the captured build and dist bundle.
+
+Local `lint` and `format-check` also compose native member scripts with inferred defaults; a scripted member does not suppress an unscripted sibling's checks. Defaults inspect root-owned source and exclude member/nested-member directories owned by other checks. Explicit root scripts take precedence. `oyzu run format` permits formatting writes, while captured builds request read-only formatting validation. Native quality tools must already be provisioned.
+
+Without a root test script, `oyzu run test` composes member scripts and detected Node/Jest/Vitest runners. Implicit suites exclude nested members; an explicit script retains its native scope. Native assertion failures fail the aggregate while later suites still run. Development tests collect JUnit/coverage in a test-only `dist` bundle; `oyzu build` additionally owns captured versioned artifacts. See the [implemented reference](../../../docs/reference/npm-workspaces.md) for prerequisites and limits.
 
 No build YAML is required for this scenario. Configuration, where present, demonstrates only the feature under discussion.
 
@@ -37,6 +41,8 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 
 ## Failure and variation cases
 
+- **pnpm:** The committed v9 lock and native workspace declaration link the same app/shared packages through `workspace:*`. Expect both snapshot packages to reference matching projected versions, package-owned reports, read-only quality gates and retained failures. See the [pnpm reference](../../../docs/reference/pnpm.md#workspace-builds) for verified scope.
+- **yarn-classic:** The committed native Classic lock and manifests link the same app/shared packages. Expect offline captured installation, two snapshot archives with matching dependency references, package-owned JUnit/LCOV, read-only quality gates and failure evidence. Native adapter verification is available; isolated CLI acceptance is pending.
 - **publishable-root:** Remove `private: true` from the root package and add conventional root source and tests. Expected: a third snapshot package, separate root JUnit/coverage, no duplicate member tests, no engine state in archives, and a failed root test blocking artifacts. No Oyzu configuration or root test script is needed. The native probe and compiled-CLI scenario suite construct this variation from the checked-in project.
 - **duplicate-execution:** Select both workspace root and package targets. Expected: Do not run the same native workspace task twice.
 

@@ -8,6 +8,13 @@ CI provider adapters normalize provider, repository, commit, event, ref, workflo
 
 ## Build-specific request and decision records
 
+Tool selection adds the proposed public
+[`POST /v1/tool-selections:authorize` contract](../OEP-0003-mise-integration/acquisition.md).
+It binds cached and fresh selections to exact tool identities independently of
+byte-acquisition authorization, with defined grants, expiry and revocation rules.
+That companion specifies the initial tool-specific fields and trust model; it
+does not claim a deployed private service implements them.
+
 Initial versioned resources are `POST /v1/build-contexts:resolve`, `POST /v1/build-decisions:evaluate`, `POST /v1/acquisitions:authorize`, `POST /v1/publications:authorize`, and `POST /v1/evidence:record`. These are proposed public paths to implement behind the same typed client interface; auth bootstrap remains separately versioned. Each request includes protocol version, request/correlation id, tenant/context id and supported enforcement capabilities. No upstream credentials appear in build-decision payloads.
 
 Context resolution returns immutable snapshot id/revision, issued/expiry times, audience/tenant/context binding, defaults, mandatory constraints, connector route references, required checks and verification metadata. Decisions return decision id, allow/deny/needs-evidence, requested operation, scope, reason codes, required evidence references and validity. Acquisition authorization returns a broker-consumable lease reference; project processes cannot call the API to obtain an upstream secret. Signing/publication authorization binds final subject digests and destination scope; never accept `trusted=true` as proof.

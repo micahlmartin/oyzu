@@ -20,6 +20,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         let stderr = control.path().join("stderr");
         let result = executor::execute_with_mounts(
             executor::Request {
+                log: context.log.clone(),
                 image: context.image,
                 workspace: &workspace,
                 output: context.destination,
@@ -48,6 +49,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     };
     let relative = metadata::chart_path(&workspace)?;
     let chart_root = workspace.join(relative);
+    run(&["python", "-I", "/oyzu/helm-charts.py", "prepare", relative])?;
     let mut locks = Vec::new();
     for path in metadata::local_order(&workspace, &chart_root)? {
         let lock = path.join("Chart.lock");
@@ -92,7 +94,7 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let tree = snapshot::capture_prepared(context.destination, &control.path().join("frozen"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
-        "adapter":{"id":"helm/local-charts","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"1"},
+        "adapter":{"id":"helm/local-charts","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"2"},
         "manager":{"id":"helm","version":manager_version.trim(),"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":locks,"targetPlatform":platform,"packages":[],"preparedTree":tree.digest,
         "extensions":{"oyzu.dev/helm-chart":{"path":relative,"name":original.name,"originalVersion":original.version}}

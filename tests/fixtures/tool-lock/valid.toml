@@ -1,0 +1,28 @@
+# Synthetic identity fixture; not a downloadable or trusted tool.
+format = 2
+[[environment]]
+scope = "."
+profile = "default"
+request_digest = "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+roots = ["sha256:90ba66a07e482325c49901358a39b519c9a01122278c964f4eeb67959032166c"]
+[environment.requests]
+"core:node" = "22"
+[[tool]]
+key = "sha256:90ba66a07e482325c49901358a39b519c9a01122278c964f4eeb67959032166c"
+id = "core:node"
+version = "22.1.0"
+backend_digest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+[tool.options]
+[[tool.distribution]]
+platform = "linux/amd64/gnu"
+digest = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+size = 32
+source_id = "node-releases"
+artifact_id = "node-22-archive"
+layout_digest = "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+dependencies = []
+[tool.distribution.verification]
+kind = "digest-only"
+evidence_digest = "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+verifier_digest = "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+subject_digest = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"

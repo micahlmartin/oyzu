@@ -24,6 +24,44 @@ Pull requests should explain the intended behavior, reference related issues or 
 
 For code changes, briefly identify the AI tool used, how you directed/reviewed the change, and the subsystem/interface affected. A short summary is enough; full chat logs, private prompts and credentials are not required. Keep changes reviewable and scoped to one coherent outcome. Do not weaken an acceptance criterion merely to make generated code pass.
 
+## Prove the solution before hardening it
+
+Follow the [implementation priority](AGENTS.md#implementation-priority-prove-the-whole-flow-first): first demonstrate the smallest real end-to-end user flow, then complete the required scenarios, then perform separately scoped hardening. An OEP should name the demonstration command, input and observable final result, with later refinements recorded separately. Keep the implementation connected through the actual product; standalone helpers and passing unit tests are supporting evidence, not the first milestone. Preserve existing safety boundaries and report limitations without calling a demonstration production-ready.
+
+When directing an agent or reviewing a follow-up, identify the missing user flow or observed blocker it closes. If it only refines an already working path, record it for the hardening phase instead of letting it displace unproved required flows. Hardening work has finite acceptance criteria; newly discovered concerns do not automatically expand the milestone.
+
+The implementation goal ends when its agreed functional flows and end-to-end checks are complete. Hardening is not part of that completion decision unless explicitly requested. Maintainers then manually test and evaluate the implementation before choosing any hardening work; agents must not silently extend the implementation goal into that later phase.
+
+Older component checklists do not override this delivery order. Review each proposed follow-up against a named missing or failing user scenario. If it only raises the degree of hardening, defer it for maintainer selection. Keep failed checks and known limits visible without turning them automatically into an unbounded implementation milestone.
+
+## Find a bounded starting point
+
+For feature implementation, follow the [end-to-end-first rule](AGENTS.md#implementation-priority-prove-the-whole-flow-first).
+The first milestone is a working user flow through the real integrations.
+Proposals should prove that solution; component hardening follows in explicit
+stages. A bounded contribution should connect or unblock that flow, or address
+an agreed later hardening requirement. Do not confuse a small component change
+with a demonstrated feature.
+
+Use this table to narrow your first change, then consult the [code map](docs/code-organization.md) for the authoritative ownership details. You do not need to understand every subsystem before contributing.
+
+| Contribution | Start here | Useful evidence |
+| --- | --- | --- |
+| Report a missing framework or incorrect detection | [Builder extension guide](docs/builder-code-organization.md) and `src/builders/<ecosystem>/detection/` where present | A minimal project and expected discovery result; a negative or ambiguous case helps |
+| Correct task selection or hook behavior | `src/tasks.rs` and the [task examples](examples/tasks/) | Expected task order and what should happen on failure |
+| Correct configuration precedence | `src/config/` and the [configuration reference](docs/reference/configuration.md) | The relevant input layers and expected resolved value, with secrets removed |
+| Improve documentation or a design contract | [Reference index](docs/reference/README.md) or [example catalog](docs/examples.md) | The unclear instruction or missing scenario and the expected outcome |
+
+An implementation issue should name one outcome, link its owner and existing contract, and state how to verify it. Keep unresolved design choices visible. These are issue-writing guidelines, not additional forms or an approval step for routine changes.
+
+Adding a builder or detector normally means extending an owned module and registering it through an internal contract. You do not need to design a public plugin SDK or split out a crate to contribute an ecosystem integration. See [internal extensions and public contracts](docs/code-organization.md#internal-extensions-and-public-contracts) for the boundary and verification expectations.
+
+When directing an AI agent, a useful starting prompt is:
+
+> Read AGENTS.md and the code map. Implement [one observable outcome], using [issue/example] as the expected behavior. Define and prove the smallest real end-to-end flow first, then close required scenario gaps; record additional hardening separately. Find the owning subsystem and existing contracts before editing. Keep ecosystem details with their adapter and reuse shared configuration, scheduling, execution and reporting rules. Update the relevant documentation, run the applicable checks, and report the demonstrated flow, remaining required scenarios and deferred hardening. Preserve unrelated work.
+
+Replace the brackets with your task; this is an optional starting point, not a required tool or submission format. Review the resulting implementation and evidence against the requested behavior. An agent's statement that it followed the architecture is not a substitute for inspecting the diff.
+
 ## Documentation with every functionality change
 
 Documentation is part of implementation and review, not a later task. Follow the [documentation maintenance standard](docs/documentation.md) for every feature, changed behavior, deprecation or removal. Update the owning reference page in the same PR, with practical usage, defaults, outputs, failure/recovery behavior and verified limits. Add a new page to the [reference index](docs/reference/README.md) when no existing page owns the feature. Implementation checkpoints and draft OEPs supplement this reference; they do not replace it.
@@ -45,6 +83,8 @@ python tooling/test-task-scenarios.py --cli target/debug/oyzu
 On Windows use `target/debug/oyzu.exe`. Task scenarios require provisioned native tools, including Node/npm; building the CLI does not install them. Match additional checks to the subsystem being changed. See [the CI workflow](.github/workflows/build.yml) for native tooling/images and Linux isolated-build conformance. Three-host CLI/task checks and Linux build checks establish different things; report their scope honestly. For a new builder or framework, use [the extension guide](docs/builder-code-organization.md) and the relevant authored example.
 
 For documentation changes, run `node tooling/check-docs.mjs` and `git diff --check`. These checks do not validate unimplemented product behavior.
+
+For captured builder acceptance, follow [Running builder acceptance checks](docs/reference/build-verification.md). `python tooling/test-build-scenarios.py --list-suites` lists the implemented groups; `--suite <name> --cli <compiled-path>` runs a selected group with provisioned native tooling. CI runs every group after CLI compilation and retains evidence separately. Run `python tooling/check-build-suites.py` when changing registration or CI coverage; inventory checks do not establish native acceptance.
 
 Never include secrets or confidential information. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 

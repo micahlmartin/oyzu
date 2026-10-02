@@ -5,10 +5,44 @@ This is the entry point for current functionality documentation. Maintain featur
 | Reference | Coverage |
 | --- | --- |
 | [Repository compliance tooling](compliance.md) | Factual inventory, notice drift, review guard and explicitly blocked provisional release status |
+| [Tool identity inspection](tool-lock-inspection.md) | Format-2 selection/installation identities and no-follow payload tree observation; no installation or execution authority |
+| [Tool-management development integration](tool-management-development.md) | Opt-in mise-backed Node/Go/Rust installation, Oyzu locks/store, execution, shell integration and verification limits |
+| [Mise maintenance](mise-maintenance.md) | Read-only upstream observation, exact Cargo pin checks, candidate embedding/Node archive facts and scheduled-workflow activation limits |
+
+| [Runtime and platform matrices](runtime-matrices.md) | Node runtime variants, platform propagation through artifacts, selection, executor admission and separate evidence |
+| [OCI image indices](oci-indices.md) | Complete platform-family aggregation, deterministic archives, failure gates, bundle membership and evidence limits |
+| [Toolchain platforms](toolchain-platforms.md) | Verified provisioned image selection, explicit overrides, ARM execution prerequisites and remaining evidence limits |
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
+| [Build bundles](build-bundles.md) | Workspace locking, staging, history, destination-change checks, failure evidence and recovery limits |
+| [Build tasks](build-tasks.md) | Builder stages, cross-target prerequisites, hooks, private workspace ownership, report gates and failure behavior |
+| [Build logging](build-logging.md) | Live scoped progress, commands, multiplexed output, human summaries, JSON mode and retained events |
+| [Affected builds](affected-builds.md) | Local Git baseline comparison, changed target/consumer selection, conservative fallbacks and evidence limits |
+| [Direct test reports](direct-tests.md) | Integrated host test bundles, native output preservation, hook/report failure gates and explicit provenance limits |
+| [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |
+| [pnpm builds](pnpm.md) | Frozen registry archive capture, native installation, implicit tasks, snapshot packages, provenance and current compatibility limits |
+| [Yarn Classic builds](yarn.md) | Native lock parsing, captured registry archives, offline mirror installation, reports, snapshot packaging and compatibility limits |
+| [Node quality](node-quality.md) | ESLint/Prettier/Biome selection, provisioning, read-only checks, explicit formatting, scopes and failure behavior |
+| [Mocha tests](mocha.md) | Native discovery, reporter composition, c8 coverage, required reports, failure gates and compatibility limits |
+| [Node applications](node-applications.md) | Vite native outputs, explicit custom-app dist convention, versioned directory artifacts, Docker materialization, tasks/reports and current limits |
+| [Python testing](python-testing.md) | Native pytest collection, root/configured suites, manager commands, report preparation, no-tests outcomes and evidence limits |
+| [Python applications](python-applications.md) | Native-wheel console archives, runtime dependencies, snapshot artifacts, archive-source tests and format limits |
+| [Python containers](python-containers.md) | Experimental Dockerfile-free assembly from tested application archives, runtime capture, OCI outputs and current limits |
+| [Helm charts](helm.md) | Local chart dependencies, snapshot packaging, native unittest discovery, independent JUnit reports, baseline integrity and remaining limits |
+| [Go builds](go.md) | Native workspace tasks, applications, module snapshot zip/mod/info artifacts, projected local dependencies, reports and remaining limits |
+| [Rust builds](rust.md) | Captured crates.io inputs, Cargo workspaces, native feature-gated binary selection, compiler-message artifacts, snapshot crates and JUnit/coverage |
+| [Java quality](java-quality.md) | Shared native lint and read-only formatting defaults, explicit formatting, overrides and provisioning for Maven/Gradle/Ant |
+| [Maven builds](maven.md) | Native reactors, captured repositories, snapshot JAR/POM/WAR artifacts, effective Surefire/Failsafe report directories and coverage |
+| [Gradle builds](gradle.md) | Native multi-project/composite snapshots and direct per-task JUnit/JaCoCo bundles |
+| [Node workspace tests](node-workspace-tests.md) | Native npm/pnpm/Yarn membership, package-owned direct JUnit/LCOV, root scripts and prerequisites |
+| [Ant tests](ant.md) | Native assertion/JUnit targets, direct JUnit/JaCoCo bundles, custom targets, prerequisites and report scope |
+| [Dockerfile quality](docker-quality.md) | Native lint/format defaults, read-only build gates, explicit formatting, ignored configuration preservation and toolchain prerequisites |
+| [Docker image inputs](docker-images.md) | Provisioned base capture, immutable OCI contexts, separate worker/artifact platforms, offline assembly, evidence and current limits |
+| [Builder acceptance checks](build-verification.md) | Suite selection, native tool provisioning, compiled-CLI CI ordering, retained evidence and verification limits |
+| [Directory artifacts](directory-artifacts.md) | Engine collection/inspection, complete inventories, verified materialization and remaining native-output/platform integration |
+| [Acquisition transport](acquisition-transport.md) | Scoped routes, credential isolation, bounded retries, sanitized failures and remaining queue/cancellation limits |
 | CLI overview below | Discovery, development tasks and initial build/bundle usage; detailed subsystem coverage remains to be expanded as those features are touched |
 
-The experimental CLI supports `oyzu discover`, `oyzu run list`, `oyzu run <task>`, `oyzu build`, `oyzu build --plan` and `oyzu inspect <bundle>`. Global `-C <directory>` selects the project and `--json` emits structured discovery or task outcomes. The implementation is not a stable API release.
+The experimental CLI supports `oyzu discover`, `oyzu run list`, `oyzu run <task>`, `oyzu build [target ...]`, `oyzu build [target ...] --plan` and `oyzu inspect <bundle>`. Global `-C <directory>` selects the project and `--json` emits structured discovery or task outcomes. The implementation is not a stable API release.
 
 Static discovery covers the initial native builder families. Task execution uses already installed native tools in the development environment. TOML overrides and success-only pre_/post_ hooks are executed; native npm lifecycle hooks remain owned by npm. Missing configured tools fail with an error. Unavailable lint/format integrations are listed with a reason rather than silently advertised as successful checks.
 
@@ -16,10 +50,12 @@ Local Rust discovery tests and black-box Node task checks are recorded in [imple
 
 Proposed behavior is documented in the [OEP index](../proposals/README.md). Add reference documentation here only when the implementation and its acceptance evidence exist. Include supported versions/platforms and compatibility limits; do not copy draft examples here as though they are shipped.
 
-The build executor requires Docker and explicitly provisioned toolchain images. The npm default is `oyzu-toolchain/node:npm11.11.0-node22`, built from [the pinned toolchain definition](../../tooling/images/node-npm/Dockerfile); the Go default is `golang:1.24-bookworm`. Override these with `--image npm=<image>` or `--image go=<image>`; image identity is resolved before planning. No image is automatically downloaded. npm preflight checks an exact `packageManager` declaration against the provisioned npm version and uses native strict engine validation. This also applies to projects without dependencies; selecting an image is not a version-check bypass. Compatibility limits and measured acceptance for all native builder profiles are tracked in [implementation status](../implementation-status.md).
+The build executor requires Docker and explicitly provisioned toolchain images. The npm default is `oyzu-toolchain/node:npm11.11.0-node22`, built from [the pinned toolchain definition](../../tooling/images/node-npm/Dockerfile); the Go default is `oyzu-toolchain/go:1.24-mod0.25.0`, described in [Go builds](go.md). Override these with `--image npm=<image>` or `--image go=<image>`; image identity is resolved before planning. No image is automatically downloaded. npm preflight checks an exact `packageManager` declaration against the provisioned npm version and uses native strict engine validation. This also applies to projects without dependencies; selecting an image is not a version-check bypass. Compatibility limits and measured acceptance for all native builder profiles are tracked in [implementation status](../implementation-status.md).
 
-Provision the common Node quality image before the npm, pnpm or Yarn image: `docker build -t oyzu-toolchain/node:quality tooling/images/node-quality`. It supplies locked ESLint/Prettier defaults for projects without quality scripts or installed project tools. Builds use read-only lint/format checks; `oyzu run format` is explicitly mutating. For development tasks, install native project dependencies or point `OYZU_NODE_QUALITY_HOME` at an explicitly provisioned directory containing the quality toolchain's package.json and node_modules. This is toolchain provisioning, not an Oyzu project configuration requirement.
+Provision the common Node quality image before the npm, pnpm or Yarn image: `docker build -t oyzu-toolchain/node:quality tooling/images/node-quality`. It supplies locked ESLint/Prettier defaults and Biome for native Biome configurations without installed project tools. Builds use read-only lint/format checks; `oyzu run format` is explicitly mutating. For development tasks, install native project dependencies or point `OYZU_NODE_QUALITY_HOME` at an explicitly provisioned directory containing the quality toolchain's package.json and node_modules. This is toolchain provisioning, not an Oyzu project configuration requirement. See [Node quality](node-quality.md) for versions, file scope and native configuration behavior.
 
 Build output is `dist/manifest.json`, `plan.json`, `envelope.json`, native logs and target artifacts/reports. Snapshot names include the captured source identity. Native npm test scripts equal to `node --test` receive JUnit and LCOV reporters; Go test events and coverage profiles are normalized. Available lint/format-check tasks run in the captured worktree. Mutating formatter tasks do not run as build checks. Previous bundles are preserved under `.oyzu/history`. `inspect` validates content integrity only; it does not certify production trust.
 
 Configuration commands, profile selection, administrative constraints, editing and their current limits are described in the [experimental configuration reference](configuration.md).
+
+The opt-in [core tool-management development integration](tool-management-development.md) documents the Node/Go install/exec paths and their functional acceptance status.

@@ -1,11 +1,15 @@
+mod application;
 mod detection;
 mod discovery;
 mod jest;
 mod managers;
+mod mocha;
 mod planning;
 mod quality;
 mod reporting;
+mod toolchain;
 mod vitest;
+mod workspace;
 
 use super::{Builder, BuilderPlan, Descriptor, PlanningContext, PreparationContext, RuntimeFile};
 use crate::dependencies::Prepared;
@@ -16,6 +20,94 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "pnpm-workspace-build.mjs",
+        contents: include_str!("runtime/pnpm-workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-workspaces.mjs",
+        contents: include_str!("runtime/pnpm-workspaces.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-build.mjs",
+        contents: include_str!("runtime/workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-plan.mjs",
+        contents: include_str!("runtime/workspace-plan.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspace-build.mjs",
+        contents: include_str!("runtime/yarn-workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspaces.mjs",
+        contents: include_str!("runtime/yarn-workspaces.mjs"),
+    },
+    RuntimeFile {
+        name: "native-workspace.mjs",
+        contents: include_str!("runtime/native-workspace.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-workspace-describe.mjs",
+        contents: include_str!("runtime/pnpm-workspace-describe.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-workspace-describe.mjs",
+        contents: include_str!("runtime/yarn-workspace-describe.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-test-host.mjs",
+        contents: include_str!("runtime/workspace-test-host.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-store.mjs",
+        contents: include_str!("runtime/pnpm-store.mjs"),
+    },
+    RuntimeFile {
+        name: "node-runtime.mjs",
+        contents: include_str!("runtime/node-runtime.mjs"),
+    },
+    RuntimeFile {
+        name: "mocha.mjs",
+        contents: include_str!("runtime/mocha.mjs"),
+    },
+    RuntimeFile {
+        name: "mocha-reporter.cjs",
+        contents: include_str!("runtime/mocha-reporter.cjs"),
+    },
+    RuntimeFile {
+        name: "node-vite.mjs",
+        contents: include_str!("runtime/vite.mjs"),
+    },
+    RuntimeFile {
+        name: "node-application.mjs",
+        contents: include_str!("runtime/application.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-patches.mjs",
+        contents: include_str!("runtime/pnpm-patches.mjs"),
+    },
+    RuntimeFile {
+        name: "registry-archives.mjs",
+        contents: include_str!("runtime/registry-archives.mjs"),
+    },
+    RuntimeFile {
+        name: "yarn-registry.mjs",
+        contents: include_str!("runtime/yarn-registry.mjs"),
+    },
+    RuntimeFile {
+        name: "integrity.mjs",
+        contents: include_str!("runtime/integrity.mjs"),
+    },
+    RuntimeFile {
+        name: "pnpm-registry.mjs",
+        contents: include_str!("runtime/pnpm-registry.mjs"),
+    },
+    RuntimeFile {
+        name: "workspace-test-scope.mjs",
+        contents: include_str!("runtime/workspace-test-scope.mjs"),
+    },
     RuntimeFile {
         name: "npm-workspace-root.mjs",
         contents: include_str!("runtime/npm-workspace-root.mjs"),
@@ -29,12 +121,24 @@ static RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/npm-workspace-build.mjs"),
     },
     RuntimeFile {
+        name: "workspace-testing.mjs",
+        contents: include_str!("runtime/workspace-testing.mjs"),
+    },
+    RuntimeFile {
+        name: "npm-workspace-test-host.mjs",
+        contents: include_str!("runtime/npm-workspace-test-host.mjs"),
+    },
+    RuntimeFile {
         name: "npm-workspace-plan.mjs",
         contents: include_str!("runtime/npm-workspace-plan.mjs"),
     },
     RuntimeFile {
         name: "npm-native.mjs",
         contents: include_str!("runtime/npm-native.mjs"),
+    },
+    RuntimeFile {
+        name: "test-command.mjs",
+        contents: include_str!("runtime/test-command.mjs"),
     },
     RuntimeFile {
         name: "npm-workspaces.mjs",
@@ -83,6 +187,11 @@ static RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Node {
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        managers::dependency_providers()
+    }
     fn development_command(
         &self,
         task: &Task,
@@ -94,6 +203,39 @@ impl Builder for Node {
         }
         Ok(quality::development(task))
     }
+    fn development_test(&self, target: &Target, task: &Task) -> Result<Option<super::TaskPlan>> {
+        let package = crate::records::read(&target.path.join("package.json"))?;
+        let manager = managers::get(&target.manager)?;
+        if task.name == "test" && manager.is_workspace(&target.path, &package) {
+            return manager.development_test(target, task);
+        }
+        if task.name != "test"
+            || package.get("workspaces").is_some()
+            || target
+                .discovery
+                .get("test-framework")
+                .is_none_or(|p| !["node-test", "jest", "vitest", "mocha"].contains(&p.selected()))
+        {
+            return Ok(None);
+        }
+        let env = std::collections::BTreeMap::from([
+            (
+                "OYZU_TEST_REPORT".into(),
+                format!("/out/{}/reports/junit.xml", target.name),
+            ),
+            (
+                "OYZU_COVERAGE_REPORT".into(),
+                format!("/out/{}/reports/coverage.lcov", target.name),
+            ),
+        ]);
+        Ok(Some(reporting::test(
+            &target.name,
+            self.instrument_override(target, task, &env)
+                .unwrap_or_else(|| task.argv.clone()),
+            false,
+        )))
+    }
+
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             tools: &["node"],
@@ -109,13 +251,25 @@ impl Builder for Node {
     fn toolchain(&self, target: &Target) -> Result<&'static str> {
         Ok(managers::get(&target.manager)?.image())
     }
+    fn variant_toolchain(&self, target: &Target) -> Result<String> {
+        let manager = managers::get(&target.manager)?;
+        match toolchain::requested(target)? {
+            Some(version) => manager.runtime_image(version),
+            None => Ok(manager.image().into()),
+        }
+    }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
-        self.toolchain(context.target)?;
+        self.variant_toolchain(context.target)?;
+        let namespace = format!("oyzu.dev/{}", context.target.manager);
+        let actual = context
+            .dependencies
+            .and_then(|d| d.record["extensions"][&namespace]["nodeVersion"].as_str());
+        toolchain::verify(context.target, actual)?;
         planning::plan(context)
     }
 
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
-        self.toolchain(context.target)?;
+        self.variant_toolchain(context.target)?;
         managers::get(&context.target.manager)?.prepare(context)
     }
 
@@ -137,24 +291,30 @@ impl Builder for Node {
                 .tasks
                 .get("test")
                 .is_some_and(|t| t.argv == [&target.manager, "run", "test"]);
-        let jest_script = target
-            .discovery
-            .get("test-framework")
-            .is_some_and(|p| p.selected() == "jest")
-            && crate::records::read(&target.path.join("package.json"))
-                .ok()
-                .and_then(|p| p["scripts"]["test"].as_str().map(jest::recognized))
-                .unwrap_or(false);
-        let vitest_script = target
-            .discovery
-            .get("test-framework")
-            .is_some_and(|p| p.selected() == "vitest")
-            && crate::records::read(&target.path.join("package.json"))
-                .ok()
-                .and_then(|p| p["scripts"]["test"].as_str().map(vitest::recognized))
-                .unwrap_or(false);
+        let package = crate::records::read(&target.path.join("package.json")).ok();
+        let script = package.as_ref().and_then(|p| p["scripts"]["test"].as_str());
+        let recognized = |framework: &str, accepts: fn(&str) -> bool| {
+            target
+                .discovery
+                .get("test-framework")
+                .is_some_and(|p| p.selected() == framework)
+                && script.is_some_and(accepts)
+        };
         reporting::instrument_override(task, env, native_script, &target.manager)
-            .or_else(|| jest::instrument_override(task, jest_script))
-            .or_else(|| vitest::instrument_override(task, vitest_script, &target.manager))
+            .or_else(|| jest::instrument_override(task, recognized("jest", jest::recognized)))
+            .or_else(|| {
+                vitest::instrument_override(
+                    task,
+                    recognized("vitest", vitest::recognized),
+                    &target.manager,
+                )
+            })
+            .or_else(|| {
+                mocha::instrument_override(
+                    task,
+                    recognized("mocha", mocha::recognized),
+                    &target.manager,
+                )
+            })
     }
 }

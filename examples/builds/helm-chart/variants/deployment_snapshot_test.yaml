@@ -1,0 +1,8 @@
+suite: deployment snapshot
+templates:
+  - templates/deployment.yaml
+tests:
+  - it: preserves the deployment specification
+    asserts:
+      - matchSnapshot:
+          path: spec

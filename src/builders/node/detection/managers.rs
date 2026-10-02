@@ -6,7 +6,8 @@ use anyhow::{bail, Context, Result};
 struct NativeManager {
     id: &'static str,
     manager: &'static str,
-    lock: &'static str,
+    path: &'static str,
+    location: &'static str,
 }
 impl Detector<ContextData> for NativeManager {
     fn id(&self) -> &'static str {
@@ -14,7 +15,7 @@ impl Detector<ContextData> for NativeManager {
     }
     fn detect(&self, context: &ContextData) -> Result<Vec<Finding>> {
         let mut evidence = Vec::new();
-        if let Some(e) = context.source.evidence(self.lock, "lockfile") {
+        if let Some(e) = context.source.evidence(self.path, self.location) {
             evidence.push(e);
         }
         Ok(if evidence.is_empty() {
@@ -60,22 +61,32 @@ pub(super) static MANAGERS: &[&dyn Detector<ContextData>] = &[
     &NativeManager {
         id: "node/npm-shrinkwrap",
         manager: "npm",
-        lock: "npm-shrinkwrap.json",
+        path: "npm-shrinkwrap.json",
+        location: "lockfile",
     },
     &NativeManager {
         id: "node/npm-lock",
         manager: "npm",
-        lock: "package-lock.json",
+        path: "package-lock.json",
+        location: "lockfile",
     },
     &NativeManager {
         id: "node/pnpm-lock",
         manager: "pnpm",
-        lock: "pnpm-lock.yaml",
+        path: "pnpm-lock.yaml",
+        location: "lockfile",
+    },
+    &NativeManager {
+        id: "node/pnpm-workspace",
+        manager: "pnpm",
+        path: "pnpm-workspace.yaml",
+        location: "workspace",
     },
     &NativeManager {
         id: "node/yarn-lock",
         manager: "yarn",
-        lock: "yarn.lock",
+        path: "yarn.lock",
+        location: "lockfile",
     },
     &DeclaredManager,
     &NpmDefault,

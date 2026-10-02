@@ -1,7 +1,11 @@
 use crate::builders::task::insert;
+mod archives;
+mod detection;
 mod metadata;
 mod planning;
 mod preparation;
+mod quality;
+mod testing;
 #[cfg(test)]
 mod tests;
 
@@ -17,6 +21,14 @@ pub(super) struct Helm;
 
 pub(super) const IMAGE: &str = "oyzu-toolchain/helm:3.22.0";
 pub(super) const RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "helm-quality.py",
+        contents: include_str!("runtime/quality.py"),
+    },
+    RuntimeFile {
+        name: "helm-charts.py",
+        contents: include_str!("runtime/charts.py"),
+    },
     RuntimeFile {
         name: "helm-archive.py",
         contents: include_str!("runtime/archive.py"),
@@ -44,6 +56,36 @@ impl Builder for Helm {
         planning::plan(context)
     }
 
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        testing::development(target, task)
+    }
+
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        let argv: Vec<_> = task.argv.iter().map(String::as_str).collect();
+        if task.provider == "helm" {
+            if let ["helm", "unittest", "--strict", chart] = argv.as_slice() {
+                return Ok(Some(crate::builders::DevelopmentCommand {
+                    argv: vec![
+                        "python".into(),
+                        "-I".into(),
+                        "-c".into(),
+                        include_str!("runtime/charts.py").into(),
+                        "test".into(),
+                        chart.to_string(),
+                    ],
+                    env: Default::default(),
+                }));
+            }
+        }
+        Ok(quality::development(task))
+    }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             tools: &["helm"],
@@ -60,6 +102,9 @@ impl Builder for Helm {
         target.manager = "helm".into();
         let metadata = metadata::read(&path)?;
         target.version = metadata.version;
+        let framework = detection::detect(&path)?;
+        let unittest = framework.selected() == "helm-unittest";
+        target.discovery.insert("test-framework".into(), framework);
         insert(
             target,
             "install",
@@ -68,7 +113,14 @@ impl Builder for Helm {
         );
         insert(target, "build", &["helm", "package", chart], true);
         insert(target, "lint", &["helm", "lint", chart], true);
-        if metadata.kind != "library" {
+        if unittest {
+            insert(
+                target,
+                "test",
+                &["helm", "unittest", "--strict", chart],
+                true,
+            );
+        } else if metadata.kind != "library" {
             insert(
                 target,
                 "test",
@@ -84,6 +136,7 @@ impl Builder for Helm {
             );
         }
 
+        quality::discover(target)?;
         Ok(())
     }
 }

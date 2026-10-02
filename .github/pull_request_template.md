@@ -10,11 +10,19 @@ Link the tracking issue and OEP, if applicable.
 
 For code changes, name the owning subsystem and any interface or shared-behavior change. Briefly identify the AI tool used and how the generated change was directed and reviewed. Full prompts or chat logs are not required. See CONTRIBUTING.md for the AI-built workflow and current license status.
 
-Review prompts (answer only where relevant): Does an existing subsystem already own this behavior? Does a new trait represent a real extension boundary? Can the change stay within the adapter and its registration, or does a shared contract need to evolve? Are unsupported capabilities explicit rather than successful no-ops? See the [engineering guide](../docs/code-organization.md).
+Keep this proportional to the change. Address these questions where relevant:
+
+- **Ownership:** Which subsystem owns the rule, and what existing behavior is reused? For a new subsystem, link its responsibility comment and code-map entry.
+- **Boundary:** Which contract or dependency between subsystems changes, and which implementations and consumers are affected? Explain why any new abstraction or dependency direction is needed; shared extractions should remove superseded copies.
+- **Evidence:** Which observable behavior and failure cases verify the change? Report the actual checks below, including native integration and platform coverage where applicable.
+
+Use the [engineering guide](../docs/code-organization.md#review-boundaries-in-practice) for detailed review examples. Routine fixes do not require a new design document or an answer to every architectural question.
 
 ## Validation
 
 Describe checks performed and relevant results.
+
+For feature implementation, show the real end-to-end command and result, or identify the blocker preventing that proof. Distinguish remaining required scenarios from deferred hardening. A hardening follow-up should name its bounded acceptance criteria and explain its priority relative to unproved required flows; component tests alone do not establish end-to-end success.
 
 ## Compatibility and risks
 

@@ -29,23 +29,27 @@ pub struct Snapshot {
 }
 
 fn included(entry: &DirEntry) -> bool {
-    entry.depth() == 0
-        || !matches!(
-            entry.file_name().to_str(),
-            Some(
-                ".git"
-                    | ".oyzu"
-                    | ".oyzu-config-edit.lock"
-                    | "node_modules"
-                    | "dist"
-                    | "target"
-                    | ".venv"
-                    | "__pycache__"
-                    | ".pytest_cache"
-                    | ".gradle"
-                    | ".events"
-            )
+    entry.depth() == 0 || entry.file_name().to_str().is_none_or(source_path_included)
+}
+
+/// Use the same source exclusions for captured files and baseline inventories.
+pub(crate) fn source_path_included(path: &str) -> bool {
+    path.split('/').all(|part| {
+        !matches!(
+            part,
+            ".git"
+                | ".oyzu"
+                | ".oyzu-config-edit.lock"
+                | "node_modules"
+                | "dist"
+                | "target"
+                | ".venv"
+                | "__pycache__"
+                | ".pytest_cache"
+                | ".gradle"
+                | ".events"
         )
+    })
 }
 
 pub(crate) fn portable(value: &str) -> bool {
@@ -83,13 +87,19 @@ pub fn file_digest(path: &Path) -> Result<String> {
 
 /// Destination must be new and outside source. Failed capture is never reusable.
 pub fn capture(source: &Path, destination: &Path) -> Result<Snapshot> {
-    capture_tree(source, destination, true, None)
+    capture_tree(source, Some(destination), true, None)
 }
 
 /// Prepared repositories are complete inputs: source-tree ignore rules do not
 /// apply to native package coordinates or resolver metadata.
 pub(crate) fn capture_prepared(source: &Path, destination: &Path) -> Result<Snapshot> {
-    capture_tree(source, destination, false, None)
+    capture_tree(source, Some(destination), false, None)
+}
+
+/// Inventory a complete tree without source exclusions or filesystem writes.
+/// Uses exactly the same path, type, size and identity rules as capture.
+pub(crate) fn inspect_tree(source: &Path) -> Result<Snapshot> {
+    capture_tree(source, None, false, None)
 }
 
 /// Copy the declared selection from an already captured workspace. This does not
@@ -99,27 +109,29 @@ pub(crate) fn capture_projected(
     destination: &Path,
     projection: &Projection,
 ) -> Result<Snapshot> {
-    capture_tree(source, destination, false, Some(projection))
+    capture_tree(source, Some(destination), false, Some(projection))
 }
 
 fn capture_tree(
     source: &Path,
-    destination: &Path,
+    destination: Option<&Path>,
     source_rules: bool,
     projection: Option<&Projection>,
 ) -> Result<Snapshot> {
     let source = source.canonicalize()?;
-    if destination.exists() {
-        bail!("snapshot destination already exists");
+    if let Some(destination) = destination {
+        if destination.symlink_metadata().is_ok() {
+            bail!("snapshot destination already exists");
+        }
+        let parent = destination
+            .parent()
+            .context("snapshot destination requires a parent")?
+            .canonicalize()?;
+        if parent.starts_with(&source) {
+            bail!("snapshot destination cannot be inside source");
+        }
+        fs::create_dir(destination)?;
     }
-    let parent = destination
-        .parent()
-        .context("snapshot destination requires a parent")?
-        .canonicalize()?;
-    if parent.starts_with(&source) {
-        bail!("snapshot destination cannot be inside source");
-    }
-    fs::create_dir(destination)?;
     let mut entries = vec![];
     let mut paths = BTreeSet::new();
     let mut size = 0u64;
@@ -157,13 +169,21 @@ fn capture_tree(
         if !paths.insert(relative.to_lowercase()) {
             bail!("case-colliding source path {relative}");
         }
-        let out = destination.join(&relative);
+        let out = destination.map(|destination| destination.join(&relative));
         let metadata = fs::symlink_metadata(item.path())?;
-        if metadata.file_type().is_symlink() {
-            bail!("source symlink capture is not yet supported: {relative}");
+        let redirected = metadata.file_type().is_symlink();
+        #[cfg(windows)]
+        let redirected = {
+            use std::os::windows::fs::MetadataExt;
+            redirected || metadata.file_attributes() & 0x400 != 0
+        };
+        if redirected {
+            bail!("source symlink or reparse point capture is not supported: {relative}");
         }
         if metadata.is_dir() {
-            fs::create_dir(&out)?;
+            if let Some(out) = &out {
+                fs::create_dir(out)?;
+            }
             entries.push(Entry {
                 path: relative,
                 kind: "directory".into(),
@@ -179,10 +199,15 @@ fn capture_tree(
                 bail!("source exceeds 10 GiB capture limit");
             }
             let mut input = fs::File::open(item.path())?;
-            let mut output = fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&out)?;
+            let mut output = out
+                .as_ref()
+                .map(|out| {
+                    fs::OpenOptions::new()
+                        .write(true)
+                        .create_new(true)
+                        .open(out)
+                })
+                .transpose()?;
             let mut hasher = Sha256::new();
             let mut buffer = [0u8; 65536];
             let mut copied = 0u64;
@@ -196,9 +221,13 @@ fn capture_tree(
                     bail!("source changed during capture: {relative}");
                 }
                 hasher.update(&buffer[..count]);
-                output.write_all(&buffer[..count])?;
+                if let Some(output) = &mut output {
+                    output.write_all(&buffer[..count])?;
+                }
             }
-            output.sync_all()?;
+            if let Some(output) = &output {
+                output.sync_all()?;
+            }
             let digest = format!("sha256:{:x}", hasher.finalize());
             if copied != metadata.len() || file_digest(item.path())? != digest {
                 bail!("source changed during capture: {relative}");
@@ -210,7 +239,9 @@ fn capture_tree(
             };
             #[cfg(not(unix))]
             let executable = false;
-            fs::set_permissions(&out, metadata.permissions())?;
+            if let Some(out) = &out {
+                fs::set_permissions(out, metadata.permissions())?;
+            }
             entries.push(Entry {
                 path: relative,
                 kind: "file".into(),

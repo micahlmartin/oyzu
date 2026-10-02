@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "backend_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "platform": "linux/amd64/gnu",
+  "input_blob_digests": [
+    "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  ],
+  "archive_kind": "tar",
+  "strip_prefix": "release",
+  "payload_subtree": ".",
+  "required_paths": [
+    {
+      "path": "bin/node",
+      "kind": "file"
+    }
+  ],
+  "entrypoints": {
+    "node": {
+      "kind": "native",
+      "payload_relative_path": "bin/node",
+      "interpreter_tool_key": null,
+      "interpreter_relative_path": null,
+      "prefix_args": []
+    }
+  },
+  "environment": {
+    "PATH": {
+      "kind": "paths",
+      "paths": [
+        {
+          "owner": "self",
+          "relative_path": "bin"
+        }
+      ]
+    }
+  },
+  "extraction_bounds": {
+    "max_entries": 200000,
+    "max_bytes": 8589934592,
+    "max_file_bytes": 1073741824,
+    "max_depth": 64,
+    "max_expansion_ratio": 200
+  },
+  "executable_paths": []
+}

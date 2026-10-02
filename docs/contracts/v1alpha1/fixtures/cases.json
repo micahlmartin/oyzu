@@ -161,5 +161,55 @@
     "schema": "manifest",
     "valid": false,
     "reason": "status"
+  },
+  {
+    "file": "manifest-directory.valid.json",
+    "schema": "manifest",
+    "valid": true
+  },
+  {
+    "file": "manifest-directory-missing-inventory.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "manifest-directory-duplicate-entry.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "paths"
+  },
+  {
+    "file": "manifest-directory-missing-file-digest.json",
+    "schema": "manifest",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "plan-host.valid.json",
+    "schema": "plan",
+    "valid": true
+  },
+  {
+    "file": "plan-host-cacheable.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "plan-host-undisclosed.json",
+    "schema": "plan",
+    "valid": false,
+    "reason": "schema"
+  },
+  {
+    "file": "plan-oci-index.valid.json",
+    "schema": "plan",
+    "valid": true
+  },
+  {
+    "file": "manifest-oci-index.valid.json",
+    "schema": "manifest",
+    "valid": true
   }
 ]

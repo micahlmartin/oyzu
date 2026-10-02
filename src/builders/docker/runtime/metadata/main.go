@@ -13,6 +13,7 @@ import (
 
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
 )
 
 const metadataLimit = 1024 * 1024
@@ -31,11 +32,13 @@ type stage struct {
 }
 
 type metadata struct {
-	SchemaVersion string        `json:"schemaVersion"`
-	Frontend      string        `json:"frontend"`
-	Stages        []stage       `json:"stages"`
-	Requirements  []requirement `json:"requirements"`
-	Context       contextFiles  `json:"context"`
+	SchemaVersion   string         `json:"schemaVersion"`
+	Frontend        string         `json:"frontend"`
+	Stages          []stage        `json:"stages"`
+	Requirements    []requirement  `json:"requirements"`
+	Context         contextFiles   `json:"context"`
+	Selection       selectionFacts `json:"selection"`
+	TargetExecution bool           `json:"targetExecution"`
 }
 
 func readBounded(path string) ([]byte, error) {
@@ -58,8 +61,8 @@ func readBounded(path string) ([]byte, error) {
 	return body, err
 }
 
-func analyze(body []byte) (metadata, error) {
-	m := metadata{SchemaVersion: "v1alpha1", Frontend: "dockerfile.v0", Stages: []stage{}, Requirements: []requirement{}}
+func analyze(body []byte, facts selectionFacts) (metadata, error) {
+	m := metadata{SchemaVersion: "v1alpha1", Frontend: "dockerfile.v0", Stages: []stage{}, Requirements: []requirement{}, Selection: facts}
 	if frontend, _, _, ok := parser.DetectSyntax(body); ok {
 		m.Frontend = frontend
 		m.Requirements = append(m.Requirements, requirement{Kind: "frontend", Reference: frontend, Stage: -1, Line: 1})
@@ -68,12 +71,17 @@ func analyze(body []byte) (metadata, error) {
 	if err != nil {
 		return m, err
 	}
-	stages, _, err := instructions.Parse(parsed.AST, nil)
+	stages, arguments, err := instructions.Parse(parsed.AST, nil)
 	if err != nil {
 		return m, err
 	}
 	if len(stages) == 0 {
 		return m, fmt.Errorf("Dockerfile has no stages")
+	}
+	lex := shell.NewLex(parsed.EscapeToken)
+	defaults, err := globalDefaults(lex, arguments, facts, stages[len(stages)-1].Name)
+	if err != nil {
+		return m, err
 	}
 	// Native aliases can refer forward. We retain their identities; BuildKit
 	// remains responsible for native stage-cycle validation during conversion.
@@ -92,6 +100,22 @@ func analyze(body []byte) (metadata, error) {
 	}
 	previous := map[string]bool{}
 	for index, s := range stages {
+		s.BaseName, err = expandSelection(lex, s.BaseName, defaults)
+		if err != nil {
+			return m, parser.WithLocation(err, s.Location)
+		}
+		if s.BaseName == "" {
+			return m, parser.WithLocation(fmt.Errorf("base image resolves to an empty name"), s.Location)
+		}
+		if s.Platform != "" {
+			s.Platform, err = expandSelection(lex, s.Platform, defaults)
+			if err != nil {
+				return m, parser.WithLocation(err, s.Location)
+			}
+			if s.Platform == "" {
+				return m, parser.WithLocation(fmt.Errorf("stage platform resolves to an empty value"), s.Location)
+			}
+		}
 		m.Stages = append(m.Stages, stage{Name: s.Name, Base: s.BaseName, Platform: s.Platform})
 		add := func(kind, reference string, line int) {
 			m.Requirements = append(m.Requirements, requirement{Kind: kind, Reference: reference, Stage: index, Line: line})
@@ -124,6 +148,7 @@ func analyze(body []byte) (metadata, error) {
 			case *instructions.OnbuildCommand:
 				add("onbuild", "", line)
 			case *instructions.RunCommand:
+				m.TargetExecution = true
 				if instructions.GetNetwork(c) == instructions.NetworkHost {
 					add("host-network", "", line)
 				}
@@ -161,12 +186,12 @@ func analyze(body []byte) (metadata, error) {
 	return m, nil
 }
 
-func inspect(root string) (metadata, error) {
+func inspect(root string, facts selectionFacts) (metadata, error) {
 	body, err := readBounded(filepath.Join(root, "Dockerfile"))
 	if err != nil {
 		return metadata{}, err
 	}
-	m, err := analyze(body)
+	m, err := analyze(body, facts)
 	if err != nil {
 		return m, err
 	}
@@ -175,11 +200,11 @@ func inspect(root string) (metadata, error) {
 }
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: oyzu-docker-metadata <captured-context>")
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "usage: oyzu-docker-metadata <captured-context> <target-platform> <source-date-epoch>")
 		os.Exit(2)
 	}
-	m, err := inspect(os.Args[1])
+	m, err := inspect(os.Args[1], selectionFacts{os.Args[2], os.Args[3]})
 	if err == nil {
 		err = json.NewEncoder(os.Stdout).Encode(m)
 	}

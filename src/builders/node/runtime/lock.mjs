@@ -1,6 +1,6 @@
 // Interpret only immutable npm registry tarball inputs. Native npm owns resolution,
 // peer relationships, installation layout and lock/manifest consistency checking.
-import {createHash, timingSafeEqual} from 'node:crypto';
+export {verify} from './integrity.mjs';
 import {existsSync, readFileSync} from 'node:fs';
 import {join} from 'node:path';
 
@@ -56,13 +56,4 @@ export function readLock(workspace, members = []) {
       purpose: entry.dev ? 'build' : 'runtime'}];
   });
   return {filename, packages};
-}
-
-export function verify(bytes, integrity) {
-  const expected = Buffer.from(integrity.slice('sha512-'.length), 'base64');
-  const actual = createHash('sha512').update(bytes).digest();
-  if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-    throw new Error('npm tarball integrity mismatch');
-  }
-  return createHash('sha256').update(bytes).digest('hex');
 }

@@ -53,6 +53,12 @@ def main():
         shutil.copytree(ROOT/'examples/builds/go-workspace-cgo/project', project)
         first = capture(project)
         assert first['modules'] == ['cmd', 'math']
+        assert first['moduleDependencies']['example.com/oyzu/command'] == ['example.com/oyzu/math']
+        command_manifest = project/'cmd/go.mod'
+        original_manifest = command_manifest.read_text()
+        command_manifest.write_text(original_manifest.replace('require example.com/oyzu/math v0.0.0',''))
+        assert capture(project)['moduleDependencies'] == first['moduleDependencies']
+        command_manifest.write_text(original_manifest)
         assert first['patterns'] == ['./cmd/...', './math/...']
         assert [b['name'] for b in first['binaries']] == ['command']
         assert first['cgo'] and first['compiler'] and first['compilerTarget']
@@ -150,6 +156,25 @@ def verify_acquisition(base, binary, go, env):
         replay = dict(env, GOMODCACHE=str(first/'modules'), GOPROXY='off', GOVCS='*:off', GOFLAGS='-mod=readonly -p=2')
         subprocess.run([go, 'test', './...'], cwd=project, env=replay, check=True)
         assert len(seen) == count and set(seen) <= set(responses)
+        # A Docker consumer receives the modules subtree only, detached from
+        # metadata, broker and acquisition state. Exercise that layout natively.
+        archives = []
+        for index in range(2):
+            consumer = base / f'context-source-{index}'
+            shutil.copytree(project, consumer)
+            store = base / f'context-modules-{index}'
+            shutil.copytree(first / 'modules', store)
+            store_before = tree(store)
+            isolated = dict(replay, GOMODCACHE=str(store), GOCACHE=str(base / f'context-compile-{index}'))
+            binary_path = base / f'context-binary-{index}{".exe" if os.name == "nt" else ""}'
+            subprocess.run([go, 'build', '-trimpath', '-buildvcs=false', '-o', str(binary_path), '.'],
+                           cwd=consumer, env=isolated, check=True, timeout=180)
+            result = subprocess.run([str(binary_path)], capture_output=True, text=True, check=True)
+            assert result.stdout.strip() == '00000000-0000-0000-0000-000000000000'
+            archives.append(hashlib.sha256(binary_path.read_bytes()).hexdigest())
+            assert tree(store) == store_before and tree(consumer) == before
+        assert archives[0] == archives[1], 'detached native module stores changed binary identity'
+        assert len(seen) == count
         original = (project/'go.sum').read_text()
         (project/'go.sum').write_text(original.replace('NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='))
         capture(project, 'bad-checksum', 'checksum mismatch')
@@ -157,7 +182,7 @@ def verify_acquisition(base, binary, go, env):
         (project/'go.sum').unlink()
         capture(project, 'missing-checksum', 'missing go.sum entry')
         assert not failures
-        print('Native Go acquisition: scoped spool, unchanged checksums, repeatable cache, offline tests and invalid/missing checksum rejection passed')
+        print('Native Go acquisition: scoped spool, unchanged checksums, repeatable cache, detached-store offline compile/run, identical binaries, offline tests and invalid/missing checksum rejection passed')
     finally:
         stop.set()
         worker.join(timeout=5)

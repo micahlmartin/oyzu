@@ -5,13 +5,18 @@ plus Docker's ignore-file matcher. Rust owns builder admission, preparation,
 planning and execution policy. The adapter emits facts only; an empty list of
 external requirements is not proof of sandbox safety or a successful build.
 
-Run `oyzu-docker-metadata <captured-context>` to read the conventional Dockerfile
+Run `oyzu-docker-metadata <captured-context> <target-platform> <source-date-epoch>` to read the conventional Dockerfile
 and emit JSON. It executes no project commands and contacts no services. It
 reports native stage bases/platforms, external input requirements, sensitive RUN
 mounts, deferred ONBUILD instructions and files retained by native ignore rules.
 Dockerfile-specific ignore files take precedence over `.dockerignore`. Negations
 within excluded directories are evaluated without pruning those directories.
 Source contents and arbitrary RUN/ENV bodies are not copied into metadata.
+
+The required `targetExecution` boolean records whether any stage contains a
+native RUN instruction. Rust uses it to reject foreign-target execution until
+executor admission supports it. Absence is not equivalent to false. Target
+platform facts describe the artifact; they never substitute for worker facts.
 
 The Rust integration must resolve or reject each requirement before executing a
 build. Dynamic references need evaluated, captured inputs; they must not be

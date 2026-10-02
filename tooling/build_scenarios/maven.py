@@ -2,6 +2,7 @@
 import shutil
 import subprocess
 import zipfile
+from .java_quality import verify as verify_quality
 
 
 def verify(root, base, invoke, validate, source_files, verified):
@@ -31,7 +32,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert len(coverage) == 2 and all(r['summary']['covered'] > 0 for r in coverage)
     assert all(r['format'] == 'jacoco' for r in coverage)
     assert len({r['id'] for r in tests + coverage}) == 4
-    assert [a['id'] for a in manifest['actions']] == ['project:prepare', 'project:build', 'project:package']
+    assert [a['id'] for a in manifest['actions']] == ['project:prepare', 'project:build', 'project:lint', 'project:format-check', 'project:package']
     invoke(project, 'inspect', 'dist')
     mounts = []
     for i, artifact in enumerate(jars):
@@ -45,6 +46,8 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert {a['id']: a['digest'] for a in repeated['artifacts']} == {a['id']: a['digest'] for a in artifacts}
     # Changing shared code must fail its native tests and block all exports.
     source = project / 'library/src/main/java/example/Greeting.java'
+    verify_quality(project, source, invoke, validate, source_files)
+    verified.append('maven: native lint/format failures retain test evidence, block snapshots and leave source unchanged')
     source.write_text(source.read_text().replace('Hello, Oyzu!', 'Changed shared code'))
     invoke(project, 'build', success=False)
     failed = validate(project / 'dist')
@@ -53,3 +56,31 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(a for a in failed['actions'] if a['id'] == 'project:package')['status'] == 'blocked'
     invoke(project, 'inspect', 'dist')
     verified.append('Maven reactor: scoped repository, one offline lifecycle, module JAR/POM snapshots, Surefire/JaCoCo, repeatability and failed-test evidence')
+
+    project = base/'maven-native-reports'
+    shutil.copytree(root/'examples/builds/java-maven-reactor/project', project)
+    variation = root/'examples/builds/java-maven-reactor/variants/reporting'
+    shutil.copyfile(variation/'app.pom.xml', project/'app/pom.xml')
+    integration = project/'app/src/test/java/example/AppIT.java'
+    shutil.copyfile(variation/'AppIT.java', integration)
+    for case in ['both', 'failed-integration', 'integration-only']:
+        if case == 'failed-integration':
+            integration.write_text(integration.read_text().replace('Hello, Oyzu!', 'wrong result'))
+        elif case == 'integration-only':
+            integration.write_text(integration.read_text().replace('wrong result', 'Hello, Oyzu!'))
+            (project/'app/src/test/java/example/AppTest.java').unlink()
+        before = source_files(project)
+        invoke(project, 'build', success=case != 'failed-integration')
+        manifest = validate(project/'dist')
+        assert source_files(project) == before
+        reports = [r for r in manifest['reports'] if r['kind']=='test']
+        assert len(reports) == (2 if case=='integration-only' else 3)
+        assert sum(r['summary'].get('failed',0) for r in reports) == (1 if case=='failed-integration' else 0)
+        coverage = [r for r in manifest['reports'] if r['kind']=='coverage']
+        assert len(coverage)==2 and all(r['summary']['covered'] > 0 for r in coverage)
+        if case == 'failed-integration':
+            assert not manifest['artifacts']
+        else:
+            assert len(manifest['artifacts'])==5
+            assert all('-dev.g' in a['version'] for a in manifest['artifacts'])
+    verified.append('Maven native report plan retains custom Surefire/Failsafe XML and coverage; integration-only modules work and integration failures block artifacts')

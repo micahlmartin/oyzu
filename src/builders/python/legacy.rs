@@ -87,6 +87,7 @@ pub(super) fn capture(context: &PreparationContext<'_>, runtime: &Path) -> Resul
     let argv = ["python", "-I", "/oyzu/python.py", "legacy-metadata"].map(str::to_string);
     let result = executor::execute_with_mounts(
         executor::Request {
+            log: context.log.clone(),
             image: context.image,
             workspace: &workspace,
             output: &output,

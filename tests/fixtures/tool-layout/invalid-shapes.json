@@ -1,0 +1,102 @@
+[
+  {
+    "name": "unsupported format",
+    "pointer": "/format",
+    "value": 2
+  },
+  {
+    "name": "boolean format",
+    "pointer": "/format",
+    "value": true
+  },
+  {
+    "name": "unknown operation",
+    "pointer": "/command",
+    "value": "run arbitrary code"
+  },
+  {
+    "name": "fractional bound",
+    "pointer": "/extraction_bounds/max_depth",
+    "value": 1.5
+  },
+  {
+    "name": "open bounds",
+    "pointer": "/extraction_bounds/extra",
+    "value": 1
+  },
+  {
+    "name": "unknown launch",
+    "pointer": "/entrypoints/node/kind",
+    "value": "shell"
+  },
+  {
+    "name": "native interpreter",
+    "pointer": "/entrypoints/node/interpreter_tool_key",
+    "value": "self"
+  },
+  {
+    "name": "open launch",
+    "pointer": "/entrypoints/node/script",
+    "value": "unsafe"
+  },
+  {
+    "name": "invalid required type",
+    "pointer": "/required_paths/0/kind",
+    "value": "socket"
+  },
+  {
+    "name": "unknown environment",
+    "pointer": "/environment/PATH/kind",
+    "value": "expression"
+  },
+  {
+    "name": "non-array paths",
+    "pointer": "/environment/PATH/paths",
+    "value": "bin"
+  },
+  {
+    "name": "unknown path field",
+    "pointer": "/environment/PATH/paths/0/extra",
+    "value": "unexpected"
+  },
+  {
+    "name": "negative bound",
+    "pointer": "/extraction_bounds/max_entries",
+    "value": -1
+  },
+  {
+    "name": "missing /strip_prefix",
+    "pointer": "/strip_prefix",
+    "remove": true
+  },
+  {
+    "name": "missing /entrypoints/node/interpreter_tool_key",
+    "pointer": "/entrypoints/node/interpreter_tool_key",
+    "remove": true
+  },
+  {
+    "name": "missing /entrypoints/node/prefix_args",
+    "pointer": "/entrypoints/node/prefix_args",
+    "remove": true
+  },
+  {
+    "name": "missing /executable_paths",
+    "pointer": "/executable_paths",
+    "remove": true
+  },
+  {
+    "name": "expansion ratio exceeds hard ceiling",
+    "pointer": "/extraction_bounds/max_expansion_ratio",
+    "value": 1025
+  },
+  {
+    "name": "backend_digest trailing newline",
+    "pointer": "/backend_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "platform trailing newline",
+    "pointer": "/platform",
+    "value": "linux/amd64/gnu\n"
+  }
+]

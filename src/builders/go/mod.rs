@@ -1,7 +1,9 @@
 mod development;
 mod metadata;
+mod packaging;
 mod planning;
 mod preparation;
+mod testing;
 use crate::builders::task::insert;
 use crate::builders::{Builder, Descriptor};
 use crate::model::Target;
@@ -9,6 +11,27 @@ use anyhow::Result;
 use std::path::Path;
 
 pub(super) struct Go;
+
+impl crate::dependencies::context::Provider for Go {
+    fn id(&self) -> &'static str {
+        "go/modules"
+    }
+    fn tools(&self) -> &'static [&'static str] {
+        &["go"]
+    }
+    fn detect(&self, source: &Path) -> bool {
+        source.join("go.mod").is_file() || source.join("go.work").is_file()
+    }
+    fn store(&self) -> &'static str {
+        "modules"
+    }
+    fn prepare(
+        &self,
+        context: super::PreparationContext<'_>,
+    ) -> Result<crate::dependencies::Prepared> {
+        preparation::prepare_context(context)
+    }
+}
 
 static RUNTIME: &[super::RuntimeFile] = &[
     super::RuntimeFile {
@@ -26,6 +49,18 @@ static RUNTIME: &[super::RuntimeFile] = &[
 ];
 
 impl Builder for Go {
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        &[&Go]
+    }
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<super::TaskPlan>> {
+        Ok(testing::development(target, task))
+    }
     fn development_command(
         &self,
         task: &crate::model::Task,
@@ -43,7 +78,7 @@ impl Builder for Go {
         RUNTIME
     }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
-        Ok("golang:1.24-bookworm")
+        Ok("oyzu-toolchain/go:1.24-mod0.25.0")
     }
     fn plan(&self, context: super::PlanningContext<'_>) -> Result<super::BuilderPlan> {
         planning::plan(context)

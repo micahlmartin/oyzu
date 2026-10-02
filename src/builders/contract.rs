@@ -2,6 +2,7 @@ use crate::{
     dependencies::Prepared,
     executor::{Image, Mode, Profile},
     model::{Target, Task},
+    platform::Platform,
     snapshot::Snapshot,
 };
 use anyhow::{bail, Result};
@@ -15,8 +16,9 @@ pub(crate) struct Descriptor {
     pub tools: &'static [&'static str],
 }
 
-/// Discovery and planning read captured source only. Acquisition must use the scoped
-/// broker and executor; project code never receives host credentials or network access.
+/// Discovery and captured-build planning read supplied source only. Captured
+/// acquisition uses the scoped broker/executor; development hooks explicitly
+/// operate with host tools and do not claim isolation from the host environment.
 pub(crate) trait Builder: Sync {
     fn descriptor(&self) -> Descriptor;
     fn register_settings(&self, _registry: &mut crate::config::registry::Registry) -> Result<()> {
@@ -25,7 +27,10 @@ pub(crate) trait Builder: Sync {
     fn detect(&self, path: &Path) -> Option<&'static str>;
     fn discover(&self, target: &mut Target) -> Result<()>;
 
-    /// Whether dependency preparation may contact an upstream broker.
+    /// Whether public broker acquisition is unavoidable for this builder.
+    /// False admits offline preparation only; conditional package providers
+    /// must enforce configuration again before any broker access. It does not
+    /// grant network authority (see dependencies::context).
     fn acquisition_requires_network(&self) -> bool {
         true
     }
@@ -33,6 +38,19 @@ pub(crate) trait Builder: Sync {
     /// Resolve native arguments/environment only after an explicit development task run.
     /// Static discovery and captured build planning must never call this hook.
     fn development_command(&self, _task: &Task) -> Result<Option<DevelopmentCommand>> {
+        Ok(None)
+    }
+
+    /// Report contract for explicit host test execution. None means this native
+    /// profile still lacks direct-run evidence integration. No acquisition or
+    /// sandbox claim is implied; commands use already provisioned host tools.
+    /// Called after shared host task admission. Implementations may observe
+    /// installed native metadata, but must not install dependencies or run
+    /// project lifecycle tasks while constructing the contract. Native model
+    /// evaluation can load ecosystem extensions; it is not static discovery.
+    /// Commands may reference `/oyzu/<name>` from runtime_files(); host execution
+    /// stages those owned assets privately and translates the declared paths.
+    fn development_test(&self, _target: &Target, _task: &Task) -> Result<Option<TaskPlan>> {
         Ok(None)
     }
 
@@ -52,6 +70,49 @@ pub(crate) trait Builder: Sync {
         Ok(None)
     }
 
+    /// Offline stores this ecosystem can prepare for another builder. Providers
+    /// own native resolution/layout; shared composition owns policy admission.
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        &[]
+    }
+
+    /// Admit an artifact target before preparation. The default requires native
+    /// execution; adapters with a real cross-target packaging capability opt in.
+    /// Admission does not establish that target application tests executed.
+    fn target_platform(&self, requested: Option<&str>, image: &Image) -> Result<Platform> {
+        let execution = image.platform()?;
+        let target = Platform::requested(requested, &execution)?;
+        if target != execution {
+            bail!("required platform {target} differs from execution platform {execution}; native target execution is required by this builder");
+        }
+        Ok(target)
+    }
+
+    /// Required toolchain execution platform for an explicit artifact target.
+    /// Packaging adapters may use another worker and return None; target
+    /// admission and any target-code execution checks remain mandatory.
+    fn execution_platform(&self, requested: Option<&str>) -> Result<Option<Platform>> {
+        requested.map(str::parse).transpose()
+    }
+
+    /// Select an already provisioned image for concrete runtime axes. Adapters
+    /// admitting variants must verify the actual runtime during preparation;
+    /// an image reference alone is not runtime-version evidence.
+    /// Execution platform selection may resolve a provisioned platform sibling;
+    /// target_platform separately admits the artifact against that execution.
+    fn variant_toolchain(&self, target: &Target) -> Result<String> {
+        if target.variant.keys().any(|axis| axis != "platform") {
+            bail!(
+                "{}: runtime matrix integration is not implemented for {}",
+                target.name,
+                target.manager
+            );
+        }
+        Ok(self.toolchain(target)?.into())
+    }
+
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         bail!(
             "{}: {} build integration is not implemented yet",
@@ -62,6 +123,17 @@ pub(crate) trait Builder: Sync {
 
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         &[]
+    }
+
+    /// Runtime and exact already-packaged output for optional container assembly.
+    /// Returning None means this native profile is not supported. No I/O or
+    /// configuration resolution is permitted; preparation supplies native facts.
+    fn container_profile(
+        &self,
+        _target: &Target,
+        _prepared: Option<&Prepared>,
+    ) -> Result<Option<super::ContainerProfile>> {
+        Ok(None)
     }
 
     /// Add native reporting to an exactly recognized replacement command. Unknown
@@ -84,10 +156,16 @@ pub(crate) struct DevelopmentCommand {
 }
 
 pub(crate) struct PreparationContext<'a> {
-    pub configuration: Option<&'a crate::config::resolve::EffectiveConfig>,
+    pub log: crate::logging::Log,
+    /// The admitted owner's immutable snapshot. Adapters may consume registered
+    /// values but must never resolve sources or recompute defaults here.
+    pub configuration: &'a crate::config::resolve::EffectiveConfig,
+    /// Optional provider selector from the frozen target inventory, not TOML.
+    pub dependency_selector: Option<&'a str>,
     pub target: &'a Target,
     pub destination: &'a Path,
     pub image: &'a Image,
+    pub target_platform: &'a Platform,
     pub source_digest: &'a str,
     pub execution_name: &'a str,
 }
@@ -106,6 +184,11 @@ pub(crate) struct RuntimeFile {
 /// Ecosystem intent. The engine expands hooks, adds constraints and serializes
 /// the wire contract; adapters cannot change scheduling or sandbox enforcement.
 pub(crate) struct BuilderPlan {
+    /// If preparation established a target, compilation must verify it against
+    /// the admitted request. This is evidence, not permission to change targets.
+    pub target_platform: Option<Platform>,
+    /// Captured native tool execution identity, when established by preparation.
+    pub execution_platform: Option<Platform>,
     pub version: String,
     pub env: BTreeMap<String, String>,
     /// Captured toolchain facts that task overrides cannot silently change.
@@ -170,6 +253,8 @@ impl BuilderPlan {
 
     pub fn new(version: String, package: CommandSpec) -> Self {
         Self {
+            target_platform: None,
+            execution_platform: None,
             env: BTreeMap::from([
                 ("HOME".into(), "/tmp/oyzu-home".into()),
                 ("CI".into(), "true".into()),
@@ -224,6 +309,7 @@ pub(crate) struct ArtifactSpec {
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum ArtifactKind {
     File,
+    Directory,
     OciImage,
 }
 
@@ -232,6 +318,9 @@ pub(crate) struct TaskPlan {
     pub execution: Mode,
     pub argv: Vec<String>,
     pub reports: Vec<ReportSpec>,
+    /// Explicit applicability for test-only bundles whose subject has no
+    /// application-source coverage denominator (for example chart validation).
+    pub coverage: Option<CoverageApplicability>,
 }
 
 impl TaskPlan {
@@ -259,9 +348,13 @@ pub(crate) fn strings(values: &[&str]) -> Vec<String> {
 }
 
 pub(crate) fn semver_snapshot(target: &Target, source: &Snapshot) -> String {
+    semver_snapshot_digest(target, &source.digest)
+}
+
+pub(crate) fn semver_snapshot_digest(target: &Target, digest: &str) -> String {
     format!(
         "{}-dev.g{}",
         target.version.split(['-', '+']).next().unwrap_or("0.0.0"),
-        &source.digest[7..19]
+        &digest[7..19]
     )
 }

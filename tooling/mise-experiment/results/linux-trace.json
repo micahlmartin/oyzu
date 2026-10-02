@@ -1,0 +1,53 @@
+{
+  "binary_sha256": "11a2c5700f29dd7d536dee79af9dc29ca9fb5103f5ee6b71c42ac2ef3201e201",
+  "cases": [
+    {
+      "case": "hook",
+      "executions": [
+        "/build/debug/examples/oyzu-mise-spike"
+      ],
+      "syscall_counts": {
+        "access": 1,
+        "clone": 2,
+        "clone3": 2,
+        "execve": 1,
+        "exit": 2,
+        "exit_group": 1,
+        "getcwd": 4,
+        "mkdir": 1,
+        "newfstatat": 7,
+        "openat": 12,
+        "readlink": 115,
+        "socketpair": 1,
+        "statx": 62
+      },
+      "connections": [],
+      "stdout": "shell delta emitted",
+      "trace_sha256": "d0af3fa53c23f7e668ab36d6e431f17d618751aa97d06d60a724f30c04881dd7"
+    },
+    {
+      "case": "exec",
+      "executions": [
+        "/build/debug/examples/oyzu-mise-spike",
+        "/work/run-1790904117344271950/state/data/installs/node/22.14.0/bin/node"
+      ],
+      "syscall_counts": {
+        "access": 2,
+        "clone": 2,
+        "clone3": 2,
+        "execve": 2,
+        "exit_group": 1,
+        "getcwd": 4,
+        "mkdir": 1,
+        "newfstatat": 14,
+        "openat": 19,
+        "readlink": 87,
+        "socketpair": 1,
+        "statx": 71
+      },
+      "connections": [],
+      "stdout": "v22.14.0\n",
+      "trace_sha256": "23b42c4aba17447eb95a6bd3896f9b3676682936034a9742c1b7eccbf75881ae"
+    }
+  ]
+}

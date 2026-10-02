@@ -9,6 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import tempfile
+import runpy
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--maven-home", type=Path, required=True)
     parser.add_argument("--java-home", type=Path)
+    parser.add_argument("--test-lifecycle", action="store_true")
+    parser.add_argument("--repository", type=Path)
+    parser.add_argument("--acquire", action="store_true", help="Explicitly provision native test dependencies before offline checks")
     args = parser.parse_args()
     maven = args.maven_home.resolve()
     java = args.java_home.resolve() if args.java_home else Path(os.environ["JAVA_HOME"])
@@ -29,7 +33,7 @@ def main():
         classes.mkdir()
         def run(command, cwd=base, env=None, success=True):
             result = subprocess.run([str(v) for v in command], cwd=cwd, env=env,
-                                    capture_output=True, text=True, timeout=120)
+                                    capture_output=True, text=True, timeout=300)
             assert (result.returncode == 0) == success, (command, result.stdout, result.stderr)
             return result
         run([java / f"bin/javac{suffix}", "-cp", maven / "lib/*", "-d", classes, RUNTIME / "OyzuMetadata.java"])
@@ -48,7 +52,7 @@ def main():
         settings.write_text('<settings xmlns="http://maven.apache.org/SETTINGS/1.2.0"/>')
         launcher = maven / ("bin/mvn.cmd" if os.name == "nt" else "bin/mvn")
         command = [launcher, "-B", "-o", "-s", settings, "-gs", settings,
-                   f"-Dmaven.repo.local={base / 'repository'}",
+                   f"-Dmaven.repo.local={args.repository.resolve() if args.repository else base / 'repository'}",
                    f"-Duser.home={base / 'home'}", f"-Dmaven.ext.class.path={extension}", "validate"]
         before = {p.relative_to(project): p.read_bytes() for p in project.rglob('*') if p.is_file()}
         run(command, project, env)
@@ -74,6 +78,63 @@ def main():
         pom.write_text(original.replace('</project>', '<build><directory>${project.basedir}/../../outside</directory></build></project>'))
         result = run(command, project, env, success=False)
         assert 'outside captured source' in result.stdout + result.stderr
+        pom.write_text(original)
+        if args.test_lifecycle:
+            app = project/'app/pom.xml'
+            variation = ROOT/'examples/builds/java-maven-reactor/variants/reporting'
+            shutil.copyfile(variation/'app.pom.xml', app)
+            unit = project/'app/src/test/java/example/AppTest.java'
+            integration = unit.with_name('AppIT.java')
+            shutil.copyfile(variation/'AppIT.java', integration)
+            verify = [*command[:-1], 'verify']
+            if args.acquire:
+                run([arg for arg in verify if arg != '-o'], project, env)
+            env['OYZU_MAVEN_TEST_PLAN'] = 'true'
+            run(command, project, env)
+            native_projects = ET.parse(base/'metadata.xml').findall('project')
+            app_metadata = next(p for p in native_projects if p.findtext('artifactId') == 'app')
+            assert {p.text for p in app_metadata.findall('testReports/directory')} == {
+                'app/target/unit evidence', 'app/target/integration evidence'}
+            reporting = runpy.run_path(str(RUNTIME/'reporting.py'))
+            groups = reporting['inventory'](native_projects)
+            (project/'.oyzu-maven').mkdir()
+            env['OYZU_MAVEN_TEST_PLAN'] = 'false'
+            previous = Path.cwd()
+            try:
+                os.chdir(project)
+                for case in ['success', 'failed-integration', 'integration-only']:
+                    output = project/'.oyzu-maven/reports'
+                    if output.exists():
+                        output.resolve().relative_to(project.resolve())
+                        shutil.rmtree(output)
+                    if case == 'failed-integration':
+                        integration.write_text(integration.read_text().replace('Hello, Oyzu!', 'wrong result'))
+                    elif case == 'integration-only':
+                        integration.write_text(integration.read_text().replace('wrong result', 'Hello, Oyzu!'))
+                        unit.unlink()
+                        # Remove the stale compiled unit class as native clean would.
+                        (project/'app/target/test-classes/example/AppTest.class').unlink()
+                    reporting['prepare'](groups)
+                    run(verify, project, env, success=case != 'failed-integration')
+                    reporting['collect'](groups)
+                    retained = list(output.rglob('TEST-*.xml'))
+                    assert len(retained) == (2 if case == 'integration-only' else 3)
+                    failures = sum(len(ET.parse(p).findall('.//failure')) for p in retained)
+                    assert failures == (1 if case == 'failed-integration' else 0)
+                    originals = {p.read_bytes() for paths in groups for value in paths for p in Path(value).glob('TEST-*.xml')}
+                    assert {p.read_bytes() for p in retained} == originals
+            finally:
+                os.chdir(previous)
+            env['OYZU_MAVEN_TEST_PLAN'] = 'true'
+            configured = app.read_text()
+            app.write_text(configured.replace('<execution>', '<execution><phase>none</phase>'))
+            run(command, project, env)
+            app_metadata = next(p for p in ET.parse(base/'metadata.xml').findall('project') if p.findtext('artifactId')=='app')
+            assert [p.text for p in app_metadata.findall('testReports/directory')] == ['app/target/unit evidence']
+            app.write_text(configured.replace('${project.build.directory}/unit evidence', '${project.basedir}/../../outside'))
+            result = run(command, project, env, success=False)
+            assert 'outside captured source' in result.stdout + result.stderr
+            print('Maven lifecycle reports passed: native execution plan, custom directories, unit/integration XML, failure retention and integration-only modules')
     print('Maven native metadata passed: reactor inheritance, dependency versions, output interpolation, source preservation and containment')
 
 

@@ -23,6 +23,8 @@ The build YAML uses draft OEP syntax and contains only target intent/relationshi
 
 ## Native checks available now
 
+The first complete captured-build demonstration is registered as `mixed-monorepo` at the start of the `core` acceptance suite. It copies this project unchanged, runs the compiled CLI's task listing and one full build, then inspects all five targets' artifacts, reports and the Go-to-image materialization receipt. Follow [builder acceptance setup](../../../docs/reference/build-verification.md) to provision and run it. The Linux build produced all eight artifacts and required reports; corrected output assertions and CLI inspection passed on its retained bundle. The original CI job failed an assertion that assumed an unexpanded Go target name; the corrected harness awaits a full suite rerun. See the linked evidence and limits in the acceptance guide. The advanced cases below are separate from this first functional proof. The checked-in Go and JavaScript sources follow the implicit native formatter defaults so the first build can exercise the read-only quality gates.
+
 With the named toolchains already installed, run:
 
 ```text

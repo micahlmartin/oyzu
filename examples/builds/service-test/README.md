@@ -22,6 +22,8 @@ No build YAML is required for this scenario. Configuration, where present, demon
 
 ## Native checks available now
 
+The `service-test` check runs near the start of the `node` captured-build suite. It requires a snapshot package and real JUnit/coverage from this test-owned loopback server, then closes the server before a request and requires a failed service test with no artifacts. See [acceptance setup and current scope](../../../docs/reference/build-verification.md). The compiled Windows CLI passes native build/test/lint/format-check tasks; captured Linux execution is pending. This example's current program starts and stops its own service in one action. It does not establish separately provisioned services, readiness/teardown records or live external-system access.
+
 With the named toolchains already installed, run:
 
 ```text

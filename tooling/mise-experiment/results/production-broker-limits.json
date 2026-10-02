@@ -1,0 +1,40 @@
+{
+  "host": "Windows-11-10.0.26200-SP0",
+  "exit": 0,
+  "stderr": "",
+  "origin_requests": {
+    "/allowed/empty": 4096,
+    "/allowed/bytes/134217728": 9,
+    "/allowed/bytes/134217729": 1,
+    "/allowed/bytes/1": 1,
+    "/allowed/redirect": 5
+  },
+  "binary_sha256": "c968ba76206f2217ca324561c6f45eeaea8629d6d97bf91107a60da4c86ac35b",
+  "source_lf_sha256": {
+    "src/broker.rs": "3d37abd9c4e384be079985cde33da5cd259517c18586e19a7d3f065b423ed85e",
+    "tooling/mise-experiment/broker-host/src/bin/limits.rs": "d5c6429cd9a3619bcd4fbca3e9c92d0b148984af02b9c7e2a40bdf4115307303",
+    "tooling/mise-experiment/run_limits.py": "ffe88b720ace7efa83b333bf79fa6551e102d8edfc07574da3ae612bd6f438b5"
+  },
+  "production_commit": "aecf0442aad4235fdb32a6c550e7b50a02f0fe06",
+  "cases": [
+    {
+      "allowed": 4096,
+      "case": "production-request-limit",
+      "denied": 4097
+    },
+    {
+      "allowed_bytes": 134217728,
+      "case": "production-response-byte-limit",
+      "denied_bytes": 134217729
+    },
+    {
+      "allowed_bytes": 1073741824,
+      "case": "production-session-byte-limit",
+      "denied_total_bytes": 1073741825
+    },
+    {
+      "case": "production-redirect-limit",
+      "maximum_attempts": 5
+    }
+  ]
+}

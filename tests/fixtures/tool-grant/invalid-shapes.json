@@ -1,0 +1,193 @@
+[
+  {
+    "name": "unknown field",
+    "pointer": "/credential",
+    "value": "secret"
+  },
+  {
+    "name": "protocol",
+    "pointer": "/protocol",
+    "value": "oyzu.tool-selection/2"
+  },
+  {
+    "name": "audience",
+    "pointer": "/audience",
+    "value": "oyzu-config"
+  },
+  {
+    "name": "request UUID",
+    "pointer": "/request_id",
+    "value": "request"
+  },
+  {
+    "name": "deny has no grant",
+    "pointer": "/decision",
+    "value": "deny"
+  },
+  {
+    "name": "needs evidence has no grant",
+    "pointer": "/decision",
+    "value": "needs-evidence"
+  },
+  {
+    "name": "operation",
+    "pointer": "/operations",
+    "value": [
+      "shell"
+    ]
+  },
+  {
+    "name": "duplicates",
+    "pointer": "/operations",
+    "value": [
+      "exec",
+      "exec"
+    ]
+  },
+  {
+    "name": "empty operations",
+    "pointer": "/operations",
+    "value": []
+  },
+  {
+    "name": "resolve cannot authorize execution",
+    "pointer": "/operations",
+    "value": [
+      "resolve",
+      "exec"
+    ]
+  },
+  {
+    "name": "digest",
+    "pointer": "/selection_digest",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "name": "negative epoch",
+    "pointer": "/revocation_epoch",
+    "value": -1
+  },
+  {
+    "name": "unsafe time",
+    "pointer": "/not_after",
+    "value": 9007199254740992
+  },
+  {
+    "name": "fractional time",
+    "pointer": "/not_before",
+    "value": 1700000000.5
+  },
+  {
+    "name": "offline type",
+    "pointer": "/offline_allowed",
+    "value": "true"
+  },
+  {
+    "name": "duplicate reasons",
+    "pointer": "/reason_codes",
+    "value": [
+      "x",
+      "x"
+    ]
+  },
+  {
+    "name": "empty tenant",
+    "pointer": "/tenant",
+    "value": ""
+  },
+  {
+    "name": "missing protocol",
+    "pointer": "/protocol",
+    "remove": true
+  },
+  {
+    "name": "missing request_id",
+    "pointer": "/request_id",
+    "remove": true
+  },
+  {
+    "name": "missing context_id",
+    "pointer": "/context_id",
+    "remove": true
+  },
+  {
+    "name": "missing decision_id",
+    "pointer": "/decision_id",
+    "remove": true
+  },
+  {
+    "name": "missing decision",
+    "pointer": "/decision",
+    "remove": true
+  },
+  {
+    "name": "missing reason_codes",
+    "pointer": "/reason_codes",
+    "remove": true
+  },
+  {
+    "name": "missing policy_revision",
+    "pointer": "/policy_revision",
+    "remove": true
+  },
+  {
+    "name": "missing selection_digest",
+    "pointer": "/selection_digest",
+    "remove": true
+  },
+  {
+    "name": "missing operations",
+    "pointer": "/operations",
+    "remove": true
+  },
+  {
+    "name": "missing not_before",
+    "pointer": "/not_before",
+    "remove": true
+  },
+  {
+    "name": "missing not_after",
+    "pointer": "/not_after",
+    "remove": true
+  },
+  {
+    "name": "missing offline_allowed",
+    "pointer": "/offline_allowed",
+    "remove": true
+  },
+  {
+    "name": "missing revocation_epoch",
+    "pointer": "/revocation_epoch",
+    "remove": true
+  },
+  {
+    "name": "missing issuer",
+    "pointer": "/issuer",
+    "remove": true
+  },
+  {
+    "name": "missing audience",
+    "pointer": "/audience",
+    "remove": true
+  },
+  {
+    "name": "missing tenant",
+    "pointer": "/tenant",
+    "remove": true
+  },
+  {
+    "name": "missing subject",
+    "pointer": "/subject",
+    "remove": true
+  },
+  {
+    "name": "request_id trailing newline",
+    "pointer": "/request_id",
+    "value": "12345678-1234-1234-1234-123456789abc\n"
+  },
+  {
+    "name": "selection_digest trailing newline",
+    "pointer": "/selection_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  }
+]

@@ -18,8 +18,14 @@ def main():
     parser.add_argument('--yarn-cli', type=Path, required=True)
     parser.add_argument('--tar-stream', type=Path, required=True)
     args = parser.parse_args()
+    node_version = subprocess.check_output(['node', '-p', 'process.versions.node'], text=True).strip()
+    os.environ['OYZU_PNPM_YAML'] = str(args.pnpm_cli.resolve().parents[2] / 'yaml')
+    os.environ['OYZU_YARN_LOCKFILE'] = str(args.yarn_cli.resolve().parents[2] / '@yarnpkg/lockfile')
     with tempfile.TemporaryDirectory(prefix='oyzu-native-managers-') as temporary:
         base = Path(temporary)
+        runtime = base / 'runtime'
+        shutil.copytree(ROOT / 'src/builders/node/runtime', runtime)
+        shutil.copyfile(ROOT / 'src/broker/runtime/transport.mjs', runtime / 'broker_transport.mjs')
         for manager, native, expected in [('pnpm',args.pnpm_cli,'10.11.0'),('yarn',args.yarn_cli,'1.22.22')]:
             native = native.resolve()
             project = base / manager
@@ -30,13 +36,15 @@ def main():
             package_file.write_text(json.dumps(package))
             (project / 'lifecycle.cjs').write_text("require('node:fs').writeFileSync('lifecycle-ran','yes');\n")
             wrapper = base / (manager+'.mjs')
-            wrapper.write_text(f"import {{profile}} from {json.dumps((ROOT / f'src/builders/node/runtime/{manager}.mjs').as_uri())};\n"
-                               f"import {{run}} from {json.dumps((ROOT / 'src/builders/node/runtime/manager-runtime.mjs').as_uri())};\n"
+            wrapper.write_text(f"import {{profile}} from {json.dumps((runtime / f'{manager}.mjs').as_uri())};\n"
+                               f"import {{run}} from {json.dumps((runtime / 'manager-runtime.mjs').as_uri())};\n"
                                f"profile.command.splice(0,1,process.execPath,{json.dumps(str(native))}); await run(profile);\n")
             output = base / (manager+'-capture')
             output.mkdir()
 
             def execute(command, success=True, env=None):
+                if env is None:
+                    env = {**os.environ, 'OYZU_EXPECT_NODE': node_version}
                 result = subprocess.run(command,cwd=project,env=env,capture_output=True,text=True,encoding='utf-8',timeout=120)
                 assert (result.returncode == 0) == success, result.stdout + result.stderr
                 return result
@@ -44,7 +52,19 @@ def main():
             execute(['node',str(wrapper),'acquire',str(output),str(project)])
             assert not (project / 'lifecycle-ran').exists()
             inventory = json.loads((output / 'inventory.json').read_text())
-            assert inventory['version'] == expected
+            assert inventory['version'] == expected and inventory['nodeVersion'] == node_version
+            denied = base/(manager+'-runtime-denied')
+            denied.mkdir()
+            mismatch = execute(['node', str(wrapper), 'acquire', str(denied), str(project)], False,
+                               {**os.environ, 'OYZU_EXPECT_NODE': '0.0.0'})
+            assert 'does not match provisioned Node' in mismatch.stderr
+            assert not list(denied.iterdir()) and not (project/'lifecycle-ran').exists()
+            altered = {**inventory, 'nodeVersion': '0.0.0'}
+            (output/'inventory.json').write_text(json.dumps(altered))
+            mismatch = execute(['node', str(wrapper), 'install', str(output), str(project)], False)
+            assert 'differs from captured preflight' in mismatch.stderr
+            assert not (project/'lifecycle-ran').exists()
+            (output/'inventory.json').write_text(json.dumps(inventory))
             package['version'] = '0.1.0-dev.g0123456789ab'
             package_file.write_text(json.dumps(package))
             execute(['node',str(wrapper),'install',str(output),str(project)])
@@ -83,7 +103,7 @@ def main():
             package['engines']['node'] = '>=999'
             package_file.write_text(json.dumps(package))
             execute(['node',str(wrapper),'acquire',str(output),str(project)],False)
-            print(manager+': native version, frozen install, lifecycle isolation, tests/reports and reproducible snapshot package passed')
+            print(manager+': exact Node admission/replay identity, native manager version, frozen install, lifecycle isolation, tests/reports and reproducible snapshot package passed')
 
 
 if __name__ == '__main__':

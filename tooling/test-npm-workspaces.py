@@ -15,7 +15,7 @@ def main():
         base = Path(temporary)
         runtime = base/'runtime'
         runtime.mkdir()
-        for name in ['npm.mjs', 'npm-native.mjs', 'npm-workspaces.mjs']:
+        for name in ['npm.mjs', 'npm-native.mjs', 'npm-workspaces.mjs', 'integrity.mjs', 'node-runtime.mjs']:
             shutil.copyfile(ROOT/'src/builders/node/runtime'/name, runtime/name)
         shutil.copyfile(ROOT/'src/builders/node/runtime/lock.mjs', runtime/'npm_lock.mjs')
         shutil.copyfile(ROOT/'src/broker/runtime/transport.mjs', runtime/'broker_transport.mjs')

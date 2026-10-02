@@ -11,6 +11,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 normalize = runpy.run_path(str(ROOT/'src/builders/helm/runtime/archive.py'))['normalize']
+expand = runpy.run_path(str(ROOT/'src/builders/helm/runtime/charts.py'))['expand']
 
 
 def contents(path):
@@ -45,6 +46,40 @@ def main():
             pass
         else:
             raise AssertionError('escaping entry accepted')
+        for index, names in enumerate([
+            ['child/Chart.yaml', '../escape'],
+            ['child/Chart.yaml', 'child/Chart.yaml'],
+            ['child/Chart.yaml', 'CHILD/chart.yaml'],
+            ['child/Chart.yaml', 'other/file'],
+            ['child/Chart.yaml', 'child/CON'],
+            ['child/Chart.yaml', 'child/link'],
+        ]):
+            chart = root/f'unsafe-{index}'
+            (chart/'charts').mkdir(parents=True)
+            packed = chart/'charts/child.tgz'
+            with tarfile.open(packed,'w:gz') as output:
+                for name in names:
+                    member = tarfile.TarInfo(name)
+                    if name.endswith('/link'):
+                        member.type = tarfile.SYMTYPE
+                        member.linkname = '../../escape'
+                    output.addfile(member,io.BytesIO(b''))
+            before = packed.read_bytes()
+            try:
+                expand(chart)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f'Unsafe chart archive admitted: {names}')
+            assert packed.read_bytes() == before
+            assert not (chart/'charts/child').exists()
+        assert not (root/'escape').exists()
+        packed = root/'contained'
+        shutil.copytree(ROOT/'examples/builds/helm-chart/variants/packaged-only',packed)
+        expand(packed)
+        assert (packed/'charts/child/Chart.yaml').is_file()
+        assert (packed/'charts/child/tests/configmap_test.yaml').is_file()
+        assert not list((packed/'charts').glob('*.tgz'))
         if args.helm:
             project = root/'project'
             shutil.copytree(ROOT/'examples/builds/helm-chart/project', project)

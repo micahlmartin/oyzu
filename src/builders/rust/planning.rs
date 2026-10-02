@@ -1,7 +1,5 @@
 use super::{metadata::Metadata, preparation::environment};
-use crate::builders::{
-    ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, ReportFormat, ReportSpec, TaskPlan,
-};
+use crate::builders::{ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, TaskPlan};
 use anyhow::{bail, Context, Result};
 use std::{collections::BTreeSet, fs};
 
@@ -35,7 +33,11 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let mut names = BTreeSet::new();
     let mut archive =
         TaskPlan::command(&["cargo", "package", "--locked", "--offline", "--allow-dirty"]);
+    let binaries = metadata.binaries()?;
     for package_metadata in &metadata.packages {
+        if !metadata.workspace_members.contains(&package_metadata.id) {
+            continue;
+        }
         archive
             .argv
             .extend(["--package".into(), package_metadata.name.clone()]);
@@ -54,8 +56,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             version: Some(package_metadata.version.clone()),
             media_type: "application/gzip",
         });
-        for target in &package_metadata.targets {
-            if !target.kind.iter().any(|k| k == "bin") {
+        for (index, (owner, target)) in binaries.iter().enumerate() {
+            if owner.id != package_metadata.id {
                 continue;
             }
             if !names.insert(target.name.clone()) {
@@ -64,7 +66,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             let version = &package_metadata.version;
             let filename = format!("{}-{version}-{host}", target.name);
             package.argv.extend([
-                format!(".oyzu-build/target/{host}/release/{}", target.name),
+                format!(".oyzu-build/target/oyzu-binaries/{index}"),
                 format!("/out/{id}/artifacts/{filename}"),
             ]);
             artifacts.push(ArtifactSpec {
@@ -76,11 +78,27 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             });
         }
     }
-    let mut plan = BuilderPlan::new(metadata.packages[0].version.clone(), package);
+    if let Some(command) = super::packaging::command(&metadata)? {
+        archive.argv = command;
+    }
+    let primary = metadata
+        .packages
+        .iter()
+        .find(|p| metadata.workspace_members.contains(&p.id))
+        .context("Cargo metadata has no workspace package")?;
+    let mut plan = BuilderPlan::new(primary.version.clone(), package);
     plan.stages.push("archive");
     plan.tasks.insert("archive".into(), archive);
     plan.env.extend(environment());
     plan.env.insert("CARGO_BUILD_TARGET".into(), host);
+    for name in [
+        "CARGO_BUILD_TARGET",
+        "CARGO_TARGET_DIR",
+        "CARGO_HOME",
+        "CARGO_NET_OFFLINE",
+    ] {
+        plan.fixed_env.insert(name.into(), plan.env[name].clone());
+    }
     plan.prepare.push(CommandSpec::new(
         "prepare",
         &["cp", "-R", "/dependencies/overlay/.", "."],
@@ -88,34 +106,21 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     plan.tasks.insert(
         "build".into(),
         TaskPlan::command(&[
+            "python3",
+            "-I",
+            "/oyzu/rust-build.py",
+            "/dependencies/binaries.json",
             "cargo",
             "build",
             "--workspace",
             "--release",
             "--locked",
             "--offline",
+            "--message-format=json-render-diagnostics",
         ]),
     );
-    let mut test = TaskPlan::command(&[
-        "sh",
-        "/oyzu/rust-test.sh",
-        &format!("/out/{id}/reports/coverage.xml"),
-    ]);
-    test.reports.push(ReportSpec {
-        format: ReportFormat::Junit,
-        filename: "junit.xml",
-        source: crate::reports::ReportSource::File,
-        name: None,
-        input: None,
-    });
-    test.reports.push(ReportSpec {
-        format: ReportFormat::Cobertura,
-        filename: "coverage.xml",
-        source: crate::reports::ReportSource::File,
-        name: None,
-        input: None,
-    });
-    plan.tasks.insert("test".into(), test);
+    plan.tasks
+        .insert("test".into(), super::testing::plan(id, &metadata));
     plan.tasks.insert(
         "lint".into(),
         TaskPlan::command(&[
@@ -131,5 +136,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         ]),
     );
     plan.artifacts = artifacts;
+    for task in plan.tasks.values_mut() {
+        task.argv = super::preparation::command(std::mem::take(&mut task.argv));
+    }
     Ok(plan)
 }

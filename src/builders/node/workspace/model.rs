@@ -1,0 +1,128 @@
+use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(in crate::builders::node) struct Metadata {
+    pub(in crate::builders::node) schema_version: u32,
+    pub(in crate::builders::node) members: Vec<Member>,
+    #[serde(default)]
+    pub(in crate::builders::node) root_dependencies: Vec<Edge>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::builders::node) struct Member {
+    pub(in crate::builders::node) name: String,
+    pub(in crate::builders::node) path: String,
+    pub(in crate::builders::node) version: String,
+    pub(in crate::builders::node) private: bool,
+    pub(in crate::builders::node) scripts: BTreeMap<String, String>,
+    pub(in crate::builders::node) dependencies: Vec<Edge>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub(in crate::builders::node) struct Edge {
+    pub(in crate::builders::node) name: String,
+    pub(in crate::builders::node) target: String,
+    pub(in crate::builders::node) kind: EdgeKind,
+    pub(in crate::builders::node) spec: String,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(in crate::builders::node) enum EdgeKind {
+    Prod,
+    Dev,
+    Optional,
+    Peer,
+    PeerOptional,
+    Workspace,
+}
+
+impl Metadata {
+    pub(in crate::builders::node) fn read(value: serde_json::Value) -> Result<Option<Self>> {
+        if value.is_null() {
+            return Ok(None);
+        }
+        let metadata: Self = serde_json::from_value(value)?;
+        if metadata.schema_version != 1
+            || metadata.members.is_empty()
+            || metadata.members.len() > 1024
+        {
+            bail!("invalid native Node workspace metadata version or member count");
+        }
+        let mut names = BTreeSet::new();
+        let mut paths = BTreeSet::new();
+        for member in &metadata.members {
+            if member.name.is_empty()
+                || !member
+                    .name
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"@/._-".contains(&b))
+                || !names.insert(member.name.as_str())
+                || !crate::snapshot::portable(&member.path)
+                || member.path.split('/').any(|p| p == "node_modules")
+                || !paths.insert(member.path.to_ascii_lowercase())
+                || member.version.is_empty()
+                || member
+                    .version
+                    .chars()
+                    .any(|c| c.is_whitespace() || c.is_control())
+            {
+                bail!("invalid or colliding native Node workspace identity");
+            }
+        }
+        for dependencies in metadata
+            .members
+            .iter()
+            .map(|m| &m.dependencies)
+            .chain(std::iter::once(&metadata.root_dependencies))
+        {
+            let mut edges = BTreeSet::new();
+            for edge in dependencies {
+                if !names.contains(edge.target.as_str())
+                    || edge.name.is_empty()
+                    || edge.spec.is_empty()
+                    || !edges.insert(edge.name.as_str())
+                {
+                    bail!("invalid native Node workspace dependency edge");
+                }
+            }
+        }
+        Ok(Some(metadata))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn native_workspace_records_reject_escape_and_unknown_dependencies() {
+        let value = json!({"schemaVersion":1,"members":[{"name":"@demo/app","path":"packages/app","version":"1.0.0","private":true,"scripts":{"test":"node --test"},"dependencies":[]}]});
+        assert!(Metadata::read(value.clone()).unwrap().is_some());
+        assert!(Metadata::read(serde_json::Value::Null).unwrap().is_none());
+        for path in [
+            "../outside",
+            "/absolute",
+            "packages/../app",
+            "node_modules/app",
+            "C:/outside",
+        ] {
+            let mut invalid = value.clone();
+            invalid["members"][0]["path"] = json!(path);
+            assert!(Metadata::read(invalid).is_err());
+        }
+        let mut invalid = value.clone();
+        invalid["members"][0]["dependencies"] =
+            json!([{"name":"missing","target":"missing","kind":"prod","spec":"1.0.0"}]);
+        assert!(Metadata::read(invalid).is_err());
+        let mut invalid = value.clone();
+        let member = value["members"][0].clone();
+        invalid["members"].as_array_mut().unwrap().push(member);
+        assert!(Metadata::read(invalid).is_err());
+    }
+}

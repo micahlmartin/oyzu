@@ -4,8 +4,14 @@ use crate::reports::assertions::{self, Assertion, Outcome};
 use anyhow::{bail, Result};
 use std::{fs, time::Instant};
 
-pub(super) fn execute(request: Request<'_>, input: &str, report: &str) -> Result<Execution> {
+pub(super) fn execute(
+    request: Request<'_>,
+    input: &str,
+    report: &str,
+    target: &crate::platform::Platform,
+) -> Result<Execution> {
     let start = Instant::now();
+    request.log.command(request.argv, request.cwd);
     // Exclusive creation refuses stale reports and project-created symlinks.
     let output = files::output_file(request.output, report)?;
     let checked = files::file(request.output, input)
@@ -18,17 +24,13 @@ pub(super) fn execute(request: Request<'_>, input: &str, report: &str) -> Result
         });
     let (integrity, platform, failure) = match checked {
         Ok(image) => {
-            let matches = image.platforms.len() == 1
-                && image
-                    .platforms
-                    .iter()
-                    .all(|p| p.os == request.image.os && p.architecture == request.image.arch);
-            if matches {
+            if image.require_target(target).is_ok() {
                 (Outcome::Passed, Outcome::Passed, None)
             } else {
                 let message = format!(
                     "image platform does not match planned {}/{}",
-                    request.image.os, request.image.arch
+                    target.os(),
+                    target.arch()
                 );
                 (
                     Outcome::Passed,
@@ -69,6 +71,9 @@ pub(super) fn execute(request: Request<'_>, input: &str, report: &str) -> Result
         },
     )?;
     fs::write(request.stderr, failure.as_deref().unwrap_or(""))?;
+    for (path, stream) in [(request.stdout, "stdout"), (request.stderr, "stderr")] {
+        crate::logging::Follow::open(path, stream, &request.log)?.drain(true)?;
+    }
     Ok(Execution {
         code: i32::from(failure.is_some()),
         duration_ms: start.elapsed().as_millis() as u64,

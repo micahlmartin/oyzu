@@ -2,11 +2,13 @@
 //! A private mounted spool connects an offline resolver to this worker; no host
 //! listening socket or general HTTP CONNECT proxy is exposed to package code.
 use anyhow::{bail, Context, Result};
-use reqwest::{blocking::Client, redirect::Policy, Url};
+mod failure;
+mod http;
+pub use http::Fetcher;
+use reqwest::Url;
 use serde_json::{json, Value};
 use std::{
     fs,
-    io::Read,
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -67,92 +69,6 @@ pub struct Response {
     pub source_id: String,
 }
 
-pub struct Fetcher {
-    client: Client,
-    sources: Vec<Source>,
-    requests: usize,
-    bytes: u64,
-}
-
-impl Fetcher {
-    pub fn new(sources: Vec<Source>) -> Result<Self> {
-        Ok(Self {
-            client: Client::builder()
-                .no_proxy()
-                .redirect(Policy::none())
-                .timeout(Duration::from_secs(45))
-                .build()?,
-            sources,
-            requests: 0,
-            bytes: 0,
-        })
-    }
-
-    pub fn fetch(&mut self, request: &str) -> Result<Response> {
-        let mut url =
-            Url::parse(request).map_err(|_| anyhow::anyhow!("invalid acquisition URL"))?;
-        url.set_fragment(None);
-        for _ in 0..5 {
-            self.requests += 1;
-            if self.requests > 4096 {
-                bail!("acquisition request limit exceeded");
-            }
-            let source = self
-                .sources
-                .iter()
-                .find(|s| s.permits(&url))
-                .context("SOURCE_DENIED: URL is outside approved source routes")?;
-            let mut request = self.client.get(url.clone()).header("Accept", "text/html");
-            if let Some(authorization) = &source.authorization {
-                request = request.header("Authorization", authorization);
-            }
-            let response = request
-                .send()
-                .map_err(|_| anyhow::anyhow!("approved source transport failed"))?;
-            if response.status().is_redirection() {
-                let location = response
-                    .headers()
-                    .get("Location")
-                    .context("redirect has no location")?
-                    .to_str()
-                    .map_err(|_| anyhow::anyhow!("invalid redirect"))?;
-                url = url
-                    .join(location)
-                    .map_err(|_| anyhow::anyhow!("invalid redirect URL"))?;
-                // Reauthorize each destination; a source's token never follows it.
-                continue;
-            }
-            let status = response.status().as_u16();
-            let content_type = response
-                .headers()
-                .get("Content-Type")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("application/octet-stream")
-                .to_string();
-            let mut body = Vec::new();
-            response
-                .take(128 * 1024 * 1024 + 1)
-                .read_to_end(&mut body)
-                .map_err(|_| anyhow::anyhow!("source response read failed"))?;
-            self.bytes += body.len() as u64;
-            if body.len() > 128 * 1024 * 1024 || self.bytes > 1024 * 1024 * 1024 {
-                bail!("acquisition byte limit exceeded");
-            }
-            // Error bodies can contain upstream authentication diagnostics. Do not relay them.
-            if status >= 400 {
-                body = format!("approved source returned HTTP {status}").into_bytes();
-            }
-            return Ok(Response {
-                status,
-                content_type,
-                body,
-                source_id: source.id.clone(),
-            });
-        }
-        bail!("redirect limit exceeded")
-    }
-}
-
 pub struct Session {
     stop: Arc<AtomicBool>,
     worker: Option<thread::JoinHandle<()>>,
@@ -187,10 +103,16 @@ impl Session {
                                 json!({"status":r.status,"contentType":r.content_type,"sourceId":r.source_id}),
                                 r.body,
                             ),
-                            Err(_) => (
-                                json!({"status":403,"contentType":"text/plain","sourceId":"denied"}),
-                                b"acquisition request denied".to_vec(),
-                            ),
+                            Err(error) => {
+                                let failure = error
+                                    .downcast_ref::<failure::Failure>()
+                                    .copied()
+                                    .unwrap_or(failure::Failure::InvalidRequest);
+                                (
+                                    json!({"status":failure.status(),"contentType":"text/plain","sourceId":"unavailable","errorCode":failure.code()}),
+                                    failure.to_string().into_bytes(),
+                                )
+                            }
                         };
                         let _ = deliver(&spool, &private, id, &metadata, &body);
                         let _ = fs::remove_file(claimed);

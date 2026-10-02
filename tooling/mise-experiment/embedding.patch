@@ -1,0 +1,115 @@
+diff --git a/crates/mise-util/src/http.rs b/crates/mise-util/src/http.rs
+index 74688f1..1f6e96b 100644
+--- a/crates/mise-util/src/http.rs
++++ b/crates/mise-util/src/http.rs
+@@ -623,6 +623,9 @@ fn https_downgrade_policy(what: &'static str) -> reqwest::redirect::Policy {
+     use reqwest::redirect::Policy;
+ 
+     Policy::custom(move |attempt| {
++        if let Err(error) = oyzu_experiment_route(attempt.url()) {
++            return attempt.error(std::io::Error::other(error.to_string()));
++        }
+         if is_https_downgrade(attempt.previous(), attempt.url()) {
+             attempt.error(std::io::Error::other(format!(
+                 "refusing to redirect {what} from HTTPS to HTTP"
+@@ -1519,6 +1522,8 @@ impl Client {
+         options: SendOnceOptions,
+     ) -> Result<Response> {
+         let original_url = url.clone();
++        apply_url_replacements(&mut url);
++        oyzu_experiment_route(&url)?;
+         crate::resolve_progress::fetching(&url);
+         #[cfg(unix)]
+         if let Some(socket) = github_relay_socket(&url) {
+@@ -1556,7 +1561,6 @@ impl Client {
+             }
+             return options.check_response(response);
+         }
+-        apply_url_replacements(&mut url);
+         crate::resolve_progress::fetching(&url);
+         let host_key = http_host_key(&url);
+         if crate::network::prefer_offline(&Settings::get())
+@@ -2598,3 +2602,19 @@ async fn warn_when_download_is_slow(
+ 
+ #[cfg(test)]
+ mod tests;
++
++/// Experimental transport guard. Not a sandbox or a production connector API.
++/// The harness supplies this process-local route before starting worker threads.
++fn oyzu_experiment_route(url: &Url) -> Result<()> {
++    if let Ok(route) = std::env::var("OYZU_SPIKE_ROUTE") {
++        let allowed = Url::parse(&route)?;
++        ensure!(
++            url.origin() == allowed.origin()
++                && url
++                    .path()
++                    .starts_with(&format!("{}/", allowed.path().trim_end_matches('/'))),
++            "Oyzu experiment acquisition route denied"
++        );
++    }
++    Ok(())
++}
+diff --git a/crates/mise-util/src/path_env.rs b/crates/mise-util/src/path_env.rs
+index 1a3cca4..721abf1 100644
+--- a/crates/mise-util/src/path_env.rs
++++ b/crates/mise-util/src/path_env.rs
+@@ -60,6 +60,19 @@ impl PathEnv {
+             .collect()
+     }
+ 
++    /// Preserve user-owned duplicate PATH entries when updating a live shell.
++    pub fn join_verbatim(&self) -> OsString {
++        let joined = join_paths(
++            self.pre
++                .iter()
++                .chain(self.mise.iter())
++                .chain(self.post.iter()),
++        )
++        .unwrap();
++        warn_if_cmd_ignores_path(&joined);
++        joined
++    }
++
+     pub fn join(&self) -> OsString {
+         let joined = join_paths(self.to_vec()).unwrap();
+         warn_if_cmd_ignores_path(&joined);
+diff --git a/src/config/mod.rs b/src/config/mod.rs
+index 864fd66..10d47f6 100644
+--- a/src/config/mod.rs
++++ b/src/config/mod.rs
+@@ -191,6 +191,13 @@ pub(crate) fn is_loaded() -> bool {
+ }
+ 
+ impl Config {
++    /// Experimental Oyzu entrypoint: caller owns config discovery and lockfiles.
++    pub async fn oyzu_experiment_empty() -> Result<Arc<Self>> {
++        let config = Self::load_from_config_files(ConfigMap::default(), false).await?;
++        *_CONFIG.write().unwrap() = Some(config.clone());
++        Ok(config)
++    }
++
+     /// Whether invocation-wide locked mode applies to a tool's config scope.
+     /// Sources outside configuration files remain locked because they have no
+     /// scope that can be excluded.
+diff --git a/src/shims.rs b/src/shims.rs
+index 49acdc8..50b568d 100644
+--- a/src/shims.rs
++++ b/src/shims.rs
+@@ -975,7 +975,7 @@ pub fn mise_bin_for_shims() -> PathBuf {
+     env::var_path("SNAP")
+         .as_deref()
+         .and_then(|snap| snap_mise_bin(&env::MISE_BIN, snap))
+-        .unwrap_or_else(|| file::which_no_shims("mise").unwrap_or(env::MISE_BIN.clone()))
++        .unwrap_or_else(|| env::MISE_BIN.clone())
+ }
+ 
+ fn snap_mise_bin(mise_bin: &Path, snap: &Path) -> Option<PathBuf> {
+@@ -1180,7 +1180,7 @@ pub fn windows_file_shim_body(shim: &str) -> String {
+     let path = env::LAUNCHER_PATH_ENV;
+     let sentinel = env::LAUNCHER_ARGS_SENTINEL;
+     let shim_env = env::MISE_SHIM_PATH_ENV;
+-    let run = format!("mise x -- {shim} {sentinel} %*");
++    let run = format!("\"{}\" x -- {shim} {sentinel} %*", env::MISE_BIN.display());
+     [
+         "@echo off",
+         "rem mise generated shim",

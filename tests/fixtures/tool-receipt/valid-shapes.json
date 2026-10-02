@@ -1,0 +1,54 @@
+[
+  {
+    "name": "typed interpreter with ordered literal and path arguments",
+    "pointer": "/entrypoints/node",
+    "value": {
+      "kind": "interpreter",
+      "payload_relative_path": "bin/node",
+      "interpreter": {
+        "installation_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "relative_path": "bin/node"
+      },
+      "prefix_args": [
+        {
+          "kind": "literal",
+          "value": "--literal=$HOME; not shell code"
+        },
+        {
+          "kind": "path",
+          "path": {
+            "installation_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "relative_path": "bin/node"
+          }
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate ordered directories and literal environment",
+    "pointer": "/environment",
+    "value": {
+      "PATH": {
+        "kind": "paths",
+        "paths": [
+          {
+            "installation_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "relative_path": "."
+          },
+          {
+            "installation_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "relative_path": "bin"
+          },
+          {
+            "installation_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "relative_path": "bin"
+          }
+        ]
+      },
+      "EXAMPLE_MODE": {
+        "kind": "literal",
+        "value": "fixture-only"
+      }
+    }
+  }
+]

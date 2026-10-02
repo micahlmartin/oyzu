@@ -17,6 +17,7 @@ use std::path::Path;
 pub(in crate::builders) struct Ant;
 
 const RUNTIME: &[RuntimeFile] = &[
+    super::quality::RUNTIME,
     RuntimeFile {
         name: "AntMetadata.java",
         contents: include_str!("runtime/AntMetadata.java"),
@@ -42,14 +43,27 @@ const RUNTIME: &[RuntimeFile] = &[
         contents: include_str!("runtime/AntReports.java"),
     },
     RuntimeFile {
-        name: "ant-test.sh",
-        contents: include_str!("runtime/testing.sh"),
+        name: "ant-test.py",
+        contents: include_str!("runtime/testing.py"),
     },
 ];
 
 impl Builder for Ant {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::TaskPlan>> {
+        Ok(reporting::development(target, task))
+    }
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/ant:1.10.18-jdk17")
+    }
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        super::quality::development(task)
     }
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         RUNTIME
@@ -104,6 +118,13 @@ impl Builder for Ant {
             }
         }
 
+        // Expose the conventional test slot even when a project uses custom
+        // names. An explicit replacement can select that native target; without
+        // one, Ant reports the missing conventional target honestly.
+        if !target.tasks.contains_key("test") {
+            insert(target, "test", &["ant", "test"], true);
+        }
+
         if !target.tasks.contains_key("build") {
             let command = if target.tasks.contains_key("compile") {
                 "compile"
@@ -122,6 +143,7 @@ impl Builder for Ant {
         if !package.is_empty() {
             insert(target, "archive", &["ant", package], true);
         }
+        super::quality::discover(target)?;
         Ok(())
     }
 }

@@ -3,28 +3,58 @@ use crate::{
     builders::{task::insert, BuilderPlan, DevelopmentCommand, TaskPlan},
     model::{Target, Task},
 };
-use anyhow::{bail, Result};
+use anyhow::Result;
 
 const RUNTIME: &str = include_str!("runtime/quality.mjs");
 
 pub(super) fn discover(target: &mut Target) {
     if !target.tasks.contains_key("lint") {
         let linter = target.discovery["linter"].selected().to_string();
-        insert(target, "lint", &[&linter, "."], true);
+        let argv = if linter == "biome" {
+            vec!["biome", "lint", "."]
+        } else {
+            vec![linter.as_str(), "."]
+        };
+        insert(target, "lint", &argv, true);
     }
     if !target.tasks.contains_key("format-check") && !target.tasks.contains_key("format:check") {
         let formatter = target.discovery["formatter"].selected().to_string();
-        insert(target, "format-check", &[&formatter, "--check", "."], true);
+        let argv = if formatter == "biome" {
+            vec!["biome", "format", "."]
+        } else {
+            vec![formatter.as_str(), "--check", "."]
+        };
+        insert(target, "format-check", &argv, true);
     }
     if !target.tasks.contains_key("format") {
         let formatter = target.discovery["formatter"].selected().to_string();
-        insert(target, "format", &[&formatter, "--write", "."], false);
+        let argv = if formatter == "biome" {
+            vec!["biome", "format", "--write", "."]
+        } else {
+            vec![formatter.as_str(), "--write", "."]
+        };
+        insert(target, "format", &argv, false);
         target.tasks.get_mut("format").unwrap().mutates_source = true;
     }
     let framework = target.discovery["test-framework"].selected().to_string();
+    let browser = target
+        .discovery
+        .get("output-profile")
+        .is_some_and(|profile| profile.selected() == "vite-application");
+    let configured_vite = browser
+        && target.builder == "node/app"
+        && super::detection::output_configuration_files()
+            .iter()
+            .any(|file| target.path.join(file).exists());
     for task in target.tasks.values_mut().filter(|t| mode(t).is_some()) {
         task.env
             .insert("OYZU_NODE_TEST_FRAMEWORK".into(), framework.clone());
+        if browser {
+            task.env.insert("OYZU_NODE_BROWSER".into(), "1".into());
+        }
+        if configured_vite {
+            task.env.insert("OYZU_NODE_VITE_CONFIG".into(), "1".into());
+        }
     }
 }
 
@@ -34,6 +64,9 @@ fn mode(task: &Task) -> Option<&'static str> {
         ["eslint", "."] => Some("lint"),
         ["prettier", "--check", "."] => Some("format-check"),
         ["prettier", "--write", "."] => Some("format"),
+        ["biome", "lint", "."] => Some("biome-lint"),
+        ["biome", "format", "."] => Some("biome-format-check"),
+        ["biome", "format", "--write", "."] => Some("biome-format"),
         _ => None,
     }
 }
@@ -44,8 +77,6 @@ pub(super) fn plan(target: &Target, plan: &mut BuilderPlan) -> Result<()> {
             plan.tasks
                 .entry(task.name.clone())
                 .or_insert_with(|| TaskPlan::command(&["node", "/oyzu/node-quality.mjs", mode]));
-        } else if task.build_stage && task.argv.first().is_some_and(|v| v == "biome") {
-            bail!("Biome native quality integration is not implemented yet; provide an explicit native task script");
         }
     }
     plan.env.insert(

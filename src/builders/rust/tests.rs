@@ -16,6 +16,43 @@ fn metadata() -> Metadata {
 }
 
 #[test]
+fn mixed_registry_packaging_orders_native_paths_and_rejects_cycles() {
+    let mut native = metadata();
+    assert!(super::packaging::command(&native).unwrap().is_none());
+    native.packages.push(
+        serde_json::from_value(json!({
+            "id":"registry-input", "name":"external", "version":"1.0.0",
+            "manifest_path":"/tmp/oyzu-cargo/registry/src/native/external/Cargo.toml",
+            "source":"registry+https://github.com/rust-lang/crates.io-index",
+            "dependencies":[], "targets":[]
+        }))
+        .unwrap(),
+    );
+    let command = super::packaging::command(&native).unwrap().unwrap();
+    let inventory: serde_json::Value = serde_json::from_str(&command[4]).unwrap();
+    assert_eq!(
+        inventory,
+        json!([
+            {"name":"core", "version":"2.0.0"},
+            {"name":"api", "version":"1.2.3"}
+        ])
+    );
+    native.packages[1].dependencies.push(
+        serde_json::from_value(json!({
+            "name":"api", "source":null, "path":"/workspace/api"
+        }))
+        .unwrap(),
+    );
+    assert!(super::packaging::command(&native)
+        .unwrap_err()
+        .to_string()
+        .contains("acyclic"));
+    native.packages[1].dependencies.clear();
+    native.packages[0].dependencies[0].path = Some("/workspace/missing".into());
+    assert!(super::packaging::command(&native).is_err());
+}
+
+#[test]
 fn cargo_paths_cannot_escape_the_captured_target() {
     for path in [
         "/host/Cargo.toml",
@@ -36,6 +73,40 @@ fn cargo_paths_cannot_escape_the_captured_target() {
         .unwrap_err()
         .to_string()
         .contains("acquisition"));
+}
+
+#[test]
+fn cargo_required_features_select_only_resolved_binary_targets() {
+    let mut native = metadata();
+    native.packages[0].targets[0].required_features = vec!["extra".into()];
+    assert!(native.binaries().is_err());
+    native.resolve = Some(super::metadata::Resolution {
+        nodes: vec![super::metadata::Node {
+            id: "opaque-a".into(),
+            features: vec![],
+        }],
+    });
+    assert!(native.binaries().unwrap().is_empty());
+    native.resolve.as_mut().unwrap().nodes[0]
+        .features
+        .push("extra".into());
+    assert_eq!(native.binaries().unwrap().len(), 1);
+}
+
+#[test]
+fn cargo_registry_packages_are_inputs_not_workspace_outputs() {
+    let mut native = metadata();
+    native.packages.push(serde_json::from_value(json!({
+        "id":"registry-package", "name":"third-party", "version":"1.0.0",
+        "manifest_path":"/tmp/oyzu-cargo/registry/src/native/third-party-1.0.0/Cargo.toml",
+        "source":super::acquisition::CRATES_IO,"dependencies":[],
+        "targets":[{"name":"example-bin","kind":["bin"],"src_path":"/tmp/oyzu-cargo/registry/src/native/third-party-1.0.0/src/main.rs"}]
+    })).unwrap());
+    native.validate().unwrap();
+    assert_eq!(native.binaries().unwrap().len(), 1);
+    native.packages.last_mut().unwrap().manifest_path =
+        "/tmp/oyzu-cargo/registry/src/../../outside/Cargo.toml".into();
+    assert!(native.validate().is_err());
 }
 
 #[test]
@@ -136,6 +207,75 @@ fn cargo_plan_keeps_independent_binary_versions_and_offline_checks() {
     assert_eq!(plan.tasks["test"].reports[1].format.name(), "cobertura");
     assert_eq!(plan.env["CARGO_NET_OFFLINE"], "true");
     assert_eq!(plan.env["CARGO_LLVM_COV_SETUP"], "no");
+    assert_eq!(plan.fixed_env["CARGO_TARGET_DIR"], ".oyzu-build/target");
+    assert_eq!(
+        plan.fixed_env["CARGO_BUILD_TARGET"],
+        "x86_64-unknown-linux-gnu"
+    );
+    assert!(plan
+        .package
+        .argv
+        .contains(&".oyzu-build/target/oyzu-binaries/0".into()));
+    assert!(plan
+        .package
+        .argv
+        .contains(&".oyzu-build/target/oyzu-binaries/1".into()));
+    assert!(plan.tasks["build"]
+        .argv
+        .contains(&"--message-format=json-render-diagnostics".into()));
+    assert_eq!(plan.tasks["test"].reports.len(), 2);
+    native.packages[1].targets[0].kind = vec!["lib".into()];
+    native.packages[1].targets[0].doctest = true;
+    fs::write(
+        prepared.root.join("metadata.json"),
+        serde_json::to_vec(&native).unwrap(),
+    )
+    .unwrap();
+    let plan = super::planning::plan(PlanningContext {
+        target: &workspace.targets["project"],
+        source: &source,
+        dependencies: Some(&prepared),
+    })
+    .unwrap();
+    assert_eq!(plan.tasks["test"].reports.len(), 3);
+    assert_eq!(
+        plan.tasks["test"].reports[2].name.as_deref(),
+        Some("doctest")
+    );
+    assert_eq!(
+        serde_json::from_str::<Vec<String>>(plan.tasks["test"].argv.last().unwrap()).unwrap(),
+        ["core"]
+    );
+    assert!(plan.tasks["test"]
+        .argv
+        .contains(&"/out/project/reports/doctest/doctest.xml".into()));
+    native.packages[1].dependencies.push(
+        serde_json::from_value(json!({
+            "name":"optional-external", "path":null,
+            "source":"registry+https://github.com/rust-lang/crates.io-index"
+        }))
+        .unwrap(),
+    );
+    fs::write(
+        prepared.root.join("metadata.json"),
+        serde_json::to_vec(&native).unwrap(),
+    )
+    .unwrap();
+    let mixed = super::planning::plan(PlanningContext {
+        target: &workspace.targets["project"],
+        source: &source,
+        dependencies: Some(&prepared),
+    })
+    .unwrap();
+    assert!(mixed.tasks["archive"]
+        .argv
+        .contains(&"/oyzu/rust-package.py".into()));
+    assert!(mixed.tasks["archive"].argv.contains(&"--offline".into()));
+    assert_eq!(mixed.artifacts.len(), plan.artifacts.len());
+    assert_eq!(
+        mixed.tasks["test"].reports.len(),
+        plan.tasks["test"].reports.len()
+    );
 }
 
 #[test]

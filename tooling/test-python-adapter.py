@@ -15,6 +15,25 @@ spec.loader.exec_module(adapter)
 
 
 class WheelMetadataTests(unittest.TestCase):
+    def test_dependency_context_uses_only_requirements_and_keeps_source_guards(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            try:
+                os.chdir(temporary)
+                Path('requirements.txt').write_text('six==1.17.0\n')
+                Path('pyproject.toml').write_text('[project]\ndependencies=["unrelated==1"]\n')
+                requirements, purposes = adapter.requirement_lines(runtime_only=True)
+                self.assertEqual(requirements, ['six==1.17.0'])
+                self.assertEqual(purposes, {'six':'runtime'})
+                for declaration in ['--index-url https://unapproved.invalid\nsix==1.17.0', 'six @ https://unapproved.invalid/six.whl']:
+                    Path('requirements.txt').write_text(declaration)
+                    with self.assertRaises(ValueError):
+                        adapter.requirement_lines(runtime_only=True)
+                Path('requirements.txt').write_text('')
+                self.assertEqual(adapter.requirement_lines(runtime_only=True), ([], {}))
+            finally:
+                os.chdir(previous)
+
     def test_quality_defaults_preserve_declared_and_locked_versions(self):
         previous = Path.cwd()
         with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {'OYZU_PYTHON_LINTER':'flake8', 'OYZU_PYTHON_FORMATTER':'black'}):
@@ -23,7 +42,7 @@ class WheelMetadataTests(unittest.TestCase):
             try:
                 os.chdir(root)
                 requirements, _ = adapter.requirement_lines(['flake8==7.2.0'])
-                self.assertEqual(requirements, ['black==24.10.0'])
+                self.assertEqual(requirements, ['black==24.10.0', 'pytest==8.3.5', 'pytest-cov==6.0.0'])
                 requirements, _ = adapter.requirement_lines()
                 self.assertIn('flake8==7.3.0', requirements)
                 self.assertNotIn('black==25.1.0', requirements)
@@ -44,6 +63,21 @@ class WheelMetadataTests(unittest.TestCase):
             finally:
                 os.chdir(previous)
             self.assertEqual(purposes['packaging'], 'runtime')
+
+    def test_test_reporters_are_prepared_without_directory_guesses(self):
+        previous = Path.cwd()
+        with tempfile.TemporaryDirectory() as temporary:
+            try:
+                os.chdir(temporary)
+                requirements, purposes = adapter.requirement_lines()
+                self.assertIn('pytest==8.3.5', requirements)
+                self.assertIn('pytest-cov==6.0.0', requirements)
+                self.assertEqual(purposes['pytest'], 'test')
+                self.assertEqual(purposes['pytest-cov'], 'test')
+                requirements, _ = adapter.requirement_lines(['pytest==8.3.4','pytest-cov==5.0.0'])
+                self.assertFalse(any(item.startswith(('pytest==','pytest-cov==')) for item in requirements))
+            finally:
+                os.chdir(previous)
 
     def read(self, entries):
         with tempfile.TemporaryDirectory() as temporary:

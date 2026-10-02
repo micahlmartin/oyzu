@@ -6,11 +6,12 @@ import {createRequire} from 'node:module';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {testCommand} from './test-command.mjs';
 
 const testReport = process.env.OYZU_TEST_REPORT;
 const coverageReport = process.env.OYZU_COVERAGE_REPORT;
 if (!testReport || !coverageReport) throw new Error('missing required Vitest report destinations');
-const [command, ...args] = process.argv.slice(2);
+const [command, ...args] = await testCommand(process.argv.slice(2));
 if (!command) throw new Error('missing native Vitest invocation');
 const workspace = process.cwd();
 const require = createRequire(join(workspace, 'package.json'));

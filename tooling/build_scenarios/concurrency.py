@@ -40,3 +40,88 @@ setTimeout(() => console.log('OYZU_CONCURRENCY ' + JSON.stringify({start, end: D
         overlap = max(x['start'] for x in intervals) < min(x['end'] for x in intervals)
         assert overlap == (jobs == 2), intervals
     verified.append('build.jobs 1/2 controls actual action overlap with private target output roots')
+    # A qualified prerequisite runs once in its owner's workspace. Ordering
+    # alone must not expose the owner's mutated files to the consumer.
+    proof = "const fs=require('node:fs'); if(fs.existsSync('proof.txt'))process.exit(1); fs.writeFileSync('proof.txt','beta'); console.log('OYZU_PROOF_ONCE');"
+    post = "if(require('node:fs').readFileSync('proof.txt','utf8')!=='beta')process.exit(1);"
+    consumer = "if(require('node:fs').existsSync('../beta/proof.txt'))process.exit(1);"
+    config = '[build]\njobs=2\n'
+    config += '[tasks."beta:proof"]\nargv='+json.dumps(['node','-e',proof])+'\n'
+    config += '[tasks."beta:post_proof"]\nargv='+json.dumps(['node','-e',post])+'\n'
+    for target in ['alpha','beta']:
+        config += f'[tasks."{target}:pre_test"]\ndepends_on=["beta:proof"]\nargv='+json.dumps(['node','-e',consumer if target=='alpha' else post])+'\n'
+    (project/'oyzu.toml').write_text(config)
+    before = source_files(project)
+    invoke(project,'build')
+    manifest = validate(project/'dist')
+    assert manifest['status']=='succeeded' and source_files(project)==before
+    plan = json.loads((project/'dist/plan.json').read_text())
+    proofs = [a for a in plan['actions'] if a['id']=='beta:proof']
+    assert len(proofs)==1 and proofs[0]['target']=='beta' and proofs[0]['cwd']=='beta'
+    assert proofs[0]['tools']==['beta']
+    for target in ['alpha','beta']:
+        action = next(a for a in plan['actions'] if a['id']==f'{target}:pre_test')
+        assert 'beta:post_proof' in action['dependsOn']
+    assert len(manifest['artifacts'])==2
+    assert len([r for r in manifest['reports'] if r['kind']=='test'])==2
+    invoke(project,'inspect','dist')
+    # A failing producer post-hook blocks both consumers and packages.
+    (project/'oyzu.toml').write_text(config.replace(
+        'argv='+json.dumps(['node','-e',post]),
+        'argv='+json.dumps(['node','-e','process.exit(7)']), 1))
+    invoke(project,'build',success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    for target in ['alpha','beta']:
+        assert next(a for a in failed['actions'] if a['id']==f'{target}:pre_test')['status']=='blocked'
+    verified.append('Cross-target task prerequisites: one owned execution, private workspaces, post-hook ordering, per-target reports/artifacts and failed-hook gating')
+    # Waiting on a foreign prerequisite must not let a later local stage's
+    # sibling prerequisites run before compilation or before one another.
+    first = "const fs=require('node:fs'); fs.readFileSync('dist/greeting.mjs'); fs.writeFileSync('first.txt','done');"
+    second = "const fs=require('node:fs'); fs.readFileSync('dist/greeting.mjs'); if(fs.readFileSync('first.txt','utf8')!=='done')process.exit(1);"
+    config = '[build]\njobs=2\n'
+    config += '[tasks."beta:hold"]\nargv='+json.dumps(['node','-e','setTimeout(()=>{},1000)'])+'\n'
+    config += '[tasks."alpha:build"]\nargv=["node","build.mjs"]\ndepends_on=["beta:hold"]\n'
+    config += '[tasks."alpha:pre_test"]\nargv=["node","--check","build.mjs"]\ndepends_on=["alpha:first","alpha:second"]\n'
+    for name, script in [('first',first),('second',second)]:
+        config += f'[tasks."alpha:{name}"]\nargv='+json.dumps(['node','-e',script])+'\n'
+    (project/'oyzu.toml').write_text(config)
+    before = source_files(project)
+    invoke(project,'build')
+    ordered = validate(project/'dist')
+    assert ordered['status']=='succeeded' and len(ordered['artifacts'])==2
+    assert source_files(project)==before
+    verified.append('Local sibling prerequisites retain build-stage and mutation order while compilation waits on another target')
+
+    # Select alpha, then expand to beta through an actual task prerequisite.
+    # The third target has no provisioned image and must never be prepared.
+    (project/'unused').mkdir()
+    (project/'unused/go.mod').write_text('module example.test/unused\n\ngo 1.24\n')
+    (project/'unused/main.go').write_text('package main\nfunc main() {}\n')
+    with (project/'build.yaml').open('a') as file:
+        file.write('unused: {uses: go/app, path: unused}\n')
+    before = source_files(project)
+    invoke(project, 'build', 'alpha', '--image', 'go=oyzu-unprovisioned-selection:test')
+    selected = validate(project/'dist')
+    assert selected['status']=='succeeded' and source_files(project)==before
+    plan = json.loads((project/'dist/plan.json').read_text())
+    selection = plan['extensions']['oyzu.dev/selection']
+    assert selection == {'mode':'explicit', 'requested':['alpha'], 'selected':['alpha','beta'],
+        'excluded':[{'target':'unused','reason':'outside-selection'}]}
+    assert selected['extensions']['oyzu.dev/selection']==selection
+    assert {a['target'] for a in selected['artifacts']}=={'alpha','beta'}
+    assert {t['id'] for t in plan['tools']}=={'alpha','beta'}
+    invoke(project,'inspect','dist')
+    # A single selected target still belongs to a multi-target workspace;
+    # an unrelated root task must not become an override.
+    (project/'oyzu.toml').write_text('[tasks.test]\nargv=["must-not-run-root-test"]\n')
+    invoke(project, 'build', 'alpha', 'alpha', '--image', 'go=oyzu-unprovisioned-selection:test')
+    one = validate(project/'dist')
+    assert one['status']=='succeeded' and len(one['artifacts'])==1
+    assert one['extensions']['oyzu.dev/selection']['selected']==['alpha']
+    assert len([r for r in one['reports'] if r['kind']=='test'])==1
+    invoke(project,'build','unknown-target',success=False)
+    invalid = validate(project/'dist')
+    assert not invalid['actions'] and not invalid['artifacts']
+    assert any('unknown build target' in d['message'] for d in invalid['diagnostics'])
+    verified.append('Explicit build selection expands task owners, skips unprovisioned unrelated targets, preserves root-task semantics, deduplicates requests and records exclusions')

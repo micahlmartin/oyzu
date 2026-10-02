@@ -21,6 +21,34 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             .as_str()
             .context("missing Docker architecture")?
     ))?;
+    let images: Vec<crate::executor::ImageInput> = data
+        .get("images")
+        .map(|v| serde_json::from_value(v.clone()))
+        .transpose()?
+        .unwrap_or_default();
+    let references = metadata.image_references()?;
+    if references
+        != images
+            .iter()
+            .map(|image| image.reference.clone())
+            .collect::<Vec<_>>()
+    {
+        anyhow::bail!("Docker image inputs do not match captured native requirements");
+    }
+    let captured: Option<crate::dependencies::context::Captured> = data
+        .get("dependencyContext")
+        .map(|v| serde_json::from_value(v.clone()))
+        .transpose()?;
+    match (metadata.dependency_base()?, &captured) {
+        (Some(base), Some(captured)) => captured.validate(
+            &base,
+            &images,
+            &serde_json::from_value(platform.clone())?,
+            &context.source.digest,
+        )?,
+        (None, None) => {}
+        _ => anyhow::bail!("Docker dependency context does not match native requirements"),
+    }
     let id = &context.target.name;
     let version = semver_snapshot(context.target, context.source);
     let filename = format!("{id}-{version}.oci.tar");
@@ -36,10 +64,25 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             ],
         ),
     );
+    plan.target_platform = Some(serde_json::from_value(platform.clone())?);
+    plan.execution_platform = Some(serde_json::from_value(
+        dependency.record["manager"]["platform"].clone(),
+    )?);
+    metadata.validate_execution(
+        plan.execution_platform.as_ref().unwrap(),
+        plan.target_platform.as_ref().unwrap(),
+    )?;
     let mut selected = metadata.context.files.clone();
     selected.push("Dockerfile".into());
     if let Some(ignore_file) = &metadata.context.ignore_file {
         selected.push(ignore_file.clone());
+    }
+    // A COPY ignore rule must not remove the native checker's configuration.
+    // These stay outside BuildKit's context_files when the native ignore excludes them.
+    for file in super::quality::CONTROL_FILES {
+        if context.target.path.join(file).is_file() {
+            selected.push((*file).into());
+        }
     }
     selected.sort();
     selected.dedup();
@@ -60,6 +103,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             .as_str()
             .context("missing captured Dockerfile identity")?
             .into(),
+        generated_recipe: None,
+        dependency_context: captured.map(|c| Box::new(c.binding)),
+        images,
     };
     plan.tasks.insert("build".into(), build);
     let mut test = TaskPlan::command(&[]);

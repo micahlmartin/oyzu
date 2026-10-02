@@ -63,8 +63,8 @@ def main():
             (project/directory).mkdir(parents=True)
             (project/directory/'failure.test.js').write_text("throw Error('excluded suite executed');\n")
         config.write_text("export default {test:{exclude:['**/node_modules/**','ignored/**'], coverage:{include:['src/**']}}};\n")
-        module = (ROOT/'src/builders/node/runtime/npm-workspace-root.mjs').as_uri()
-        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{rootFrameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(rootFrameworkArguments('vitest',process.cwd(),[{{path:'packages/member'}}])));"], cwd=project, text=True))
+        module = (ROOT/'src/builders/node/runtime/workspace-test-scope.mjs').as_uri()
+        scope = json.loads(subprocess.check_output(['node','--input-type=module','-e',f"import {{frameworkArguments}} from {json.dumps(module)}; console.log(JSON.stringify(frameworkArguments('vitest',process.cwd(),[{{path:'packages/member'}}])));"], cwd=project, text=True))
         assert len(run(True).findall('.//testcase')) == 3
         for directory in ['packages', '.oyzu-build', 'ignored']:
             shutil.rmtree(project/directory)

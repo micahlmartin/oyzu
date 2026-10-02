@@ -34,6 +34,11 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 ## Failure and variation cases
 
 - **external-add:** Use the negative Dockerfile. Expected: Reject undeclared external acquisition before a hermetic action.
+- **argument-base:** [variants/argument-base](variants/argument-base/Dockerfile) composes a base reference through global `ARG` defaults and captured `TARGETARCH`. Linux AMD64 acceptance explicitly tags provisioned `alpine:3.22` as `oyzu-fixture/alpine:amd64` before the build. The native adapter resolves selection before image capture, and a native `RUN` checks target-argument availability and the fixed export epoch. Empty bases fail preflight; host environment values do not supply defaults.
+- **image-aliases:** [variants/image-aliases](variants/image-aliases/Dockerfile) uses a provisioned image through short and qualified references in `FROM`, external `COPY` and an image-backed `RUN` mount. Identical captured inputs share one native context; conflicting identities fail. Copied content enters the output, while the temporary mount does not.
+- **provisioned-base:** Use [variants/provisioned-base](variants/provisioned-base/Dockerfile) with `alpine:3.22` already present in the executor's Docker image store. Preparation captures that image by immutable identity; the isolated build consumes its OCI store offline and emits a snapshot image. A missing base fails preflight without a pull. See [Docker image inputs](../../../docs/reference/docker-images.md) for scope and limitations.
+- **quality-gates:** Introduce noncanonical spacing or a relative WORKDIR. Native format/lint checks fail and block final artifacts without changing source.
+- **ignored-quality-config:** Exclude target-local Hadolint/EditorConfig files with `.dockerignore`. Checks must still use them while image layers omit them. See the [Dockerfile quality reference](../../../docs/reference/docker-quality.md) for native defaults and provisioning.
 
 ## Contract and limitations
 
@@ -41,3 +46,5 @@ Acceptance criteria: EXEC-01, BUILDER-05. See the [design catalog](../../../docs
 
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+
+Standalone variants use native Dockerfmt defaults when they have no local `.editorconfig`. Validate them in an isolated directory so this repository's parent EditorConfig does not influence formatting. The native quality probe performs this check through the compiled CLI.

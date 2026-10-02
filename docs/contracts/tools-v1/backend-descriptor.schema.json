@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oyzu.dev/contracts/tools-v1/backend-descriptor.schema.json",
+  "title": "Draft Oyzu backend descriptor identity v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_pin",
+    "patch_set_digest",
+    "embedding_abi",
+    "adapter_revision",
+    "registry_digest",
+    "plugin_digest",
+    "verifier_digest",
+    "features"
+  ],
+  "properties": {
+    "source_pin": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}(?![\\s\\S])"
+    },
+    "patch_set_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "embedding_abi": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "adapter_revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "registry_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "plugin_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "verifier_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "features": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
+    }
+  }
+}

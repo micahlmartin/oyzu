@@ -36,7 +36,11 @@ These choices are reviewable defaults, not additions to the agreed decision list
 
 ## Implementation work packages
 
-Each row is a bounded starting issue/PR sequence, not a pre-created GitHub issue. Split large rows by module and adapter; include its OEP section, acceptance IDs, fixtures and observed checks in every implementation task.
+The [repository delivery priority](../AGENTS.md#implementation-priority-prove-the-whole-flow-first) governs this plan. The rows below are a capability and qualification inventory, not sequential gates that must all pass before a real build can run. Their acceptance columns mix functional proof with later hardening; separate those scopes when selecting an implementation milestone. Keep failed checks visible and preserve required safety boundaries, but do not let exhaustive component qualification displace the first connected result.
+
+Start with one real project through the compiled CLI: resolve its configuration, discover and plan its build, execute with explicitly provisioned tools, and collect the expected artifact and required reports in a usable bundle. Implement only the portions of the relevant rows needed to connect that path first. Then close the agreed additional user scenarios. Tool installation remains outside the current implementation goal. Track further hardening separately for maintainer evaluation after functional completion.
+
+Each row can supply bounded issues/PRs, not pre-created GitHub issues. Split work by observable user outcome and keep module ownership within that outcome; include its OEP section, applicable acceptance IDs, fixtures and observed checks in every implementation task.
 
 | Order | Deliverable and dependency | Acceptance evidence required |
 | --- | --- | --- |
@@ -56,7 +60,7 @@ Each row is a bounded starting issue/PR sequence, not a pre-created GitHub issue
 | B14 | Verified provider identity, production authorization and signing integration; depends B13 plus provider gates | REL-01/02/05/06; local cache laundering denied, wrong issuer/audience/ref denied, independently verified signatures |
 | B15 | Windows/macOS host transports and lifecycle qualification; parallels B05 onward | All advertised host fixtures, no fallback to unrestricted host, real Unicode/space/path/signal behavior |
 
-The first useful slice ends at B07; container support follows B08. This sequencing does not remove agreed Go/Node/Rust/Java/Helm support from scope. Production publishing is unavailable until B14 proves its authority boundary. No separate trusted builder code path is introduced.
+The first useful slice demonstrates B07's real source-to-bundle result using the necessary portions of earlier rows; it does not wait for every B01–B06 qualification check. Container support extends that working flow with B08. This delivery order does not remove agreed Go/Node/Rust/Java/Helm support from scope. Production publishing is unavailable until B14 proves its authority boundary. No separate trusted builder code path is introduced.
 
 ## Required experiments and decisions
 
