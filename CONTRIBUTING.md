@@ -65,6 +65,8 @@ On Windows use `target/debug/oyzu.exe`. Task scenarios require provisioned nativ
 
 For documentation changes, run `node tooling/check-docs.mjs` and `git diff --check`. These checks do not validate unimplemented product behavior.
 
+For captured builder acceptance, follow [Running builder acceptance checks](docs/reference/build-verification.md). `python tooling/test-build-scenarios.py --list-suites` lists the implemented groups; `--suite <name> --cli <compiled-path>` runs a selected group with provisioned native tooling. CI runs every group after CLI compilation and retains evidence separately. Run `python tooling/check-build-suites.py` when changing registration or CI coverage; inventory checks do not establish native acceptance.
+
 Never include secrets or confidential information. See [SECURITY.md](SECURITY.md) for vulnerability reporting.
 
 ## License status

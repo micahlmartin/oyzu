@@ -123,6 +123,8 @@ A review should be able to identify the rule's owner, the contract crossing each
 
 For a new subsystem, a short module-level responsibility/invariant comment, a narrow entry point and meaningful tests are enough to start. No per-function design documents, mandatory pattern catalog, line-count quotas or new architecture framework are required. Compiler visibility, review and focused conformance tests provide the first enforcement; add automated boundary checks when a recurring violation warrants them.
 
+Captured-build acceptance has a separate test-only composition boundary: `tooling/test-build-scenarios.py` registers/selects suites and retains invocation evidence; owned modules under `tooling/build_scenarios/` assert native results. `baselines.py` owns the original cross-ecosystem artifact/hook/isolation cases. `tooling/build-scenario-tools.sh` provisions acceptance tooling and runs native probes, while `check-build-suites.py` checks registration against CI. These files must not implement missing product behavior. See [builder acceptance checks](reference/build-verification.md).
+
 ## Lessons from other projects
 
 These sources inform our engineering choices; their contribution policies are not Oyzu's AI-authorship policy.
