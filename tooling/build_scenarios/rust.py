@@ -83,6 +83,35 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert not validate(project/'dist')['artifacts']
     verified.append('Cargo crates.io acquisition verifies locked checksums; offline native builds retain snapshot artifacts/JUnit/coverage and reject altered locks')
 
+    project = base/'rust-mixed-workspace'
+    shutil.copytree(root/'examples/builds/rust-workspace/project', project)
+    variant = root/'examples/builds/rust-workspace/variants/registry'
+    for source, destination in [('core.Cargo.toml','core/Cargo.toml'), ('core.rs','core/src/lib.rs'), ('Cargo.lock','Cargo.lock')]:
+        shutil.copyfile(variant/source, project/destination)
+    before = source_files(project)
+    invoke(project, 'build')
+    mixed = validate(project/'dist')
+    assert source_files(project) == before
+    archives(project, mixed, 3, external=('itoa',))
+    assert len(mixed['artifacts']) == 4
+    assert run_binary(project, binary(mixed)) == 'Hello, Oyzu!'
+    application_coverage(project, mixed, 'core/src/lib.rs', 'itoa::Buffer::new()')
+    assert next(r for r in mixed['reports'] if r['path'].endswith('/doctest.xml'))['summary']['passed'] == 2
+    dependencies = json.loads((project/'dist/dependencies/project.json').read_text())
+    Draft202012Validator(schema).validate(dependencies)
+    assert [(p['name'], p['version']) for p in dependencies['packages']] == [('itoa', '1.0.15')]
+    repeated = invoke(project, 'build')
+    assert {a['name']:a['digest'] for a in mixed['artifacts']} == {a['name']:a['digest'] for a in repeated['artifacts']}
+    # Native workspace compilation succeeds; verifying the published crate must fail.
+    manifest = project/'core/Cargo.toml'
+    manifest.write_text(manifest.read_text().replace('[package]', '[package]\nexclude = ["message.txt"]'))
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert next(a for a in failed['actions'] if a['id']=='project:build')['status'] == 'succeeded'
+    assert next(a for a in failed['actions'] if a['id']=='project:archive')['status'] == 'failed'
+    assert not failed['artifacts']
+    verified.append('Cargo mixed local/registry workspace produces repeatable verified snapshot crates and reports; omitted archive build input blocks collection after successful compilation')
+
     for example in ['rust-app', 'rust-workspace']:
         project = base / example
         shutil.copytree(root/'examples/builds'/example/'project', project)

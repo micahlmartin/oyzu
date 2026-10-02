@@ -80,6 +80,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             });
         }
     }
+    if let Some(command) = super::packaging::command(&metadata)? {
+        archive.argv = command;
+    }
     let primary = metadata
         .packages
         .iter()

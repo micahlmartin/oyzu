@@ -12,6 +12,8 @@ permissions:
 jobs:
   build-cli:
     name: Build CLI (${{ matrix.os }})
+    env:
+      RUSTUP_TOOLCHAIN: '1.94.0'
     strategy:
       fail-fast: false
       matrix:
@@ -63,6 +65,8 @@ jobs:
         run: python tooling/test-rust-artifacts.py
       - name: Native Cargo doctest conformance
         run: python tooling/test-rust-doctests.py
+      - name: Native Cargo mixed workspace packaging
+        run: python tooling/test-rust-packaging.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oyzu-${{ matrix.os }}
