@@ -14,6 +14,8 @@ Review prompts (answer only where relevant): Does an existing subsystem already 
 
 For a new subsystem, link its module-level responsibility comment and code-map entry so reviewers can see its entry points and the responsibilities it delegates.
 
+For a shared contract change, identify the affected implementations and consumers and how their common obligations were verified. Check the [extension decision guide](../docs/code-organization.md#placing-a-new-extension) when deciding where new behavior belongs.
+
 ## Validation
 
 Describe checks performed and relevant results.

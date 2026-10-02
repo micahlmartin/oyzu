@@ -56,6 +56,22 @@ For example, a Python framework detector returns evidence through the discovery 
 
 Pass the smallest typed context an operation needs. Avoid a universal application context, service locator or shared mutable state that lets every subsystem reach every other one. OS-specific process, path and credential behavior belongs behind its owning boundary, with portable callers and applicable platform checks. Modules provide these boundaries today; a crate split is a separate decision.
 
+### Placing a new extension
+
+Start with the kind of behavior being added, then find its existing owner. These are placement decisions, not requirements to introduce new abstractions.
+
+| New behavior | Where it belongs | What stays shared |
+| --- | --- | --- |
+| Recognizing a framework or package manager | An ecosystem-owned detector implementing the discovery contract | Evidence ranking, ambiguity handling and selection |
+| Supporting another native package manager | An owned adapter behind the ecosystem's manager contract, where one is needed | Input capture, transport, sandboxing and task scheduling |
+| Adding an ecosystem-specific test command | The builder's task/report declarations and native reporting adapter | Hooks, execution, report validation and bundle collection |
+| Adding a configuration setting | The owning subsystem's registered setting definition | Parsing, precedence and effective-configuration validation |
+| Adding a platform service or backend | Its responsibility-specific module and the smallest consumer-facing contract | Existing identity, configuration and transport capabilities where their semantics fit |
+
+For a shared contract change, search for all implementations and consumers before editing. Update the producer, consumers, contract comments and relevant conformance checks together. Default trait methods are appropriate only for behavior valid for every inheriting implementation; distinguish unsupported capabilities from successful work. An adapter that needs a new capability should describe that need through the contract rather than expose its concrete type to the orchestrator.
+
+For contributors, the goal is a bounded change whose owner and verification are easy to find. A new subsystem starts with a focused module and a short responsibility comment; add child modules or extract a crate as actual responsibilities and consumers demand it.
+
 ### Choosing the interface
 
 Use a trait when several implementations provide one capability or when a real I/O boundary needs substitution. Existing examples are `Builder`, `Detector<C>` and the Node `Manager`. The consumer-facing contract belongs beside the subsystem that defines the capability, and implementations stay with their ecosystem or backend. Registration happens at a composition boundary; it must not spread tool-name switches through the engine.
