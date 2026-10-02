@@ -78,3 +78,17 @@ Run `cargo test --locked`, `cargo clippy --locked --all-targets -- -D warnings`,
 Run `node tooling/check-docs.mjs` for documentation structure. Do not imply this validates product behavior. Preserve agreed constraints in docs/decisions.md, distinguish proposed syntax from stable contracts, and never mark a design accepted without recorded maintainer review.
 
 The examples/ tree contains design-contract fixtures for review, not an implemented acceptance suite. Keep project configuration minimal and expectations outside project roots. Validate their structure with `python tooling/check-examples.py` (Python 3.11+ and tooling/examples-requirements.txt). Do not implement a fake Oyzu engine to make example outcomes pass.
+
+## Third-party compliance (applies to all subdirectories)
+
+Read [the compliance policy](compliance/README.md) before importing upstream code,
+adding/updating dependencies, editing notices or preparing a distribution.
+Preserve original notices and provenance; a root license does not license every
+dependency, plugin, asset or downloaded tool. Record third-party impact and run
+`python tooling/compliance/check.py` plus its regression tests for affected changes.
+Baseline regeneration is not approval. Do not remove notices, invent approvals,
+weaken checks or add license exceptions to make CI pass. AI agents may prepare
+review evidence but must never approve their own changes or submit the human
+reviewer's approval. Unresolved obligations block affected imports/releases.
+The policy and distribution audit remain provisional; @micahlmartin is the initial
+technical reviewer, not an automatic legal signoff.
