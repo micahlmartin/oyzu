@@ -138,7 +138,7 @@ fn execute_with_unsets(
     task: &Task,
     args: &[String],
     removed: &BTreeSet<String>,
-    profile: Option<&Option<String>>,
+    config: Option<&crate::config::resolve::EffectiveConfig>,
 ) -> Result<Outcome> {
     if task.argv.is_empty() {
         bail!("empty command for {}", task.id());
@@ -152,6 +152,9 @@ fn execute_with_unsets(
             env.extend(native.env);
             break;
         }
+    }
+    if let Some(config) = config {
+        config.validate_environment(&env)?;
     }
     if !args.is_empty() && argv.iter().any(|s| s == "-c" || s == "-Command") {
         bail!("shell task arguments require an argv task definition");
@@ -168,7 +171,7 @@ fn execute_with_unsets(
         .map(|(_, value)| std::ffi::OsStr::new(value));
     let mut command = Command::new(crate::launch::program(&argv[0], path));
     command.args(&argv[1..]);
-    if let Some(profile) = profile {
+    if let Some(profile) = config.map(|config| &config.profile) {
         command.env(
             "OYZU_INHERITED_PROFILE",
             profile.as_deref().unwrap_or("@none"),
@@ -206,17 +209,47 @@ fn execute_with_unsets(
 
 pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Vec<Outcome>> {
     let primary = resolve(workspace, requested)?;
-    let mut outcomes = vec![];
-    for id in sequence(workspace, &primary)? {
-        let config = workspace
-            .configuration
-            .get(&workspace.tasks[&id].target)
+    let sequence = sequence(workspace, &primary)?;
+    let configuration = |id: &str| {
+        let target = workspace
+            .targets
+            .get(&workspace.tasks[id].target)
+            .or_else(|| {
+                (workspace.targets.len() == 1)
+                    .then(|| workspace.targets.values().next())
+                    .flatten()
+            });
+        let config = target
+            .and_then(|target| workspace.configuration.get(&target.name))
             .or(workspace.root_configuration.as_ref());
+        (target, config)
+    };
+    // Admit every prerequisite and hook before executing any native command.
+    for id in &sequence {
+        let (target, config) = configuration(id);
         if let Some(config) = config {
             config
                 .constraints
                 .apply(&mut config.values().clone(), &config.removed)?;
+            let builder = target
+                .map(|target| crate::builders::get(&target.builder))
+                .transpose()?;
+            if builder.is_none() && config.get("tools.allowed").is_some() {
+                bail!("CONFIG_OVERRIDE_DENIED: root task has no admitted native tool identity");
+            }
+            crate::config::enforcement::execution_preflight(
+                config,
+                builder.map_or(&[], |builder| builder.descriptor().tools),
+            )?;
+            if config.management.is_some() {
+                bail!("CONFIG_OVERRIDE_DENIED: managed host tasks require approved development execution and connector bindings");
+            }
+            config.validate_environment(&workspace.tasks[id].env)?;
         }
+    }
+    let mut outcomes = vec![];
+    for id in sequence {
+        let (_, config) = configuration(&id);
         let removed = config
             .map(|config| config.removed.clone())
             .unwrap_or_default();
@@ -224,7 +257,7 @@ pub fn run(workspace: &Workspace, requested: &str, args: &[String]) -> Result<Ve
             &workspace.tasks[&id],
             if id == primary { args } else { &[] },
             &removed,
-            config.map(|config| &config.profile),
+            config,
         )?;
         let failed = outcome.exit_code != 0;
         outcomes.push(outcome);

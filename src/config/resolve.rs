@@ -37,6 +37,19 @@ pub struct EffectiveConfig {
     pub management: Option<Value>,
 }
 impl EffectiveConfig {
+    /// Check the environment actually passed to a task after all overrides and
+    /// native adapter additions. Revalidating the original values is insufficient.
+    pub(crate) fn validate_environment(
+        &self,
+        environment: &BTreeMap<String, String>,
+    ) -> Result<()> {
+        super::registry::validate_environment_case(environment.keys().map(String::as_str))?;
+        let mut values = self.values.clone();
+        for (name, value) in environment {
+            values.insert(format!("env.{name}"), json!(value));
+        }
+        self.constraints.apply(&mut values, &self.removed)
+    }
     pub fn get(&self, key: &str) -> Option<&Value> {
         self.values.get(key)
     }
@@ -202,6 +215,8 @@ pub fn resolve(
                         .copied()
                         .chain(env.keys().map(String::as_str)),
                 )?;
+                result
+                    .validate_environment(&serde_json::from_value(Value::Object(env.clone()))?)?;
             }
         }
     }

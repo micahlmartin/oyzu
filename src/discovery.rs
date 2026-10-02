@@ -127,9 +127,20 @@ pub(crate) fn discover_with_session(
     for (id, target) in &targets {
         let effective = session.resolve(&target.path, false)?;
         let config = config::project_from_effective(&effective)?;
+        // In a single-target workspace root operations execute for this target.
+        // Its final cascade, including tombstones, owns those overrides too.
+        if targets.len() == 1 {
+            definitions = config
+                .tasks
+                .iter()
+                .filter(|(name, _)| !name.contains(':'))
+                .map(|(name, task)| (name.clone(), task.clone()))
+                .collect();
+        }
         for task in tasks.values_mut().filter(|task| task.target == *id) {
             task.env.extend(config.env.clone());
             config::registry::validate_environment_case(task.env.keys().map(String::as_str))?;
+            effective.validate_environment(&task.env)?;
         }
         for (name, definition) in config.tasks {
             if name.split_once(':').is_some_and(|(group, _)| group == id) {
@@ -229,6 +240,7 @@ pub(crate) fn discover_with_session(
         let mut env = config::project_from_effective(effective)?.env;
         env.extend(definition.env);
         config::registry::validate_environment_case(env.keys().map(String::as_str))?;
+        effective.validate_environment(&env)?;
         let stage = existing.is_some_and(|t| t.build_stage);
         tasks.insert(
             id.clone(),

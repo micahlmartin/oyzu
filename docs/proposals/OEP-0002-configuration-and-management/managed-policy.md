@@ -46,6 +46,8 @@ Verify the pinned key, organization/enrollment, audience, expected context, capa
 
 Reject issuance more than 120 seconds in the future; this tolerance does not extend expiry or offline deadlines. A strictly lower sequence than the recorded high-water mark is rejected. An equal sequence is accepted only for identical payload digest. New snapshots, including renewals of unchanged policy, use a higher sequence. Signature keys and bootstrap identity changes invalidate incompatible caches.
 
+For an administratively changed bootstrap within the same enrollment/context, online reconciliation verifies a response against the currently provisioned keys and requires a sequence strictly above the retained high-water mark before committing the new bootstrap binding. Adding overlapping keys and later removing old keys each require this reconciliation; clearing the sequence state is not the rotation procedure. Cached responses cannot reconcile a changed bootstrap. Authorization samples time again after network and storage operations so elapsed refresh/commit time cannot extend expiry or an offline deadline.
+
 The proposed standards are [JCS](https://www.rfc-editor.org/rfc/rfc8785.html), [Ed25519 JWK representation](https://www.rfc-editor.org/rfc/rfc8037.html), and [fully specified JOSE algorithms](https://www.rfc-editor.org/rfc/rfc9864.html). Library interoperability is a release gate.
 
 ## Cache and refresh lifecycle

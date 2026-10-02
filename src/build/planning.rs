@@ -107,7 +107,7 @@ pub(super) fn plan_with_dependencies(
         }
         let builder = builders::get(&target.builder)?;
         if let Some(config) = workspace.configuration.get(&id) {
-            crate::config::enforcement::build_preflight(config, builder.descriptor().tools)?;
+            crate::config::enforcement::execution_preflight(config, builder.descriptor().tools)?;
         }
         let intent = builder.plan(builders::PlanningContext {
             target,
@@ -237,6 +237,9 @@ pub(super) fn plan_with_dependencies(
                     env.extend(reports.env);
                 }
                 env.extend(bindings.env);
+                if let Some(config) = workspace.configuration.get(&id) {
+                    config.validate_environment(&env)?;
+                }
                 for (name, value) in &intent.fixed_env {
                     if env.get(name) != Some(value) {
                         bail!("{step}: {name} must remain {value} for the captured builder capability");

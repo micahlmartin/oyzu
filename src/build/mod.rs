@@ -109,7 +109,10 @@ pub fn run_with_options(
         for (id, target) in &workspace.targets {
             if let Some(config) = workspace.configuration.get(id) {
                 let builder = builders::get(&target.builder)?;
-                crate::config::enforcement::build_preflight(config, builder.descriptor().tools)?;
+                crate::config::enforcement::execution_preflight(
+                    config,
+                    builder.descriptor().tools,
+                )?;
                 if config.management.is_some() && builder.acquisition_requires_network() {
                     bail!("CONFIG_OVERRIDE_DENIED: managed acquisition requires approved connector bindings; provision approved local dependency inputs before building offline");
                 }

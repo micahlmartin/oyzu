@@ -2,7 +2,7 @@
 use super::resolve::EffectiveConfig;
 use anyhow::{bail, Result};
 use serde_json::Value;
-pub(crate) fn build_preflight(config: &EffectiveConfig, tools: &[&str]) -> Result<()> {
+pub(crate) fn execution_preflight(config: &EffectiveConfig, tools: &[&str]) -> Result<()> {
     if let Some(allowed) = config.get("tools.allowed").and_then(Value::as_array) {
         for tool in tools {
             if !allowed.iter().any(|value| value.as_str() == Some(tool)) {
