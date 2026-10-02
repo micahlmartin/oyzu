@@ -189,10 +189,63 @@ pub(super) fn parse(bytes: &[u8]) -> Result<Value> {
     Ok(value)
 }
 
+/// Bound the encoded wire representation, including JSON escaping, before any
+/// transport write. Reuse the incoming tree limits before recursive encoding.
+pub(super) fn encode(value: &Value) -> Result<Vec<u8>> {
+    crate::config::policy::validate_json_shape(value)
+        .map_err(|_| anyhow::anyhow!("TOOL_WORKER_INVALID_JSON"))?;
+    value.as_object().context("TOOL_WORKER_OBJECT_REQUIRED")?;
+    struct Output(Vec<u8>);
+    impl Write for Output {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            if bytes.len() > FRAME_BYTES - self.0.len() {
+                return Err(std::io::Error::other("TOOL_WORKER_FRAME_LIMIT"));
+            }
+            let required = self.0.len() + bytes.len();
+            if required > self.0.capacity() {
+                let capacity = required
+                    .max(self.0.capacity().saturating_mul(2))
+                    .min(FRAME_BYTES);
+                self.0
+                    .try_reserve_exact(capacity - self.0.len())
+                    .map_err(std::io::Error::other)?;
+            }
+            self.0.extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    let mut output = Output(Vec::new());
+    serde_json::to_writer(&mut output, value)
+        .map_err(|_| anyhow::anyhow!("TOOL_WORKER_FRAME_LIMIT"))?;
+    Ok(output.0)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::io::{self, Cursor};
+
+    #[test]
+    fn encoding_counts_escaped_bytes_and_shares_tree_limits() {
+        let exact = serde_json::json!({"x":"a".repeat(FRAME_BYTES - 8)});
+        let bytes = encode(&exact).unwrap();
+        assert_eq!(bytes.len(), FRAME_BYTES);
+        assert_eq!(parse(&bytes).unwrap(), exact);
+        let escaped = serde_json::json!({"x":"\0".repeat(FRAME_BYTES / 6)});
+        assert!(
+            encode(&escaped).is_err(),
+            "escaping exceeds the encoded frame limit"
+        );
+        let mut deep = Value::Null;
+        for _ in 0..34 {
+            deep = serde_json::json!({"x":deep});
+        }
+        assert!(encode(&deep).is_err());
+        assert!(encode(&serde_json::json!({"x": vec![Value::Null; 10_000]})).is_err());
+    }
 
     #[derive(Default)]
     struct Pipe {

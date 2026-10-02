@@ -1617,3 +1617,29 @@ of the control sequence. This is not a running mise worker: same-binary process
 creation, image/channel authentication, restricted inherited handles, OS deadlines,
 backend interruption, typed payload admission and actual dispatch remain absent.
 The native test uses threads and its watchdog only bounds the test itself.
+
+## Checkpoint 119: bounded worker response encoding
+
+Worker terminal encoding previously serialized the full result before checking
+its frame size. It now validates the existing shared depth/entry budget before
+recursive serialization, then stops before an append would exceed 8 MiB,
+including JSON escaping and envelope fields. Buffer reservation grows
+geometrically within the frame cap. Encoding failure poisons the session and
+returns no response bytes. This bounds the serialized buffer, not allocations
+already made by a backend while constructing its result.
+
+The JSON tree validator remains owned by config/policy.rs and is reused unchanged
+for decoded input and pre-encoding checks. There is no new dependency, wire-format
+change or separate copy of the depth/entry rules. Tests cover exact-limit output,
+escaping-induced overflow, excessive nesting/entries and terminal failure after
+invalid encoding. Windows passed 17 focused worker tests, the full locked suite,
+strict all-target Clippy, formatting and nine CLI scenarios. Linux passed 18
+focused tests and strict all-target Clippy offline. Documentation and diff checks
+passed; the reference, code map and OEP runtime now explain pre-write bounds.
+
+Separately, run 37002649274 at Java-fixture commit 6d32382 completed its Ubuntu
+Build CLI job successfully, including real Temurin parity/publication/changed-lock
+checks. Its macOS Java step is running and Windows Java step remains pending.
+Those historical CI results do not verify this encoding change or prove native
+Linux/macOS Java execution. Production worker dispatch, OS deadlines, authenticated
+inheritance, full tool-management integration and licensing admission remain open.

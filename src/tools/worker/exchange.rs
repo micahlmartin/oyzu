@@ -116,6 +116,7 @@ impl ToolWorkerExchange {
     /// Worker-side encoding reuses exactly the supervisor's result validation
     /// and terminal transition. Invalid output consumes the response attempt.
     pub(super) fn encode_terminal(&mut self, outcome: ToolWorkerOutcome) -> Result<Vec<u8>> {
+        ensure!(!self.terminal, "TOOL_WORKER_SEQUENCE_INVALID");
         let mut value = serde_json::json!({
             "protocol": PROTOCOL, "request_id": self.request.request_id,
             "context_digest": self.request.context_digest
@@ -134,7 +135,13 @@ impl ToolWorkerExchange {
                 value["diagnostic"] = serde_json::json!({"code":code});
             }
         }
-        let bytes = serde_json::to_vec(&value)?;
+        let bytes = match super::framing::encode(&value) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                self.abort();
+                return Err(error);
+            }
+        };
         self.finish(&bytes)?;
         Ok(bytes)
     }

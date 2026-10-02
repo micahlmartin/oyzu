@@ -1063,6 +1063,14 @@ transport loss or dispatcher failure. A send failure requires teardown, with no
 retry or new context in the same worker. Result contents remain untrusted and
 require independent supervisor validation before any publication or execution.
 
+Before recursive response serialization, the shared JSON tree validator checks
+the same depth-32 and 10,000-entry limits used on input. Encoding then writes into
+a bounded buffer and stops before an append would exceed 8 MiB, counting JSON
+escaping and envelope fields. Geometric buffer reservation is capped at that
+frame size; output is not fully serialized into an unbounded temporary first.
+This bounds the encoded buffer, not memory a backend already used to construct
+its result. Encoding failure ends the session and emits no response bytes.
+
 Focused tests cover all three terminal outcomes, invalid/oversized output,
 malformed/foreign/duplicate cancel, repeated response and success-after-cancel.
 A native private-channel test sends a request and cancel, receives the correlated

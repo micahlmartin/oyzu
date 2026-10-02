@@ -92,6 +92,8 @@ host preference within policy, never project syntax.
 
 The initial framing implementation counts four-byte prefixes in the total control
 budget and uses the shared strict JSON parser's additional 10,000-entry ceiling.
+Worker response encoding checks that shared tree budget before recursion and
+bounds serialization to 8 MiB including JSON escaping, before any transport write.
 These conservative draft limits require protocol review with typed payloads.
 The codec alone admits JSON objects; the separate exchange validates closed outer
 envelopes and supervisor-side response correlation. Operation-specific admission,

@@ -94,6 +94,7 @@ mod tests {
                 code: "private details".into(),
             },
             ToolWorkerOutcome::UntrustedResult(json!({"too_large":"x".repeat(8*1024*1024)})),
+            ToolWorkerOutcome::UntrustedResult(json!({"escaped":"\0".repeat(2*1024*1024)})),
         ] {
             let mut worker = ToolWorkerSession::new(REQUEST).unwrap();
             assert!(worker.finish(outcome).is_err());
