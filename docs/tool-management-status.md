@@ -1742,3 +1742,26 @@ A lease identity still represents its acquired snapshot, not current policy or
 protection against subsequent same-user edits. Installation prune/recovery,
 consumer process/shell lifecycle and production integration remain outstanding;
 this correction does not complete TM-04 or OEP-0003.
+
+## Checkpoint 124: native Java metadata replay evidence
+
+Fork run 37005919694 at aad17fd6cb748fdc67540388430f41f67169d698
+(tested merge fb74cdee070ab6b9a44d6d9dc3e6a6e4d8016067) passed bounded
+HTTP utility tests, strict library/example checks and real Go/Java replay steps
+on Windows amd64, macOS arm64 and Linux amd64. Linux/macOS jobs completed;
+Windows was still in cache cleanup when this checkpoint was recorded. No final
+workflow conclusion is inferred from successful test steps.
+
+Downloaded all three original Java fixture/report artifacts outside the checkout.
+Each 8,491,223-byte fixture matches its capture report, and the pinned capture
+helper independently reproduces all three target cases from its retained response
+bytes. java-native-replay-evidence.json records artifact IDs, per-host raw hashes,
+exact source/merge revisions, helper identity and target metadata. The reference
+now replaces the prior pending-native-replay limitation with this measured result.
+
+This verifies exact metadata selection across native hosts and foreign targets,
+not Java range resolution, publisher signatures, native archive execution on all
+hosts, OS network containment or production backend admission. Java vendor/build
+identities cannot use the current canonical-semver-only Node/Go selector unchanged.
+Legal/release approval remains false; production integration and the other OEP
+requirements remain incomplete.

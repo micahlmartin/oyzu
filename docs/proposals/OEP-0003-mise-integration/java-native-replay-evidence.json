@@ -1,0 +1,128 @@
+{
+  "format": 1,
+  "scope": "native-host-java-metadata-replay",
+  "run_url": "https://github.com/oyzuai/mise/actions/runs/37005919694",
+  "fork_head": "aad17fd6cb748fdc67540388430f41f67169d698",
+  "tested_merge_commit": "fb74cdee070ab6b9a44d6d9dc3e6a6e4d8016067",
+  "capture_helper_commit": "373cfd383b05ea03145524f56b7d3b97c5d503ff",
+  "capture_helper_sha256": "sha256:bcdcb656d463f5c7ac25a25bb55243edfdcb474768a88d337fafd294d5a73fdc",
+  "verification": "Original fixture bytes match capture reports; bounded capture helper independently reproduces every case from retained response bytes. Native Java replay steps succeeded on all three hosts. This index does not assert the enclosing workflow conclusion.",
+  "hosts": [
+    {
+      "host_target": "x86_64-unknown-linux-gnu",
+      "artifact_id": 11225956827,
+      "artifact_name": "java-metadata-x86_64-unknown-linux-gnu-fb74cdee070ab6b9a44d6d9dc3e6a6e4d8016067",
+      "job_url": "https://github.com/oyzuai/mise/actions/runs/37005919694/job/110834043824",
+      "fixture_sha256": "sha256:4956c7f324039d252da261805a179ae45ad2a20cca4eb60680b88f83724dc589",
+      "fixture_size": 8491223,
+      "capture_report_sha256": "sha256:9b9d2c693f084b48081be00f166bd614f94477736b9bff9f7c406b13b6eb7688",
+      "cases": [
+        {
+          "target": "linux/amd64/gnu",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/linux/x86_64.json",
+          "catalog_sha256": "sha256:3580aef456af77011e1a205669f0853cdc3dfc3b92f566af1f49496e05675042",
+          "catalog_size": 3239490,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.6_7.tar.gz",
+          "declared_sha256": "sha256:a2650fba422283fbed20d936ce5d2a52906a5414ec17b2f7676dddb87201dbae"
+        },
+        {
+          "target": "darwin/arm64/native",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/macosx/aarch64.json",
+          "catalog_sha256": "sha256:e85bf94d15688d83563119b6edbccb2356fe4f23ba4e00efb09287dc9745b330",
+          "catalog_size": 2223253,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.6_7.tar.gz",
+          "declared_sha256": "sha256:4ef4083919126a3d93e603284b405c7493905497485a92b375f5d6c3e8f7e8f2"
+        },
+        {
+          "target": "windows/amd64/msvc",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/windows/x86_64.json",
+          "catalog_sha256": "sha256:fe3f3066016dbb8d2715594e56164ae6cc7188695c028664d65f17ad0a1a9e66",
+          "catalog_size": 2167225,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip",
+          "declared_sha256": "sha256:897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259"
+        }
+      ]
+    },
+    {
+      "host_target": "x86_64-pc-windows-msvc",
+      "artifact_id": 11225843690,
+      "artifact_name": "java-metadata-x86_64-pc-windows-msvc-fb74cdee070ab6b9a44d6d9dc3e6a6e4d8016067",
+      "job_url": "https://github.com/oyzuai/mise/actions/runs/37005919694/job/110834043668",
+      "fixture_sha256": "sha256:132743be8983253b5a6cbe3ee90deb3860b741cb74c1125f68b6642c902f9502",
+      "fixture_size": 8491223,
+      "capture_report_sha256": "sha256:d38570d26176c44ab0694dae0abe070556bd237e2e89f0de2c931cf85a959b74",
+      "cases": [
+        {
+          "target": "linux/amd64/gnu",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/linux/x86_64.json",
+          "catalog_sha256": "sha256:3580aef456af77011e1a205669f0853cdc3dfc3b92f566af1f49496e05675042",
+          "catalog_size": 3239490,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.6_7.tar.gz",
+          "declared_sha256": "sha256:a2650fba422283fbed20d936ce5d2a52906a5414ec17b2f7676dddb87201dbae"
+        },
+        {
+          "target": "darwin/arm64/native",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/macosx/aarch64.json",
+          "catalog_sha256": "sha256:e85bf94d15688d83563119b6edbccb2356fe4f23ba4e00efb09287dc9745b330",
+          "catalog_size": 2223253,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.6_7.tar.gz",
+          "declared_sha256": "sha256:4ef4083919126a3d93e603284b405c7493905497485a92b375f5d6c3e8f7e8f2"
+        },
+        {
+          "target": "windows/amd64/msvc",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/windows/x86_64.json",
+          "catalog_sha256": "sha256:fe3f3066016dbb8d2715594e56164ae6cc7188695c028664d65f17ad0a1a9e66",
+          "catalog_size": 2167225,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip",
+          "declared_sha256": "sha256:897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259"
+        }
+      ]
+    },
+    {
+      "host_target": "aarch64-apple-darwin",
+      "artifact_id": 11225664729,
+      "artifact_name": "java-metadata-aarch64-apple-darwin-fb74cdee070ab6b9a44d6d9dc3e6a6e4d8016067",
+      "job_url": "https://github.com/oyzuai/mise/actions/runs/37005919694/job/110834043926",
+      "fixture_sha256": "sha256:1c970843f0f07f2545b6f26ba75a1b9fd7166107bf21e5dd1c694375c7dc4927",
+      "fixture_size": 8491223,
+      "capture_report_sha256": "sha256:4add31d5e65cc75a0c09590bd392ba97ad338d545378a05df8dba41adb03d3b5",
+      "cases": [
+        {
+          "target": "linux/amd64/gnu",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/linux/x86_64.json",
+          "catalog_sha256": "sha256:3580aef456af77011e1a205669f0853cdc3dfc3b92f566af1f49496e05675042",
+          "catalog_size": 3239490,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.6_7.tar.gz",
+          "declared_sha256": "sha256:a2650fba422283fbed20d936ce5d2a52906a5414ec17b2f7676dddb87201dbae"
+        },
+        {
+          "target": "darwin/arm64/native",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/macosx/aarch64.json",
+          "catalog_sha256": "sha256:e85bf94d15688d83563119b6edbccb2356fe4f23ba4e00efb09287dc9745b330",
+          "catalog_size": 2223253,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.6_7.tar.gz",
+          "declared_sha256": "sha256:4ef4083919126a3d93e603284b405c7493905497485a92b375f5d6c3e8f7e8f2"
+        },
+        {
+          "target": "windows/amd64/msvc",
+          "catalog_url": "https://mise-java.jdx.dev/jvm/ga/windows/x86_64.json",
+          "catalog_sha256": "sha256:fe3f3066016dbb8d2715594e56164ae6cc7188695c028664d65f17ad0a1a9e66",
+          "catalog_size": 2167225,
+          "canonical_version": "temurin-21.0.6+7.0.LTS",
+          "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip",
+          "declared_sha256": "sha256:897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259"
+        }
+      ]
+    }
+  ],
+  "legal_approval": false,
+  "release_ready": false
+}

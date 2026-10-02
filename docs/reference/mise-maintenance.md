@@ -606,7 +606,14 @@ CLI is built or invoked by this replay command.
 
 Linux library/example strict Clippy and all 22 ordinary harness cases plus the
 three-target Java replay passed. The replay ran with container networking disabled.
-Windows/macOS replay remains pending native CI. This is declared-metadata/backend
+The subsequent [native-host evidence](../proposals/OEP-0003-mise-integration/java-native-replay-evidence.json)
+records successful Java replay steps on Windows amd64, macOS arm64 and Linux amd64
+in [run 37005919694](https://github.com/oyzuai/mise/actions/runs/37005919694).
+Each host replayed all three target catalogs. Downloaded original fixtures match
+their capture reports, and independent recapture from the retained response bytes
+reproduces every expected case. The index binds artifact IDs, raw byte hashes and
+the tested merge commit; it does not assert the enclosing workflow's conclusion.
+This is declared-metadata/backend
 agreement, not publisher signature verification, Java version-range resolution,
 archive installation, backend admission or production worker integration. The
 capture helper's negative cases are included in the maintenance Python tests.
@@ -620,4 +627,6 @@ provider-side buffering, parser allocation, operation deadlines and process memo
 are separate limits. Ordinary nonembedded Java behavior is unchanged. No direct
 HTTP client bypass or alternate route is introduced. Two utility boundary tests,
 strict utility/library/example Clippy and combined real Go/Java replay pass on
-Linux with replay networking disabled. Updated native CI remains pending.
+Linux with replay networking disabled. The same utility tests, strict checks and
+Go/Java replay steps also passed on all three native CI hosts in run 37005919694.
+Native CI transport replay is not evidence of OS-level network containment.
