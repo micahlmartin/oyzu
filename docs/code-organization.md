@@ -22,6 +22,8 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 | Reports and artifacts | `src/reports.rs`, `src/reports/`, `src/oci/`, `src/build/collection.rs`, `src/build/bundle.rs` | Parse/verify formats separately from collection; record actual outputs and failures rather than trusting an adapter's success claim |
 | Shared data contracts | `src/model.rs`, `src/records.rs`, `docs/contracts/` | Hold genuinely shared concepts and record encoding; keep subsystem-specific types with their owner |
 
+Discovery source capture supports bounded binary evidence as well as strict UTF-8 metadata. Format-specific inspection stays with its detector; Helm archive inspection never extracts files, while private archive expansion belongs to the Helm execution adapter.
+
 Configuration's pure resolver consumes captured sources and registered types. `config/session` captures filesystem/context facts, `config/operations` exposes parser-independent inspection/edit operations over supplied selection, and `config/agent` owns signed policy cache transitions through its runtime boundary. `config/locations` owns native roots and administrative file protection, including its private Darwin ACL adapter. Builder registration owns ecosystem setting definitions and deprecated input aliases; shared configuration does not name ecosystem-specific environment variables. CLI flags remain in `config_args`. `discovery/inventory` owns explicit and conventional target-directory selection; both discovery and configuration inspection consume it through invocation composition.
 
 Tool installation, environment activation, caching, agent/connectors, publishing and desktop/platform surfaces need the same ownership discipline as they arrive. Their proposed boundaries are in the architecture and OEPs. Do not create placeholder crates or put their future behavior into a general-purpose service object now.
@@ -55,6 +57,22 @@ For example, a Python framework detector returns evidence through the discovery 
 
 Pass the smallest typed context an operation needs. Avoid a universal application context, service locator or shared mutable state that lets every subsystem reach every other one. OS-specific process, path and credential behavior belongs behind its owning boundary, with portable callers and applicable platform checks. Modules provide these boundaries today; a crate split is a separate decision.
 
+### Placing a new extension
+
+Start with the kind of behavior being added, then find its existing owner. These are placement decisions, not requirements to introduce new abstractions.
+
+| New behavior | Where it belongs | What stays shared |
+| --- | --- | --- |
+| Recognizing a framework or package manager | An ecosystem-owned detector implementing the discovery contract | Evidence ranking, ambiguity handling and selection |
+| Supporting another native package manager | An owned adapter behind the ecosystem's manager contract, where one is needed | Input capture, transport, sandboxing and task scheduling |
+| Adding an ecosystem-specific test command | The builder's task/report declarations and native reporting adapter | Hooks, execution, report validation and bundle collection |
+| Adding a configuration setting | The owning subsystem's registered setting definition | Parsing, precedence and effective-configuration validation |
+| Adding a platform service or backend | Its responsibility-specific module and the smallest consumer-facing contract | Existing identity, configuration and transport capabilities where their semantics fit |
+
+For a shared contract change, search for all implementations and consumers before editing. Update the producer, consumers, contract comments and relevant conformance checks together. Default trait methods are appropriate only for behavior valid for every inheriting implementation; distinguish unsupported capabilities from successful work. An adapter that needs a new capability should describe that need through the contract rather than expose its concrete type to the orchestrator.
+
+For contributors, the goal is a bounded change whose owner and verification are easy to find. A new subsystem starts with a focused module and a short responsibility comment; add child modules or extract a crate as actual responsibilities and consumers demand it.
+
 ### Choosing the interface
 
 Use a trait when several implementations provide one capability or when a real I/O boundary needs substitution. Existing examples are `Builder`, `Detector<C>` and the Node `Manager`. The consumer-facing contract belongs beside the subsystem that defines the capability, and implementations stay with their ecosystem or backend. Registration happens at a composition boundary; it must not spread tool-name switches through the engine.
@@ -74,6 +92,14 @@ Expected configuration, process and I/O failures return `Result`; library operat
 Before adding a dependency, check whether an existing library already owns the capability. Explain a new dependency's purpose and consider its license, supported Rust version, enabled features and Windows/macOS/Linux support. Prefer established libraries for complex standards and protocols when they fit; reuse does not require copying upstream implementation or exposing third-party types throughout the domain model.
 
 Reusable operations take their necessary inputs explicitly. Avoid hidden dependence on process-global environment, current directory, clock or credentials. Pure resolution/planning consumes captured facts; effectful orchestration obtains those facts through declared capabilities. Builders must not create their own shortcut around acquisition, sandboxing or bundle collection.
+
+Java managers share `builders/java/quality` for native lint/format defaults and its owned Java runtime adapter; native Maven/Gradle/Ant lifecycles remain in their manager modules. Task scheduling and artifact gates stay in the shared engine.
+
+Python distribution applications extend the native package plan through `builders/python/distribution_app`. The owned runtime assembles native wheel payloads and console metadata; `runtime/application.py` owns shared archive writing, archive-source testing and packaging checks for both requirements and distribution applications. Collection and task scheduling remain engine responsibilities.
+
+Docker image preparation owns native reference requirements and OCI conversion under `builders/docker/images` and its Go runtime. `executor/images` alone exports explicitly provisioned daemon images by immutable identity. The executor's typed `ImageInput` binds relative prepared stores and digests; the worker verifies private copies before mounting them as native OCI contexts. Project code never receives daemon access. Registry acquisition can feed this content contract later without moving Dockerfile parsing or source policy into the worker.
+
+Docker's native metadata adapter expands arguments from explicit target-platform and epoch facts supplied by preparation. The Rust metadata contract validates those facts against execution before planning. The executor owns the fixed export epoch shared with selection; target facts do not stand in for unverified worker-platform facts.
 
 The internal builder development-task hook may resolve a typed command (arguments and required environment) after an explicit `oyzu run` request. Static discovery never calls it. Native invocation context stays with the builder; the shared task runner launches the resulting command. Captured builds use prepared facts instead. `BuilderPlan.fixed_env` declares captured toolchain facts and input locations that effective task environments must preserve; the shared planner checks these after applying overrides.
 
@@ -115,6 +141,8 @@ A review should be able to identify the rule's owner, the contract crossing each
 5. Update the owning feature reference in the same PR for every behavior change, following the [documentation maintenance standard](documentation.md). Update the map/status when boundaries or measured capabilities change. In the PR, link the documentation and identify the owning subsystem, any interface change, and checks actually run. A local fix does not require a new OEP; changes to public contracts or major boundaries follow the existing proposal process.
 
 For a new subsystem, a short module-level responsibility/invariant comment, a narrow entry point and meaningful tests are enough to start. No per-function design documents, mandatory pattern catalog, line-count quotas or new architecture framework are required. Compiler visibility, review and focused conformance tests provide the first enforcement; add automated boundary checks when a recurring violation warrants them.
+
+Captured-build acceptance has a separate test-only composition boundary: `tooling/test-build-scenarios.py` registers/selects suites and retains invocation evidence; owned modules under `tooling/build_scenarios/` assert native results. `baselines.py` owns the original cross-ecosystem artifact/hook/isolation cases. `tooling/build-scenario-tools.sh` provisions acceptance tooling and runs native probes, while `check-build-suites.py` checks registration against CI. These files must not implement missing product behavior. See [builder acceptance checks](reference/build-verification.md).
 
 ## Lessons from other projects
 

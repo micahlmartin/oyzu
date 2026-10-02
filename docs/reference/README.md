@@ -10,10 +10,15 @@ This is the entry point for current functionality documentation. Maintain featur
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |
 | [Node quality](node-quality.md) | ESLint/Prettier/Biome selection, provisioning, read-only checks, explicit formatting, scopes and failure behavior |
 | [Python testing](python-testing.md) | Native pytest collection, root/configured suites, manager commands, report preparation, no-tests outcomes and evidence limits |
+| [Python applications](python-applications.md) | Native-wheel console archives, runtime dependencies, snapshot artifacts, archive-source tests and format limits |
 | [Helm charts](helm.md) | Local chart dependencies, snapshot packaging, native unittest discovery, independent JUnit reports, baseline integrity and remaining limits |
 | [Go builds](go.md) | Native workspace tasks, applications, module snapshot zip/mod/info artifacts, projected local dependencies, reports and remaining limits |
 | [Rust builds](rust.md) | Captured crates.io inputs, Cargo workspaces, native feature-gated binary selection, compiler-message artifacts, snapshot crates and JUnit/coverage |
+| [Java quality](java-quality.md) | Shared native lint and read-only formatting defaults, explicit formatting, overrides and provisioning for Maven/Gradle/Ant |
+| [Maven builds](maven.md) | Native reactors, captured repositories, snapshot JAR/POM/WAR artifacts, effective Surefire/Failsafe report directories and coverage |
 | [Dockerfile quality](docker-quality.md) | Native lint/format defaults, read-only build gates, explicit formatting, ignored configuration preservation and toolchain prerequisites |
+| [Docker image inputs](docker-images.md) | Provisioned base capture, immutable OCI contexts, offline workers, input evidence, provisioning and remaining acquisition limits |
+| [Builder acceptance checks](build-verification.md) | Suite selection, native tool provisioning, compiled-CLI CI ordering, retained evidence and verification limits |
 | CLI overview below | Discovery, development tasks and initial build/bundle usage; detailed subsystem coverage remains to be expanded as those features are touched |
 
 The experimental CLI supports `oyzu discover`, `oyzu run list`, `oyzu run <task>`, `oyzu build`, `oyzu build --plan` and `oyzu inspect <bundle>`. Global `-C <directory>` selects the project and `--json` emits structured discovery or task outcomes. The implementation is not a stable API release.

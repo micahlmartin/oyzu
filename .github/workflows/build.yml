@@ -121,6 +121,27 @@ jobs:
           go build -mod=readonly -trimpath -o "$ADAPTER" .
           cd "$GITHUB_WORKSPACE"
           python tooling/test-go-modulezip.py --adapter "$ADAPTER"
+      - name: Native Docker metadata and OCI image inputs
+        shell: bash
+        run: |
+          for adapter in metadata images; do
+            cd "$GITHUB_WORKSPACE/src/builders/docker/runtime/$adapter"
+            go mod download
+            go mod verify
+            test -z "$(gofmt -l .)"
+            go vet ./...
+            GOPROXY=off GOSUMDB=off go test -mod=readonly ./...
+          done
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Native Java quality tasks
+        shell: bash
+        run: |
+          python tooling/provision-java-quality.py --destination .ci-java-quality
+          if [ "$RUNNER_OS" = "Windows" ]; then CLI=cli/oyzu.exe; else CLI=cli/oyzu; chmod +x "$CLI"; fi
+          python tooling/test-java-quality.py --cli "$CLI" --tools .ci-java-quality
       - name: Native Dockerfile quality tasks
         shell: bash
         run: |
@@ -201,6 +222,8 @@ jobs:
       - name: Provision native worker and probe compiler
         run: |
           docker pull moby/buildkit:v0.25.0-rootless
+          docker pull alpine:3.22
+          docker tag alpine:3.22 oyzu-fixture/alpine:amd64
           docker pull golang:1.24-bookworm
       - name: Compile and test native Dockerfile metadata adapter
         run: docker build -f tooling/images/docker-metadata.Dockerfile -t oyzu-toolchain/docker:buildkit0.25.0 .
@@ -220,12 +243,25 @@ jobs:
           retention-days: 14
 
   build-scenarios:
-    name: Compiled CLI captured-source builds (Linux)
+    name: Captured builds (${{ matrix.suite }}, Linux)
     needs: build-cli
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        suite: [core, node, python, go, rust, java, helm, docker]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: matrix.suite == 'node' || matrix.suite == 'core'
+        with:
+          node-version: '22'
       - name: Provision JDK for native adapter verification
+        if: matrix.suite == 'java'
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
@@ -234,63 +270,34 @@ jobs:
         with:
           name: oyzu-ubuntu-latest
           path: cli
-      - name: Provision native toolchain images and contract validator
+      - name: Provision suite toolchains and contract validator
+        run: bash tooling/build-scenario-tools.sh provision "${{ matrix.suite }}"
+      - name: Check acceptance suite inventory
+        run: .ci-python/bin/python tooling/check-build-suites.py
+      - name: Native adapter conformance
         run: |
-          docker pull node:22-bookworm-slim
-          docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
-          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
-          docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
-          docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
-          docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn
-          docker pull golang:1.24-bookworm
-          docker pull python:3.12-slim-bookworm
-          docker build --tag oyzu-toolchain/go:1.24-mod0.25.0 --file tooling/images/go.Dockerfile .
-          docker pull python:3.12-bookworm
-          docker run --rm --mount type=bind,source="$PWD",target=/repository --workdir /repository python:3.12-bookworm python -m pip download --only-binary=:all: --dest .ci-python-legacy-wheels setuptools==80.9.0 wheel==0.45.1 build==1.2.2.post1 packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 ruff==0.11.13
-          docker pull ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim
-          docker build --tag oyzu-toolchain/poetry:2.5.1-python3.12 --file tooling/images/python-poetry.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/rust:1.94.0-nextest0.9.146-llvmcov0.9.1 --file tooling/images/rust.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/helm:3.22.0 --file tooling/images/helm.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/ant:1.10.18-jdk17 --file tooling/images/ant.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/maven:3.9.11-jdk17 --file tooling/images/maven.Dockerfile .
-          docker build --tag oyzu-toolchain/gradle:8.14.3-jdk17 --file tooling/images/gradle.Dockerfile tooling/images
-          docker build --tag oyzu-toolchain/docker:buildkit0.25.0 --file tooling/images/docker-metadata.Dockerfile .
-          sudo apparmor_parser -r tooling/images/buildkit.apparmor
-          python3 -m venv .ci-python
-          .ci-python/bin/python -m pip install -r tooling/design-requirements.txt
-          .ci-python/bin/python -m pip install pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2
-          .ci-python/bin/python -m pip download --only-binary=:all: --dest .ci-python-app-wheels packaging==24.2 pytest==8.3.5 pytest-cov==6.0.0 coverage==7.16.2 ruff==0.11.13
-          .ci-python/bin/python -m pip download --only-binary=:all: --dest .ci-python-quality-wheels black==25.1.0 flake8==7.3.0 ruff==0.11.13
+          chmod +x cli/oyzu
+          bash tooling/build-scenario-tools.sh native "${{ matrix.suite }}"
       - name: Build and verify native snapshot artifacts through the compiled CLI
         env:
           OYZU_BUILDKIT_APPARMOR_PROFILE: oyzu-buildkit
-        run: |
-          chmod +x cli/oyzu
-          .ci-python/bin/python tooling/test-python-adapter.py
-          .ci-python/bin/python tooling/test-python-reporting.py
-          .ci-python/bin/python tooling/test-python-application.py --wheels .ci-python-app-wheels
-          .ci-python/bin/python tooling/test-python-quality.py --wheels .ci-python-quality-wheels
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository python:3.12-bookworm python tooling/test-python-legacy.py --wheels .ci-python-legacy-wheels
-          .ci-python/bin/python tooling/test-helm-archive.py
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/helm:3.22.0 tooling/test-helm-reporting.py
-          HELM_CONTAINER=$(docker create oyzu-toolchain/helm:3.22.0)
-          trap 'docker rm -f "$HELM_CONTAINER" >/dev/null' EXIT
-          mkdir -p .ci-helm .ci-helm-plugins
-          docker cp "$HELM_CONTAINER:/usr/local/bin/helm" .ci-helm/helm
-          docker cp "$HELM_CONTAINER:/opt/oyzu-helm-plugins/." .ci-helm-plugins/
-          docker rm "$HELM_CONTAINER"
-          trap - EXIT
-          HELM_PLUGINS="$PWD/.ci-helm-plugins" .ci-python/bin/python tooling/test-helm-reporting.py --helm "$PWD/.ci-helm/helm" --cli cli/oyzu
-          .ci-python/bin/python tooling/test-ant-adapter.py
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/ant:1.10.18-jdk17 tooling/test-ant-reporting.py --java-home /opt/java/openjdk --ant-home /opt/ant --jacoco-home /opt/jacoco
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/maven:3.9.11-jdk17 tooling/test-maven-metadata.py --maven-home /opt/maven --java-home /opt/java/openjdk
-          docker run --rm --network=none --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python3 oyzu-toolchain/gradle:8.14.3-jdk17 tooling/test-gradle-metadata.py --gradle-home /opt/gradle-8.14.3 --java-home /opt/java/openjdk
-          .ci-python/bin/python tooling/test-build-scenarios.py --cli cli/oyzu --evidence-dir build-evidence
+        run: .ci-python/bin/python tooling/test-build-scenarios.py --suite "${{ matrix.suite }}" --cli cli/oyzu --evidence-dir build-evidence
       - name: Retain native snapshot artifacts and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: oyzu-build-evidence
+          name: oyzu-build-evidence-${{ matrix.suite }}
           path: build-evidence
           if-no-files-found: ignore
           retention-days: 14
+
+  build-scenarios-complete:
+    name: Captured build suite acceptance
+    if: always()
+    needs: build-scenarios
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every implemented suite to pass
+        env:
+          SUITE_RESULT: ${{ needs.build-scenarios.result }}
+        run: test "$SUITE_RESULT" = success

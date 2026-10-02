@@ -1,10 +1,12 @@
 //! Container execution never mounts the live checkout, user home or Docker socket.
 mod files;
+mod images;
 mod mode;
 mod validation;
 mod worker;
 use anyhow::{bail, Context, Result};
-pub(crate) use mode::{Mode, Profile};
+pub(crate) use images::export_image;
+pub(crate) use mode::{ImageInput, Mode, Profile, BUILDKIT_SOURCE_DATE_EPOCH};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -231,7 +233,7 @@ pub(crate) fn execute_mode(
     match mode {
         Mode::Process => execute_with_mounts(request, mounts),
         Mode::OciValidation { input, report } => validation::execute(request, input, report),
-        Mode::Buildkit { .. } => worker::execute(request, mode, materialized),
+        Mode::Buildkit { .. } => worker::execute(request, mounts, mode, materialized),
     }
 }
 

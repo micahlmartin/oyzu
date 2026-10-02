@@ -92,8 +92,31 @@ fn normalize_context(root: &Path) -> Result<()> {
     Ok(())
 }
 
+fn capture_image_store(root: &Path, image: &super::ImageInput, destination: &Path) -> Result<()> {
+    image.validate()?;
+    let mut source = root.to_path_buf();
+    for part in image.store.split('/') {
+        source.push(part);
+        if fs::symlink_metadata(&source)?.file_type().is_symlink() {
+            bail!("captured image store path is a symlink");
+        }
+    }
+    if !source.canonicalize()?.starts_with(root.canonicalize()?) {
+        bail!("image store escapes prepared dependencies");
+    }
+    let captured = snapshot::capture_prepared(&source, destination)?;
+    if captured.digest != image.tree_digest {
+        bail!("captured image store changed after planning");
+    }
+    normalize_context(destination)?;
+    // buildctl initializes a local content store even for read-only use.
+    fs::create_dir(destination.join("ingest"))?;
+    Ok(())
+}
+
 pub(super) fn execute(
     request: Request<'_>,
+    mounts: &[super::Mount<'_>],
     mode: &Mode,
     materialized: &[String],
 ) -> Result<Execution> {
@@ -102,6 +125,7 @@ pub(super) fn execute(
         context_files,
         apparmor_profile,
         dockerfile_digest,
+        images,
         ..
     } = mode
     else {
@@ -194,6 +218,22 @@ pub(super) fn execute(
     bind(&mut start, &context, "/workspace", true)?;
     bind(&mut start, &definition, "/definition", true)?;
     bind(&mut start, &exported, "/output", false)?;
+    if !images.is_empty() {
+        let prepared = mounts
+            .iter()
+            .find(|m| m.destination == "/dependencies" && m.readonly)
+            .context("captured image stores require prepared dependencies")?;
+        for (index, image) in images.iter().enumerate() {
+            let destination = private.path().join(format!("base-{index}"));
+            capture_image_store(prepared.source, image, &destination)?;
+            bind(
+                &mut start,
+                &destination,
+                &format!("/inputs/base-{index}"),
+                true,
+            )?;
+        }
+    }
     start.args([
         &request.image.digest,
         "--oci-worker-snapshotter=native",
@@ -281,6 +321,36 @@ pub(super) fn execute(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn image_stores_are_contained_copied_and_bound_to_the_plan() {
+        let root = tempfile::tempdir().unwrap();
+        let output = tempfile::tempdir().unwrap();
+        let store = root.path().join("images/base-0");
+        fs::create_dir_all(&store).unwrap();
+        fs::write(store.join("index.json"), b"fixture input identity").unwrap();
+        let capture = snapshot::capture_prepared(&store, &output.path().join("initial")).unwrap();
+        let mut binding = super::super::ImageInput {
+            reference: "example/base:1".into(),
+            name: "example/base:1".into(),
+            store: "images/base-0".into(),
+            manifest: format!("sha256:{}", "1".repeat(64)),
+            config: format!("sha256:{}", "2".repeat(64)),
+            tree_digest: capture.digest,
+        };
+        capture_image_store(root.path(), &binding, &output.path().join("worker")).unwrap();
+        assert!(output.path().join("worker/ingest").is_dir());
+        assert!(!store.join("ingest").exists());
+        fs::write(store.join("index.json"), b"tampered").unwrap();
+        assert!(
+            capture_image_store(root.path(), &binding, &output.path().join("changed"))
+                .unwrap_err()
+                .to_string()
+                .contains("changed after planning")
+        );
+        binding.store = "images/base-0/../../../outside".into();
+        assert!(capture_image_store(root.path(), &binding, &output.path().join("escape")).is_err());
+    }
 
     #[test]
     fn captured_files_and_output_destinations_cannot_escape_or_overwrite() {

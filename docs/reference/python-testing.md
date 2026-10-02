@@ -41,6 +41,8 @@ An assertion failure, collection error or failed coverage threshold blocks final
 
 Direct `oyzu run test` currently preserves native console output and exit status but does not automatically create a dist/report bundle. Use `oyzu build` for collected evidence. No-tests behavior is a compatibility change: projects previously excluded from the test stage by the directory heuristic now invoke pytest and can fail the build when it collects no tests. Add tests or correct native collection configuration; an empty directory is not a successful test result.
 
+Explicit `python/app` distribution projects now add a console application archive and test its extracted sources. See [Python applications](python-applications.md) for entrypoint selection, artifact identities and format limits; package builders continue testing the installed distribution.
+
 ## Verification, limits and recovery
 
 ```text

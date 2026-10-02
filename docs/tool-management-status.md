@@ -739,7 +739,7 @@ contained child using an empty repository. The compiled CLI with the provisioned
 Linux Docker worker passed chart/rendered artifact production and both reports;
 a changed child assertion failed and prevented artifacts. Source preservation
 and bundle schemas/digests were checked in both cases. See builder
-[checkpoint 51](implementation-status.md#checkpoint-51-declare-the-fixtures-native-helm-child-dependency).
+[integration verification](implementation-status.md#tool-integration-verification-declare-the-fixtures-native-helm-child-dependency).
 The complete CI run remains unverified; this correction does not complete any
 remaining tool-management package.
 
@@ -794,3 +794,25 @@ Windows GNU full locked tests, strict all-target Clippy, formatting and nine rea
 CLI task scenarios passed. Linux passed request/selection integration tests and
 strict all-target Clippy. Documentation structure passed. Native macOS/MSVC
 confirmation and the complete production tool-management flows remain pending.
+
+## Checkpoint 77: main integration and native ZIP checks
+
+The tool branch incorporates main through
+`1dcb2a80b8fe7307659e281d76908d314f62df6b`, preserving its builder updates and
+eight-suite captured-build matrix. Merge conflicts were limited to the status
+journal and the independently corrected Helm dependency fixture. Both branches'
+verification records remain; the fixture retains an explicit empty repository
+for its contained child. The real Node ZIP CI step remains in the merged workflow.
+Documentation, example structure, acceptance inventory and workflow parsing
+checks passed; those checks do not establish native builder acceptance.
+
+Earlier ZIP implementation commit `8d6c7ff` now passes native CLI build/test jobs
+and CLI task scenarios on Windows, macOS and Linux in run `36979879906`, as well
+as the isolated BuildKit worker check. Its captured-source job remains live and
+is not counted as passed. That revision predates the real Node ZIP fixture and
+request projection, so these results do not qualify those later additions.
+
+The merged tree passed Windows GNU full locked tests, strict all-target Clippy,
+formatting and nine real CLI task scenarios. Linux request/selection tests and
+strict all-target Clippy passed again after integration. Complete native CI and
+the eight captured suites at this merged revision remain pending.

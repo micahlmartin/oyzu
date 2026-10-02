@@ -30,7 +30,7 @@ fn native_ant_outputs_are_contained_and_packaging_is_deterministic() {
     assert_eq!(plan.tasks["archive"].argv.last().unwrap(), "jar");
     assert_eq!(plan.tasks["test"].reports.len(), 2);
     assert_eq!(plan.tasks["test"].reports[1].format.name(), "jacoco");
-    assert!(!plan.tasks.contains_key("lint"));
+    assert!(plan.tasks.contains_key("lint"));
     for path in [
         "/outside.jar",
         "/workspace/../outside.jar",

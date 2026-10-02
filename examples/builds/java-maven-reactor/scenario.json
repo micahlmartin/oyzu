@@ -16,13 +16,39 @@
   ],
   "expected": [
     "Use the native parent/modules/dependency graph once.",
-    "Associate library and app jars plus Surefire reports with their modules."
+    "Associate library and app jars plus Surefire reports with their modules.",
+    "Expose implicit lint and read-only formatting checks; explicit format may rewrite sources, but build never does."
   ],
   "cases": [
+    {
+      "name": "native-reports",
+      "change": "Apply the app POM and AppIT.java overrides in variants/reporting.",
+      "expect": "Retain all Surefire/Failsafe XML from native custom directories, coverage and snapshot artifacts without Oyzu report configuration."
+    },
+    {
+      "name": "integration-failure",
+      "change": "Change the expected greeting in AppIT.java.",
+      "expect": "Preserve the failed integration-test report and collect no artifacts."
+    },
+    {
+      "name": "integration-only",
+      "change": "Remove AppTest.java from the reporting variation.",
+      "expect": "Collect successful Failsafe evidence without requiring nonexistent Surefire XML for that module."
+    },
     {
       "name": "shared-code-change",
       "change": "Change the library greeting.",
       "expect": "Re-test the consuming app through the reactor graph."
+    },
+    {
+      "name": "lint-failure",
+      "change": "Add an unused java.util.Random import to an application source file.",
+      "expect": "Native compilation/tests can succeed, but lint fails, artifacts are blocked, test evidence is retained and source stays unchanged."
+    },
+    {
+      "name": "format-failure",
+      "change": "Add an extra space between public and class in an application source file.",
+      "expect": "Read-only formatting fails and blocks artifacts without changing source; explicit oyzu run format can repair it."
     }
   ],
   "nativeChecks": [
@@ -37,6 +63,8 @@
     }
   ],
   "requiredFiles": [
+    "variants/reporting/app.pom.xml",
+    "variants/reporting/AppIT.java",
     "project/app/pom.xml",
     "project/app/src/main/java/example/App.java",
     "project/app/src/test/java/example/AppTest.java",

@@ -4,6 +4,7 @@ Requires Python 3.11+ and PyYAML 6.x for YAML syntax checks.
 """
 import ast
 import json
+import hashlib
 import re
 import sys
 import tomllib
@@ -19,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
 IGNORED = {"node_modules", ".venv", "__pycache__", ".gradle", "target", "dist", ".git", "coverage", ".events"}
 errors = []
-counts = {"json": 0, "toml": 0, "yaml": 0, "xml": 0, "python": 0}
+counts = {"json": 0, "toml": 0, "yaml": 0, "xml": 0, "python": 0, "pinned-archives": 0}
 ids = set()
 
 class UniqueLoader(yaml.SafeLoader):
@@ -98,6 +99,17 @@ catalog_ids = set(re.findall(r"EX-\d{3}", (ROOT / "docs/examples.md").read_text(
 files = [p for p in EXAMPLES.rglob("*") if p.is_file() and not any(part in IGNORED for part in p.relative_to(EXAMPLES).parts)]
 for file in files:
     try:
+        if file.suffix == ".tgz":
+            # Authored binary fixture identity only. Native archive behavior is
+            # exercised separately; this structural check never extracts inputs.
+            pin = file.with_suffix('.tgz.sha256')
+            if not pin.is_file() or file.stat().st_size > 4*1024*1024:
+                raise ValueError('chart archive requires a SHA-256 sidecar and a bounded fixture')
+            expected = pin.read_text(encoding='ascii').strip()
+            if not re.fullmatch(r'[0-9a-f]{64}', expected) or hashlib.sha256(file.read_bytes()).hexdigest() != expected:
+                raise ValueError('chart archive fixture digest mismatch')
+            counts['pinned-archives'] += 1
+            continue
         text = file.read_text(encoding="utf-8")
         relative = file.relative_to(EXAMPLES)
         if file.suffix == ".json":

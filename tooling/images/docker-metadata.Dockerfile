@@ -17,6 +17,19 @@ RUN mkdir /notices && go list -m -f '{{.Path}} {{.Dir}}' all | while read module
       fi; \
     done
 
+WORKDIR /images
+COPY src/builders/docker/runtime/images/go.mod src/builders/docker/runtime/images/go.sum ./
+RUN go mod download && go mod verify
+COPY src/builders/docker/runtime/images/*.go ./
+RUN --network=none GOPROXY=off GOSUMDB=off go test -mod=readonly ./... && \
+    CGO_ENABLED=0 GOPROXY=off GOSUMDB=off go build -mod=readonly -trimpath -o /oyzu-docker-images .
+RUN mkdir /image-notices && go list -m -f '{{.Path}} {{.Dir}}' all | while read module directory; do \
+      if [ -n "$directory" ]; then \
+        mkdir -p "/image-notices/$module"; \
+        find "$directory" -maxdepth 1 -type f \( -iname 'license*' -o -iname 'notice*' -o -iname 'copying*' \) -exec cp '{}' "/image-notices/$module/" \; ; \
+      fi; \
+    done
+
 WORKDIR /quality
 COPY tooling/images/docker-quality/go.mod tooling/images/docker-quality/go.sum ./
 RUN go mod download && go mod verify
@@ -30,6 +43,8 @@ RUN mkdir /quality-notices && go list -m -f '{{.Path}} {{.Dir}}' all | while rea
 
 FROM moby/buildkit:v0.25.0-rootless
 COPY --from=compile /oyzu-docker-metadata /usr/bin/oyzu-docker-metadata
+COPY --from=compile /oyzu-docker-images /usr/bin/oyzu-docker-images
+COPY --from=compile /image-notices /usr/share/oyzu-docker-images/notices
 COPY --from=compile /notices /usr/share/oyzu-docker-metadata/notices
 COPY --from=compile /dockerfmt /usr/bin/dockerfmt
 COPY --from=compile /quality-notices /usr/share/oyzu-docker-quality/notices

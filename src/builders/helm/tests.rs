@@ -240,6 +240,83 @@ fn deeply_nested_subchart_discovery_is_bounded() {
         .contains("depth"));
 }
 
+fn archive(files: &[(&str, &[u8])]) -> Vec<u8> {
+    let gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    let mut tar = tar::Builder::new(gzip);
+    for (path, bytes) in files {
+        let mut header = tar::Header::new_gnu();
+        header.set_size(bytes.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        tar.append_data(&mut header, path, *bytes).unwrap();
+    }
+    tar.into_inner().unwrap().finish().unwrap()
+}
+
+#[test]
+fn packaged_suite_evidence_is_static_nested_and_binds_original_archive_bytes() {
+    let root = tempfile::tempdir().unwrap();
+    chart(root.path(), ".", "");
+    fs::create_dir(root.path().join("charts")).unwrap();
+    let nested = archive(&[
+        ("child/Chart.yaml", b"name: child"),
+        ("child/tests/a_test.yaml", b"suite: ["),
+    ]);
+    let parent = archive(&[
+        ("parent/Chart.yaml", b"name: parent"),
+        ("parent/charts/child.tgz", &nested),
+    ]);
+    let path = root.path().join("charts/parent.tgz");
+    fs::write(&path, &parent).unwrap();
+    let resolution = detection::detect(root.path()).unwrap();
+    assert_eq!(resolution.selected(), "helm-unittest");
+    let evidence = serde_json::to_string(&resolution).unwrap();
+    assert!(evidence.contains("charts/parent.tgz"));
+    assert!(evidence.contains("tar:parent/charts/child.tgz!/child/tests/a_test.yaml"));
+    assert_eq!(resolution, detection::detect(root.path()).unwrap());
+    assert_eq!(fs::read(&path).unwrap(), parent);
+    assert!(!root.path().join("charts/parent").exists());
+    let changed = archive(&[
+        ("parent/Chart.yaml", b"name: changed"),
+        ("parent/charts/child.tgz", &nested),
+    ]);
+    fs::write(path, changed).unwrap();
+    assert_ne!(resolution, detection::detect(root.path()).unwrap());
+}
+
+#[test]
+fn chart_archive_admission_rejects_ambiguity_and_bounded_expansion() {
+    for bytes in [
+        archive(&[("child/no-metadata", b"")]),
+        archive(&[("child/Chart.yaml", b""), ("other/file", b"")]),
+        archive(&[("child/Chart.yaml", b""), ("child/Chart.yaml", b"")]),
+        archive(&[("child/Chart.yaml", b""), ("CHILD/chart.yaml", b"")]),
+        b"not gzip".to_vec(),
+    ] {
+        assert!(archives::suites(&bytes, &mut archives::Budget::default()).is_err());
+    }
+    let oversized = vec![b' '; 64 * 1024 * 1024 + 1];
+    assert!(archives::suites(
+        &archive(&[("child/Chart.yaml", &oversized)]),
+        &mut archives::Budget::default()
+    )
+    .is_err());
+    let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    {
+        let mut tar = tar::Builder::new(&mut gzip);
+        let mut link = tar::Header::new_gnu();
+        link.set_entry_type(tar::EntryType::Symlink);
+        link.set_size(0);
+        link.set_mode(0o777);
+        link.set_link_name("../../outside").unwrap();
+        link.set_cksum();
+        tar.append_data(&mut link, "child/Chart.yaml", &[][..])
+            .unwrap();
+        tar.finish().unwrap();
+    }
+    assert!(archives::suites(&gzip.finish().unwrap(), &mut archives::Budget::default()).is_err());
+}
+
 #[cfg(unix)]
 #[test]
 fn subchart_discovery_does_not_follow_symbolic_links() {

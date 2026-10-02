@@ -19,7 +19,7 @@ def verify(root, base, invoke, validate, source_files, verified):
     invoke(project, 'build')
     manifest = validate(project/'dist')
     assert source_files(project)==before
-    assert {a['name'] for a in manifest['artifacts']}=={'wheel', 'sdist'}
+    assert {a['name'] for a in manifest['artifacts']}=={'wheel', 'sdist', 'application'}
     assert all('.dev0+g' in a['version'] for a in manifest['artifacts'])
     for task in ['build', 'test', 'lint', 'format-check', 'package']:
         assert next(a for a in manifest['actions'] if a['id']==f'api:{task}')['status']=='succeeded'

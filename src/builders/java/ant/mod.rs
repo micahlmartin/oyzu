@@ -17,6 +17,7 @@ use std::path::Path;
 pub(in crate::builders) struct Ant;
 
 const RUNTIME: &[RuntimeFile] = &[
+    super::quality::RUNTIME,
     RuntimeFile {
         name: "AntMetadata.java",
         contents: include_str!("runtime/AntMetadata.java"),
@@ -50,6 +51,12 @@ const RUNTIME: &[RuntimeFile] = &[
 impl Builder for Ant {
     fn toolchain(&self, _target: &Target) -> Result<&'static str> {
         Ok("oyzu-toolchain/ant:1.10.18-jdk17")
+    }
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        super::quality::development(task)
     }
     fn runtime_files(&self) -> &'static [RuntimeFile] {
         RUNTIME
@@ -122,6 +129,7 @@ impl Builder for Ant {
         if !package.is_empty() {
             insert(target, "archive", &["ant", package], true);
         }
+        super::quality::discover(target)?;
         Ok(())
     }
 }

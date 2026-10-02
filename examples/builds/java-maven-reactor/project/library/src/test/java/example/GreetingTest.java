@@ -1,4 +1,12 @@
 package example;
-import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
-class GreetingTest { @Test void greets() { assertEquals("Hello, Oyzu!", Greeting.message()); } }
+
+import org.junit.jupiter.api.Test;
+
+class GreetingTest {
+  @Test
+  void greets() {
+    assertEquals("Hello, Oyzu!", Greeting.message());
+  }
+}

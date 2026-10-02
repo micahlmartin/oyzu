@@ -75,5 +75,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         }
     }
     plan.artifacts = artifacts;
+    super::super::quality::plan(context.target, &mut plan);
     Ok(plan)
 }

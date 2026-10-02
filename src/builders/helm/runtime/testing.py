@@ -1,6 +1,5 @@
 """Native, local Helm validation with truthful JUnit outcomes; no cluster access."""
 import argparse
-import hashlib
 import os
 from pathlib import Path
 import shutil
@@ -17,35 +16,15 @@ def xml_text(value):
                    else '\ufffd' for c in value)
 
 
-def snapshots(chart):
-    """Bounded identity of native unittest baselines, including local subcharts."""
-    def failed_walk(error):
-        raise error
-
-    identities = {}
-    entries = total = 0
-    for directory, dirs, files in os.walk(chart, followlinks=False, onerror=failed_walk):
-        relative = Path(directory).relative_to(chart)
-        for name in dirs + files:
-            entries += 1
-            if entries > 100000:
-                raise ValueError('Helm snapshot inventory exceeds 100000 chart entries')
-            path = Path(directory)/name
-            if path.is_symlink():
-                raise ValueError(f'Helm snapshot inventory rejects symbolic links: {relative/name}')
-        if '__snapshot__' not in relative.parts:
-            continue
-        for name in files:
-            path = Path(directory)/name
-            if not path.is_file():
-                raise ValueError(f'Helm snapshot baseline must be a regular file: {relative/name}')
-            with path.open('rb') as stream:
-                content = stream.read(16 * 1024 * 1024 + 1)
-            total += len(content)
-            if len(content) > 16 * 1024 * 1024 or total > 64 * 1024 * 1024:
-                raise ValueError('Helm snapshot baselines exceed the 16 MiB file or 64 MiB total limit')
-            identities[(relative/name).as_posix()] = hashlib.sha256(content).hexdigest()
-    return identities
+def unittest_adapter():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('oyzu_helm_charts', Path(__file__).with_name('helm-charts.py'))
+    # Source-tree native probes use the owned file's source name.
+    if not Path(spec.origin).is_file():
+        spec = importlib.util.spec_from_file_location('oyzu_helm_charts', Path(__file__).with_name('charts.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def validate(chart, kind, report, rendered, helm='helm', unittest_report=None):
@@ -91,15 +70,9 @@ def validate(chart, kind, report, rendered, helm='helm', unittest_report=None):
         unittest_report.parent.mkdir(parents=True, exist_ok=True)
         unittest_report.unlink(missing_ok=True)
         try:
-            baseline = snapshots(chart)
-            result = subprocess.run([
-                helm, 'unittest', '--strict', '--output-type', 'JUnit',
-                '--output-file', str(unittest_report), '.',
-            ], cwd=chart.resolve(), env=dict(os.environ, KUBECONFIG=os.devnull), timeout=120)
-            if result.returncode:
-                code = code or result.returncode
-            if snapshots(chart) != baseline:
-                raise ValueError('Helm unittest created or changed snapshot baselines; generate and review them before the build')
+            result = unittest_adapter().unittest(chart, unittest_report, helm)
+            if result:
+                code = code or result
         except (OSError, ValueError, subprocess.TimeoutExpired) as error:
             print(f'Native Helm unittest could not complete: {error}', file=sys.stderr)
             code = code or 1

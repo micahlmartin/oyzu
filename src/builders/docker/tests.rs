@@ -8,7 +8,24 @@ use serde_json::json;
 use std::fs;
 
 fn metadata() -> serde_json::Value {
-    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]}})
+    json!({"schemaVersion":"v1alpha1","frontend":"dockerfile.v0","stages":[{"name":"","base":"scratch"}],"requirements":[],"context":{"files":["Dockerfile","greeting.txt"]},"selection":{"targetPlatform":"linux/amd64","sourceDateEpoch":crate::executor::BUILDKIT_SOURCE_DATE_EPOCH}})
+}
+
+#[test]
+fn native_selection_facts_must_match_execution() {
+    for (field, value) in [("targetPlatform", "linux/arm64"), ("sourceDateEpoch", "0")] {
+        let mut native = metadata();
+        native["selection"][field] = json!(value);
+        let native: super::metadata::Metadata = serde_json::from_value(native).unwrap();
+        assert!(native
+            .validate("linux/amd64")
+            .unwrap_err()
+            .to_string()
+            .contains("selection facts"));
+    }
+    let mut old = metadata();
+    old.as_object_mut().unwrap().remove("selection");
+    assert!(serde_json::from_value::<super::metadata::Metadata>(old).is_err());
 }
 
 #[test]
@@ -105,8 +122,6 @@ fn plans_snapshot_oci_artifact_and_a_typed_private_worker() {
 #[test]
 fn requires_explicit_integration_for_external_dynamic_and_secret_inputs() {
     for kind in [
-        "image",
-        "image-or-context",
         "dynamic-base",
         "dynamic-mount",
         "frontend",
@@ -131,4 +146,57 @@ fn requires_explicit_integration_for_external_dynamic_and_secret_inputs() {
     let parsed: metadata::Metadata = serde_json::from_value(value).unwrap();
     parsed.validate("linux/amd64").unwrap();
     assert!(parsed.validate("linux/arm64").is_err());
+}
+
+#[test]
+fn external_images_require_captured_bindings_and_use_native_offline_contexts() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("Dockerfile"), "FROM alpine:3.22\n").unwrap();
+    let control = tempfile::tempdir().unwrap();
+    let source = snapshot::capture(root.path(), &control.path().join("source")).unwrap();
+    let workspace = discovery::discover(&control.path().join("source")).unwrap();
+    let target = &workspace.targets["project"];
+    let mut native = metadata();
+    native["requirements"] = json!([{"kind":"image","reference":"alpine:3.22","stage":0,"line":1}]);
+    let mut prepared = Prepared {
+        root: control.path().into(),
+        digest: format!("sha256:{}", "0".repeat(64)),
+        record: json!({"targetPlatform":{"os":"linux","arch":"amd64"},"extensions":{"oyzu.dev/docker":{"metadata":native,"apparmorProfile":"oyzu-buildkit","dockerfileDigest":snapshot::file_digest(&target.path.join("Dockerfile")).unwrap()}}}),
+    };
+    assert!(Docker
+        .plan(PlanningContext {
+            target,
+            source: &source,
+            dependencies: Some(&prepared)
+        })
+        .is_err());
+    prepared.record["extensions"]["oyzu.dev/docker"]["images"] = json!([{
+        "reference":"alpine:3.22","name":"alpine:3.22","store":"images/base-0",
+        "manifest":format!("sha256:{}","1".repeat(64)),"config":format!("sha256:{}","2".repeat(64)),"tree_digest":format!("sha256:{}","3".repeat(64))
+    }]);
+    let plan = Docker
+        .plan(PlanningContext {
+            target,
+            source: &source,
+            dependencies: Some(&prepared),
+        })
+        .unwrap();
+    plan.validate().unwrap();
+    let argv = plan.tasks["build"].execution.argv("linux/amd64").unwrap();
+    assert!(argv.iter().any(|arg| arg == "base-0=/inputs/base-0"));
+    assert!(argv.iter().any(|arg| arg
+        == &format!(
+            "context:alpine:3.22=oci-layout://base-0@sha256:{}",
+            "1".repeat(64)
+        )));
+    assert!(argv.iter().any(|arg| arg == "force-network-mode=none"));
+    prepared.record["extensions"]["oyzu.dev/docker"]["images"][0]["reference"] =
+        json!("unrelated:1");
+    assert!(Docker
+        .plan(PlanningContext {
+            target,
+            source: &source,
+            dependencies: Some(&prepared)
+        })
+        .is_err());
 }

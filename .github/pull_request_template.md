@@ -12,6 +12,10 @@ For code changes, name the owning subsystem and any interface or shared-behavior
 
 Review prompts (answer only where relevant): Does an existing subsystem already own this behavior? Does a new trait represent a real extension boundary? Can the change stay within the adapter and its registration, or does a shared contract need to evolve? Are unsupported capabilities explicit rather than successful no-ops? Check the [boundary review examples](../docs/code-organization.md#review-boundaries-in-practice); passing tests does not establish correct ownership.
 
+For a new subsystem, link its module-level responsibility comment and code-map entry so reviewers can see its entry points and the responsibilities it delegates.
+
+For a shared contract change, identify the affected implementations and consumers and how their common obligations were verified. Check the [extension decision guide](../docs/code-organization.md#placing-a-new-extension) when deciding where new behavior belongs.
+
 ## Validation
 
 Describe checks performed and relevant results.

@@ -9,6 +9,14 @@ pub(super) struct Metadata {
     pub stages: Vec<Stage>,
     pub requirements: Vec<Requirement>,
     pub context: ContextFiles,
+    pub selection: SelectionFacts,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(super) struct SelectionFacts {
+    target_platform: String,
+    source_date_epoch: String,
 }
 
 #[derive(Deserialize, Serialize)]
@@ -36,7 +44,36 @@ pub(super) struct ContextFiles {
 }
 
 impl Metadata {
+    pub fn image_references(&self) -> Result<Vec<String>> {
+        let mut references = std::collections::BTreeSet::new();
+        for requirement in &self.requirements {
+            if matches!(requirement.kind.as_str(), "image" | "image-or-context") {
+                let value = requirement.reference.as_deref().unwrap_or("");
+                if value.is_empty()
+                    || value.len() > 512
+                    || !value.as_bytes()[0].is_ascii_alphanumeric()
+                    || !value
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || b"/._:@-".contains(&b))
+                {
+                    bail!("invalid static Docker image reference");
+                }
+                references.insert(value.to_string());
+            }
+        }
+        if references.len() > 64 {
+            bail!("Docker image input count exceeds limit");
+        }
+        Ok(references.into_iter().collect())
+    }
+
     pub fn validate(&self, platform: &str) -> Result<()> {
+        if self.selection.target_platform != platform
+            || self.selection.source_date_epoch != crate::executor::BUILDKIT_SOURCE_DATE_EPOCH
+        {
+            bail!("Docker argument selection facts differ from the planned executor");
+        }
+        self.image_references()?;
         if self.schema_version != "v1alpha1"
             || self.frontend != "dockerfile.v0"
             || self.stages.is_empty()
@@ -45,6 +82,7 @@ impl Metadata {
         }
         for requirement in &self.requirements {
             let allowed = match requirement.kind.as_str() {
+                "image" | "image-or-context" => true, // Must be captured before plan admission.
                 "cache-mount" => true, // A new worker owns the cache; no cross-run import/export.
                 "platform" => requirement.reference.as_deref() == Some(platform),
                 "add-source" => requirement

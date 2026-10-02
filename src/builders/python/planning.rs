@@ -159,5 +159,6 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             media_type: "application/gzip",
         },
     ];
+    super::distribution_app::extend(&context, &mut plan, &name)?;
     Ok(plan)
 }

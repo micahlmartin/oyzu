@@ -20,6 +20,21 @@
   ],
   "cases": [
     {
+      "name": "argument-base",
+      "change": "Use variants/argument-base with alpine:3.22 explicitly tagged as oyzu-fixture/alpine:amd64 for the Linux AMD64 executor; global ARG defaults and captured TARGETARCH compose the base reference.",
+      "expect": "Native expansion records target/epoch facts and resolves the captured base without ambient values. Native RUN observes the declared target architecture and fixed epoch. Missing defaults producing an empty base fail preparation."
+    },
+    {
+      "name": "image-aliases",
+      "change": "Use variants/image-aliases with alpine:3.22 provisioned; FROM, external COPY and an image-backed RUN mount use equivalent short and qualified references.",
+      "expect": "Preserve both requested references in the input evidence, use one native context only when captured identities agree, and retain copied content without persisting the temporary mount."
+    },
+    {
+      "name": "provisioned-base",
+      "change": "Use variants/provisioned-base with alpine:3.22 explicitly provisioned in the executor Docker store.",
+      "expect": "Capture the immutable image during preparation, build from its OCI store offline, retain input identity and produce repeatable snapshots; missing images fail preflight without pulling."
+    },
+    {
       "name": "external-add",
       "change": "Use the negative Dockerfile.",
       "expect": "Reject undeclared external acquisition before a hermetic action."
@@ -50,6 +65,10 @@
     }
   ],
   "requiredFiles": [
+    "variants/argument-base/Dockerfile",
+    "variants/image-aliases/Dockerfile",
+    "variants/provisioned-base/Dockerfile",
+    "variants/provisioned-base/greeting.txt",
     "negative/Dockerfile",
     "project/.dockerignore",
     "project/Dockerfile",

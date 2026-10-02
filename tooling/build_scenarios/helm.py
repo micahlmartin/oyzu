@@ -1,5 +1,6 @@
 """Native Helm chart packaging and negative cases through the compiled CLI."""
 import shutil
+import subprocess
 import tarfile
 import yaml
 
@@ -145,6 +146,17 @@ def verify(root, base, invoke, validate, source_files, verified):
     with tarfile.open(subcharts/'dist'/artifact['path']) as archive:
         assert yaml.safe_load(archive.extractfile('parent/Chart.yaml'))['version']==artifact['version']
         assert 'parent/charts/child/templates/configmap.yaml' in archive.getnames()
+    parent = subcharts/'Chart.yaml'
+    metadata = parent.read_text()
+    parent.write_text(metadata.split('dependencies:')[0])
+    before = source_files(subcharts)
+    invoke(subcharts,'build',success=False)
+    failed = validate(subcharts/'dist')
+    assert not failed['artifacts'] and source_files(subcharts)==before
+    assert next(a for a in failed['actions'] if a['id']=='project:lint')['status']=='failed'
+    tests = [r for r in failed['reports'] if r['kind']=='test']
+    assert len(tests)==2 and all(r['summary']['passed']==1 for r in tests)
+    parent.write_text(metadata)
     child_suite = subcharts/'charts/child/tests/configmap_test.yaml'
     child_suite.write_text(child_suite.read_text().replace('value: "42"','value: "99"'))
     before = source_files(subcharts)
@@ -154,3 +166,37 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
     assert any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
     verified.append('Helm subchart-only suites: static native plugin selection, snapshot chart/render artifacts, native assertion JUnit and artifact rejection after a subchart failure')
+
+    packed = base/'helm-packaged-only'
+    shutil.copytree(root/'examples/builds/helm-chart/variants/packaged-only',packed)
+    listing = invoke(packed,'run','list','--json')
+    assert listing['project:test']['argv']==['helm','unittest','--strict','.']
+    before = source_files(packed)
+    invoke(packed,'build')
+    manifest = validate(packed/'dist')
+    assert manifest['status']=='succeeded' and source_files(packed)==before
+    reports = [r for r in manifest['reports'] if r['kind']=='test']
+    assert len(reports)==2 and all(r['summary']['passed']==1 for r in reports)
+    assert len(manifest['artifacts'])==2
+    artifact = next(a for a in manifest['artifacts'] if a['name']=='chart')
+    assert '-dev.g' in artifact['version']
+    with tarfile.open(packed/'dist'/artifact['path']) as archive:
+        assert 'packaged-parent/charts/child/templates/configmap.yaml' in archive.getnames()
+    repeated = invoke(packed,'build')
+    assert {a['id']:a['digest'] for a in repeated['artifacts']}=={a['id']:a['digest'] for a in manifest['artifacts']}
+    # Native fixture creation, rather than hand-authored chart archive bytes.
+    child = base/'helm-bad-packaged-child'
+    shutil.copytree(root/'examples/builds/helm-chart/variants/subchart-only/charts/child',child)
+    suite = child/'tests/configmap_test.yaml'
+    suite.write_text(suite.read_text().replace('value: "42"','value: "99"'))
+    subprocess.run(['docker','run','--rm','--network=none','--entrypoint','helm',
+                    '--mount',f'type=bind,source={child},target=/chart,readonly',
+                    '--mount',f'type=bind,source={packed/"charts"},target=/output',
+                    'oyzu-toolchain/helm:3.22.0','package','/chart','--destination','/output'],check=True)
+    before = source_files(packed)
+    invoke(packed,'build',success=False)
+    failed = validate(packed/'dist')
+    assert not failed['artifacts'] and source_files(packed)==before
+    assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+    assert any(r['kind']=='test' and r['summary']['failed']==1 for r in failed['reports'])
+    verified.append('Packaged Helm dependencies: static archive evidence, native assertions, unchanged input archives, repeatable chart snapshots and failed-suite artifact rejection')

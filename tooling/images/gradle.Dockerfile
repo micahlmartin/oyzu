@@ -8,3 +8,10 @@ RUN echo 'bd71102213493060956ec229d946beee57158dbd89d0e62b91bca0fa2c5f3531  /tmp
     && rm /tmp/gradle.zip
 ENV GRADLE_HOME=/opt/gradle-8.14.3
 ENV PATH=/opt/gradle-8.14.3/bin:$PATH
+
+COPY tooling/provision-java-quality.py /tmp/oyzu-provision/tooling/provision-java-quality.py
+COPY src/builders/java/runtime /tmp/oyzu-provision/src/builders/java/runtime
+RUN python3 /tmp/oyzu-provision/tooling/provision-java-quality.py --destination /opt/oyzu-java-quality \
+    && chmod -R a+rX /opt/oyzu-java-quality \
+    && rm -rf /tmp/oyzu-provision
+ENV OYZU_JAVA_QUALITY_HOME=/opt/oyzu-java-quality

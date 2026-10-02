@@ -57,11 +57,14 @@ src/
       runtime/build.py        # Native compiler-message binding and contained executable staging
       runtime/package.py      # Verified native archives/indexes in a private registry overlay
       tests.rs                # Workspace projection and containment regressions
+    java/quality.rs           # Shared native Java quality task defaults and invocation mapping
+    java/runtime/             # Owned Java source launcher and default Checkstyle rules
     java/{maven,gradle,ant}/   # Separate native-manager adapters
       maven/metadata.rs       # Typed native reactor metadata and output validation
       maven/preparation.rs    # Scoped native repository capture and POM overlay
       maven/planning.rs       # One native lifecycle with module artifact/report identities
       maven/runtime/          # Maven core metadata extension and native acquisition/lifecycle adapter
+      maven/runtime/reporting.py # Frozen native report-directory capture; shared collection owns parsing
       gradle/metadata.rs      # Typed native composite models and path validation
       gradle/preparation.rs   # Scoped repository capture without mutable daemon caches
       gradle/planning.rs      # Native archive identities and module test evidence
@@ -83,6 +86,8 @@ src/
       planning.rs             # Snapshot OCI output and typed BuildKit action intent
       runtime/metadata/       # Pinned native BuildKit parser and Docker ignore facts
     helm/
+      archives.rs             # Bounded static archive-member observations; no extraction
+      runtime/charts.py       # Private chart expansion and native assertion execution
       detection.rs            # Bounded root/unpacked-subchart suite evidence and validation fallback
       metadata.rs             # Chart discovery and contained local dependency order
       preparation.rs          # Native lock handling and captured chart closure
@@ -129,7 +134,7 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 
 `BuilderPlan`, `CommandSpec`, `TaskPlan`, `ArtifactSpec` and `ReportSpec` are Rust structures. A builder does not assemble arbitrary build-plan JSON. The common planner expands hooks, preserves TOML replacements, assigns action identities, binds source/dependency/toolchain identities and serializes the versioned plan. Report formats and input conversions are explicit types.
 
-`BuilderPlan.coverage` can declare typed application-source coverage applicability independently of report files. The shared planner serializes this fact into the target's `oyzu.dev/coverage-applicability` extension, which is retained in the manifest. Missing declarations do not mean inapplicable. Helm declares chart packaging inapplicable and produces native validation JUnit through its owned `runtime/testing.py` adapter; chart assertions are never converted to an application coverage percentage. Helm's private `detection.rs` implements conventional native-suite evidence and validation fallback through the common detector resolver. Planning adds a separate required unittest JUnit report when selected. The owned runtime invokes the native plugin and checks snapshot baseline integrity; the shared engine still owns hooks, scheduling and report collection. See the [Helm reference](reference/helm.md).
+`BuilderPlan.coverage` can declare typed application-source coverage applicability independently of report files. The shared planner serializes this fact into the target's `oyzu.dev/coverage-applicability` extension, which is retained in the manifest. Missing declarations do not mean inapplicable. Helm declares chart packaging inapplicable and produces native validation JUnit through its owned `runtime/testing.py` adapter; chart assertions are never converted to an application coverage percentage. Helm's private `detection.rs` implements conventional native-suite evidence and validation fallback through the common detector resolver. Planning adds a separate required unittest JUnit report when selected. Static archives use the shared bounded binary source capture; Helm owns member/path interpretation. The owned runtime expands chart archives only in private trees, requires native test cases and checks snapshot baseline integrity; the shared engine still owns hooks, scheduling and report collection. See the [Helm reference](reference/helm.md).
 
 Command replacement and evidence requirements have separate ownership. A TOML override cannot remove the builder's required reports. The optional override adapter may instrument an exact known native command; the shared planner does not parse ecosystem commands or shell programs. Unknown replacements retain their arguments and receive `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` destinations when those kinds have one concrete destination. Native stdout conversion applies only to native or recognized commands; arbitrary replacement output is not assumed to use the native event protocol. The shared reporting binder resolves custom declarations against captured task cwd and retains requirements for undeclared kinds. Hooks inherit the operation's report destinations. The Node adapter receives resolved destinations and owns conversion to reporter arguments.
 
@@ -153,6 +158,8 @@ Python test discovery records native pytest configuration or the profile fallbac
 
 Python requirements-only application planning lives in `application.rs`, with archive assembly and artifact-source test execution in `runtime/application.py`. Package/application plans reuse `quality.rs` for native Ruff tasks, the acquisition adapter for prepared environments, and `runtime/reporting.py` for native pytest/coverage integration. The prepared dependency record's `oyzu.dev/python-runtime` extension identifies runtime roots; application packaging consumes their captured closure. Distribution metadata is never synthesized to fit a requirements application into the package builder. Archive collection, required reports and action ordering remain shared engine responsibilities.
 
+Distribution application intent lives in `python/distribution_app.rs`, extending the native package plan with one declared console entrypoint and an application artifact. Its runtime assembles the backend-produced wheel plus captured runtime inputs, while `runtime/application.py` owns shared archive writing, extracted-source testing and digest checks. Package metadata stays native-owned; no second backend build, checkout-copy packaging or engine-level application special case is introduced. See the [application reference](reference/python-applications.md) for format limits.
+
 Python quality selection lives in `detection/quality.rs`: independent linter and formatter detectors produce evidence for the common resolver, with Ruff defaults and native Black/Flake8 configuration support. `quality.rs` declares development commands and captured execution intent. The acquisition adapter adds only selected missing tools, respecting declared/native-lock versions. `runtime/quality.py` owns native quality invocation and exclusion of private engine state while preserving project exclusions. These details do not introduce Python tool switches into orchestration. Ambiguous explicit selections fail discovery; unsupported frameworks remain extension work.
 
 Legacy setuptools metadata has a separate boundary in `python/legacy.rs` and `runtime/legacy.py`. Static discovery never evaluates setup scripts. Acquisition closes its broker before the legacy adapter asks the shared executor to evaluate native metadata in a private workspace with read-only dependencies and no broker mount. Typed native identity/compiler facts are retained in the dependency snapshot and consumed by the common Python package planner. Native snapshot tagging remains setuptools-owned, while report collection, sandboxing and artifact identity enforcement retain their shared owners.
@@ -164,6 +171,8 @@ The collector queues executed producers until their post-hook boundary. It also 
 Materialization is a shared graph responsibility. Its planner resolves logical artifact outputs and contained consumer destinations before bytes exist; its executor copies only successfully produced, digest-verified bundle files. Each target has a private mutable source workspace, and collectors read that target's report paths. Consumers never mount producer bundle storage. The initial implementation handles file artifacts on matching OS/architecture pairs; directory outputs and richer runtime compatibility still require integration.
 
 Builders can declare an optional source-file selection in `BuilderPlan`. The snapshot module binds that selection to the target path, retains required parent directories and leaves other workspace targets available. The planner records the selection in the target's `oyzu.dev/source-projection` extension and checks materialization collisions against the selected source. Execution uses that same selection to create the private consumer workspace before materializing artifacts. Docker owns the native ignore interpretation and reserves its Dockerfile/ignore control files; the engine needs no Docker-specific branch. Ignored source files can therefore be replaced by explicit artifact inputs without changing the checkout or weakening collision checks for included files.
+
+Docker's `images.rs` prepares literal image inputs using the executor's provisioned-image export operation and the native Go image adapter. The adapter preserves/validates config and layer content in an OCI store; `ImageInput` supplies relative store bindings and frozen identities to the private worker. The worker owns containment, digest-checked private copies and native OCI context mounts. No image-format parser, registry client or Dockerfile-name switch is added to shared scheduling. See [image-input behavior](reference/docker-images.md) for the current provisioning profile and deferred registry acquisition.
 
 ## Adding a builder
 

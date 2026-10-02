@@ -107,6 +107,63 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert not failed['artifacts'] and not failed['actions']
     assert 'add-source' in failed['diagnostics'][0]['message']
 
+    provisioned = base/'docker-provisioned-base'
+    shutil.copytree(root/'examples/builds/docker-offline/variants/provisioned-base',provisioned)
+    before = source_files(provisioned)
+    invoke(provisioned,'build')
+    captured = validate(provisioned/'dist')
+    assert captured['status']=='succeeded' and source_files(provisioned)==before
+    image, = captured['artifacts']
+    digest, config, files = image_contents(provisioned/'dist'/image['path'])
+    assert 'etc/alpine-release' in files and files['greeting.txt']==b'captured base application\n'
+    dependency=json.loads((provisioned/'dist/dependencies/project.json').read_text())
+    binding, = dependency['extensions']['oyzu.dev/docker']['images']
+    assert binding['reference']=='alpine:3.22' and binding['config'].startswith('sha256:')
+    assert binding['manifest'].startswith('sha256:') and binding['tree_digest'].startswith('sha256:')
+    repeated=invoke(provisioned,'build')
+    assert repeated['planDigest']==captured['planDigest']
+    assert repeated['artifacts'][0]['ociDigest']==digest and repeated['artifacts'][0]['digest']==image['digest']
+    aliases=base/'docker-image-aliases'
+    shutil.copytree(root/'examples/builds/docker-offline/variants/image-aliases',aliases)
+    before=source_files(aliases)
+    invoke(aliases,'build')
+    equivalent=validate(aliases/'dist')
+    assert equivalent['status']=='succeeded' and source_files(aliases)==before
+    alias_image,=equivalent['artifacts']
+    _,_,alias_files=image_contents(aliases/'dist'/alias_image['path'])
+    assert alias_files['copied-release']==alias_files['etc/alpine-release']
+    assert not any(name.startswith('base-etc/') for name in alias_files), 'temporary image mount leaked into a layer'
+    alias_inputs=json.loads((aliases/'dist/dependencies/project.json').read_text())['extensions']['oyzu.dev/docker']['images']
+    assert {i['reference'] for i in alias_inputs}=={'alpine:3.22','docker.io/library/alpine:3.22'}
+    assert len({(i['name'],i['manifest'],i['config'],i['tree_digest']) for i in alias_inputs})==1
+    verified.append('Docker native reference aliases bind one immutable context for FROM, external COPY and temporary image-backed RUN mounts')
+    arguments=base/'docker-argument-base'
+    shutil.copytree(root/'examples/builds/docker-offline/variants/argument-base',arguments)
+    before=source_files(arguments)
+    invoke(arguments,'build')
+    expanded=validate(arguments/'dist')
+    assert expanded['status']=='succeeded' and source_files(arguments)==before
+    expanded_image,=expanded['artifacts']
+    _,_,expanded_files=image_contents(arguments/'dist'/expanded_image['path'])
+    assert expanded_files['etc/alpine-release']==alias_files['etc/alpine-release']
+    expanded_inputs=json.loads((arguments/'dist/dependencies/project.json').read_text())['extensions']['oyzu.dev/docker']
+    expanded_binding,=expanded_inputs['images']
+    assert expanded_binding['reference']=='oyzu-fixture/alpine:amd64'
+    assert expanded_inputs['metadata']['stages'][0]['base']==expanded_binding['reference']
+    assert expanded_inputs['metadata']['selection']=={'targetPlatform':'linux/amd64','sourceDateEpoch':'315532800'}
+    (arguments/'Dockerfile').write_text('ARG BASE\nFROM ${BASE}\n')
+    invoke(arguments,'build',success=False)
+    empty=validate(arguments/'dist')
+    assert not empty['actions'] and not empty['artifacts']
+    assert any('empty name' in d['message'] for d in empty['diagnostics'])
+    verified.append('Docker global ARG defaults resolve through native expansion before capture; missing base defaults fail preflight')
+    (provisioned/'Dockerfile').write_text('FROM example.invalid/oyzu/unprovisioned:1\n')
+    invoke(provisioned,'build',success=False)
+    missing=validate(provisioned/'dist')
+    assert not missing['artifacts'] and not missing['actions']
+    assert any('pre-provision' in d['message'] for d in missing['diagnostics'])
+    verified.append('Docker provisioned bases: captured config/layer identity, native offline OCI contexts, isolated RUN, repeated snapshots and missing-input preflight failure')
+
     project = base / 'go-container'
     project.mkdir()
     shutil.copytree(root / 'examples/builds/go-app/project', project / 'app')

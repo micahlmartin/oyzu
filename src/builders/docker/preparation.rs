@@ -11,7 +11,8 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     fs::create_dir(context.destination)?;
     let stdout = control.path().join("stdout");
     let stderr = control.path().join("stderr");
-    let argv = crate::builders::strings(&["sh", "-ec", "oyzu-docker-metadata /workspace > /out/metadata.json\nbuildctl --version > /out/manager-version.txt\nhadolint --version > /out/linter-version.txt\ndockerfmt version > /out/formatter-version.txt"]);
+    let platform_name = format!("{}/{}", context.image.os, context.image.arch);
+    let argv = crate::builders::strings(&["sh", "-ec", "oyzu-docker-metadata /workspace \"$1\" \"$2\" > /out/metadata.json\nbuildctl --version > /out/manager-version.txt\nhadolint --version > /out/linter-version.txt\ndockerfmt version > /out/formatter-version.txt", "oyzu-docker-preparation", &platform_name, executor::BUILDKIT_SOURCE_DATE_EPOCH]);
     let result = executor::execute(executor::Request {
         image: context.image,
         workspace: &workspace,
@@ -35,7 +36,8 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         bail!("Docker metadata exceeds 16 MiB");
     }
     let metadata: Metadata = serde_json::from_slice(&fs::read(&path)?)?;
-    metadata.validate(&format!("{}/{}", context.image.os, context.image.arch))?;
+    metadata.validate(&platform_name)?;
+    let images = super::images::capture(&context, &metadata.image_references()?)?;
     // Host provisioning is explicit, and the selected boundary is part of the
     // prepared record/plan. Never change host security settings during a build.
     let apparmor = context
@@ -48,10 +50,10 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let version = fs::read_to_string(context.destination.join("manager-version.txt"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
     let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
-        "adapter":{"id":"docker/local-context","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"2"},
+        "adapter":{"id":"docker/local-context","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"4"},
         "manager":{"id":"buildkit","version":version.trim(),"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[],"targetPlatform":platform,"packages":[],"preparedTree":tree.digest,
-        "extensions":{"oyzu.dev/docker":{"metadata":metadata,"apparmorProfile":apparmor,"dockerfileDigest":snapshot::file_digest(&context.target.path.join("Dockerfile"))?,
+        "extensions":{"oyzu.dev/docker":{"metadata":metadata,"images":images,"imageSource":"provisioned-daemon","apparmorProfile":apparmor,"dockerfileDigest":snapshot::file_digest(&context.target.path.join("Dockerfile"))?,
             "quality":{"hadolint":fs::read_to_string(context.destination.join("linter-version.txt"))?.trim(),
                 "dockerfmt":fs::read_to_string(context.destination.join("formatter-version.txt"))?.trim()}}}});
     Ok(Prepared {

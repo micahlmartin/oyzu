@@ -5,7 +5,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::BTreeMap, fs, io::Read, path::Path};
 
 struct Document {
-    text: String,
+    bytes: Vec<u8>,
     digest: String,
 }
 
@@ -16,6 +16,16 @@ pub(crate) struct Source {
 
 impl Source {
     pub fn read(root: &Path, paths: &[&str]) -> Result<Self> {
+        let source = Self::read_binary(root, paths)?;
+        for (path, document) in &source.documents {
+            std::str::from_utf8(&document.bytes)
+                .with_context(|| format!("non-UTF8 discovery metadata {path}"))?;
+        }
+        Ok(source)
+    }
+    /// Same bounded, contained capture as text metadata, without decoding bytes.
+    /// Format interpretation remains with the requesting detector.
+    pub fn read_binary(root: &Path, paths: &[&str]) -> Result<Self> {
         if paths.len() > 128 {
             bail!("too many discovery metadata inputs");
         }
@@ -56,14 +66,16 @@ impl Source {
                 bail!("discovery metadata exceeds 4 MiB: {relative}");
             }
             let digest = format!("sha256:{:x}", Sha256::digest(&bytes));
-            let text = String::from_utf8(bytes)
-                .with_context(|| format!("non-UTF8 discovery metadata {relative}"))?;
-            documents.insert(relative.to_string(), Document { text, digest });
+            documents.insert(relative.to_string(), Document { bytes, digest });
         }
         Ok(Self { documents })
     }
     pub fn text(&self, path: &str) -> Option<&str> {
-        self.documents.get(path).map(|d| d.text.as_str())
+        self.bytes(path)
+            .and_then(|bytes| std::str::from_utf8(bytes).ok())
+    }
+    pub fn bytes(&self, path: &str) -> Option<&[u8]> {
+        self.documents.get(path).map(|d| d.bytes.as_slice())
     }
     pub fn evidence(&self, path: &str, location: &str) -> Option<Evidence> {
         self.documents.get(path).map(|d| Evidence {
