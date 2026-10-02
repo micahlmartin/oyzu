@@ -7,7 +7,10 @@ use super::{
     sources::{self, ConfigSource},
 };
 use anyhow::{bail, Result};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 #[derive(Clone, Debug, Default)]
 pub struct Options {
     pub root: Option<PathBuf>,
@@ -28,7 +31,7 @@ pub struct Session {
     pub locations: Locations,
     known_profiles: std::collections::BTreeMap<String, Vec<String>>,
     selection_reason: Option<String>,
-    captured: std::collections::BTreeMap<PathBuf, Vec<ConfigSource>>,
+    captured: std::collections::BTreeMap<PathBuf, Vec<Arc<ConfigSource>>>,
     management: Option<serde_json::Value>,
     invocation: Vec<ConfigSource>,
 }
@@ -37,7 +40,7 @@ impl Session {
         let unique: std::collections::BTreeMap<_, _> = self
             .sources
             .iter()
-            .chain(self.captured.values().flatten())
+            .chain(self.captured.values().flatten().map(Arc::as_ref))
             .map(|source| (&source.identity, (source.syntax.len(), source.entry_count)))
             .collect();
         if unique.len() > 128
@@ -120,12 +123,15 @@ impl Session {
         let mut captured = std::collections::BTreeMap::new();
         captured.insert(
             root.clone(),
-            sources::project_sources(&root, &root, local, &registry)?,
+            sources::project_sources(&root, &root, local, &registry)?
+                .into_iter()
+                .map(Arc::new)
+                .collect(),
         );
         if directory != root {
             let target_sources = sources::project_sources(&root, &directory, local, &registry)?;
-            validate_shared_capture(&captured, &directory, &target_sources)?;
-            captured.insert(directory.clone(), target_sources);
+            let shared = share_capture(&captured, &directory, target_sources)?;
+            captured.insert(directory.clone(), shared);
         }
         let inherited = if options.profile.is_none() && !options.no_profile {
             std::env::var("OYZU_INHERITED_PROFILE").ok()
@@ -189,7 +195,8 @@ impl Session {
                 .ok_or_else(|| {
                     anyhow::anyhow!("CONFIG_SCOPE: target was not captured for this invocation")
                 })?
-                .clone(),
+                .iter()
+                .map(|source| source.as_ref().clone()),
         );
         if !self.known_profiles.is_empty() {
             let mut marker = ConfigSource::parse(
@@ -276,7 +283,11 @@ impl Session {
     }
     pub fn select_for_targets(&mut self, targets: &[PathBuf]) -> Result<()> {
         let mut sources = self.sources.clone();
-        sources.extend(self.captured[&self.root].clone());
+        sources.extend(
+            self.captured[&self.root]
+                .iter()
+                .map(|source| source.as_ref().clone()),
+        );
         let mut catalogue = ConfigSource::parse(
             "target-profile-catalogue",
             &self.root,
@@ -290,8 +301,8 @@ impl Session {
             if !self.captured.contains_key(&target) {
                 let captured =
                     sources::project_sources(&self.root, &target, self.local, &self.registry)?;
-                validate_shared_capture(&self.captured, &target, &captured)?;
-                self.captured.insert(target.clone(), captured);
+                let shared = share_capture(&self.captured, &target, captured)?;
+                self.captured.insert(target.clone(), shared);
                 // Reject an oversized union before reading more targets. Shared
                 // ancestor files participate once in the invocation budget.
                 self.validate_capture_limits()?;
@@ -305,7 +316,7 @@ impl Session {
         let unique: std::collections::BTreeMap<_, _> = self
             .sources
             .iter()
-            .chain(self.captured.values().flatten())
+            .chain(self.captured.values().flatten().map(Arc::as_ref))
             .map(|source| (&source.identity, source))
             .collect();
         self.validate_capture_limits()?;
@@ -370,7 +381,7 @@ pub fn workspace_root(directory: &Path, explicit: Option<&Path>) -> Result<PathB
 // Compare the complete shared scope, including absence. Comparing only matching
 // identities would miss a file created or deleted after an earlier capture.
 fn validate_shared_capture(
-    prior: &std::collections::BTreeMap<PathBuf, Vec<ConfigSource>>,
+    prior: &std::collections::BTreeMap<PathBuf, Vec<Arc<ConfigSource>>>,
     target: &Path,
     captured: &[ConfigSource],
 ) -> Result<()> {
@@ -380,6 +391,7 @@ fn validate_shared_capture(
         };
         let previous: std::collections::BTreeMap<_, _> = prior_sources
             .iter()
+            .map(Arc::as_ref)
             .filter(shared)
             .map(|s| (&s.identity, &s.digest))
             .collect();
@@ -393,6 +405,26 @@ fn validate_shared_capture(
         }
     }
     Ok(())
+}
+
+fn share_capture(
+    prior: &std::collections::BTreeMap<PathBuf, Vec<Arc<ConfigSource>>>,
+    target: &Path,
+    sources: Vec<ConfigSource>,
+) -> Result<Vec<Arc<ConfigSource>>> {
+    validate_shared_capture(prior, target, &sources)?;
+    let known: std::collections::BTreeMap<_, _> = prior
+        .values()
+        .flatten()
+        .map(|source| (source.identity.as_str(), source))
+        .collect();
+    Ok(sources
+        .into_iter()
+        .map(|source| match known.get(source.identity.as_str()) {
+            Some(existing) => Arc::clone(existing),
+            None => Arc::new(source),
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -411,7 +443,10 @@ mod tests {
         std::fs::write(root.join("oyzu.local.toml"), "[build]\njobs=2\n").unwrap();
         let present = read();
         assert!(validate_shared_capture(&absent, &child, &present).is_err());
-        let prior = std::collections::BTreeMap::from([(root.clone(), present)]);
+        let prior = std::collections::BTreeMap::from([(
+            root.clone(),
+            present.into_iter().map(Arc::new).collect(),
+        )]);
         std::fs::remove_file(root.join("oyzu.local.toml")).unwrap();
         assert!(validate_shared_capture(&prior, &child, &read()).is_err());
         std::fs::write(root.join("oyzu.local.toml"), "[build]\njobs=3\n").unwrap();
@@ -419,5 +454,12 @@ mod tests {
         std::fs::write(root.join("oyzu.local.toml"), "[build]\njobs=2\n").unwrap();
         std::fs::write(child.join("oyzu.toml"), "[build]\njobs=4\n").unwrap();
         assert!(validate_shared_capture(&prior, &child, &read()).is_ok());
+        let shared = share_capture(&prior, &child, read()).unwrap();
+        let ancestor = shared
+            .iter()
+            .find(|source| source.directory == root)
+            .unwrap();
+        assert!(Arc::ptr_eq(ancestor, &prior[&root][0]));
+        assert_eq!(shared.len(), 2);
     }
 }
