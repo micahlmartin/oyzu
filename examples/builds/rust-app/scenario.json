@@ -33,6 +33,11 @@
       "name": "failed-compilation",
       "change": "Introduce a compiler error after a successful build.",
       "expect": "Compilation fails and previous executable outputs never become artifacts of the failed build."
+    },
+    {
+      "name": "registry-dependency",
+      "change": "Build variants/registry, then replace the locked archive checksum with an incorrect value.",
+      "expect": "Capture native registry inputs and build offline with snapshot artifacts and reports; the incorrect checksum prevents artifact collection."
     }
   ],
   "nativeChecks": [
@@ -52,7 +57,10 @@
     "project/Cargo.toml",
     "project/src/main.rs",
     "variants/features.Cargo.toml",
-    "variants/extra.rs"
+    "variants/extra.rs",
+    "variants/registry/Cargo.toml",
+    "variants/registry/Cargo.lock",
+    "variants/registry/src/main.rs"
   ],
   "hosts": {
     "intended": [

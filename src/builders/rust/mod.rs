@@ -1,4 +1,5 @@
 use crate::builders::task::insert;
+mod acquisition;
 mod metadata;
 mod planning;
 mod preparation;

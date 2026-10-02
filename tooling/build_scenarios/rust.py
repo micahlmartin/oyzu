@@ -16,7 +16,7 @@ def binary(manifest):
     return next(a for a in manifest['artifacts'] if a['mediaType']=='application/octet-stream')
 
 
-def archives(project, manifest, count):
+def archives(project, manifest, count, external=()):
     packages = [a for a in manifest['artifacts'] if a['name'].startswith('crate-')]
     assert len(packages) == count
     for artifact in packages:
@@ -29,8 +29,9 @@ def archives(project, manifest, count):
             assert prefix+'Cargo.lock' in archive.getnames()
             assert any(n.startswith(prefix+'src/') for n in archive.getnames())
             assert all('.oyzu-build/' not in n for n in archive.getnames())
-            for dependency in metadata.get('dependencies', {}).values():
-                assert '-dev.g' in dependency['version']
+            for name, dependency in metadata.get('dependencies', {}).items():
+                if name not in external:
+                    assert '-dev.g' in dependency['version']
                 assert 'path' not in dependency
 
 
@@ -57,6 +58,31 @@ def run_binary(project, artifact):
 
 def verify(root, base, invoke, validate, source_files, verified):
     schema = json.loads((root/'docs/contracts/v1alpha1/dependencies.schema.json').read_text())
+    project = base/'rust-registry'
+    shutil.copytree(root/'examples/builds/rust-app/variants/registry', project)
+    before = source_files(project)
+    invoke(project, 'build')
+    manifest = validate(project/'dist')
+    assert source_files(project) == before
+    archives(project, manifest, 1, external=('itoa',))
+    assert len(manifest['artifacts']) == 2, 'dependency crates are inputs, not workspace artifacts'
+    assert run_binary(project, binary(manifest)) == 'Answer: 42'
+    dependency = json.loads((project/'dist/dependencies/project.json').read_text())
+    Draft202012Validator(schema).validate(dependency)
+    assert [(p['name'],p['version']) for p in dependency['packages']] == [('itoa','1.0.15')]
+    assert dependency['packages'][0]['digest'] == 'sha256:4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c'
+    assert next(r for r in manifest['reports'] if r['kind']=='test')['summary']['passed'] > 0
+    application_coverage(project, manifest, 'src/main.rs', 'itoa::Buffer::new()')
+    for stage in ['build', 'test', 'lint', 'format-check', 'archive', 'package']:
+        assert next(a for a in manifest['actions'] if a['id']==f'project:{stage}')['status']=='succeeded'
+    rebuilt = invoke(project, 'build')
+    assert {a['name']:a['digest'] for a in rebuilt['artifacts']} == {a['name']:a['digest'] for a in manifest['artifacts']}
+    lock = project/'Cargo.lock'
+    lock.write_text(lock.read_text().replace('4a5f13b858c8d314ee3e8f639011f7ccefe71f97f96e50151fb991f267928e2c', '0'*64))
+    invoke(project, 'build', success=False)
+    assert not validate(project/'dist')['artifacts']
+    verified.append('Cargo crates.io acquisition verifies locked checksums; offline native builds retain snapshot artifacts/JUnit/coverage and reject altered locks')
+
     for example in ['rust-app', 'rust-workspace']:
         project = base / example
         shutil.copytree(root/'examples/builds'/example/'project', project)

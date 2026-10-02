@@ -70,6 +70,9 @@ impl Metadata {
     pub fn binaries(&self) -> Result<Vec<(&Package, &Target)>> {
         let mut selected = Vec::new();
         for package in &self.packages {
+            if !self.workspace_members.contains(&package.id) {
+                continue;
+            }
             for target in &package.targets {
                 if !target.kind.iter().any(|kind| kind == "bin") {
                     continue;
@@ -99,16 +102,35 @@ impl Metadata {
             bail!("Cargo workspace must be rooted in the captured target");
         }
         for package in &self.packages {
-            if package.source.is_some() || !self.workspace_members.contains(&package.id) {
-                bail!("Cargo external dependency acquisition is not implemented yet");
+            if let Some(source) = &package.source {
+                if source != super::acquisition::CRATES_IO
+                    || self.workspace_members.contains(&package.id)
+                    || !package
+                        .manifest_path
+                        .starts_with("/tmp/oyzu-cargo/registry/src/")
+                    || package
+                        .manifest_path
+                        .split('/')
+                        .any(|part| matches!(part, "." | ".."))
+                    || package.manifest_path.contains('\\')
+                {
+                    bail!("Cargo registry package is outside the prepared native source cache");
+                }
+                continue;
+            }
+            if !self.workspace_members.contains(&package.id) {
+                bail!("Cargo local dependency must belong to the captured workspace");
             }
             relative(&package.manifest_path)?;
             for dependency in &package.dependencies {
-                if dependency.source.is_some() {
-                    bail!(
-                        "Cargo registry/Git dependency acquisition is not implemented yet: {}",
-                        dependency.name
-                    );
+                if let Some(source) = &dependency.source {
+                    if source != super::acquisition::CRATES_IO || dependency.path.is_some() {
+                        bail!(
+                            "Cargo source acquisition is not implemented for {}",
+                            dependency.name
+                        );
+                    }
+                    continue;
                 }
                 let path = dependency
                     .path
@@ -142,6 +164,7 @@ impl Metadata {
         let versions: BTreeMap<_, _> = self
             .packages
             .iter()
+            .filter(|p| self.workspace_members.contains(&p.id))
             .map(|p| {
                 (
                     p.name.clone(),
@@ -155,6 +178,9 @@ impl Metadata {
             .collect();
         let mut manifests = vec!["Cargo.toml".to_owned()];
         for package in &self.packages {
+            if !self.workspace_members.contains(&package.id) {
+                continue;
+            }
             manifests.push(relative(&package.manifest_path)?.into());
         }
         manifests.sort();

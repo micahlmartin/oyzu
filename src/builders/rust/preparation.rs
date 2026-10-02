@@ -27,6 +27,16 @@ pub(super) fn environment() -> BTreeMap<String, String> {
     ])
 }
 
+/// Cargo subcommands spawn Cargo again, so source configuration must be in the
+/// private native home, not only a top-level --config argument.
+pub(super) fn command(argv: Vec<String>) -> Vec<String> {
+    let mut command = vec!["sh".into(), "-ec".into(),
+        "mkdir -p \"$CARGO_HOME\"; cp /dependencies/cargo-config.toml \"$CARGO_HOME/config.toml\"; exec \"$@\"".into(),
+        "oyzu-cargo".into()];
+    command.extend(argv);
+    command
+}
+
 pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let root = &context.target.path;
     if !root.join("Cargo.lock").is_file() {
@@ -39,10 +49,14 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let workspace = control.path().join("workspace");
     snapshot::capture(root, &workspace)?;
     fs::create_dir(context.destination)?;
+    let packages = super::acquisition::capture(&workspace.join("Cargo.lock"), context.destination)?;
+    let native_output = control.path().join("native-output");
+    fs::create_dir(&native_output)?;
     let runner = Native {
         context: &context,
         workspace: &workspace,
         logs: control.path(),
+        output: &native_output,
     };
     let original: Metadata = serde_json::from_str(&runner.run(&[
         "cargo",
@@ -117,10 +131,10 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
     let platform = json!({"os":context.image.os,"arch":context.image.arch,"abi":host});
     let record = json!({
         "schemaVersion":"v1alpha1", "kind":"dependency-snapshot",
-        "adapter":{"id":"rust/cargo-local-workspace", "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":"2"},
+        "adapter":{"id":"rust/cargo-workspace", "digest":snapshot::file_digest(&std::env::current_exe()?)?, "layoutVersion":"3"},
         "manager":{"id":"cargo","version":manager_version,"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[snapshot::file_digest(&root.join("Cargo.lock"))?],
-        "targetPlatform":platform,"packages":[],"preparedTree":tree.digest,
+        "targetPlatform":platform,"packages":packages,"preparedTree":tree.digest,
         "extensions":{"oyzu.dev/cargo-workspace":{"original":original,"projected":projected},"oyzu.dev/cargo-tools":{"rustc":rustc.trim(),"nextest":nextest.trim(),"llvmCov":coverage.trim()}}
     });
     Ok(Prepared {
@@ -134,24 +148,33 @@ struct Native<'a, 'b> {
     context: &'a PreparationContext<'b>,
     workspace: &'a Path,
     logs: &'a Path,
+    output: &'a Path,
 }
 
 impl Native<'_, '_> {
     fn run(&self, args: &[&str]) -> Result<String> {
         let stdout = self.logs.join("stdout");
         let stderr = self.logs.join("stderr");
-        let result = executor::execute(executor::Request {
-            image: self.context.image,
-            workspace: self.workspace,
-            output: self.context.destination,
-            cwd: "/workspace",
-            argv: &args.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
-            env: &environment(),
-            stdout: &stdout,
-            stderr: &stderr,
-            timeout: Duration::from_secs(120),
-            name: self.context.execution_name,
-        })?;
+        let command = command(args.iter().map(|s| s.to_string()).collect());
+        let result = executor::execute_with_mounts(
+            executor::Request {
+                image: self.context.image,
+                workspace: self.workspace,
+                output: self.output,
+                cwd: "/workspace",
+                argv: &command,
+                env: &environment(),
+                stdout: &stdout,
+                stderr: &stderr,
+                timeout: Duration::from_secs(120),
+                name: self.context.execution_name,
+            },
+            &[executor::Mount {
+                source: self.context.destination,
+                destination: "/dependencies",
+                readonly: true,
+            }],
+        )?;
         if result.code != 0 {
             bail!(
                 "Cargo preparation failed ({}): {}",

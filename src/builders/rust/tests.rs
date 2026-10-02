@@ -57,6 +57,22 @@ fn cargo_required_features_select_only_resolved_binary_targets() {
 }
 
 #[test]
+fn cargo_registry_packages_are_inputs_not_workspace_outputs() {
+    let mut native = metadata();
+    native.packages.push(serde_json::from_value(json!({
+        "id":"registry-package", "name":"third-party", "version":"1.0.0",
+        "manifest_path":"/tmp/oyzu-cargo/registry/src/native/third-party-1.0.0/Cargo.toml",
+        "source":super::acquisition::CRATES_IO,"dependencies":[],
+        "targets":[{"name":"example-bin","kind":["bin"],"src_path":"/tmp/oyzu-cargo/registry/src/native/third-party-1.0.0/src/main.rs"}]
+    })).unwrap());
+    native.validate().unwrap();
+    assert_eq!(native.binaries().unwrap().len(), 1);
+    native.packages.last_mut().unwrap().manifest_path =
+        "/tmp/oyzu-cargo/registry/src/../../outside/Cargo.toml".into();
+    assert!(native.validate().is_err());
+}
+
+#[test]
 fn cargo_projection_preserves_workspace_settings_and_updates_aliased_requirements() {
     let root = tempfile::tempdir().unwrap();
     fs::create_dir(root.path().join("api")).unwrap();

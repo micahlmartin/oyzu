@@ -37,6 +37,9 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         TaskPlan::command(&["cargo", "package", "--locked", "--offline", "--allow-dirty"]);
     let binaries = metadata.binaries()?;
     for package_metadata in &metadata.packages {
+        if !metadata.workspace_members.contains(&package_metadata.id) {
+            continue;
+        }
         archive
             .argv
             .extend(["--package".into(), package_metadata.name.clone()]);
@@ -77,12 +80,22 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             });
         }
     }
-    let mut plan = BuilderPlan::new(metadata.packages[0].version.clone(), package);
+    let primary = metadata
+        .packages
+        .iter()
+        .find(|p| metadata.workspace_members.contains(&p.id))
+        .context("Cargo metadata has no workspace package")?;
+    let mut plan = BuilderPlan::new(primary.version.clone(), package);
     plan.stages.push("archive");
     plan.tasks.insert("archive".into(), archive);
     plan.env.extend(environment());
     plan.env.insert("CARGO_BUILD_TARGET".into(), host);
-    for name in ["CARGO_BUILD_TARGET", "CARGO_TARGET_DIR"] {
+    for name in [
+        "CARGO_BUILD_TARGET",
+        "CARGO_TARGET_DIR",
+        "CARGO_HOME",
+        "CARGO_NET_OFFLINE",
+    ] {
         plan.fixed_env.insert(name.into(), plan.env[name].clone());
     }
     plan.prepare.push(CommandSpec::new(
@@ -140,5 +153,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         ]),
     );
     plan.artifacts = artifacts;
+    for task in plan.tasks.values_mut() {
+        task.argv = super::preparation::command(std::mem::take(&mut task.argv));
+    }
     Ok(plan)
 }

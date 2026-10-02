@@ -46,6 +46,7 @@ src/
       runtime/modulezip/      # Pinned x/mod integration for source archive projection and checksums
     rust/
       mod.rs                  # Cargo descriptor, discovery and interface implementation
+      acquisition.rs          # Locked crates.io archive/index capture through scoped transport
       metadata.rs             # Native workspace/features, binary selection and version projection
       preparation.rs          # Offline lock validation, manifest overlay and binary inventory
       planning.rs             # Snapshot artifacts, fixed target facts, native checks and reports
