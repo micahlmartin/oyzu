@@ -182,7 +182,7 @@ fn finalizes_stripped_archive_and_publishes_verifiable_locked_receipt() {
             &fixture.installer
         )
         .unwrap(),
-        lease.selection_digest
+        lease.selection_digest()
     );
     assert_eq!(fs::read(&fixture.lock).unwrap(), original);
 }
@@ -233,7 +233,7 @@ fn zip_stored_and_deflated_layouts_publish_verifiable_receipts() {
                 &fixture.installer,
             )
             .unwrap(),
-            lease.selection_digest
+            lease.selection_digest()
         );
     }
 }
@@ -504,7 +504,7 @@ fn raw_artifact_uses_exact_declared_path_and_bounded_parent_creation() {
         &fixture.installer,
     )
     .unwrap();
-    assert!(!lease.selection_digest.is_empty());
+    assert!(!lease.selection_digest().is_empty());
     for (pointer, value) in [
         ("/strip_prefix", json!("prefix")),
         ("/required_paths", json!([])),

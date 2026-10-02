@@ -18,7 +18,6 @@ use std::{
 /// value alive until the entire supervised child tree or shell session ends.
 /// This does not grant authorization and is not a same-user tamper boundary.
 pub struct InstallationLease {
-    pub selection_digest: String,
     // Field drop order matters: remove the journal while kernel leases remain.
     journal: Journal,
     _leases: Vec<OwnedLease>,
@@ -27,6 +26,13 @@ pub struct InstallationLease {
 }
 
 impl InstallationLease {
+    /// Immutable identity of the receipt snapshot verified during acquisition.
+    /// This is the same identity returned by command lookup and journaled while
+    /// kernel leases are held; it cannot be replaced independently by a caller.
+    pub fn selection_digest(&self) -> &str {
+        &self.verified.digest
+    }
+
     /// Diagnostic journal identity, not an authorization token. Abnormal process
     /// exit may leave this record after its kernel locks have been released.
     pub fn lease_id(&self) -> &str {
@@ -126,7 +132,6 @@ pub(in crate::tools) fn transact(
     let journal = Journal::create(&root, &verified.digest, &keys)?;
     drop(held);
     Ok(InstallationLease {
-        selection_digest: verified.digest.clone(),
         journal,
         _leases: leases,
         _root: root,

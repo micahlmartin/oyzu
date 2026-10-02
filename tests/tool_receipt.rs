@@ -379,7 +379,7 @@ fn leased_commands_use_verified_metadata_without_path_search_or_reopening_receip
     fixture.save(&receipt);
     let lease = fixture.lease(None).unwrap();
     let command = lease.command("node").unwrap();
-    assert_eq!(command.selection_digest, lease.selection_digest);
+    assert_eq!(command.selection_digest, lease.selection_digest());
     assert_eq!(command.tool_id, "core:node");
     assert_eq!(
         command.installation_key,
@@ -441,7 +441,7 @@ fn publishes_whole_directory_then_retains_os_lease_without_changing_lock() {
     assert_eq!(record["format"], 1);
     assert_eq!(record["lease_id"], lease.lease_id());
     assert_eq!(record["owner_pid"], std::process::id());
-    assert_eq!(record["selection_digest"], lease.selection_digest);
+    assert_eq!(record["selection_digest"], lease.selection_digest());
     assert_eq!(
         record["installation_keys"],
         json!([fixture.receipt["installation_key"]])
@@ -451,7 +451,7 @@ fn publishes_whole_directory_then_retains_os_lease_without_changing_lock() {
         .unwrap()
         .parse::<u128>()
         .is_ok());
-    assert_eq!(lease.selection_digest, fixture.verify().unwrap());
+    assert_eq!(lease.selection_digest(), fixture.verify().unwrap());
     assert_eq!(fs::read(&fixture.lock).unwrap(), original);
     let key = fixture.receipt["installation_key"]
         .as_str()

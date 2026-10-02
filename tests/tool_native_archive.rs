@@ -265,7 +265,7 @@ fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
         tools::verify_installation_selection(
             &lock_path, &store, ".", "default", PLATFORM, &installer
         )?,
-        lease.selection_digest
+        lease.selection_digest()
     );
     assert_eq!(fs::read(&lock_path)?, original_lock);
     let selected = lease.command(case.tool)?;
@@ -359,7 +359,7 @@ fn qualify(case: ArtifactCase) -> anyhow::Result<()> {
         tools::verify_installation_selection(
             &lock_path, &store, ".", "default", PLATFORM, &installer
         )?,
-        lease.selection_digest
+        lease.selection_digest()
     );
     eprintln!("real {} artifact: {} entries match; publication and changed-lock denial passed; native execution={}", case.tool, tree.entries.len(), cfg!(windows));
     Ok(())

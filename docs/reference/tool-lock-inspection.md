@@ -255,6 +255,12 @@ Shared OS lease locks under `locks/<key-hex>.lease` are acquired before mutation
 locks are released. The returned `InstallationLease` must remain alive until the
 whole consumer action ends. Both lock kinds use a bounded 30-second contention
 deadline. Lock files are never removed/replaced during ordinary operation.
+`InstallationLease::selection_digest()` borrows the identity from the verified
+receipt snapshot used for command lookup and lease journaling. There is no
+separately mutable digest field. Experimental Rust callers must replace
+`lease.selection_digest` with `lease.selection_digest()`; lock, receipt, journal
+and CLI formats are unchanged. This identity describes the acquired snapshot,
+not current policy authorization or protection against later same-user edits.
 Unix lock initialization first attempts exclusive no-follow creation. If the
 entry already exists, it opens that same name without creation or truncation,
 then requires a regular single-link inode. This preserves permanent lock identity

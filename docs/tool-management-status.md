@@ -1720,3 +1720,25 @@ the CI failure's root cause. Java CI is now independent of Go capture once share
 boundary checks pass, while any failed step still fails the job. New native CI
 for the bounded reader remains pending. Production import, worker/broker wiring,
 backend admission and remaining OEP requirements remain open.
+
+## Checkpoint 123: immutable lease selection identity
+
+InstallationLease no longer exposes a separately mutable selection-digest String.
+Its selection_digest() accessor borrows the identity from the same verified
+receipt snapshot used by command lookup and journal publication. This removes a
+possible contradictory caller-visible identity without changing lock, receipt,
+journal or CLI formats. Experimental Rust callers and archive/layout/receipt
+consumers now use the accessor; the reference documents that API migration.
+
+Windows passed the full locked Rust suite, strict all-target Clippy, formatting
+and all nine CLI scenarios. Linux passed 12 layout and 17 active receipt tests
+plus strict all-target Clippy with networking disabled. Existing assertions bind
+command metadata and journal identity to the accessor and independently verified
+selection. Documentation/diff checks pass and the code map records one snapshot
+as the identity owner. No additional backend/native archive execution is claimed
+for this API-only change, and no dependency or licensing status changed.
+
+A lease identity still represents its acquired snapshot, not current policy or
+protection against subsequent same-user edits. Installation prune/recovery,
+consumer process/shell lifecycle and production integration remain outstanding;
+this correction does not complete TM-04 or OEP-0003.
