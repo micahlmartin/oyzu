@@ -39,11 +39,12 @@ fn framework(profile: &detection::Profile) -> Result<String> {
     if let Some(script) = profile.package["scripts"]["test"].as_str() {
         if (name == "jest" && !crate::builders::node::jest::recognized(script))
             || (name == "vitest" && !crate::builders::node::vitest::recognized(script))
+            || (name == "mocha" && !crate::builders::node::mocha::recognized(script))
         {
             return Ok("custom".into());
         }
     }
-    if !["node-test", "jest", "vitest", "custom"].contains(&name) {
+    if !["node-test", "jest", "vitest", "mocha", "custom"].contains(&name) {
         bail!("npm workspace {name} reporting integration is not implemented yet");
     }
     Ok(name.into())
@@ -120,6 +121,11 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         reports(&mut test, "root");
     }
     let root_profile = detection::detect(&context.target.path)?;
+    if root_profile.framework.selected() == "mocha"
+        || modules.iter().any(|member| member["framework"] == "mocha")
+    {
+        crate::builders::node::mocha::configure_reporting(&mut plan);
+    }
     let specification = json!({"rootVersion":root_version,"rootArtifact":root_artifact,"rootScripts":root_scripts,"rootDependencies":metadata.root_dependencies,"rootFramework":framework(&root_profile)?,"rootQuality":{"linter":root_profile.linter.selected(),"formatter":root_profile.formatter.selected(),"excludes":super::scope::exclusions(&metadata, ".")},"modules":modules,
         "nodeTestArguments":crate::builders::node::reporting::arguments("__OYZU_TEST_REPORT__", "__OYZU_COVERAGE_REPORT__")});
     let encoded = serde_json::to_string(&specification)?;

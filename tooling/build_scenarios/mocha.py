@@ -42,3 +42,29 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert next(r for r in threshold['reports'] if r['kind']=='test')['summary']['failed']==0
     assert any(a['id']=='project:test' and a['status']=='failed' for a in threshold['actions'])
     verified.append('Mocha: captured native framework, c8 toolchain coverage, required JUnit/LCOV, snapshot package, failed assertions and native coverage-threshold gates')
+
+    workspace = base/'mocha-workspace'
+    shutil.copytree(root/'tooling/fixtures/mocha-workspace', workspace)
+    before = source_files(workspace)
+    invoke(workspace, 'build')
+    manifest = validate(workspace/'dist')
+    assert manifest['status']=='succeeded' and source_files(workspace)==before
+    assert len(manifest['artifacts'])==3
+    for artifact in manifest['artifacts']:
+        assert '-dev.g' in artifact['version']
+        with tarfile.open(workspace/'dist'/artifact['path']) as archive:
+            assert json.load(archive.extractfile('package/package.json'))['version']==artifact['version']
+    for kind in ['test','coverage']:
+        reports = [r for r in manifest['reports'] if r['kind']==kind]
+        assert len(reports)==3
+        assert all(r['summary']['passed' if kind=='test' else 'covered']>0 for r in reports)
+        if kind=='test': assert all(r['summary']['passed']==1 for r in reports)
+    invoke(workspace, 'inspect', 'dist')
+    member = workspace/'packages/implicit/test/member.js'
+    member.write_text(member.read_text().replace('value, 11','value, 99'))
+    invoke(workspace, 'build', success=False)
+    failed = validate(workspace/'dist')
+    assert not failed['artifacts']
+    tests = [r for r in failed['reports'] if r['kind']=='test']
+    assert len(tests)==3 and sum(r['summary']['failed'] for r in tests)==1
+    verified.append('Mocha npm workspaces: hoisted native runner, implicit/scripted members, root scope, three versioned packages with per-package JUnit/LCOV and failed-member package blocking')

@@ -37,14 +37,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         .selected();
     let script = package["scripts"]["test"].as_str();
     if framework == "mocha" {
-        plan.env.insert(
-            "OYZU_NODE_REPORTING_HOME".into(),
-            "/opt/oyzu-node-quality".into(),
-        );
-        plan.fixed_env.insert(
-            "OYZU_NODE_REPORTING_HOME".into(),
-            "/opt/oyzu-node-quality".into(),
-        );
+        super::mocha::configure_reporting(&mut plan);
     }
     if framework == "vitest"
         && script.is_none_or(super::vitest::recognized)

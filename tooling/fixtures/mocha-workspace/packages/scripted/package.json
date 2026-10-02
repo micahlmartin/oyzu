@@ -1,0 +1,6 @@
+{
+  "name":"oyzu-mocha-scripted",
+  "version":"1.0.0",
+  "scripts":{"test":"mocha"},
+  "devDependencies":{"mocha":"11.8.0"}
+}
