@@ -1,0 +1,314 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://oyzu.dev/contracts/tools-v1/receipt.schema.json",
+  "title": "Draft Oyzu installation receipt format 1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "installation_key",
+    "tool_key",
+    "tool_id",
+    "version",
+    "platform",
+    "backend_digest",
+    "distribution_digest",
+    "distribution_size",
+    "layout_digest",
+    "verification",
+    "package_closure_digest",
+    "dependency_installation_keys",
+    "tree_digest",
+    "tree_manifest_digest",
+    "entrypoints",
+    "environment",
+    "installer_release_digest"
+  ],
+  "properties": {
+    "format": {
+      "const": 1
+    },
+    "installation_key": {
+      "$ref": "#/$defs/digest"
+    },
+    "tool_key": {
+      "$ref": "#/$defs/digest"
+    },
+    "tool_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "string",
+      "pattern": "^(linux/(amd64|arm64)/(gnu|musl)|darwin/(amd64|arm64)/native|windows/(amd64|arm64)/msvc)$"
+    },
+    "backend_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "distribution_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "distribution_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 8589934592
+    },
+    "layout_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "verification": {
+      "$ref": "#/$defs/verification"
+    },
+    "package_closure_digest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/digest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "dependency_installation_keys": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/digest"
+      },
+      "maxItems": 4096,
+      "uniqueItems": true
+    },
+    "tree_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "tree_manifest_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "entrypoints": {
+      "type": "object",
+      "maxProperties": 1024,
+      "propertyNames": {
+        "$ref": "#/$defs/component"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/launch"
+      }
+    },
+    "environment": {
+      "type": "object",
+      "maxProperties": 1024,
+      "propertyNames": {
+        "type": "string",
+        "maxLength": 256,
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/environment"
+      }
+    },
+    "installer_release_digest": {
+      "$ref": "#/$defs/digest"
+    }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "literal": {
+      "type": "string",
+      "maxLength": 16384,
+      "pattern": "^[^\\u0000]*$"
+    },
+    "component": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f\\\\/:<>\"|?*]+$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^\\x00-\\x1f\\x7f\\\\:<>\"|?*]+$"
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "installation_key",
+        "relative_path"
+      ],
+      "properties": {
+        "installation_key": {
+          "$ref": "#/$defs/digest"
+        },
+        "relative_path": {
+          "$ref": "#/$defs/path"
+        }
+      }
+    },
+    "argument": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal"
+            },
+            "value": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "path"
+          ],
+          "properties": {
+            "kind": {
+              "const": "path"
+            },
+            "path": {
+              "$ref": "#/$defs/reference"
+            }
+          }
+        }
+      ]
+    },
+    "launch": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "payload_relative_path",
+            "prefix_args"
+          ],
+          "properties": {
+            "kind": {
+              "const": "native"
+            },
+            "payload_relative_path": {
+              "$ref": "#/$defs/path"
+            },
+            "prefix_args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/argument"
+              },
+              "maxItems": 256
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "payload_relative_path",
+            "interpreter",
+            "prefix_args"
+          ],
+          "properties": {
+            "kind": {
+              "const": "interpreter"
+            },
+            "payload_relative_path": {
+              "$ref": "#/$defs/path"
+            },
+            "interpreter": {
+              "$ref": "#/$defs/reference"
+            },
+            "prefix_args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/argument"
+              },
+              "maxItems": 256
+            }
+          }
+        }
+      ]
+    },
+    "environment": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "value"
+          ],
+          "properties": {
+            "kind": {
+              "const": "literal"
+            },
+            "value": {
+              "$ref": "#/$defs/literal"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "paths"
+          ],
+          "properties": {
+            "kind": {
+              "const": "paths"
+            },
+            "paths": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/reference"
+              },
+              "maxItems": 256
+            }
+          }
+        }
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "evidence_digest",
+        "verifier_digest",
+        "subject_digest"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "digest-only",
+            "publisher-signature",
+            "attestation"
+          ]
+        },
+        "evidence_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "verifier_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "subject_digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    }
+  },
+  "$comment": "Shape only. Runtime bounds the input to 2 MiB, checks UTF-8 byte lengths, portable paths, case collisions, sorted dependency keys, exact locked identities, full payload hashes, ownership, link resolution, filesystem types and executable permissions. Matching does not confer admission or execution authority."
+}

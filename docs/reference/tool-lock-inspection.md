@@ -174,7 +174,21 @@ that installation's payload root for directory references. Symlinks resolve
 through the already-verified manifest, not through unchecked filesystem opens.
 Command/environment case collisions, invalid environment names, NUL literals,
 excessive arguments and literal PATH replacement fail. Literal arguments remain
-data; no shell is invoked. A versioned external JSON Schema remains outstanding.
+data; no shell is invoked.
+
+The draft [format-1 receipt schema](../contracts/tools-v1/receipt.schema.json)
+defines the closed JSON shape, tagged launch/environment records, required
+nullable closure field and structural bounds. Validate it offline with
+`python tooling/check-tool-contracts.py` after installing the pinned
+`tooling/design-requirements.txt` in a validation environment. The same command
+checks layout records. It uses only local schema references and changes no store
+content. The shared receipt fixture is synthetic; it is rebound to real fixture
+payload hashes by the Rust receipt tests, never executed as an installed tool.
+Both validators reject the shared malformed-record corpus. JSON Schema measures
+character lengths, whereas runtime applies UTF-8 byte limits and additionally
+checks portable paths, case collisions, sorted dependencies, exact lock identity,
+payload hashes, file types and executable permissions. Schema success alone does
+not establish receipt validity or authority.
 
 This verifies receipt/content binding, not receipt authenticity or compatibility
 with an admitted layout plan. A caller must separately check backend/layout

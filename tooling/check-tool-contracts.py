@@ -24,8 +24,8 @@ def read(path):
     return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=unique)
 
 
-def main():
-    schema = read(ROOT / "docs/contracts/tools-v1/archive-layout.schema.json")
+def check_contract(name, schema_path, fixture_path, cases_path):
+    schema = read(ROOT / schema_path)
     # All references are local fragments. Never resolve remote schema resources.
     def local(value):
         if isinstance(value, dict):
@@ -39,9 +39,9 @@ def main():
     local(schema)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema)
-    fixture = read(ROOT / "tests/fixtures/tool-layout/plan.json")
+    fixture = read(ROOT / fixture_path)
     validator.validate(fixture)
-    cases = read(ROOT / "tests/fixtures/tool-layout/invalid-shapes.json")
+    cases = read(ROOT / cases_path)
     for case in cases:
         changed = copy.deepcopy(fixture)
         parts = case["pointer"].split("/")[1:]
@@ -54,7 +54,14 @@ def main():
             parent[parts[-1]] = case["value"]
         if validator.is_valid(changed):
             raise AssertionError("schema accepted invalid case: " + case["name"])
-    print(f"Tool layout shape checks passed: 1 valid and {len(cases)} invalid fixtures; no backend qualification.")
+    print(f"Tool {name} shape checks passed: 1 valid and {len(cases)} invalid fixtures; no backend qualification.")
+
+
+def main():
+    check_contract("layout", "docs/contracts/tools-v1/archive-layout.schema.json",
+                   "tests/fixtures/tool-layout/plan.json", "tests/fixtures/tool-layout/invalid-shapes.json")
+    check_contract("receipt", "docs/contracts/tools-v1/receipt.schema.json",
+                   "tests/fixtures/tool-receipt/receipt.json", "tests/fixtures/tool-receipt/invalid-shapes.json")
 
 
 if __name__ == "__main__":

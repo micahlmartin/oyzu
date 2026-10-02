@@ -14,6 +14,9 @@ extraction limits and authors a candidate receipt; it does not provide compiled
 backend descriptors or prove publisher verification. These do not
 complete either package or qualify a production backend. Other packages remain
 unimplemented unless existing components are explicitly identified as foundations.
+TM-01 now has draft versioned layout and receipt JSON schemas with shared
+invalid-shape fixtures checked by the schema validator and Rust runtime. Worker,
+backend descriptor and selection-grant schemas remain outstanding.
 
 ## Dependency order and deliverables
 

@@ -66,11 +66,19 @@ impl Fixture {
         let tool = &document["tool"][0];
         let distribution = &tool["distribution"][0];
         let installer = format!("sha256:{}", "1".repeat(64));
-        let receipt = json!({"format":1,"installation_key":key,"tool_key":tool_key,"tool_id":tool["id"],"version":tool["version"],"platform":platform,
+        // The same closed shape is validated by the JSON Schema checker. Bind
+        // its synthetic placeholders to this host's actual locked payload.
+        let mut receipt: Value =
+            serde_json::from_str(include_str!("fixtures/tool-receipt/receipt.json")).unwrap();
+        let bindings = json!({"installation_key":key,"tool_key":tool_key,"tool_id":tool["id"],"version":tool["version"],"platform":platform,
             "backend_digest":tool["backend_digest"],"distribution_digest":distribution["digest"],"distribution_size":distribution["size"],"layout_digest":distribution["layout_digest"],
-            "verification":distribution["verification"],"package_closure_digest":null,"dependency_installation_keys":[],"tree_digest":tree.digest,"tree_manifest_digest":tree.manifest_digest,
-            "entrypoints":{"node":{"kind":"native","payload_relative_path":"bin/node","prefix_args":[]}},
-            "environment":{"PATH":{"kind":"paths","paths":[{"installation_key":key,"relative_path":"bin"}]}},"installer_release_digest":installer});
+            "verification":distribution["verification"],"tree_digest":tree.digest,"tree_manifest_digest":tree.manifest_digest,
+            "installer_release_digest":installer});
+        receipt
+            .as_object_mut()
+            .unwrap()
+            .extend(bindings.as_object().unwrap().clone());
+        receipt["environment"]["PATH"]["paths"][0]["installation_key"] = json!(key);
         let fixture = Self {
             _temp: temp,
             lock,
@@ -100,6 +108,33 @@ impl Fixture {
             &self.installer,
         )
     }
+}
+
+#[test]
+fn receipt_runtime_rejects_shared_schema_invalid_shape_corpus() {
+    let fixture = Fixture::new();
+    assert!(fixture.verify().is_ok());
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/tool-receipt/invalid-shapes.json")).unwrap();
+    for case in cases {
+        let mut receipt = fixture.receipt.clone();
+        let pointer = case["pointer"].as_str().unwrap();
+        let (parent, key) = pointer.rsplit_once('/').unwrap();
+        let target = receipt
+            .pointer_mut(parent)
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        if case["remove"].as_bool() == Some(true) {
+            target.remove(key).unwrap();
+        } else {
+            target.insert(key.to_owned(), case["value"].clone());
+        }
+        fixture.save(&receipt);
+        assert!(fixture.verify().is_err(), "{}", case["name"]);
+    }
+    fixture.save(&fixture.receipt);
+    assert!(fixture.verify().is_ok());
 }
 
 #[test]
