@@ -79,6 +79,14 @@ Design a trait from the consumer's needs: name the operation it needs, the imple
 
 For example, recognizing a Python framework and constructing its test invocation have different consumers and effects. Keep detection evidence separate from task planning, even if both use the same ecosystem metadata. Likewise, a future registry connector's download support does not imply publishing or signing support. Represent capability availability explicitly and extract an independent contract when an actual consumer needs it; do not require dummy methods or report unsupported work as success. Existing broad contracts can evolve incrementally when touched, without speculative restructuring.
 
+### Internal extensions and public contracts
+
+Community contributors can add builders, detectors and adapters inside this repository through internal Rust contracts. That does not require a published plugin SDK, dynamic library loading or a stable Rust ABI. Keep those traits crate-private and concrete implementations behind their owning module's entry point. A registration change should be enough to make an implementation available; consumers should not reach into its private modules.
+
+Treat external compatibility as a separate design decision. Before exposing a Rust API or plugin protocol, identify its external consumer, supported operations, compatibility/versioning promise and verification. Use the existing OEP process for that commitment. Configuration, CLI output and serialized records also have consumers: preserve their documented contracts even when the Rust types behind them are internal. Internal refactoring freedom is not permission to break user-facing behavior.
+
+When adding an implementation, reuse shared contract checks for the obligations that actually apply, then add native integration cases for its differences. Verify explicit unsupported outcomes rather than supplying dummy implementations. This keeps community extensions small while making their obligations visible.
+
 ### Extracting shared behavior
 
 DRY applies to knowledge and rules, not just repeated syntax. Before extracting shared code, identify the invariant both callers need, the subsystem responsible for enforcing it, and the differences that must remain native. Put the operation with that owner and migrate affected callers together; leaving parallel implementations preserves the original maintenance problem.

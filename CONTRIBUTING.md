@@ -37,6 +37,8 @@ Use this table to narrow your first change, then consult the [code map](docs/cod
 
 An implementation issue should name one outcome, link its owner and existing contract, and state how to verify it. Keep unresolved design choices visible. These are issue-writing guidelines, not additional forms or an approval step for routine changes.
 
+Adding a builder or detector normally means extending an owned module and registering it through an internal contract. You do not need to design a public plugin SDK or split out a crate to contribute an ecosystem integration. See [internal extensions and public contracts](docs/code-organization.md#internal-extensions-and-public-contracts) for the boundary and verification expectations.
+
 When directing an AI agent, a useful starting prompt is:
 
 > Read AGENTS.md and the code map. Implement [one observable outcome], using [issue/example] as the expected behavior. Find the owning subsystem and existing contracts before editing. Keep ecosystem details with their adapter and reuse shared configuration, scheduling, execution and reporting rules. Update the relevant documentation, run the applicable checks, and report the changed boundaries, verification results and remaining limitations. Preserve unrelated work.
