@@ -1,7 +1,7 @@
 // Native quality APIs; usable as a runtime file or embedded development command.
 import {existsSync, lstatSync, readFileSync, readdirSync, writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
-import {join, resolve} from 'node:path';
+import {isAbsolute, join, relative, resolve, sep} from 'node:path';
 
 const root = process.cwd();
 const mode = process.argv.at(-1);
@@ -24,11 +24,17 @@ function library(name) {
   return project(resolved);
 }
 const excluded = new Set(['node_modules','.git','.oyzu','.oyzu-build','dist','build','coverage']);
+const scopes = JSON.parse(process.env.OYZU_NODE_QUALITY_EXCLUDE ?? '[]');
+if (!Array.isArray(scopes) || scopes.length > 1024 || scopes.some(p => typeof p !== 'string' || !p || isAbsolute(p) || /[\\:]/.test(p) || p.split('/').some(c => !c || c === '.' || c === '..'))) {
+  throw new Error('Invalid workspace quality scope');
+}
+const excludedScopes = new Set(scopes);
 const files = [];
 function walk(directory) {
   for (const entry of readdirSync(directory, {withFileTypes:true}).sort((a,b) => a.name.localeCompare(b.name, 'en'))) {
     if (entry.isSymbolicLink() || excluded.has(entry.name)) continue;
     const path = join(directory, entry.name);
+    if (excludedScopes.has(relative(root,path).split(sep).join('/'))) continue;
     if (entry.isDirectory()) walk(path);
     else if (entry.isFile() && /\.(?:[cm]?[jt]s|[jt]sx)$/.test(entry.name)) files.push(path);
     if (files.length > 100_000) throw new Error('Node quality source count exceeds limit');

@@ -75,8 +75,8 @@ jobs:
           node --test tooling/test-jest-results.mjs
           python tooling/test-node-acquisition.py
           python tooling/test-npm-workspaces.py
-          python tooling/test-npm-workspace-build.py
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
+          python tooling/test-npm-workspace-build.py
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
           python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js --tar-stream tooling/images/node-yarn/node_modules/tar-stream

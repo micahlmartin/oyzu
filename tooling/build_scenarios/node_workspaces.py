@@ -55,4 +55,20 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert not failed['artifacts']
     assert next(a for a in failed['actions'] if a['id'] == 'project:lint')['status'] == 'succeeded'
     assert next(a for a in failed['actions'] if a['id'] == 'project:format-check')['status'] == 'failed'
+    source.write_text(original)
+    package_path = project/'packages/shared/package.json'
+    package = json.loads(package_path.read_text())
+    package['scripts'].update({'lint':'node --check index.mjs', 'format:check':'node --check index.mjs'})
+    package_path.write_text(json.dumps(package))
+    before = source_files(project)
+    invoke(project, 'build')
+    mixed = validate(project/'dist')
+    assert source_files(project) == before and len(mixed['artifacts']) == 2
+    formatting = [a for a in mixed['actions'] if a['id'] in ['project:format-check','project:format:check']]
+    assert len(formatting) == 1 and formatting[0]['status'] == 'succeeded'
+    (project/'packages/app/quality.mjs').write_text('export const value = missing;\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    assert next(a for a in failed['actions'] if a['id'] == 'project:lint')['status'] == 'failed'
     verified.append('EX-020 npm workspaces: isolated native link replay, per-member snapshot packages/JUnit/coverage, internal snapshot references, stable artifacts and failed-test package blocking; affected selection remains pending')

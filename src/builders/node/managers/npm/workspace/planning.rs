@@ -34,8 +34,7 @@ fn ordered(metadata: &Metadata) -> Result<Vec<&Member>> {
     Ok(output)
 }
 
-fn framework(path: &std::path::Path) -> Result<String> {
-    let profile = detection::detect(path)?;
+fn framework(profile: &detection::Profile) -> Result<String> {
     let name = profile.framework.selected();
     if let Some(script) = profile.package["scripts"]["test"].as_str() {
         if (name == "jest" && !crate::builders::node::jest::recognized(script))
@@ -75,6 +74,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     let root_test = root_scripts.contains_key("test");
     let mut test = TaskPlan::command(&["node", "/oyzu/npm-workspace-build.mjs", "test"]);
     for member in ordered(&metadata)? {
+        let profile = detection::detect(&context.target.path.join(&member.path))?;
         let id = crate::names::scoped("package", &member.name);
         let version = format!(
             "{}-dev.g{}",
@@ -85,7 +85,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             "{}-{version}.tgz",
             member.name.trim_start_matches('@').replace('/', "-")
         );
-        modules.push(json!({"id":id,"name":member.name,"path":member.path,"version":version,"filename":filename,"scripts":member.scripts,"dependencies":member.dependencies,"framework":framework(&context.target.path.join(&member.path))?}));
+        modules.push(json!({"id":id,"name":member.name,"path":member.path,"version":version,"filename":filename,"scripts":member.scripts,"dependencies":member.dependencies,"framework":framework(&profile)?,"quality":{"linter":profile.linter.selected(),"formatter":profile.formatter.selected()}}));
         plan.artifacts.push(ArtifactSpec {
             kind: ArtifactKind::File,
             name: id.clone(),
@@ -100,7 +100,8 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     if root_test {
         reports(&mut test, "root");
     }
-    let specification = json!({"rootVersion":root_version,"rootScripts":root_scripts,"rootDependencies":metadata.root_dependencies,"rootFramework":framework(&context.target.path)?,"modules":modules,
+    let root_profile = detection::detect(&context.target.path)?;
+    let specification = json!({"rootVersion":root_version,"rootScripts":root_scripts,"rootDependencies":metadata.root_dependencies,"rootFramework":framework(&root_profile)?,"rootQuality":{"linter":root_profile.linter.selected(),"formatter":root_profile.formatter.selected()},"modules":modules,
         "nodeTestArguments":crate::builders::node::reporting::arguments("__OYZU_TEST_REPORT__", "__OYZU_COVERAGE_REPORT__")});
     let encoded = serde_json::to_string(&specification)?;
     if encoded.len() > 120_000 {
@@ -125,19 +126,22 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         TaskPlan::command(&["node", "/oyzu/npm-workspace-build.mjs", "build"]),
     );
     plan.tasks.insert("test".into(), test);
-    for stage in ["lint", "format-check", "format:check"] {
-        if specification["rootScripts"].get(stage).is_some()
-            || specification["modules"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|m| m["scripts"].get(stage).is_some())
-        {
-            plan.tasks.insert(
-                stage.into(),
-                TaskPlan::command(&["node", "/oyzu/npm-workspace-build.mjs", stage]),
-            );
-        }
+    // One formatting stage owns the intent, regardless of the member's native
+    // spelling. An explicit root script owns the whole workspace once.
+    let format_stage = if !root_scripts.contains_key("format-check")
+        && root_scripts.contains_key("format:check")
+    {
+        "format:check"
+    } else {
+        "format-check"
+    };
+    plan.stages
+        .retain(|s| !["format-check", "format:check"].contains(s) || *s == format_stage);
+    for stage in ["lint", format_stage] {
+        plan.tasks.insert(
+            stage.into(),
+            TaskPlan::command(&["node", "/oyzu/npm-workspace-build.mjs", stage]),
+        );
     }
     crate::builders::node::quality::plan(context.target, &mut plan)?;
     Ok(plan)

@@ -18,10 +18,11 @@ def main():
         runtime = base/'runtime'
         shutil.copytree(ROOT/'src/builders/node/runtime', runtime)
         shutil.copyfile(runtime/'lock.mjs', runtime/'npm_lock.mjs')
+        shutil.copyfile(runtime/'quality.mjs', runtime/'node-quality.mjs')
         shutil.copyfile(ROOT/'src/broker/runtime/transport.mjs', runtime/'broker_transport.mjs')
         (runtime/'lock-probe.mjs').write_text("import {npm} from './npm-native.mjs'; import {mkdtempSync,rmSync} from 'node:fs'; import {tmpdir} from 'node:os'; import {join} from 'node:path'; const cache=mkdtempSync(join(tmpdir(),'oyzu-lock-')); try { npm(['install','--package-lock-only','--ignore-scripts'],process.cwd(),cache); } finally { rmSync(cache,{recursive:true,force:true}); }\n")
         snapshots = []
-        for index in range(3):
+        for index in range(4):
             project = base/f'project {index}'
             shutil.copytree(ROOT/'examples/builds/node-workspace/project', project)
             (project/'operation.cjs').write_text("require('node:fs').appendFileSync(require('node:path').join(__dirname,'operations.log'),process.argv.slice(2).join(':')+'\\n');\n")
@@ -30,17 +31,26 @@ def main():
                 pkg = json.loads(path.read_text())
                 for stage in ['build', 'lint', 'format-check']:
                     pkg['scripts'][stage] = f'node ../../operation.cjs {stage} {name}'
+                if index == 3:
+                    if name == 'app':
+                        del pkg['scripts']['lint']
+                        del pkg['scripts']['format-check']
+                    else:
+                        pkg['scripts']['format:check'] = pkg['scripts'].pop('format-check')
                 path.write_text(json.dumps(pkg))
             if index == 2:
                 path = project/'package.json'
                 pkg = json.loads(path.read_text())
                 pkg['scripts'] = {s:f'node operation.cjs {s} root' for s in ['build','lint','format-check']}
                 pkg['scripts']['test'] = 'node --test'
+                pkg['scripts']['format:check'] = pkg['scripts'].pop('format-check')
                 pkg['dependencies'] = {'@oyzu-example/shared':'0.1.0'}
                 path.write_text(json.dumps(pkg))
             captured = base/f'capture {index}'
             captured.mkdir()
-            env = os.environ.copy()
+            env = {**os.environ, 'OYZU_NODE_QUALITY_HOME':str(ROOT/'tooling/images/node-quality')}
+            # Author positive fixture sources with native Prettier before capture.
+            subprocess.run(['node', str(ROOT/'tooling/images/node-quality/node_modules/prettier/bin/prettier.cjs'), '--write', *[str(p) for p in project.rglob('*') if p.suffix in ['.mjs','.cjs']]], check=True, capture_output=True)
 
             def run(script, args, success=True):
                 result = subprocess.run(['node', str(runtime/script), *args], cwd=project, env=env, capture_output=True, text=True, timeout=120)
@@ -53,8 +63,9 @@ def main():
             inventory = json.loads((captured/'inventory.json').read_text())
             version = '0.1.0-dev.gabcdef123456'
             members = sorted(inventory['workspaces']['members'], key=lambda m: len(m['dependencies']))
-            modules = [{**m, 'id':m['path'].split('/')[-1], 'version':version, 'filename':f"{m['name'].removeprefix('@').replace('/', '-')}-{version}.tgz", 'framework':'node-test'} for m in members]
-            spec = {'rootVersion':version, 'rootDependencies':inventory['workspaces']['rootDependencies'], 'rootScripts':json.loads((project/'package.json').read_text()).get('scripts',{}), 'rootFramework':'node-test', 'modules':modules, 'nodeTestArguments':['--experimental-test-coverage','--test-coverage-exclude=**/*.test.*','--test-reporter=junit','--test-reporter-destination=__OYZU_TEST_REPORT__','--test-reporter=lcov','--test-reporter-destination=__OYZU_COVERAGE_REPORT__']}
+            quality = {'linter':'eslint', 'formatter':'prettier'}
+            modules = [{**m, 'id':m['path'].split('/')[-1], 'version':version, 'filename':f"{m['name'].removeprefix('@').replace('/', '-')}-{version}.tgz", 'framework':'node-test', 'quality':quality} for m in members]
+            spec = {'rootVersion':version, 'rootDependencies':inventory['workspaces']['rootDependencies'], 'rootScripts':json.loads((project/'package.json').read_text()).get('scripts',{}), 'rootFramework':'node-test', 'rootQuality':quality, 'modules':modules, 'nodeTestArguments':['--experimental-test-coverage','--test-coverage-exclude=**/*.test.*','--test-reporter=junit','--test-reporter-destination=__OYZU_TEST_REPORT__','--test-reporter=lcov','--test-reporter-destination=__OYZU_COVERAGE_REPORT__']}
             encoded = json.dumps(spec)
             env['OYZU_NPM_WORKSPACE_PLAN'] = hashlib.sha256(encoded.encode()).hexdigest()
             env['OYZU_TARGET'] = 'workspace'
@@ -68,7 +79,16 @@ def main():
             operation('test')
             operation('lint')
             operation('format-check')
-            assert (project/'operations.log').read_text().splitlines() == ([f'{stage}:root' for stage in ['build','lint','format-check']] if index == 2 else [f'{stage}:{member}' for stage in ['build','lint','format-check'] for member in ['shared','app']])
+            expected = ([f'{stage}:root' for stage in ['build','lint','format-check']] if index == 2 else [f'{stage}:{member}' for stage in ['build','lint','format-check'] for member in ['shared','app'] if index != 3 or member == 'shared' or stage == 'build'])
+            assert (project/'operations.log').read_text().splitlines() == expected
+            if index == 3:
+                # A scripted sibling must not suppress the other member's checks.
+                bad = project/'packages/app/invalid.mjs'
+                bad.write_text('export const invalid = absent;\n', newline='\n')
+                assert 'no-undef' in operation('lint', False).stdout
+                bad.write_text('export const valid=1;\n', newline='\n')
+                assert 'Formatting differs' in operation('format-check', False).stderr
+                bad.unlink()
             for module in (['root'] if index == 2 else ['app','shared']):
                 report = project/f'.oyzu-build/reports/{module}'
                 junit = ET.parse(report/'junit.xml')
@@ -99,7 +119,7 @@ def main():
             plan.write_text('{}')
             assert 'plan identity changed' in operation('build', False).stderr
         assert snapshots[0] == snapshots[1], 'workspace package bytes must survive relocation'
-    print('Native npm workspace builds: snapshot packs, internal versions, stable bytes, dependency order, root deduplication, JUnit/coverage, failures and tamper rejection passed')
+    print('Native npm workspace builds: snapshot packs, internal versions, stable bytes, dependency order, root deduplication, mixed scripted/default quality, JUnit/coverage, failures and tamper rejection passed')
 
 
 if __name__ == '__main__':

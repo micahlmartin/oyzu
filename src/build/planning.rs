@@ -363,11 +363,21 @@ mod tests {
 
     #[test]
     fn npm_workspace_plans_keep_each_artifact_and_required_report_under_override() {
-        for custom in [false, true] {
+        for (custom, format_stage) in [
+            (false, "format-check"),
+            (true, "format-check"),
+            (false, "format:check"),
+        ] {
             let temp = tempfile::tempdir().unwrap();
             let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("examples/builds/node-workspace/project");
             let source = snapshot::capture(&fixture, &temp.path().join("source")).unwrap();
+            if format_stage == "format:check" {
+                let manifest = temp.path().join("source/package.json");
+                let mut package = records::read(&manifest).unwrap();
+                package["scripts"]["format:check"] = json!("native-root-format-check");
+                records::write(&manifest, &package).unwrap();
+            }
             if custom {
                 fs::write(
                     temp.path().join("source/oyzu.toml"),
@@ -408,6 +418,25 @@ mod tests {
             .unwrap();
             let actions = plan["actions"].as_array().unwrap();
             assert!(actions.iter().any(|a| a["id"] == "project:build"));
+            for stage in ["lint", format_stage] {
+                let operation = actions
+                    .iter()
+                    .find(|a| a["id"] == format!("project:{stage}"))
+                    .unwrap();
+                assert_eq!(
+                    operation["argv"],
+                    json!(["node", "/oyzu/npm-workspace-build.mjs", stage])
+                );
+            }
+            assert_eq!(
+                actions
+                    .iter()
+                    .filter(
+                        |a| a["id"] == "project:format:check" || a["id"] == "project:format-check"
+                    )
+                    .count(),
+                1
+            );
             let test = actions.iter().find(|a| a["id"] == "project:test").unwrap();
             assert_eq!(test["reports"].as_array().unwrap().len(), 4);
             assert!(test["reports"]

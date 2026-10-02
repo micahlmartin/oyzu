@@ -67,9 +67,28 @@ if (mode === 'project') {
       if (status) process.exitCode = 1;
     }
   } else if (['lint', 'format-check', 'format:check'].includes(mode)) {
-    const producers = spec.rootScripts[mode] ? [null] : spec.modules.filter(m => m.scripts[mode]);
-    if (!producers.length) throw new Error(`No workspace ${mode} command`);
-    for (const member of producers) if (invoke(script(mode, member), root)) process.exitCode = 1;
+    const aliases = mode === 'lint' ? ['lint'] : ['format-check','format:check'];
+    const rootScript = aliases.find(name => Object.hasOwn(spec.rootScripts, name));
+    if (rootScript) {
+      if (invoke(script(rootScript), root)) process.exitCode = 1;
+    } else {
+      const producers = [{path:'.', scripts:{}, framework:spec.rootFramework, quality:spec.rootQuality}, ...spec.modules];
+      for (const member of producers) {
+        const name = aliases.find(name => Object.hasOwn(member.scripts, name));
+        if (name) {
+          if (invoke(script(name, member), root)) process.exitCode = 1;
+          continue;
+        }
+        const lint = mode === 'lint';
+        if (member.quality?.[lint ? 'linter' : 'formatter'] !== (lint ? 'eslint' : 'prettier')) {
+          throw new Error(`Unsupported implicit workspace quality tool in ${member.path}`);
+        }
+        const prefix = member.path === '.' ? '' : `${member.path}/`;
+        const excludes = spec.modules.map(m => m.path).filter(p => p.startsWith(prefix) && p !== member.path).map(p => p.slice(prefix.length));
+        const env = {...process.env, OYZU_NODE_TEST_FRAMEWORK:member.framework, OYZU_NODE_QUALITY_EXCLUDE:JSON.stringify(excludes)};
+        if (invoke([process.execPath, join(runtime, 'node-quality.mjs'), lint ? 'lint' : 'format-check'], resolve(root,member.path), env)) process.exitCode = 1;
+      }
+    }
   } else if (mode === 'package') {
     const artifacts = read(receipt);
     if (artifacts.length !== spec.modules.length) throw new Error('Incomplete workspace artifact receipt');

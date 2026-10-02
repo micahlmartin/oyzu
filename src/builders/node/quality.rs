@@ -44,7 +44,7 @@ pub(super) fn plan(target: &Target, plan: &mut BuilderPlan) -> Result<()> {
             plan.tasks
                 .entry(task.name.clone())
                 .or_insert_with(|| TaskPlan::command(&["node", "/oyzu/node-quality.mjs", mode]));
-        } else if task.argv.first().is_some_and(|v| v == "biome") {
+        } else if task.build_stage && task.argv.first().is_some_and(|v| v == "biome") {
             bail!("Biome native quality integration is not implemented yet; provide an explicit native task script");
         }
     }
@@ -56,6 +56,10 @@ pub(super) fn plan(target: &Target, plan: &mut BuilderPlan) -> Result<()> {
         "OYZU_NODE_QUALITY_HOME".into(),
         "/opt/oyzu-node-quality".into(),
     );
+    plan.env
+        .insert("OYZU_NODE_QUALITY_EXCLUDE".into(), "[]".into());
+    plan.fixed_env
+        .insert("OYZU_NODE_QUALITY_EXCLUDE".into(), "[]".into());
     Ok(())
 }
 
