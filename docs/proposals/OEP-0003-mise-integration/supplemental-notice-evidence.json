@@ -1,12 +1,12 @@
 {
   "format": 1,
-  "scope": "supplemental-upstream-root-notice-candidates",
+  "scope": "supplemental-upstream-notice-candidates",
   "source_pointer_sha256": "6fd9ee83a08a5c94359c66b2ae80fa2f5dfa617b51f8b6b26a43129bf9c6b484",
   "legal_approval": false,
   "release_ready": false,
   "limitations": [
-    "Root notice bytes only, not proof of applicability to every package or complete obligations",
-    "Nested notice directories and source headers remain unreviewed",
+    "Collected notice bytes are not proof of applicability to every package or complete obligations",
+    "Source headers, additional notice paths and legal applicability remain unreviewed",
     "Does not replace the original crate notice reports or mark missing entries resolved"
   ],
   "sources": [
@@ -36,10 +36,48 @@
           "sha256": "d12ab62ad9f4de7596b77e508910e6bcbb320f9550d665b581ce5b2e4a203e5a",
           "size": 1074,
           "retained_path": "aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/LICENSE"
+        },
+        {
+          "path": "licenses/pnpm-LICENSE",
+          "url": "https://raw.githubusercontent.com/aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/pnpm-LICENSE",
+          "git_blob_sha1": "565d3e85af157e84829fc486d58a199d4b4f4de4",
+          "sha256": "4b8e2a57502758b2d034ece9cabf19dd098c5609003ed8dbdafd085274f25bd9",
+          "size": 1170,
+          "retained_path": "aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/pnpm-LICENSE"
+        },
+        {
+          "path": "licenses/pnpm-plugin-trusted-deps-LICENSE",
+          "url": "https://raw.githubusercontent.com/aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/pnpm-plugin-trusted-deps-LICENSE",
+          "git_blob_sha1": "266d78ed7686cf16166a2a6b3ecc25c26f25ea0b",
+          "sha256": "6bbf6b391fc61a2362ec00c00558f1fed1082bc6588248b9cf1a65c46531c811",
+          "size": 1108,
+          "retained_path": "aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/pnpm-plugin-trusted-deps-LICENSE"
+        },
+        {
+          "path": "licenses/vltpkg-benchmarks-LICENSE",
+          "url": "https://raw.githubusercontent.com/aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/vltpkg-benchmarks-LICENSE",
+          "git_blob_sha1": "7edaa618bdc8335cc9fcdab31e191d7cf278bb08",
+          "sha256": "1bc9586ce147394287102c0d38dd688a566d69fbe8b58a311a85813bf87099c6",
+          "size": 2562,
+          "retained_path": "aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/vltpkg-benchmarks-LICENSE"
+        },
+        {
+          "path": "licenses/yarnpkg-extensions-LICENSE",
+          "url": "https://raw.githubusercontent.com/aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/yarnpkg-extensions-LICENSE",
+          "git_blob_sha1": "e25a0f98285e88e0b7f7cab74614b3bda336af73",
+          "sha256": "238d933f5c226cc197bd1dae2ad0c468e157b4cba8ed844f81549ba6db777dc4",
+          "size": 1336,
+          "retained_path": "aubepkg/aube/bd94e42f54d3b5e3dd102716b7197f316cb5f4ed/licenses/yarnpkg-extensions-LICENSE"
         }
       ],
-      "unreviewed_notice_directories": [
-        "licenses"
+      "unreviewed_notice_directories": [],
+      "collected_notice_directories": [
+        {
+          "path": "licenses",
+          "git_tree_sha1": "47ed0fd78b3a5e4ae97abd3ad5063269803b1b0a",
+          "file_count": 4,
+          "review_status": "unreviewed"
+        }
       ]
     },
     {

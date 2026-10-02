@@ -1316,3 +1316,14 @@ in this root-file inventory. Source/package applicability, nested notices, heade
 shipping graph and obligations still need review; collection does not close the
 license gate or reduce the original missing-notice counts. Documentation structure
 checks passed.
+
+## Checkpoint 105: nested Aube notices retained
+
+The pinned Aube licenses directory contains four files: pnpm-LICENSE,
+pnpm-plugin-trusted-deps-LICENSE, vltpkg-benchmarks-LICENSE and
+yarnpkg-extensions-LICENSE. All were retained unchanged outside the checkout and
+verified against tree `47ed0fd78b3a5e4ae97abd3ad5063269803b1b0a` and their
+Git blob/SHA-256/size identities. The supplemental index now covers 22 files across
+the same 14 source commits and 45 package entries; all 22 retained files were
+rechecked. This closes collection of that directory, not license applicability
+or shipping-graph review. Approval and missing-notice dispositions are unchanged.

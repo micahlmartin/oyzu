@@ -501,7 +501,8 @@ redistribution duties; do not substitute an unrelated current repository license
 All dispositions remain unreviewed and approval flags remain false.
 
 The [supplemental notice index](../proposals/OEP-0003-mise-integration/supplemental-notice-evidence.json)
-records 18 original root notice files fetched at 14 exact source commits for 45
+records 18 original root notice files and four nested Aube notice files fetched
+at 14 exact source commits for 45
 package entries in the rage, aube, rattler and sigstore-rust repository groups.
 Each retained file matches its commit tree's Git blob identity and its recorded
 SHA-256 and size. Original bytes remain outside the checkout; the index gives
@@ -514,6 +515,8 @@ not fallback to a default branch.
 This supplements the original crate reports without changing their missing-notice
 counts or dispositions. Root notice applicability to the individual crate, source
 headers, bundled native code and distribution duties still require review. Aube's
-separate `licenses/` directory is explicitly recorded as unreviewed; root LICENSE
-alone is not presented as complete coverage. All source-admission and release
+separate `licenses/` directory has now been collected: all four files match the
+pinned directory tree and preserve their original bytes. Applicability remains
+unreviewed; root LICENSE alone is not presented as complete coverage. The index
+records both the directory tree identity and each contained file identity. All source-admission and release
 approval flags remain false.
