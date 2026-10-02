@@ -418,13 +418,16 @@ collector works on trusted provisioned cache roots; it is not a concurrent
 hostile-filesystem sandbox. Select another output path to rerun collection.
 
 The [preserved native archive index](../proposals/OEP-0003-mise-integration/candidate-notice-evidence.json)
-binds downloaded reports and archives from run `36985298309`, at clean tested
-merge revision `0d0cfce94bfd775ef95ee70090b22f367ee37458`. Independent verification
+binds downloaded reports and archives from run `36992169356`, at clean tested
+merge revision `58fa4ec749d3af8638bd5aa582fb2928595f2739` for fork head
+`b71e447bc10acfbce3627b5f4c8baeb4a0f2f6fb`. The previous run/revision and
+its target hashes remain in `previous_evidence`; the default verifier checks the
+current `targets` array. Independent verification
 checked embedded/external report equality and every notice's raw/LF-normalized
 hash, size and package/path correspondence.
 
 Reproduce this check with Python 3.11+ from the Oyzu checkout, after downloading
-the named artifacts using `gh run download 36985298309 --repo oyzuai/mise --dir retained-notices`:
+the named artifacts using `gh run download 36992169356 --repo oyzuai/mise --pattern "cargo-evidence-*" --dir retained-notices`:
 
 ```text
 python tooling/mise-upstream/verify_notices.py --artifacts retained-notices

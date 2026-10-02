@@ -1,8 +1,8 @@
 {
   "format": 1,
   "scope": "verified-candidate-notice-archives",
-  "workflow_run": "https://github.com/oyzuai/mise/actions/runs/36985298309",
-  "fork_head": "94f0f75aadda0f20145de9dd0ea1df1b6c2403dc",
+  "workflow_run": "https://github.com/oyzuai/mise/actions/runs/36992169356",
+  "fork_head": "b71e447bc10acfbce3627b5f4c8baeb4a0f2f6fb",
   "legal_approval": false,
   "release_ready": false,
   "verification": [
@@ -19,37 +19,76 @@
   ],
   "targets": [
     {
-      "artifact": "cargo-evidence-aarch64-apple-darwin-0d0cfce94bfd775ef95ee70090b22f367ee37458",
+      "artifact": "cargo-evidence-aarch64-apple-darwin-58fa4ec749d3af8638bd5aa582fb2928595f2739",
       "target": "aarch64-apple-darwin",
-      "source_revision": "0d0cfce94bfd775ef95ee70090b22f367ee37458",
+      "source_revision": "58fa4ec749d3af8638bd5aa582fb2928595f2739",
       "packages": 952,
       "notices": 1501,
       "notice_bytes": 7760082,
       "missing": 98,
-      "report_sha256": "590dc6147d15b87ac349971e9d8259fee2c79b8dfade4b72992d7274c7d11bfc",
-      "archive_sha256": "eda82111766386b37a435f6a1b365da30d3ff3d8345f7c95351621bb9322d153"
+      "report_sha256": "e4498599ef8dcd40a599c7fe7adb464a9f67c1fa0788bb4194f9d2f51cbed77e",
+      "archive_sha256": "c930d09741af7739c61cbd1d47bcf532e3a84ccf16b5799424c3d0acd09db393"
     },
     {
-      "artifact": "cargo-evidence-x86_64-pc-windows-msvc-0d0cfce94bfd775ef95ee70090b22f367ee37458",
+      "artifact": "cargo-evidence-x86_64-pc-windows-msvc-58fa4ec749d3af8638bd5aa582fb2928595f2739",
       "target": "x86_64-pc-windows-msvc",
-      "source_revision": "0d0cfce94bfd775ef95ee70090b22f367ee37458",
+      "source_revision": "58fa4ec749d3af8638bd5aa582fb2928595f2739",
       "packages": 975,
       "notices": 1545,
       "notice_bytes": 8028635,
       "missing": 96,
-      "report_sha256": "7e790f277bc87770bf3276e80ac5ff9623e2ab76263847e0fbeaa0017944f84f",
-      "archive_sha256": "3ad4ceaf3fa16865b774d69bf5c88a8d2a081665ea07bb618f60e041e5bdeaa1"
+      "report_sha256": "3bc144faa83865da165778c048c3c95f5a19e1889157c1dcbc895202ea54b211",
+      "archive_sha256": "75825fd4db72fba7b0ffebb87dd4dd316c4ed4645a52f9180d54e2a942261e35"
     },
     {
-      "artifact": "cargo-evidence-x86_64-unknown-linux-gnu-0d0cfce94bfd775ef95ee70090b22f367ee37458",
+      "artifact": "cargo-evidence-x86_64-unknown-linux-gnu-58fa4ec749d3af8638bd5aa582fb2928595f2739",
       "target": "x86_64-unknown-linux-gnu",
-      "source_revision": "0d0cfce94bfd775ef95ee70090b22f367ee37458",
+      "source_revision": "58fa4ec749d3af8638bd5aa582fb2928595f2739",
       "packages": 955,
       "notices": 1510,
       "notice_bytes": 7805910,
       "missing": 98,
-      "report_sha256": "12dfd2faaa0c12ecfa05c8a5b87f3a548f5a652215734531be009f3f063bb52e",
-      "archive_sha256": "f4e630f5c3248260f9d96378cad9e8ffce7725c1dc8bd75b44a24df3132c2faf"
+      "report_sha256": "61c8c38f7f0e7b93e729b4377b7297023427e39af80eb4378c37fa812b26d519",
+      "archive_sha256": "30809c3e536a5665658f158c22bc99e99920a7eb6c1f07bf094ef1874cb3709c"
     }
-  ]
+  ],
+  "previous_evidence": {
+    "workflow_run": "https://github.com/oyzuai/mise/actions/runs/36985298309",
+    "fork_head": "94f0f75aadda0f20145de9dd0ea1df1b6c2403dc",
+    "targets": [
+      {
+        "artifact": "cargo-evidence-aarch64-apple-darwin-0d0cfce94bfd775ef95ee70090b22f367ee37458",
+        "target": "aarch64-apple-darwin",
+        "source_revision": "0d0cfce94bfd775ef95ee70090b22f367ee37458",
+        "packages": 952,
+        "notices": 1501,
+        "notice_bytes": 7760082,
+        "missing": 98,
+        "report_sha256": "590dc6147d15b87ac349971e9d8259fee2c79b8dfade4b72992d7274c7d11bfc",
+        "archive_sha256": "eda82111766386b37a435f6a1b365da30d3ff3d8345f7c95351621bb9322d153"
+      },
+      {
+        "artifact": "cargo-evidence-x86_64-pc-windows-msvc-0d0cfce94bfd775ef95ee70090b22f367ee37458",
+        "target": "x86_64-pc-windows-msvc",
+        "source_revision": "0d0cfce94bfd775ef95ee70090b22f367ee37458",
+        "packages": 975,
+        "notices": 1545,
+        "notice_bytes": 8028635,
+        "missing": 96,
+        "report_sha256": "7e790f277bc87770bf3276e80ac5ff9623e2ab76263847e0fbeaa0017944f84f",
+        "archive_sha256": "3ad4ceaf3fa16865b774d69bf5c88a8d2a081665ea07bb618f60e041e5bdeaa1"
+      },
+      {
+        "artifact": "cargo-evidence-x86_64-unknown-linux-gnu-0d0cfce94bfd775ef95ee70090b22f367ee37458",
+        "target": "x86_64-unknown-linux-gnu",
+        "source_revision": "0d0cfce94bfd775ef95ee70090b22f367ee37458",
+        "packages": 955,
+        "notices": 1510,
+        "notice_bytes": 7805910,
+        "missing": 98,
+        "report_sha256": "12dfd2faaa0c12ecfa05c8a5b87f3a548f5a652215734531be009f3f063bb52e",
+        "archive_sha256": "f4e630f5c3248260f9d96378cad9e8ffce7725c1dc8bd75b44a24df3132c2faf"
+      }
+    ]
+  }
 }

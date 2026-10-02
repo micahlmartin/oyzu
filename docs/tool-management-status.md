@@ -1267,3 +1267,20 @@ The combined Windows locked suite passed (122 library tests plus integrations;
 two explicitly ignored library cases), as did strict all-target Clippy, formatting,
 all nine CLI task scenarios and documentation checks. This merge does not broaden
 backend qualification or claim complete captured-build/native CI success.
+
+## Checkpoint 102: current fork notice evidence retained
+
+Downloaded all three cargo evidence artifacts from successful fork run
+`36992169356`, bound to tested merge `58fa4ec749d3af8638bd5aa582fb2928595f2739`
+and current candidate head `b71e447bc10acfbce3627b5f4c8baeb4a0f2f6fb`.
+The offline verifier matched embedded/external reports, every indexed notice's
+raw and normalized hashes, sizes, package/path identities and missing-notice list.
+The checked-in index now selects these artifacts and retains the previous run's
+hash anchors under `previous_evidence`. Raw artifacts remain outside the checkout.
+
+Counts are unchanged: Darwin 952 packages/1,501 notices/98 missing, Windows
+975/1,545/96 and Linux 955/1,510/98. The current candidate still has no recorded
+human approval in fork PR 2 and all evidence approval flags remain false. Owner
+assignment is not substituted for review. This refresh prepares reviewable source
+evidence; it is neither exact shipping-graph review nor production admission.
+The maintained reference gives the current download and verification commands.
