@@ -37,18 +37,25 @@ impl Directory {
     fn open_lock(&self, name: &str, create: bool) -> Result<File> {
         component(name)?;
         let name = native_name(name)?;
-        let fd = unsafe {
+        let flags = libc::O_RDWR | libc::O_NOFOLLOW | libc::O_NONBLOCK | libc::O_CLOEXEC;
+        // Separate exclusive creation from opening an existing permanent lock.
+        // Contenders never truncate, replace or unlink the winning inode.
+        let mut fd = unsafe {
             libc::openat(
                 self.handle.as_raw_fd(),
                 name.as_ptr(),
-                libc::O_RDWR
-                    | if create { libc::O_CREAT } else { 0 }
-                    | libc::O_NOFOLLOW
-                    | libc::O_NONBLOCK
-                    | libc::O_CLOEXEC,
+                flags
+                    | if create {
+                        libc::O_CREAT | libc::O_EXCL
+                    } else {
+                        0
+                    },
                 0o600,
             )
         };
+        if fd < 0 && create && io::Error::last_os_error().kind() == io::ErrorKind::AlreadyExists {
+            fd = unsafe { libc::openat(self.handle.as_raw_fd(), name.as_ptr(), flags) };
+        }
         let file = owned(fd)?;
         ensure!(
             file.metadata()?.is_file() && file.metadata()?.nlink() == 1,
@@ -342,4 +349,30 @@ pub(in crate::tools::store) fn identity(file: &File) -> Result<FileIdentity> {
         size: metadata.len(),
         executable: metadata.mode() & 0o111,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn lock_creation_reuses_one_inode_without_truncation_or_following_links() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().canonicalize().unwrap();
+        let root = Directory::open(&path).unwrap();
+        let mut first = root.lock_file("key").unwrap();
+        first.write_all(b"preserve").unwrap();
+        let second = root.lock_file("key").unwrap();
+        assert_eq!(
+            identity(&first).unwrap().object,
+            identity(&second).unwrap().object
+        );
+        assert_eq!(std::fs::read(path.join("key")).unwrap(), b"preserve");
+        assert!(root.existing_lock_file("absent").is_err());
+        assert!(!path.join("absent").exists());
+        std::os::unix::fs::symlink("key", path.join("linked")).unwrap();
+        assert!(root.lock_file("linked").is_err());
+        assert_eq!(std::fs::read(path.join("key")).unwrap(), b"preserve");
+    }
 }

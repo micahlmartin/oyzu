@@ -432,3 +432,19 @@ and nine real CLI task scenarios. Linux passed the final 16 receipt/recovery and
 nine blob integration tests, the empty-record guard unit test and strict
 all-target Clippy. Documentation structure passed. Native macOS recovery and
 the outstanding concurrency failure still require qualification.
+
+## Checkpoint 58: explicit Unix lock creation and reuse
+
+Run `36973690703` passed native Windows and Linux build jobs but macOS job
+`110732850664` isolated the blob concurrency failure to `open blob mutation lock`
+with ENOENT. Unix lock initialization now uses exclusive no-follow creation,
+then existing-only no-follow open on an already-existing entry. It never replaces,
+unlinks or truncates the winning inode, and recovery remains existing-only.
+The new native-access regression checks inode reuse, content preservation,
+missing existing-only records and rejected symlinks. This is a candidate fix;
+the macOS run must confirm the observed failure is resolved.
+
+Linux passed that regression, nine blob and 16 receipt/recovery tests, and strict
+all-target Clippy. Windows GNU Rust 1.94 passed its full suite, strict all-target
+Clippy, formatting and nine real CLI task scenarios. The earlier CI's downstream
+task/build jobs were skipped because of macOS failure, not counted as passes.

@@ -227,6 +227,11 @@ Shared OS lease locks under `locks/<key-hex>.lease` are acquired before mutation
 locks are released. The returned `InstallationLease` must remain alive until the
 whole consumer action ends. Both lock kinds use a bounded 30-second contention
 deadline. Lock files are never removed/replaced during ordinary operation.
+Unix lock initialization first attempts exclusive no-follow creation. If the
+entry already exists, it opens that same name without creation or truncation,
+then requires a regular single-link inode. This preserves permanent lock identity
+under concurrent initialization. Recovery's existing-only opens never create
+missing lock evidence.
 Prune must acquire mutation first, then try an exclusive lease; this protocol
 has not yet been connected to a prune command. Process exit releases kernel locks.
 
