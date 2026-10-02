@@ -21,7 +21,13 @@ fn native_scripts_and_go_checks_are_discovered_without_execution() {
     assert_eq!(target.tasks["foo"].argv, vec!["npm", "run", "foo"]);
     assert!(!target.tasks["foo"].build_stage);
     assert!(target.tasks["test"].build_stage);
-    assert!(target.tasks["format"].availability.is_some());
+    assert_eq!(target.tasks["lint"].argv, ["eslint", "."]);
+    assert_eq!(
+        target.tasks["format-check"].argv,
+        ["prettier", "--check", "."]
+    );
+    assert!(target.tasks["format"].mutates_source);
+    assert!(!target.tasks["format"].build_stage);
     fs::remove_file(root.path().join("package.json")).unwrap();
     write(
         root.path(),

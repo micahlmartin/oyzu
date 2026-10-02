@@ -56,6 +56,8 @@ fn plans_are_location_independent_bind_toolchain_and_keep_hooks() {
             "project:pre_test",
             "project:test",
             "project:post_test",
+            "project:lint",
+            "project:format-check",
             "project:package"
         ]
     );

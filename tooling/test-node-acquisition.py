@@ -31,6 +31,8 @@ def main():
         runtime.mkdir()
         for src, name in [
             ('src/builders/node/runtime/npm.mjs', 'npm.mjs'),
+            ('src/builders/node/runtime/npm-native.mjs', 'npm-native.mjs'),
+            ('src/builders/node/runtime/npm-workspaces.mjs', 'npm-workspaces.mjs'),
             ('src/builders/node/runtime/lock.mjs', 'npm_lock.mjs'),
             ('src/broker/runtime/transport.mjs', 'broker_transport.mjs'),
         ]:
@@ -90,6 +92,38 @@ def main():
                 assert result.returncode == 0, result.stdout + result.stderr
             assert captures[0] == captures[1], 'capture depends on cache timestamp or absolute location'
             native = json.loads((output / 'inventory.json').read_text())
+            # Native npm generates a mixed local-workspace/registry lock using
+            # the already fetched tarball; no second upstream transport is used.
+            workspace = base/'mixed-workspace'
+            shutil.copytree(ROOT/'examples/builds/node-workspace/project', workspace)
+            # Start with the existing native registry lock; npm adds the local
+            # workspace records rather than our harness manufacturing lock data.
+            shutil.copyfile(ROOT/'tooling/fixtures/npm-registry/package-lock.json', workspace/'package-lock.json')
+            mixed_package = json.loads((ROOT/'tooling/fixtures/npm-registry/package.json').read_text())
+            mixed_package['workspaces'] = ['packages/*']
+            (workspace/'package.json').write_text(json.dumps(mixed_package))
+            tarball_file = base/'is-number.tgz'
+            tarball_file.write_bytes(tarball)
+            cache = base/'lock-cache'
+            cache.mkdir()
+            script = """const {npm}=await import(process.argv[1]);
+const [workspace,cache,tarball]=process.argv.slice(2);
+npm(['cache','add',tarball,'--ignore-scripts'],workspace,cache);
+npm(['install','--package-lock-only','--ignore-scripts'],workspace,cache);
+"""
+            generated = subprocess.run(['node','--input-type=module','-e',script,(runtime/'npm-native.mjs').as_uri(),str(workspace),str(cache),str(tarball_file)], capture_output=True, text=True, timeout=120)
+            assert generated.returncode==0, (generated.stdout,generated.stderr)
+            mixed = base/'mixed-capture'
+            mixed.mkdir()
+            execute('acquire', mixed, workspace)
+            data = json.loads((mixed/'inventory.json').read_text())
+            assert [p['name'] for p in data['packages']]==['is-number']
+            assert len(data['workspaces']['members'])==2
+            count = len(requests)
+            execute('install', mixed, workspace)
+            assert len(requests)==count
+            result = subprocess.run(['node','-e',"if(!require('is-number')(42))process.exit(1)"],cwd=workspace/'packages/shared', capture_output=True,text=True)
+            assert result.returncode==0, result.stderr
             empty = base / 'empty-project'
             empty.mkdir()
             empty_package = {'name':'runtime-contract', 'version':'1.0.0',

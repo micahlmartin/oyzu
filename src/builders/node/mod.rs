@@ -3,6 +3,7 @@ mod discovery;
 mod jest;
 mod managers;
 mod planning;
+mod quality;
 mod reporting;
 mod vitest;
 
@@ -15,6 +16,30 @@ use std::path::Path;
 pub(super) struct Node;
 
 static RUNTIME: &[RuntimeFile] = &[
+    RuntimeFile {
+        name: "npm-workspace-root.mjs",
+        contents: include_str!("runtime/npm-workspace-root.mjs"),
+    },
+    RuntimeFile {
+        name: "node-quality.mjs",
+        contents: include_str!("runtime/quality.mjs"),
+    },
+    RuntimeFile {
+        name: "npm-workspace-build.mjs",
+        contents: include_str!("runtime/npm-workspace-build.mjs"),
+    },
+    RuntimeFile {
+        name: "npm-workspace-plan.mjs",
+        contents: include_str!("runtime/npm-workspace-plan.mjs"),
+    },
+    RuntimeFile {
+        name: "npm-native.mjs",
+        contents: include_str!("runtime/npm-native.mjs"),
+    },
+    RuntimeFile {
+        name: "npm-workspaces.mjs",
+        contents: include_str!("runtime/npm-workspaces.mjs"),
+    },
     RuntimeFile {
         name: "node-archive.mjs",
         contents: include_str!("runtime/archive.mjs"),
@@ -58,6 +83,17 @@ static RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Node {
+    fn development_command(
+        &self,
+        task: &Task,
+    ) -> Result<Option<crate::builders::DevelopmentCommand>> {
+        if let Ok(manager) = managers::get(&task.provider) {
+            if let Some(command) = manager.development_command(task)? {
+                return Ok(Some(command));
+            }
+        }
+        Ok(quality::development(task))
+    }
     fn descriptor(&self) -> Descriptor {
         Descriptor {
             tools: &["node"],

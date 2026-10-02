@@ -20,6 +20,11 @@
   ],
   "cases": [
     {
+      "name": "publishable-root",
+      "change": "Remove private: true from the root package and add conventional root source and tests, without an Oyzu configuration or root test script.",
+      "expect": "Produce snapshot archives for the root and both members, with independently collected JUnit and coverage. Run root and member tests once each, keep engine state out of packages, and block artifacts when a root test fails."
+    },
+    {
       "name": "duplicate-execution",
       "change": "Select both workspace root and package targets.",
       "expect": "Do not run the same native workspace task twice."

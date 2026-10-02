@@ -1,6 +1,7 @@
 //! Node observations; selection belongs to the shared role resolver.
 mod frameworks;
 mod managers;
+mod quality;
 
 use crate::discovery::detectors::{exclusive, Source};
 use crate::discovery::Resolution;
@@ -12,6 +13,8 @@ pub(super) struct Profile {
     pub package: Value,
     pub manager: Resolution,
     pub framework: Resolution,
+    pub linter: Resolution,
+    pub formatter: Resolution,
     pub locked: bool,
 }
 
@@ -28,6 +31,7 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
         "yarn.lock",
     ];
     inputs.extend(frameworks::inputs());
+    inputs.extend(quality::inputs());
     let source = Source::read(root, &inputs)?;
     let package: Value = serde_json::from_str(
         source
@@ -40,6 +44,8 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
     let context = ContextData { source, package };
     let manager = exclusive("Node package manager", &context, managers::MANAGERS)?;
     let framework = exclusive("Node test framework", &context, frameworks::DETECTORS)?;
+    let linter = exclusive("Node linter", &context, quality::LINTERS)?;
+    let formatter = exclusive("Node formatter", &context, quality::FORMATTERS)?;
     let locked = [
         "npm-shrinkwrap.json",
         "package-lock.json",
@@ -52,6 +58,8 @@ pub(super) fn detect(root: &Path) -> Result<Profile> {
         package: context.package,
         manager,
         framework,
+        linter,
+        formatter,
         locked,
     })
 }

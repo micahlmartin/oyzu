@@ -474,6 +474,114 @@ mod tests {
     use std::fs;
 
     #[test]
+    fn npm_workspace_plans_keep_each_artifact_and_required_report_under_override() {
+        for (custom, format_stage, public_root) in [
+            (false, "format-check", false),
+            (true, "format-check", false),
+            (false, "format:check", false),
+            (false, "format-check", true),
+            (true, "format-check", true),
+        ] {
+            let temp = tempfile::tempdir().unwrap();
+            let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("examples/builds/node-workspace/project");
+            let source = snapshot::capture(&fixture, &temp.path().join("source")).unwrap();
+            if public_root {
+                let manifest = temp.path().join("source/package.json");
+                let mut package = records::read(&manifest).unwrap();
+                package["private"] = json!(false);
+                records::write(&manifest, &package).unwrap();
+            }
+            if format_stage == "format:check" {
+                let manifest = temp.path().join("source/package.json");
+                let mut package = records::read(&manifest).unwrap();
+                package["scripts"]["format:check"] = json!("native-root-format-check");
+                records::write(&manifest, &package).unwrap();
+            }
+            if custom {
+                fs::write(
+                    temp.path().join("source/oyzu.toml"),
+                    "[tasks.\"project:test\"]\nargv=['custom-test']\n",
+                )
+                .unwrap();
+            }
+            let workspace = crate::discovery::discover(&temp.path().join("source")).unwrap();
+            let image = executor::Image {
+                reference: "node:test".into(),
+                digest: format!("sha256:{}", "1".repeat(64)),
+                os: "linux".into(),
+                arch: "amd64".into(),
+            };
+            let mut members = Vec::new();
+            for name in ["app", "shared"] {
+                let pkg =
+                    records::read(&workspace.root.join(format!("packages/{name}/package.json")))
+                        .unwrap();
+                let edges = if name == "app" {
+                    json!([{"name":"@oyzu-example/shared","target":"@oyzu-example/shared","kind":"prod","spec":"0.1.0"}])
+                } else {
+                    json!([])
+                };
+                members.push(json!({"name":pkg["name"],"path":format!("packages/{name}"),"version":pkg["version"],"private":pkg["private"].as_bool().unwrap_or(false),"scripts":pkg["scripts"],"dependencies":edges}));
+            }
+            let dependency = dependencies::Prepared {
+                root: temp.path().into(),
+                digest: format!("sha256:{}", "2".repeat(64)),
+                record: json!({"extensions":{"oyzu.dev/npm":{"workspaces":{"schemaVersion":1,"members":members,"rootDependencies":[]}}}}),
+            };
+            let plan = plan_with_dependencies(
+                &workspace,
+                &source,
+                &BTreeMap::from([("project".into(), image)]),
+                &BTreeMap::from([("project".into(), dependency)]),
+            )
+            .unwrap();
+            let actions = plan["actions"].as_array().unwrap();
+            assert!(actions.iter().any(|a| a["id"] == "project:build"));
+            for stage in ["lint", format_stage] {
+                let operation = actions
+                    .iter()
+                    .find(|a| a["id"] == format!("project:{stage}"))
+                    .unwrap();
+                assert_eq!(
+                    operation["argv"],
+                    json!(["node", "/oyzu/npm-workspace-build.mjs", stage])
+                );
+            }
+            assert_eq!(
+                actions
+                    .iter()
+                    .filter(
+                        |a| a["id"] == "project:format:check" || a["id"] == "project:format-check"
+                    )
+                    .count(),
+                1
+            );
+            let test = actions.iter().find(|a| a["id"] == "project:test").unwrap();
+            assert_eq!(
+                test["reports"].as_array().unwrap().len(),
+                if public_root { 6 } else { 4 }
+            );
+            assert!(test["reports"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|r| r["required"] == true));
+            if custom {
+                assert_eq!(test["argv"], json!(["custom-test"]));
+            }
+            let package = actions
+                .iter()
+                .find(|a| a["id"] == "project:package")
+                .unwrap();
+            assert_eq!(
+                package["outputs"].as_array().unwrap().len(),
+                if public_root { 3 } else { 2 }
+            );
+        }
+    }
+
+    #[test]
     fn qualified_docker_test_override_keeps_build_stage_and_required_evidence() {
         let root = tempfile::tempdir().unwrap();
         fs::write(root.path().join("Dockerfile"), "FROM scratch\n").unwrap();
