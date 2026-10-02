@@ -24,6 +24,19 @@ Pull requests should explain the intended behavior, reference related issues or 
 
 For code changes, briefly identify the AI tool used, how you directed/reviewed the change, and the subsystem/interface affected. A short summary is enough; full chat logs, private prompts and credentials are not required. Keep changes reviewable and scoped to one coherent outcome. Do not weaken an acceptance criterion merely to make generated code pass.
 
+## Find a bounded starting point
+
+Use this table to narrow your first change, then consult the [code map](docs/code-organization.md) for the authoritative ownership details. You do not need to understand every subsystem before contributing.
+
+| Contribution | Start here | Useful evidence |
+| --- | --- | --- |
+| Report a missing framework or incorrect detection | [Builder extension guide](docs/builder-code-organization.md) and `src/builders/<ecosystem>/detection/` where present | A minimal project and expected discovery result; a negative or ambiguous case helps |
+| Correct task selection or hook behavior | `src/tasks.rs` and the [task examples](examples/tasks/) | Expected task order and what should happen on failure |
+| Correct configuration precedence | `src/config/` and the [configuration reference](docs/reference/configuration.md) | The relevant input layers and expected resolved value, with secrets removed |
+| Improve documentation or a design contract | [Reference index](docs/reference/README.md) or [example catalog](docs/examples.md) | The unclear instruction or missing scenario and the expected outcome |
+
+An implementation issue should name one outcome, link its owner and existing contract, and state how to verify it. Keep unresolved design choices visible. These are issue-writing guidelines, not additional forms or an approval step for routine changes.
+
 ## Documentation with every functionality change
 
 Documentation is part of implementation and review, not a later task. Follow the [documentation maintenance standard](docs/documentation.md) for every feature, changed behavior, deprecation or removal. Update the owning reference page in the same PR, with practical usage, defaults, outputs, failure/recovery behavior and verified limits. Add a new page to the [reference index](docs/reference/README.md) when no existing page owns the feature. Implementation checkpoints and draft OEPs supplement this reference; they do not replace it.
