@@ -982,3 +982,26 @@ Windows/macOS results for this increment remain pending. Native constraint disco
 publisher verification, production worker wiring and full OEP acceptance remain
 outstanding. The maintenance reference documents inputs, limits, offline behavior
 and unsupported older Go version spellings.
+
+## Mise integration checkpoint 87: Go catalog source correction
+
+Review against the acquisition contract found that checkpoint 86's GitHub-tag
+adapter did not implement the specified initial Go release JSON source. The
+candidate now uses the official `go.dev/dl/?mode=json&include=all` catalog through
+supplied transport, retains the shared selector/upstream comparator and returns
+`GoVersionResolution` with the selected version and exact catalog-byte SHA-256.
+The added GitHub pagination API was removed; ordinary upstream behavior is restored.
+This corrects implementation alignment without changing the OEP requirement.
+
+The adapter bounds response bytes before JSON parsing, requires valid UTF-8,
+checks record counts/version lengths and rejects duplicate release identities.
+A process-private cache stores only successfully parsed snapshots. New workers need
+supplied metadata; no disk cache, Git or alternate catalog fallback is added.
+Seven catalog scenarios replace the earlier tag scenarios, including exact digest,
+constraint/cache behavior, duplicate/malformed/invalid-UTF-8 records and byte/count
+limits. All twenty Linux conformance scenarios and final strict library/example
+and utility-library Clippy checks passed; compliance inventory/tests pass
+on Windows with the two existing symlink skips. Artifact-file parity, publisher
+verification, native directives and production worker integration remain missing.
+The earlier Go checksum increment passed all three native hosts in run 36988631019;
+that evidence does not qualify this catalog correction.

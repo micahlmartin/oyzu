@@ -134,31 +134,40 @@ and macOS confirmation for this increment remains pending.
 ### Constrained catalog resolution
 
 The candidate fork's `session.resolve_go_version(request, native_constraints)`
-uses mise's backend catalog and the same admitted selector as Node. It supports
-exact stable versions, numeric prefixes, `latest` and upstream npm-compatible
-range expressions; all supplied constraints must match. For example, fixture tags
-`go1.24.13`, `go1.24.14` and `go1.25.0` select `1.24.13` for request `latest`
-with constraints `>=1.24` and `<1.24.14`. These are test values, not live recommendations.
+reads the [official Go release JSON catalog](https://go.dev/dl/?mode=json&include=all)
+through supplied HTTP transport and a process-private parsed catalog cache, as
+required by the OEP.
+It returns `GoVersionResolution { version, catalog_sha256 }`, binding selection to
+an exact SHA-256 of the UTF-8 catalog text. This is metadata identity, not publisher
+authentication. The earlier candidate GitHub-tag path was removed because it did
+not match the specified initial source; no source fallback is attempted.
 
-Embedded Go obtains complete tags using mise's existing GitHub parser over the
-supplied HTTP transport, rather than spawning Git. It retains Go prefix filtering,
-prerelease exclusion, deduplication and ordering. Pagination permits at most 1,000
-pages and 100,000 tags, rejects repeated URLs and denies next-page links that
-change the origin or introduce URL credentials before header creation/acquisition. A failed page fails the operation; a partial catalog is never returned.
-No commit-date requests are made. Response-byte limits and deadlines remain the
-transport's responsibility. Catalog results can use the session's private cache;
-there is no installed-tool or public aggregation-service fallback.
+Selection uses the shared Node/Go selector and upstream Go version comparator.
+Exact stable versions, numeric prefixes, `latest` and upstream npm-compatible ranges
+are supported. All supplied constraints must match. For example, catalog releases
+`go1.24.13`, `go1.24.14` and `go1.25.0` select `1.24.13` for `latest` constrained
+by `>=1.24` and `<1.24.14`. These are conformance values, not live recommendations.
 
-Selector limits match Node: 256 constraints, 1,024 bytes per nonblank/control-free
-selector and 100,000 catalog versions of at most 128 bytes. Exact pins require
-catalog membership. Missing transport, conflicting constraints, unsupported request
-modes and absent/noncanonical stable versions fail. Older Go tags without three
-numeric version components are not admitted by this initial archive contract.
-The API does not discover `go.mod`/`go.work` directives, establish target availability
-or verify publishers. Production worker wiring remains outstanding.
-Linux Rust 1.95 passed all nineteen conformance scenarios, including six Go
-resolution cases covering successful constraints/cache and five denial modes.
-Native Windows/macOS verification for this increment remains pending.
+Catalog input must be valid UTF-8 and is limited to 16 MiB before JSON decoding, 100,000 release records and
+128 bytes per version. The transport owns streaming byte limits and deadlines.
+Missing or mistyped `version`/`stable` fields and duplicate release identities fail.
+Additional official catalog fields are ignored by version selection. Unstable
+releases and versions outside the canonical three-component stable archive contract
+are excluded; older spellings are never converted into guessed artifact versions.
+
+Selector limits match Node: 256 constraints and 1,024 bytes per nonblank/control-free
+selector. Invalid selectors fail before acquisition. Exact pins require catalog
+membership. Missing metadata, conflicting constraints and unsupported request modes
+fail without Git execution, installed-tool discovery or another catalog source.
+Offline reuse within one worker can use its parsed snapshot. A new worker requires
+a supplied transport serving retained metadata; this adapter has no disk cache. The returned digest always identifies the actual text
+selected from, including on cache hits.
+
+This experimental API does not discover `go.mod`/`go.work` directives, validate
+catalog file records against archive selection, prove target availability or verify
+publishers. Production worker wiring and catalog-to-archive qualification remain
+outstanding. All twenty Linux Rust 1.95 conformance scenarios passed, including
+seven Go catalog cases. Native Windows/macOS verification of this correction is pending.
 
 ### Target metadata
 
