@@ -1038,6 +1038,16 @@ operation; `untrusted_payload()` deliberately does not imply payload admission.
 Recognized platform syntax does not establish backend/platform support, and
 capability names do not prove executor capabilities.
 
+Both `ToolWorkerExchange::context()` and `ToolWorkerSession::context()` return
+a borrowed `ToolWorkerRequestContext` containing `request_id`, `context_digest`,
+`backend_release_digest`, `target_platform` and the sorted capability IDs. These
+are the fields from the validated original request, not a second parse or a
+separately mutable identity. Use them to compare the request with independently
+trusted supervisor state before dispatch. They remain inspectable after the
+operation ends; inspecting this snapshot does not renew the operation, authenticate
+the channel, admit a capability or grant execution permission. No wire format or
+request validation rule changes with this accessor.
+
 `finish(response_bytes)` compares protocol, request ID and context digest with
 the original request. It accepts exactly one `ok` response with an object result,
 or `error`/`cancelled` with a closed diagnostic containing only `code`. Codes are

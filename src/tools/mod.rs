@@ -17,8 +17,8 @@ pub use selection::{select_for_tool_requests, select_locked_environment};
 pub use worker::{
     native_tool_worker_channel, split_tool_worker_channel, NativeToolWorkerEndpoint,
     NativeToolWorkerReader, NativeToolWorkerWriter, ToolWorkerChannel, ToolWorkerExchange,
-    ToolWorkerOperation, ToolWorkerOutcome, ToolWorkerReceiver, ToolWorkerSender,
-    ToolWorkerSession,
+    ToolWorkerOperation, ToolWorkerOutcome, ToolWorkerReceiver, ToolWorkerRequestContext,
+    ToolWorkerSender, ToolWorkerSession,
 };
 mod store;
 pub use store::InstallationLease;

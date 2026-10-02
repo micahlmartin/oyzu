@@ -1,6 +1,6 @@
 //! Worker-side single-operation sequencing. Reuses outer envelope validation;
 //! backend initialization, typed payload admission and process exit are external.
-use super::{ToolWorkerExchange, ToolWorkerOperation, ToolWorkerOutcome};
+use super::{ToolWorkerExchange, ToolWorkerOperation, ToolWorkerOutcome, ToolWorkerRequestContext};
 use anyhow::{ensure, Result};
 use serde_json::Value;
 
@@ -21,6 +21,12 @@ impl ToolWorkerSession {
 
     pub fn operation(&self) -> ToolWorkerOperation {
         self.exchange.operation()
+    }
+
+    /// Borrow the shared validated envelope identity. The dispatcher must still
+    /// authenticate the channel and admit it against trusted supervisor state.
+    pub fn context(&self) -> ToolWorkerRequestContext<'_> {
+        self.exchange.context()
     }
 
     pub fn untrusted_payload(&self) -> &Value {
@@ -158,6 +164,17 @@ mod tests {
                     let mut wire = ToolWorkerChannel::new(child);
                     let request = serde_json::to_vec(&wire.receive()?)?;
                     let mut session = ToolWorkerSession::new(&request)?;
+                    // Dispatcher admission needs the actual envelope identity,
+                    // not another parse of an untrusted payload or ambient state.
+                    let context = session.context();
+                    assert_eq!(context.request_id, "12345678-1234-1234-1234-123456789abc");
+                    assert_eq!(context.context_digest, format!("sha256:{}", "a".repeat(64)));
+                    assert_eq!(
+                        context.backend_release_digest,
+                        format!("sha256:{}", "b".repeat(64))
+                    );
+                    assert_eq!(context.target_platform, "linux/amd64/gnu");
+                    assert_eq!(context.capabilities, ["metadata"]);
                     session.accept_cancel(&serde_json::to_vec(&wire.receive()?)?)?;
                     wire.send(&session.finish(ToolWorkerOutcome::Cancelled {
                         code: "TOOL_CANCELLED".into(),

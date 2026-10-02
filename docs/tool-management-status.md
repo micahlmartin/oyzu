@@ -1828,3 +1828,24 @@ handle retention and concurrent-worker cleanup cases. These extend the process
 acceptance details; they are not passing test claims or accepted design status.
 Documentation/diff checks pass. No production behavior changed this turn.
 Native spawning, deadlines and process shutdown remain unimplemented.
+
+## Checkpoint 128: shared validated worker request context
+
+ToolWorkerExchange and ToolWorkerSession now expose context() as a borrowed
+ToolWorkerRequestContext containing request ID, context digest, backend-release
+digest, target platform and capability IDs. These fields come from the same
+validated owned request used for cancel/response correlation. Future dispatch
+can compare them with trusted supervisor state without reparsing untrusted JSON
+or keeping a separately mutable identity. The context remains an inspectable
+snapshot after termination and never grants authority or renews an operation.
+
+The existing native-channel request/cancel/terminal integration test now verifies
+all exposed header fields before worker cancellation. Windows passes the full
+locked Rust suite, strict all-target Clippy, formatting and nine CLI scenarios.
+Linux passes 20 worker tests and strict all-target Clippy with networking disabled.
+Reference and code-map updates describe ownership and admission limits;
+documentation and diff checks pass. No wire-format, dependency or CLI change.
+
+Native spawning, image/channel authentication, OS deadlines, capability admission
+and backend dispatch remain open. Exposing syntactically valid identifiers is not
+a replacement for those checks and does not complete TM-05 or OEP-0003.

@@ -9,7 +9,9 @@ pub use channel::{
     native_tool_worker_channel, NativeToolWorkerEndpoint, NativeToolWorkerReader,
     NativeToolWorkerWriter,
 };
-pub use exchange::{ToolWorkerExchange, ToolWorkerOperation, ToolWorkerOutcome};
+pub use exchange::{
+    ToolWorkerExchange, ToolWorkerOperation, ToolWorkerOutcome, ToolWorkerRequestContext,
+};
 use framing::parse;
 pub use framing::{
     split_tool_worker_channel, ToolWorkerChannel, ToolWorkerReceiver, ToolWorkerSender,

@@ -28,6 +28,19 @@ struct Request {
     payload: Value,
 }
 
+/// Validated envelope identity borrowed from the original request. Syntax and
+/// correlation are checked, but these values do not authenticate the caller or
+/// authorize a backend, target or capability. Admission must compare them with
+/// independently trusted supervisor state before dispatching the payload.
+#[derive(Clone, Copy, Debug)]
+pub struct ToolWorkerRequestContext<'a> {
+    pub request_id: &'a str,
+    pub context_digest: &'a str,
+    pub backend_release_digest: &'a str,
+    pub target_platform: &'a str,
+    pub capabilities: &'a [String],
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Diagnostic {
@@ -88,6 +101,19 @@ impl ToolWorkerExchange {
 
     pub fn operation(&self) -> ToolWorkerOperation {
         self.request.operation
+    }
+
+    /// Borrow identity from the same request used for cancellation and terminal
+    /// response correlation. This snapshot remains inspectable after termination;
+    /// its availability is not permission to continue an ended operation.
+    pub fn context(&self) -> ToolWorkerRequestContext<'_> {
+        ToolWorkerRequestContext {
+            request_id: &self.request.request_id,
+            context_digest: &self.request.context_digest,
+            backend_release_digest: &self.request.backend_release_digest,
+            target_platform: &self.request.target_platform,
+            capabilities: &self.request.capabilities,
+        }
     }
 
     pub fn untrusted_payload(&self) -> &Value {
