@@ -1,7 +1,4 @@
-use crate::builders::{
-    ArtifactSpec, BuilderPlan, CommandSpec, CoverageApplicability, PlanningContext, ReportFormat,
-    ReportSpec, TaskPlan,
-};
+use crate::builders::{ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext, TaskPlan};
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
 
@@ -49,9 +46,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         )
     };
     let mut plan = BuilderPlan::new(chart.version, package);
-    plan.coverage = Some(CoverageApplicability::Inapplicable {
-        reason: "Chart packaging has no application-source coverage denominator; native chart assertions do not measure application code.".into(),
-    });
+    plan.coverage = Some(super::testing::coverage());
     plan.env.extend(environment());
     plan.fixed_env
         .insert("HELM_PLUGINS".into(), plan.env["HELM_PLUGINS"].clone());
@@ -67,35 +62,13 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         "sh", "-c", "helm package .oyzu-build/chart --destination .oyzu-build/package && python -I /oyzu/helm-archive.py \"$1\"", "oyzu-helm-package",
         &format!(".oyzu-build/package/{filename}"),
     ]));
-    let mut test = TaskPlan::command(&[
-        "python",
-        "-I",
-        "/oyzu/helm-test.py",
+    let test = super::testing::plan(
+        id,
         ".oyzu-build/chart",
         if library { "library" } else { "application" },
-        &format!("/out/{id}/reports/junit.xml"),
+        context.target.discovery["test-framework"].selected() == "helm-unittest",
         ".oyzu-build/rendered.yaml",
-    ]);
-    test.reports.push(ReportSpec {
-        format: ReportFormat::Junit,
-        filename: "junit.xml",
-        source: crate::reports::ReportSource::File,
-        name: None,
-        input: None,
-    });
-    if context.target.discovery["test-framework"].selected() == "helm-unittest" {
-        test.argv.extend([
-            "--unittest-report".into(),
-            format!("/out/{id}/reports/unittest/unittest.xml"),
-        ]);
-        test.reports.push(ReportSpec {
-            format: ReportFormat::Junit,
-            filename: "unittest.xml",
-            source: crate::reports::ReportSource::File,
-            name: Some("unittest".into()),
-            input: None,
-        });
-    }
+    );
     plan.tasks.insert("test".into(), test);
     plan.tasks.insert(
         "format-check".into(),

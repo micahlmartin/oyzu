@@ -6,7 +6,7 @@ Vendored children under `charts/` must also be declared in the parent's native `
 
 ## Prerequisites and commands
 
-Development commands use an already provisioned Helm executable. Native assertion suites additionally require Python 3.11+ as `python` on PATH and the `helm-unittest` plugin in Helm's configured plugin directory. Oyzu does not install either tool. Local verification used Helm 3.22.0 and helm-unittest 1.2.0 on Windows; Linux native checks are wired into CI. This is not a claim of verified plugin execution on all three hosts.
+Development commands use an already provisioned Helm executable. Direct test/report execution requires Python 3.11+ as `python` on PATH; native assertion suites also require the `helm-unittest` plugin in Helm's configured plugin directory. Oyzu does not install either tool. Local verification used Helm 3.22.0 and helm-unittest 1.2.0 on Windows; Linux native checks are wired into CI. This is not a claim of verified plugin execution on all three hosts.
 
 ```text
 oyzu run list
@@ -19,7 +19,7 @@ oyzu build
 oyzu inspect dist
 ```
 
-`oyzu run list` discovers tasks without launching Helm or interpreting assertion YAML. The initial group is `project`; explicit targets use their own names. Native development tasks are `install` (`helm dependency build`), `build` (`helm package`), `lint` (`helm lint`) and `test`. These development commands have native effects: install may acquire dependencies and update locks, and package writes a chart archive. Direct test execution retains native console output/exit status rather than collecting a `dist/` report bundle. Selected unittest commands use the owned Python adapter and a private chart copy, preserving source files and requiring actual native test cases. The default adapter accepts no extra flags; use an explicit native task replacement for customized arguments.
+`oyzu run list` discovers tasks without launching Helm or interpreting assertion YAML. The initial group is `project`; explicit targets use their own names. Native development tasks are `install` (`helm dependency build`), `build` (`helm package`), `lint` (`helm lint`) and `test`. These development commands have native effects: install may acquire dependencies and update locks, and package writes a chart archive. Direct `test` now writes a test-only `dist/` bundle with native validation JUnit, an additional independent unittest JUnit report when suites are detected, logs and a manifest. It records coverage as inapplicable, produces no chart artifact and uses the shared hook/report/bundle workflow. Both default validation and unittest run against private chart copies that exclude `.oyzu`, `.git` and existing `dist` output; root charts therefore do not expose the live bundle lease to Helm. Native dependencies must already be prepared (for example with `oyzu run install`); testing does not acquire them. Run `oyzu inspect dist` to inspect the retained evidence. The default adapter accepts no extra native flags; use an explicit task replacement and report declarations for customized arguments. See [direct test reports](direct-tests.md).
 
 Captured builds require Docker and an explicitly provisioned toolchain image:
 

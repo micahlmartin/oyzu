@@ -59,6 +59,11 @@ pub(crate) struct Intent {
 }
 
 impl Intent {
+    /// The semantic check fulfilled by this obligation, for invocation policy.
+    pub(crate) fn kind(&self) -> &'static str {
+        self.kind
+    }
+
     pub(crate) fn required(id: impl Into<String>, subject: &str, format: Format) -> Self {
         Self {
             id: id.into(),

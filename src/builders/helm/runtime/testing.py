@@ -86,5 +86,14 @@ if __name__ == '__main__':
     parser.add_argument('report', type=Path)
     parser.add_argument('rendered', type=Path)
     parser.add_argument('--unittest-report', type=Path)
+    parser.add_argument('--host', action='store_true', help='Validate a private chart copy without local Oyzu state')
     args = parser.parse_args()
+    if args.host:
+        # A root chart also contains the live bundle lease and earlier dist
+        # output. Native Helm loads chart files recursively; keep that engine
+        # state out using the existing chart-copy boundary for host testing.
+        with tempfile.TemporaryDirectory(prefix='oyzu-helm-host-') as temporary:
+            copied = Path(temporary) / 'chart'
+            unittest_adapter().copy_chart(args.chart.resolve(), copied)
+            raise SystemExit(validate(copied, args.kind, args.report, args.rendered, unittest_report=args.unittest_report))
     raise SystemExit(validate(args.chart, args.kind, args.report, args.rendered, unittest_report=args.unittest_report))

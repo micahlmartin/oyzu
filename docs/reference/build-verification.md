@@ -26,6 +26,8 @@ export OYZU_BUILDKIT_APPARMOR_PROFILE=oyzu-buildkit
 
 For suites with standalone native adapter probes, `bash tooling/build-scenario-tools.sh native <suite>` runs those additional checks. The Helm CLI probe expects the compiled binary at `cli/oyzu`, matching CI; copy your binary there before running that probe. The ordinary captured-build harness accepts any explicit `--cli` path. Native probes supplement captured builds; they cannot substitute for them.
 
+The Helm native phase also runs `tooling/test-helm-direct.py` against the downloaded CLI and provisioned Helm/plugin. This verifies the separate host `oyzu run test` to JUnit/manifest/inspection flow, including application and root library charts, unittest suites and hooks. It does not replace captured chart packaging checks. See [Helm direct-report behavior](helm.md) and [test-only bundles](direct-tests.md).
+
 Omitting `--suite` selects `all` and retains the original full-run ordering. Provisioning/native-probe scripts also accept `all`. A single-suite selection uses the same checks and assertions as the full run. Unknown suites and missing `--cli` arguments fail rather than selecting a fallback.
 
 | Suite | Included checks and toolchain dependencies |

@@ -124,6 +124,7 @@ else
     docker rm "$HELM_CONTAINER"
     trap - EXIT
     HELM_PLUGINS="$PWD/.ci-helm-plugins" .ci-python/bin/python tooling/test-helm-reporting.py --helm "$PWD/.ci-helm/helm" --cli cli/oyzu
+    HELM_PLUGINS="$PWD/.ci-helm-plugins" .ci-python/bin/python tooling/test-helm-direct.py --helm "$PWD/.ci-helm/helm" --cli cli/oyzu
   fi
   if selected java; then
     .ci-python/bin/python tooling/test-ant-adapter.py

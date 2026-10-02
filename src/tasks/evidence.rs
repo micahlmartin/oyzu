@@ -162,6 +162,16 @@ pub(super) fn run(
         }
         if let Some(config) = config {
             config.validate_environment(&task.env)?;
+            if contract.is_some()
+                && config
+                    .get("checks.coverageMinimum")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap_or(0)
+                    > 0
+                && !bindings.intents.iter().any(|r| r.kind() == "coverage")
+            {
+                bail!("CONFIG_OVERRIDE_DENIED: {id} cannot satisfy required coverage minimum");
+            }
         }
         let post = super::post_hook(&task);
         let boundary = if !super::is_hook(&task) && sequence.contains(&post) {
@@ -182,11 +192,14 @@ pub(super) fn run(
                 "oyzu.dev/report-sources":bindings.sources,"oyzu.dev/collect-after":boundary,
                 "oyzu.dev/configuration-digest":config.map(|c| &c.digest),
                 "oyzu.dev/coverage-minimum":config.and_then(|c|c.get("checks.coverageMinimum")).cloned().unwrap_or(json!(0))}}));
-        targets.insert(
-            owner.name.clone(),
+        let target_path = relative(&workspace.root, &owner.path)?;
+        let target_record = targets.entry(owner.name.clone()).or_insert_with(|| {
             json!({"id":owner.name,"builder":owner.builder,"builderDigest":builder_digest,
-            "path":relative(&workspace.root,&owner.path)?,"variant":{},"platform":platform,"extensions":{"oyzu.dev/discovery":owner.discovery}}),
-        );
+            "path":target_path,"variant":{},"platform":platform,"extensions":{"oyzu.dev/discovery":owner.discovery}})
+        });
+        if let Some(coverage) = contract.and_then(|c| c.coverage.as_ref()) {
+            target_record["extensions"]["oyzu.dev/coverage-applicability"] = json!(coverage);
+        }
         tasks.push(task);
     }
     let targets: Vec<_> = targets.into_values().collect();
@@ -203,9 +216,17 @@ pub(super) fn run(
             .1
             .and_then(|c| c.management.as_ref())
     });
+    let mut required_checks = vec!["tests"];
+    if actions.iter().any(|a| {
+        a["reports"]
+            .as_array()
+            .is_some_and(|reports| reports.iter().any(|r| r["kind"] == "coverage"))
+    }) {
+        required_checks.push("coverage");
+    }
     let mut policy = json!({"mode":if managed.is_some(){"managed"}else{"standalone"},
         "enforcementDigest":records::digest("oyzu.policy.v1alpha1",&json!({"invocation":invocation,"configuration":configurations,"productionEligible":false}))?,
-        "requiredChecks":["tests","coverage"]});
+        "requiredChecks":required_checks});
     if let Some(management) = managed {
         policy["extensions"]["oyzu.dev/configuration-policy"] = management.clone();
     }

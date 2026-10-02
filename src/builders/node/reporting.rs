@@ -26,7 +26,6 @@ pub(super) fn test(id: &str, mut argv: Vec<String>, instrument: bool) -> TaskPla
         ));
     }
     TaskPlan {
-        execution: Default::default(),
         argv,
         reports: vec![
             ReportSpec {
@@ -44,6 +43,7 @@ pub(super) fn test(id: &str, mut argv: Vec<String>, instrument: bool) -> TaskPla
                 input: None,
             },
         ],
+        ..Default::default()
     }
 }
 

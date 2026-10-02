@@ -313,6 +313,9 @@ pub(crate) struct TaskPlan {
     pub execution: Mode,
     pub argv: Vec<String>,
     pub reports: Vec<ReportSpec>,
+    /// Explicit applicability for test-only bundles whose subject has no
+    /// application-source coverage denominator (for example chart validation).
+    pub coverage: Option<CoverageApplicability>,
 }
 
 impl TaskPlan {
