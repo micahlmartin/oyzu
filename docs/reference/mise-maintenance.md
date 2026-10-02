@@ -114,6 +114,28 @@ Corporate callers must map upstream locations to approved logical routes. The
 library conformance command above includes an isolated Go scenario covering two
 versions, all three targets, upstream URL parity and zero transport callbacks.
 
+## Pinned registry alias projection
+
+After initializing an experimental fork `Session` with admitted core tools,
+`session.tool_aliases()?` returns a sorted alias-to-canonical-ID map. For example,
+admitting `node` includes `node -> core:node` and `core:node -> core:node`.
+It also includes aliases actually declared by this revision's baked registry.
+Empty admission returns an empty map. The initial session allowlist remains
+Node, Go, Java and Python; other backends are not implicitly exposed.
+
+The method rejects ambiguous aliases, canonical backend rebinding and upstream
+registry drift that removes an admitted core backend. It reads no files, performs
+no networking and consults neither floating registry data nor ambient project
+aliases. Embedded settings disable floating registry updates, including after a
+settings reload. This is a candidate input to Oyzu's request projection, not
+version resolution, platform availability or authorization to install.
+
+Fork `f4d245e88` passed strict library/example Clippy and all nine isolated
+conformance scenarios on Windows, macOS and Linux in run `36983527342`. These
+include all four admitted tools, unadmitted-tool exclusion, empty admission and
+reload stability. The production Oyzu crate still needs reviewed source admission
+and worker wiring to consume this map.
+
 ## Candidate dependency review evidence
 
 The fork provides an offline, target-filtered Cargo evidence collector in
@@ -149,6 +171,39 @@ ARM64 has 952 packages, Windows MSVC 975 and Linux GNU 955. This is a review
 index, not a notice bundle, validated license selection or shipping SBOM. The
 original reports must still accompany any review; index hashes alone cannot
 recover their contents after CI artifact expiration.
+
+### Original notice archives
+
+The candidate collector now accepts `--notice-bundle cargo-notices.zip`. In the
+fork checkout, after separately provisioning its Cargo cache, run:
+
+```sh
+python tooling/compliance/cargo_graph.py --target x86_64-unknown-linux-gnu --output cargo-evidence.json --notice-bundle cargo-notices.zip
+```
+
+Both parents must exist. The report path is overwritten; the archive path must
+not exist. Collection is offline and does not compile or execute mise. It embeds
+the exact report, original notice bytes and an index binding package identities,
+relative paths, raw/LF-normalized hashes and sizes. The index lists packages with
+no observed notices. The workflow retains both files in the same target/revision
+artifact. Download both before the 30-day retention expires.
+
+Fixed ZIP metadata and stored entries make identical inputs reproducible; original
+line endings and copyright text are preserved. Notice drift, redirects, duplicate
+paths or exceeded limits fail collection and remove the operation's partial
+archive. Existing archives are never replaced. Limits are 20,000 notices, 2 MiB
+per file, 256 MiB of notice bytes and 64 MiB each for report/index metadata. The
+collector works on trusted provisioned cache roots; it is not a concurrent
+hostile-filesystem sandbox. Select another output path to rerun collection.
+
+An offline Linux development run captured 1,512 notices totaling 7,822,597 bytes
+for 955 packages; independent ZIP verification matched every indexed file to the
+report. It still reports 98 packages without observed notices and a dirty
+worktree. This demonstrates collection, not a clean release audit. Native CI
+archives for the updated collector remain pending. This archive does not recover
+missing texts, inspect all source headers/native code, include installed tools'
+licenses, select legal terms or fulfill source-delivery requirements. The exact
+shipping graph, release SBOM and maintainer approval remain required.
 
 ### Java metadata boundary experiment
 

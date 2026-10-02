@@ -869,3 +869,30 @@ Separately, run `36982735259` at the earlier merged revision `2e5ecb4` now confi
 the explicit real Node ZIP store parity/changed-lock test on Windows, macOS and
 Linux, together with each native CLI build/test job. This qualifies that fixture
 at that revision, not this later lock editor or the full production backend.
+
+## Checkpoint 80: preserved candidate notice evidence
+
+The maintained fork's offline Cargo collector now optionally creates a
+deterministic archive of original observed notice bytes, embeds its exact report
+and supplies a raw-hash/size index with explicit missing-notice package identities.
+It rejects drift, redirects, duplicate/unsafe paths and exceeded bounds; ordinary
+failure removes only its own partial output. Native embedding CI now retains the
+report and archive together. No dependency, original notice or approval policy
+changed, and all dispositions remain unreviewed.
+
+The Linux offline development collection covered 955 packages and 1,512 notices
+(7,822,597 raw bytes). Independent archive verification matched all files, report
+bytes, raw/LF hashes and package/path pairs. The report correctly identifies a
+dirty worktree and 98 packages without observed notices; it does not establish a
+clean shipping graph, source-delivery compliance or legal approval. Windows
+compliance checks pass with two symlink tests skipped; Linux runs all 24 tests.
+Native CI evidence for this collector increment remains pending. Operational
+instructions and limitations are in the [maintenance reference](reference/mise-maintenance.md#original-notice-archives).
+
+This collector is committed at fork `94f0f75aadda0f20145de9dd0ea1df1b6c2403dc`.
+The local development archive's SHA-256 is
+`b318a04a06ec013568cf4623d64bf2adb036c08454162d7c2123ebd42b4e2789`;
+its embedded report identifies the precommit working state, not an approved head.
+Separately, fork run `36983527342` now passes on all three hosts for `f4d245e88`,
+confirming the nine-scenario alias-projection increment from checkpoint 78. That
+run predates notice bundling and does not qualify the new collector artifacts.
