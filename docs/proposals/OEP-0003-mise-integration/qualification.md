@@ -385,3 +385,21 @@ validation is [run 37020409067](https://github.com/oyzuai/mise/actions/runs/3702
 completed successfully on Windows, macOS and Linux at this revision. These tests
 do not establish a complete Python
 resolver, publisher verification, production admission or distribution approval.
+
+### Python version discovery boundary
+
+Source review at fork `bb56ea99001b7b743738a564192b9ff9bebd1f4d` confirms
+that `PythonPlugin::_list_remote_versions` combines PyPy discovery with a
+host/settings-dependent precompiled CPython cache. Its source-build branch can
+provision and execute python-build. The embedded exact-version catalog API avoids
+those paths; it is not yet a general resolver.
+
+`fuzzy_match_versions_pep440` specializes prerelease filtering around the existing
+fuzzy matcher. It is not a complete PEP 440 specifier evaluator. The shared Node
+embedding selector interprets ranges with npm semantics and therefore must not be
+used to claim Python native constraint support. TM-03 still requires explicit-target
+CPython candidate discovery, upstream ordering/prefix reuse, correct intersection
+of Python native constraints and retained input provenance. Any added dependency
+must pass the existing source/notice and shipping-graph gates. Until that resolver
+exists, unsupported selectors must remain errors rather than silently dropping
+native constraints or consulting ambient Python/PyPy state.
