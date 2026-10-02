@@ -18,6 +18,7 @@ Oyzu currently uses one Rust package with a library and CLI binary. Modules esta
 | Execution | `src/executor.rs`, `src/executor/` | Own sandbox capabilities, process/worker lifecycle, cancellation and cleanup; consume typed execution modes |
 | Acquisition and transport | `src/dependencies.rs`, `src/dependencies/`, `src/broker.rs`, `src/broker/` | Own prepared input lifecycle and source/credential boundaries; native lock interpretation remains in the ecosystem adapter |
 | Source and input identity | `src/snapshot.rs`, `src/snapshot/` | Own capture, projection, containment and content identity |
+| Bundle storage | `src/bundle_store.rs` | Own workspace locking, staging, destination admission, retention and finalization; callers own evidence contents and execution |
 | Reports and artifacts | `src/reports.rs`, `src/reports/`, `src/oci/`, `src/build/collection.rs`, `src/build/bundle.rs` | Parse/verify formats separately from collection; record actual outputs and failures rather than trusting an adapter's success claim |
 | Shared data contracts | `src/model.rs`, `src/records.rs`, `docs/contracts/` | Hold genuinely shared concepts and record encoding; keep subsystem-specific types with their owner |
 
@@ -32,6 +33,8 @@ Configuration's pure resolver consumes captured sources and registered types. `c
 Tool installation, environment activation, caching, agent/connectors, publishing and desktop/platform surfaces need the same ownership discipline as they arrive. Their proposed boundaries are in the architecture and OEPs. Do not create placeholder crates or put their future behavior into a general-purpose service object now.
 
 Configuration enforcement admits both captured builds and development task sequences before effects. Effective configuration validates the final task environment after task overrides and native adapter additions, so administrative environment restrictions cannot be bypassed by another input channel. Discovery derives single-target root operations from that target's final cascade, including replacements and removals. The policy agent alone reconciles administratively changed bootstrap records: online verification uses current pins while preserving sequence high-water state, and authorization rechecks time after transport and storage.
+
+`bundle_store::Transaction` holds the workspace lock through finalization and rollback. It rechecks destination manifest identity, preserves conflicting output/history, and retains staged evidence when finalization fails. Captured builds consume this owner; future direct-test bundles must reuse it rather than duplicate storage rules. This extraction does not itself implement host test reporting.
 
 `build/selection` owns requested target membership and monotonic expansion through declared artifact/target edges and admitted task prerequisites/hooks. It shares stage admission with `build/task_graph`; native preparation and image resolution remain effects coordinated by the build lifecycle. Planning consumes the captured intents once the closure is complete, while retaining the full workspace for task-name semantics. Bundle inspection checks that the manifest's selection matches its frozen plan.
 

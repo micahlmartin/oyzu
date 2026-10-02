@@ -1,6 +1,7 @@
 pub mod broker;
 pub mod build;
 mod builders;
+mod bundle_store;
 pub mod config;
 mod dependencies;
 pub mod discovery;

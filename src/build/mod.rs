@@ -11,7 +11,7 @@ mod selection;
 mod task_graph;
 
 use crate::{builders, discovery, records, snapshot};
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use execution::{execute_plan, ExecutionRecords};
 pub use planning::plan;
 use planning::resolve_images;
@@ -75,38 +75,10 @@ pub fn run_selected_with_options(
     let session = crate::config::session::Session::open(&root, options)?;
     // Native discovery failures still produce the ordinary failed build bundle.
     let workspace = discovery::discover_with_session(session, Some("sh"));
-    let state = root.join(".oyzu");
-    if state.exists() && fs::symlink_metadata(&state)?.file_type().is_symlink() {
-        bail!(".oyzu must not be a symlink");
-    }
-    fs::create_dir_all(&state)?;
-    let lock_path = state.join("build.lock");
-    if lock_path.exists() && fs::symlink_metadata(&lock_path)?.file_type().is_symlink() {
-        bail!("build lock must not be a symlink");
-    }
-    let lock = fs::OpenOptions::new()
-        .create(true)
-        .truncate(false)
-        .read(true)
-        .write(true)
-        .open(lock_path)?;
-    lock.try_lock()
-        .context("another build holds the workspace lock")?;
-    let dist = root.join("dist");
-    if dist.exists()
-        && (fs::symlink_metadata(&dist)?.file_type().is_symlink()
-            || records::read(&dist.join("manifest.json"))
-                .ok()
-                .is_none_or(|v| v["kind"] != "build-manifest"))
-    {
-        bail!("dist exists and is not an Oyzu bundle; preserve or move it before building");
-    }
+    let transaction = crate::bundle_store::Transaction::begin(&root)?;
     let temp = tempfile::Builder::new().prefix("oyzu-build-").tempdir()?;
     let source_path = temp.path().join("source");
-    let bundle_stage = tempfile::Builder::new()
-        .prefix("bundle-")
-        .tempdir_in(&state)?;
-    let bundle = bundle_stage.path();
+    let bundle = transaction.path();
     let out = temp.path().join("outputs");
     fs::create_dir(&out)?;
     let run_id = format!(
@@ -242,20 +214,6 @@ pub fn run_selected_with_options(
     records::write(&bundle.join("envelope.json"), &envelope)?;
     manifest["envelopeDigest"] = json!(snapshot::file_digest(&bundle.join("envelope.json"))?);
     records::write(&bundle.join("manifest.json"), &manifest)?;
-    if dist.exists() {
-        let history = state.join("history");
-        if history.exists() && fs::symlink_metadata(&history)?.file_type().is_symlink() {
-            bail!("history must not be a symlink");
-        }
-        fs::create_dir_all(&history)?;
-        let previous = history.join(&run_id);
-        fs::rename(&dist, &previous)?;
-        if let Err(error) = fs::rename(bundle, &dist) {
-            fs::rename(previous, &dist)?;
-            return Err(error.into());
-        }
-    } else {
-        fs::rename(bundle, &dist)?;
-    }
+    transaction.publish(&run_id)?;
     Ok(manifest)
 }
