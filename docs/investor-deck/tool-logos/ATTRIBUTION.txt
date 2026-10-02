@@ -1,0 +1,7 @@
+Tool symbols from Simple Icons: https://github.com/simple-icons/simple-icons (develop branch, retrieved October 1, 2026). Original SVG assets retained. Simple Icons is distributed under CC0; individual brand marks may be subject to trademark policies. Logos identify ecosystem examples; no partnership or implemented integration is implied.
+
+AWS, Azure and Google Cloud logos: Devicon (MIT), https://github.com/devicons/devicon. Trademarks belong to their respective owners; no partnership implied.
+
+Color logo update: original SVGs from Devicon (MIT); Snyk, JFrog, Sonatype, Liquibase, Flyway from Simple Icons (CC0) with brand colors. AWS CloudFormation architecture icon via mingrammer/diagrams resources; AWS trademark. Logos identify tools, not endorsements.
+
+Harness logo: official Harness developer-hub static/img/logo_harness.svg, https://github.com/harness/developer-hub/blob/main/static/img/logo_harness.svg. Symbol extracted without changing its path or color; full wordmark retained. Trademark belongs to Harness; no endorsement or partnership implied.
