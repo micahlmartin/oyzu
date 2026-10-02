@@ -1962,3 +1962,18 @@ parser tests pass, including unchanged golden identity hashing. Documentation
 and diff checks pass. No Rust implementation or wire field changed; the reference
 now describes this exact-string requirement. This closes a TM-01 schema/runtime
 disagreement, not compiled backend admission or the remaining OEP-0003 work.
+
+## Checkpoint 135: consistent whole-string tool schema validation
+
+Extended the exact end-of-string correction across worker envelopes, grants,
+archive layouts and receipts. Added 19 shared malformed identity/target fixtures;
+the worker request UUID case reproduced schema acceptance before the fix. All
+schema fixtures now pass, and 36 targeted Windows Rust tests pass across worker
+exchange, grants, layouts and receipts (one direct child fixture is intentionally
+ignored and exercised by its parent test). No Rust implementation changed.
+
+The schema grammar still permits newlines in literal text where explicitly
+allowed; this correction only prevents a final newline bypassing a whole-string
+pattern. Contract documentation describes the boundary. Documentation and diff
+checks pass. These tests establish schema/runtime agreement for the fixtures,
+not backend admission, native supervision or full OEP-0003 completion.

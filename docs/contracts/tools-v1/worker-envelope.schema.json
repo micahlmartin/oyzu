@@ -21,11 +21,11 @@
         },
         "request_id": {
           "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
         },
         "context_digest": {
           "type": "string",
-          "pattern": "^sha256:[0-9a-f]{64}$"
+          "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
         },
         "operation": {
           "enum": [
@@ -37,11 +37,11 @@
         },
         "backend_release_digest": {
           "type": "string",
-          "pattern": "^sha256:[0-9a-f]{64}$"
+          "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
         },
         "target_platform": {
           "type": "string",
-          "pattern": "^(linux/(amd64|arm64)/(gnu|musl)|darwin/(amd64|arm64)/native|windows/(amd64|arm64)/msvc)$"
+          "pattern": "^(linux/(amd64|arm64)/(gnu|musl)|darwin/(amd64|arm64)/native|windows/(amd64|arm64)/msvc)(?![\\s\\S])"
         },
         "capabilities": {
           "type": "array",
@@ -51,7 +51,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 256,
-            "pattern": "^[A-Za-z0-9_.:/-]+$"
+            "pattern": "^[A-Za-z0-9_.:/-]+(?![\\s\\S])"
           }
         },
         "payload": {
@@ -75,11 +75,11 @@
         },
         "request_id": {
           "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
         },
         "context_digest": {
           "type": "string",
-          "pattern": "^sha256:[0-9a-f]{64}$"
+          "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
         },
         "operation": {
           "const": "cancel"
@@ -102,11 +102,11 @@
         },
         "request_id": {
           "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
         },
         "context_digest": {
           "type": "string",
-          "pattern": "^sha256:[0-9a-f]{64}$"
+          "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
         },
         "status": {
           "const": "ok"
@@ -132,11 +132,11 @@
         },
         "request_id": {
           "type": "string",
-          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\\s\\S])"
         },
         "context_digest": {
           "type": "string",
-          "pattern": "^sha256:[0-9a-f]{64}$"
+          "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
         },
         "status": {
           "enum": [
@@ -155,7 +155,7 @@
               "type": "string",
               "minLength": 1,
               "maxLength": 64,
-              "pattern": "^[A-Z0-9_]+$"
+              "pattern": "^[A-Z0-9_]+(?![\\s\\S])"
             }
           }
         }

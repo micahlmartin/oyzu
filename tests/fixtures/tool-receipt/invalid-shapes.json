@@ -149,5 +149,50 @@
         "absolute": true
       }
     ]
+  },
+  {
+    "name": "installation_key trailing newline",
+    "pointer": "/installation_key",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "tool_key trailing newline",
+    "pointer": "/tool_key",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "backend_digest trailing newline",
+    "pointer": "/backend_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "distribution_digest trailing newline",
+    "pointer": "/distribution_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "layout_digest trailing newline",
+    "pointer": "/layout_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "tree_digest trailing newline",
+    "pointer": "/tree_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "tree_manifest_digest trailing newline",
+    "pointer": "/tree_manifest_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "installer_release_digest trailing newline",
+    "pointer": "/installer_release_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "platform trailing newline",
+    "pointer": "/platform",
+    "value": "linux/amd64/gnu\n"
   }
 ]

@@ -27,7 +27,7 @@
     },
     "platform": {
       "type": "string",
-      "pattern": "^(linux/(amd64|arm64)/(gnu|musl)|darwin/(amd64|arm64)/native|windows/(amd64|arm64)/msvc)$"
+      "pattern": "^(linux/(amd64|arm64)/(gnu|musl)|darwin/(amd64|arm64)/native|windows/(amd64|arm64)/msvc)(?![\\s\\S])"
     },
     "input_blob_digests": {
       "type": "array",
@@ -108,7 +108,7 @@
       "maxProperties": 1024,
       "propertyNames": {
         "type": "string",
-        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*(?![\\s\\S])",
         "maxLength": 256
       },
       "additionalProperties": {
@@ -166,22 +166,22 @@
   "$defs": {
     "digest": {
       "type": "string",
-      "pattern": "^sha256:[0-9a-f]{64}$"
+      "pattern": "^sha256:[0-9a-f]{64}(?![\\s\\S])"
     },
     "literal": {
       "type": "string",
       "maxLength": 16384,
-      "pattern": "^[^\\u0000]*$"
+      "pattern": "^[^\\u0000]*(?![\\s\\S])"
     },
     "component": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^[^\\x00-\\x1f\\x7f\\\\/:<>\"|?*]+$"
+      "pattern": "^[^\\x00-\\x1f\\x7f\\\\/:<>\"|?*]+(?![\\s\\S])"
     },
     "path": {
       "type": "string",
       "minLength": 1,
-      "pattern": "^[^\\x00-\\x1f\\x7f\\\\:<>\"|?*]+$"
+      "pattern": "^[^\\x00-\\x1f\\x7f\\\\:<>\"|?*]+(?![\\s\\S])"
     },
     "reference": {
       "type": "object",

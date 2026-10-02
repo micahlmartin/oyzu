@@ -88,5 +88,15 @@
     "name": "expansion ratio exceeds hard ceiling",
     "pointer": "/extraction_bounds/max_expansion_ratio",
     "value": 1025
+  },
+  {
+    "name": "backend_digest trailing newline",
+    "pointer": "/backend_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
+  },
+  {
+    "name": "platform trailing newline",
+    "pointer": "/platform",
+    "value": "linux/amd64/gnu\n"
   }
 ]

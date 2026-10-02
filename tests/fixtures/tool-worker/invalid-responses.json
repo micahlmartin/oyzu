@@ -35,5 +35,15 @@
     "value": {
       "code": "FAIL"
     }
+  },
+  {
+    "name": "request_id trailing newline",
+    "pointer": "/request_id",
+    "value": "12345678-1234-1234-1234-123456789abc\n"
+  },
+  {
+    "name": "context_digest trailing newline",
+    "pointer": "/context_digest",
+    "value": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n"
   }
 ]

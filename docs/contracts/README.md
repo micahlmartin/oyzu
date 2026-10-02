@@ -15,6 +15,9 @@ They use their own format fields and must not be treated as stable public APIs.
 Run `python tooling/check-tool-contracts.py` with Python 3.11+ and the pinned
 `tooling/design-requirements.txt` dependencies. It validates shared valid/invalid
 shape fixtures with local-only schema references and duplicate-key rejection.
+Whole-string patterns use an absolute end assertion: a trailing newline cannot
+make an invalid UUID, digest, target, capability, diagnostic code or path pass.
+This does not prohibit newlines in literal values whose grammar allows them.
 Rust tests also exercise the relevant fixture corpora, then enforce semantic
 requirements the schemas do not express: sorted sets, portable path components,
 UTF-8 byte bounds, locked identity binding, content integrity and filesystem rules.
