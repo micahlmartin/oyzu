@@ -42,6 +42,12 @@ updates are disabled in embedded settings. This supplies a future source for the
 trusted alias map without introducing a second registry; the production consumer
 still has no imported mise dependency or worker connection to this interface.
 
+The fork also has an initial admitted Node metadata-selection operation composed
+from its existing catalog, aliases and range/prefix matchers. It intersects
+supplied native constraints and requires catalog membership even for exact pins.
+This does not supply a production multi-platform resolver, source verification or
+the worker connection; other backend selection operations remain incomplete.
+
 ## Dependency order and deliverables
 
 Each package is a reviewable change with an executable acceptance result. Do not

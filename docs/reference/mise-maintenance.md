@@ -136,6 +136,45 @@ include all four admitted tools, unadmitted-tool exclusion, empty admission and
 reload stability. The production Oyzu crate still needs reviewed source admission
 and worker wiring to consume this map.
 
+## Candidate Node version selection
+
+The fork's experimental async method
+`session.resolve_node_version(request, native_constraints)` selects a canonical
+stable Node version from supplied or operation-private cached metadata. The
+session must admit Node. It reuses the upstream Node catalog loader, aliases,
+ordering, prefix matcher and npm-compatible range filter. For example, with a
+catalog containing `22.14.0`, `22.15.0` and `24.1.0`, request `latest` with
+constraints `>=22` and `<22.15` selects `22.14.0`; request `22` alone selects
+`22.15.0`. These are conformance fixture values, not recommendations or live
+catalog claims.
+
+Inputs support exact versions, ordinary numeric prefixes, pinned upstream Node
+aliases such as `lts/jod`, and npm semver ranges. Every native constraint is
+intersected before selecting the last match in upstream catalog order; constraint
+order does not change the answer. Exact pins must occur in the catalog. Empty
+intersections and unknown/nonstable versions fail rather than returning the input
+as an assumed existing version. Path, system, ref, subtraction and explicit
+`prefix:` modes are not admitted. Node's ordinary `22` prefix syntax is supported.
+
+Each selector is limited to 1,024 bytes without control characters; at most 256
+native constraints are accepted. Invalid inputs fail before metadata access.
+The returned catalog is limited to 100,000 entries of at most 128 bytes each;
+the transport remains responsible for response-byte bounds and deadlines before
+JSON parsing. Metadata may use the supplied broker callback and private cache.
+Without cached metadata or supplied transport, even an exact pin fails. There is
+no ambient installed-version fallback, project discovery, archive acquisition,
+installation or execution. No separate mise executable is involved.
+
+This operation resolves Node metadata only. It does not prove target archive
+availability, publisher authenticity, release-age eligibility or permission to
+install. Those remain supervisor/admission checks. Other backends, the production
+worker connection, multi-platform closure resolution and lock orchestration
+remain incomplete. The library conformance example adds fresh-process selection
+and missing-transport cases to the existing admission checks. Fork revision
+`6f8e6863794ac070bb0b80921245cf73a9981a20` passed strict library/example Clippy,
+formatting and all eleven fresh-process scenarios on Linux. Native Windows and
+macOS confirmation for this increment remains pending.
+
 ## Candidate dependency review evidence
 
 The fork provides an offline, target-filtered Cargo evidence collector in

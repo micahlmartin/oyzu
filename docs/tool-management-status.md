@@ -896,3 +896,31 @@ its embedded report identifies the precommit working state, not an approved head
 Separately, fork run `36983527342` now passes on all three hosts for `f4d245e88`,
 confirming the nine-scenario alias-projection increment from checkpoint 78. That
 run predates notice bundling and does not qualify the new collector artifacts.
+
+## Checkpoint 81: constrained Node metadata selection
+
+Fork `6f8e6863794ac070bb0b80921245cf73a9981a20` exposes
+`Session::resolve_node_version` for session-admitted Node. The Node-owned adapter
+composes upstream catalog loading, aliases, ordering, prefix matching and npm
+range filtering. It intersects every supplied native constraint before choosing
+a canonical stable catalog version; even exact pins require metadata membership.
+Path/system/ref/subtraction selectors, malformed ranges and oversized inputs fail
+before metadata access. Missing transport without cached metadata fails closed.
+No installation, target execution or ambient configuration discovery occurs.
+
+Strict Linux library/example Clippy, formatting and all eleven fresh-process
+scenarios passed. The new selection fixture covers exact/prefix/range/channel
+requests, constraint ordering/intersection/conflicts, uncataloged pins, denied
+admission, pre-acquisition input rejection and reuse of one supplied catalog.
+Compliance checks remain inventory-consistent and unapproved; 24 regression tests
+pass on Windows with two symlink skips. Native Windows/macOS conformance for this
+revision is pending. This advances the candidate TM-03 seam but does not complete
+production source admission, worker wiring, other backend resolvers, target
+availability, publisher verification or lock/update orchestration. The
+[reference](reference/mise-maintenance.md#candidate-node-version-selection)
+documents inputs, bounds, effects and caller responsibilities.
+
+Separately, root run `36984574863` passes native CLI build/test jobs on Windows,
+macOS and Linux at `1ac6667`, covering the preceding lock-editor increment. Its
+remaining task/captured-build jobs were still active or queued when checked and
+are not counted as complete here.
