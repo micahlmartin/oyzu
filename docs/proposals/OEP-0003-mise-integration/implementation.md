@@ -81,8 +81,9 @@ execution path is enabled by this boundary alone.
 The candidate fork additionally exposes `Session::tool_aliases`, projecting its
 revision-baked registry onto session-admitted core backends. Floating registry
 updates are disabled in embedded settings. This supplies a future source for the
-trusted alias map without introducing a second registry; the production consumer
-still has no imported mise dependency or worker connection to this interface.
+trusted alias map without introducing a second registry. The opt-in development
+consumer now obtains this map from the linked library in its same-image child;
+default-build and complete multi-tool integration remain outstanding.
 
 The fork also has an initial admitted Node metadata-selection operation composed
 from its existing catalog, aliases and range/prefix matchers. It intersects
@@ -104,8 +105,7 @@ integration remain outstanding; this does not complete TM-03 or TM-06.
 
 ## Dependency order and deliverables
 
-Current end-to-end proof status: the Node TOML-to-lock-to-install-to-exec flow is
-not connected. The maintained fork's consumer feature blocker is fixed in
+Current end-to-end proof status: the opt-in Node TOML-to-lock-to-install-to-exec flow passes on Linux for two actual Node versions sharing a store. See the [development reference](../../reference/tool-management-development.md) for commands and measured scope. The maintained fork's consumer feature blocker is fixed in
 [`9290bcac695c8ff8a56760ccebd785d5062b459c`](https://github.com/oyzuai/mise/commit/9290bcac695c8ff8a56760ccebd785d5062b459c):
 an external dependency can request `default-features = false` and
 `features = ["rustls", "vendored-lua"]`. Cargo rejects the earlier nested
@@ -118,9 +118,7 @@ canonical alias. Its first invocation rejected the incomplete `linux/amd64` targ
 the supported `linux/amd64/gnu` target succeeds. This verifies local consumer
 linkage and API invocation, not a public Git dependency build or actual tool
 installation/execution. This is an integration prerequisite,
-not product proof or approval of the dependency graph. Production import remains
-subject to the licensing gate; permission for a controlled development import has
-been requested from the maintainer and is not yet recorded.
+not product proof or approval of the dependency graph. Controlled development import was explicitly authorized on 2026-10-02; the pinned optional dependency and initial install/exec integration have now built and passed the first real Linux user flow. Distribution approval remains separate.
 
 The maintainer's 2026-10-02 [implementation-priority decision](../../decisions.md#end-to-end-first-implementation-priority)
 governs delivery sequencing. First demonstrate a real Node flow from Oyzu TOML
@@ -130,8 +128,9 @@ necessary parts of the packages below to run that flow in a controlled environme
 Package dependencies do not require completing every hardening item in an earlier
 package before integrating a later one. Preserve the licensing/import gate and
 constraints necessary for responsible execution; surface actual blockers promptly.
-After the flow works, expand platforms/backends and complete mandatory acceptance
-and release requirements. Optional hardening must not displace this first proof
+After the flow works, expand platforms/backends and complete functional behavior,
+usability and user acceptance. The maintainer's subsequent goal revision reserves
+hardening for future goals, including after this first proof. Hardening must not displace this first proof
 or silently enlarge the completion scope. The proof does not by itself complete
 this OEP or mark its design accepted.
 

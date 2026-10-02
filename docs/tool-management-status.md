@@ -2411,3 +2411,47 @@ all-target Clippy, formatting and nine CLI task scenarios passed. After adding
 the expired-budget retry assertion and renaming the drop test, the focused native
 process suite passed (five tests, one subprocess fixture ignored) and formatting
 passed again. Documentation and diff checks passed; new lifecycle CI is pending.
+
+## Checkpoint 159: first real Oyzu install/exec user flow
+
+The maintainer authorized the controlled development import of mise revision
+9290bcac695c8ff8a56760ccebd785d5062b459c and reserved hardening for future goals.
+The root Cargo manifest now pins that public Git dependency behind the opt-in
+mise-integration feature; Cargo.lock contains the actual consumer resolution.
+The upstream MIT notice is retained under third-party/mise. This is development
+permission, not distribution approval or a completed transitive notice audit.
+
+The feature-enabled Oyzu executable now exposes install and exec. It reads the
+actual Oyzu configuration, invokes the linked mise library in a fresh same-image
+child, uses the existing broker for public Node metadata/archive acquisition,
+checks the declared checksum, stages and publishes through the existing store,
+commits a format-2 oyzu.lock, and executes through a verified installation lease.
+No separate mise executable participates. Initial support is standalone Node at
+the workspace root; managed configuration is rejected rather than treated as
+standalone. Internal child stdio and direct-child lifetime are development choices;
+full worker hardening is deferred.
+
+Linux amd64 Rust 1.95 build and actual user acceptance passed: Node 22.15.0 and
+22.14.0 install into one shared store from two separate TOML projects, each exec
+uses its locked version, literal arguments/cwd/configured environment pass, exit
+code 7 propagates, locks remain unchanged during exec, and revisiting both projects
+selects the correct version. The runner downloads and executes the actual tools.
+Initial integration failures (reserved test environment name, counting tool-policy
+settings, URL used as artifact ID and absent store directory) were corrected in
+this same flow rather than replaced by component-only tests.
+
+Windows GNU default-feature full locked tests, strict all-target Clippy,
+formatting and nine existing CLI task scenarios passed with the new lockfile.
+Feature-enabled Clippy remains in progress. Native Windows/macOS integrated
+acceptance is pending; the new Tool management user acceptance workflow runs the
+same user flow on all three hosts. Other tools, scoped/multi-tool update, offline
+cached install, corporate transport, managed selection, npm commands, shims,
+activation and builder handoff remain functional implementation work. See the
+[development reference](reference/tool-management-development.md).
+
+Checkpoint 159 verification completion: feature-enabled Linux Rust 1.95 strict
+all-target Clippy and formatting passed. The newer lint required an equivalent
+match-guard rewrite in the existing BuildKit image check; no executor behavior
+changed. Documentation structure and diff checks passed. This is the first
+connected Node user-flow evidence, not completion of the remaining functional
+OEP scope. Hardening is reserved for future goals by explicit maintainer direction.

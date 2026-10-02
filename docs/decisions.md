@@ -101,3 +101,18 @@ explicit constraints. It preserves the full final scope while changing delivery
 order. The operational rule lives in [AGENTS.md](../AGENTS.md#implementation-priority-prove-the-end-to-end-solution-first),
 with application guidance in the [engineering guide](code-organization.md#prove-the-solution-before-hardening)
 and a proof section in the [proposal template](proposals/TEMPLATE.md).
+
+## Authorized mise development integration
+
+On 2026-10-02, @micahlmartin explicitly authorized using oyzuai/mise revision
+9290bcac695c8ff8a56760ccebd785d5062b459c with default features disabled and rustls
+plus vendored-lua enabled in the controlled Oyzu development proof. This resolves
+the development-import decision; it is not distribution approval or a completed
+shipping-dependency license audit. The upstream MIT notice is preserved in
+third-party/mise/LICENSE. The feature is opt-in while the user flow is connected.
+
+The maintainer then revised the implementation goal to prioritize implementation,
+usability and user acceptance, reserving hardening for future goals. Existing
+hardening work remains available but must not displace connecting and exercising
+the complete user flows. Deferred hardening is tracked separately from functional
+acceptance, without claiming a production security or distribution qualification.

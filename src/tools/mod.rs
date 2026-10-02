@@ -3,6 +3,8 @@
 //! Grant checks and worker framing rely on independently trusted caller context;
 //! none of these library operations alone confers execution authority.
 mod backend;
+#[cfg(feature = "mise-integration")]
+pub mod development;
 mod edit;
 mod grant;
 pub use grant::{ToolGrantContext, ToolGrantOperation, VerifiedToolGrant};

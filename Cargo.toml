@@ -7,6 +7,10 @@ description = "An opinionated developer build platform"
 publish = false
 
 [dependencies]
+mise = { git = "https://github.com/oyzuai/mise", rev = "9290bcac695c8ff8a56760ccebd785d5062b459c", default-features = false, features = ["rustls", "vendored-lua"], optional = true }
+tokio = { version = "1", features = ["rt", "net", "time"], optional = true }
+reqwest-mise = { package = "reqwest", version = "0.13", default-features = false, optional = true }
+http = { version = "1", optional = true }
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -32,6 +36,9 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 httpdate = "1.0.3"
 
 [dev-dependencies]
+
+[features]
+mise-integration = ["dep:mise", "dep:tokio", "dep:reqwest-mise", "dep:http"]
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Memory", "Win32_System_IO", "Win32_System_JobObjects", "Win32_System_Threading"] }

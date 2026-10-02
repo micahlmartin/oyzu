@@ -42,3 +42,5 @@ Provision the common Node quality image before the npm, pnpm or Yarn image: `doc
 Build output is `dist/manifest.json`, `plan.json`, `envelope.json`, native logs and target artifacts/reports. Snapshot names include the captured source identity. Native npm test scripts equal to `node --test` receive JUnit and LCOV reporters; Go test events and coverage profiles are normalized. Available lint/format-check tasks run in the captured worktree. Mutating formatter tasks do not run as build checks. Previous bundles are preserved under `.oyzu/history`. `inspect` validates content integrity only; it does not certify production trust.
 
 Configuration commands, profile selection, administrative constraints, editing and their current limits are described in the [experimental configuration reference](configuration.md).
+
+The opt-in [Node tool-management development integration](tool-management-development.md) documents the initial real install/exec path and its functional acceptance status.

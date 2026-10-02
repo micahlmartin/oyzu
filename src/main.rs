@@ -26,6 +26,20 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Install the configured Node tool (opt-in development integration).
+    #[cfg(feature = "mise-integration")]
+    Install {
+        #[arg(long, default_value = ".oyzu/tools")]
+        store: PathBuf,
+    },
+    /// Execute a frozen installed Node command (opt-in development integration).
+    #[cfg(feature = "mise-integration")]
+    Exec {
+        #[arg(long, default_value = ".oyzu/tools")]
+        store: PathBuf,
+        #[arg(last = true, required = true)]
+        args: Vec<std::ffi::OsString>,
+    },
     /// Inspect tool-management records without installing or executing tools.
     Tools {
         #[command(subcommand)]
@@ -84,6 +98,13 @@ fn main() {
 }
 
 fn run() -> Result<i32> {
+    #[cfg(feature = "mise-integration")]
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|arg| arg == "__oyzu-node-worker")
+    {
+        return oyzu::tools::development::worker();
+    }
     let cli = Cli::parse();
     let directory = cli
         .directory
@@ -99,6 +120,19 @@ fn run() -> Result<i32> {
         ..Default::default()
     };
     match &cli.command {
+        #[cfg(feature = "mise-integration")]
+        Commands::Install { store } => {
+            return oyzu::tools::development::install(&directory, &options, &directory.join(store));
+        }
+        #[cfg(feature = "mise-integration")]
+        Commands::Exec { store, args } => {
+            return oyzu::tools::development::exec(
+                &directory,
+                &options,
+                &directory.join(store),
+                args,
+            );
+        }
         Commands::Tools {
             command: ToolCommand::Backend { path },
         } => {
@@ -212,6 +246,8 @@ fn run() -> Result<i32> {
         | Commands::Tools { .. } => {
             unreachable!()
         }
+        #[cfg(feature = "mise-integration")]
+        Commands::Install { .. } | Commands::Exec { .. } => unreachable!(),
     }
     Ok(0)
 }

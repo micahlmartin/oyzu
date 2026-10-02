@@ -1,0 +1,57 @@
+name: Tool management user acceptance
+
+on:
+  push:
+    branches: [main, codex/mise-qualification]
+    paths:
+      - 'src/tools/**'
+      - 'src/main.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'tooling/test-tool-management.py'
+      - '.github/workflows/tool-management.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node-user-flow:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            executable: target/debug/oyzu
+          - os: windows-latest
+            executable: target/debug/oyzu.exe
+          - os: macos-latest
+            executable: target/debug/oyzu
+    env:
+      RUSTUP_TOOLCHAIN: '1.95.0'
+      CARGO_BUILD_JOBS: '3'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_INCREMENTAL: 'false'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install compiler and checks
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: tool-user-flow-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: tool-user-flow-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock') }}-
+      - name: Build library-linked Oyzu
+        run: cargo build --locked --features mise-integration --bin oyzu
+      - name: Real Node install and execution
+        timeout-minutes: 15
+        run: python tooling/test-tool-management.py --cli ${{ matrix.executable }}
+      - name: Check feature-enabled code
+        run: cargo clippy --locked --features mise-integration --all-targets -- -D warnings
+      - name: Formatting
+        run: cargo fmt --all -- --check

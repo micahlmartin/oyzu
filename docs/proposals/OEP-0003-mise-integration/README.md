@@ -81,6 +81,14 @@ The release manifest identifies source pin, patches, dependency lock, enabled fe
 
 Before import/distribution, preserve the MIT notice attributed to Jeff Dickey, audit shipped dependencies/registry data/plugins, produce notices and an SBOM, and record maintainer approval of license compatibility. The experiment inventory is not that approval. This OEP does not choose Oyzu's public license. An unresolved license decision blocks import/release, not public documentation, fixtures or owned interfaces.
 
+On 2026-10-02 the maintainer explicitly authorized controlled development import
+of fork revision `9290bcac695c8ff8a56760ccebd785d5062b459c`, with defaults disabled
+and `rustls` plus `vendored-lua` enabled. This permits the opt-in functional proof;
+it does not approve distribution or complete the shipping license audit. The
+maintainer also reserved hardening for future goals: the current implementation
+goal covers functional behavior, usability and user acceptance. Keep deferred
+hardening visible without treating it as a prerequisite for this development work.
+
 Check upstream weekly and triage relevant security advisories on the response targets in the [maintenance procedure](upstream-maintenance.md). Prepare routine promotions monthly. Every update requires a reviewed fork PR and an Oyzu pin/lock/provenance PR, with qualification against the final exact commit. Never auto-merge or silently rebind a lock to a changed backend. Historical backend compatibility requires an explicit reviewed compatibility entry; otherwise require explicit relocking with a visible diff.
 
 ## Acceptance criteria

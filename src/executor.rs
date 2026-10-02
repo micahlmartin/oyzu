@@ -80,15 +80,12 @@ pub(crate) fn resolve_for(reference: &str, profile: Profile) -> Result<Image> {
         Profile::Process if volumes.is_some_and(|v| !v.is_empty()) => {
             bail!("builder images with implicit volumes are unsupported")
         }
-        Profile::RootlessBuildkit => {
+        Profile::RootlessBuildkit
             if !matches!(info["Config"]["User"].as_str(), Some("1000" | "1000:1000"))
                 || volumes
-                    .is_some_and(|v| v.keys().any(|k| k != "/home/user/.local/share/buildkit"))
-            {
-                bail!(
-                    "BuildKit toolchain requires UID 1000 and only its private worker-store volume"
-                );
-            }
+                    .is_some_and(|v| v.keys().any(|k| k != "/home/user/.local/share/buildkit")) =>
+        {
+            bail!("BuildKit toolchain requires UID 1000 and only its private worker-store volume");
         }
         _ => (),
     }
