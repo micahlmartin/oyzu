@@ -1,5 +1,8 @@
 use super::*;
-use crate::tools::{native_tool_worker_channel, split_tool_worker_channel, NativeToolWorkerIo};
+use crate::tools::{
+    native_tool_worker_channel, split_tool_worker_channel, NativeToolWorkerIo,
+    WindowsToolWorkerLifecycle,
+};
 use sha2::{Digest, Sha256};
 use std::{
     fs::File,
@@ -79,7 +82,7 @@ fn real_spawn_restricts_handles_environment_and_cleans_descendant_held_control_p
         parameter("unrelated", unrelated.as_raw_handle()),
         OsString::from(ARGUMENT),
     ]);
-    let mut process = WindowsToolWorkerProcess::spawn_current(
+    let process = WindowsToolWorkerProcess::spawn_current(
         &digest(),
         &arguments,
         &BTreeMap::from([("OYZU_PROBE".into(), "explicit".into())]),
@@ -124,15 +127,50 @@ fn real_spawn_restricts_handles_environment_and_cleans_descendant_held_control_p
     thread::sleep(Duration::from_millis(50));
     assert!(io.try_receive().unwrap().is_none());
     assert!(!io.try_send().unwrap());
-    process
-        .terminate(Instant::now() + Duration::from_secs(10))
+    let mut lifecycle = WindowsToolWorkerLifecycle::new(process, io);
+    // An exhausted budget may observe an already-completed cleanup or report a
+    // timeout. Either way ownership remains and protocol reuse stays forbidden.
+    let _ = lifecycle.shutdown(Instant::now());
+    lifecycle
+        .shutdown(Instant::now() + Duration::from_secs(10))
         .unwrap();
     assert_eq!(
         unsafe { WaitForSingleObject(descendant.as_raw_handle(), 0) },
         WAIT_OBJECT_0
     );
-    io.shutdown(Instant::now() + Duration::from_secs(10))
+    assert!(lifecycle.try_wait().unwrap().is_some());
+    assert_eq!(
+        lifecycle.control().err().unwrap().to_string(),
+        "TOOL_WORKER_STOPPING"
+    );
+    lifecycle
+        .shutdown(Instant::now() + Duration::from_secs(10))
         .unwrap();
+}
+
+#[test]
+fn lifecycle_drop_terminates_process_and_joins_live_peer_io() {
+    let temp = tempfile::tempdir().unwrap();
+    let process = WindowsToolWorkerProcess::spawn_current(
+        &digest(),
+        &fixture_arguments("leaf"),
+        &BTreeMap::new(),
+        temp.path(),
+        vec![],
+    )
+    .unwrap();
+    let observer = process.process.try_clone().unwrap();
+    let (parent, retained_peer) = native_tool_worker_channel().unwrap();
+    let io = NativeToolWorkerIo::new(parent).unwrap();
+    let mut lifecycle = WindowsToolWorkerLifecycle::new(process, io);
+    lifecycle.control().unwrap().start_receive().unwrap();
+    assert!(lifecycle.try_wait().unwrap().is_none());
+    drop(lifecycle);
+    assert_eq!(
+        unsafe { WaitForSingleObject(observer.as_raw_handle(), 10_000) },
+        WAIT_OBJECT_0
+    );
+    drop(retained_peer);
 }
 
 #[test]

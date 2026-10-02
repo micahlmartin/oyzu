@@ -9,6 +9,8 @@ mod session;
 #[cfg(windows)]
 mod windows_job;
 #[cfg(windows)]
+mod windows_lifecycle;
+#[cfg(windows)]
 mod windows_process;
 pub use channel::{
     native_tool_worker_channel, NativeToolWorkerEndpoint, NativeToolWorkerReader,
@@ -26,5 +28,7 @@ pub use io::NativeToolWorkerIo;
 pub use session::ToolWorkerSession;
 #[cfg(windows)]
 pub use windows_job::WindowsToolWorkerJob;
+#[cfg(windows)]
+pub use windows_lifecycle::WindowsToolWorkerLifecycle;
 #[cfg(windows)]
 pub use windows_process::WindowsToolWorkerProcess;

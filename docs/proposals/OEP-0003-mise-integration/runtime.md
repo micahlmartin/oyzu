@@ -131,6 +131,13 @@ The supervisor owns process lifetime, trusted image selection, restricted handle
 inheritance and elapsed-time enforcement. These responsibilities do not move into
 individual language backends.
 
+The initial Windows lifecycle owner now composes an existing native process and
+control-I/O owner. Cleanup closes protocol admission, interrupts I/O, attempts
+job termination and attempts thread joining even after a process-cleanup error,
+without resetting the absolute cleanup deadline. Failed cleanup retains ownership
+for retry. This composition does not yet provide the authenticated product
+bootstrap, cancellation event loop, operation dispatch or Unix counterpart.
+
 Stable Rust does not expose the Windows process attribute-list spawn API:
 [`CommandExt::spawn_with_attributes`](https://doc.rust-lang.org/std/os/windows/process/trait.CommandExt.html#tymethod.spawn_with_attributes)
 is nightly-only. The Windows adapter must use the existing Windows bindings for

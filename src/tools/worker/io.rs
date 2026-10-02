@@ -248,9 +248,7 @@ impl NativeToolWorkerIo {
     /// threads. Discards even a successful result racing shutdown. Repeated
     /// calls are permitted; expiry leaves pending handles owned by this value.
     pub fn shutdown(&mut self, deadline: Instant) -> Result<()> {
-        self.abort();
-        self.receiver.take();
-        self.sender.take();
+        self.begin_shutdown();
         loop {
             self.interrupt();
             if self.join_finished() {
@@ -261,13 +259,18 @@ impl NativeToolWorkerIo {
             thread::sleep(remaining.min(Duration::from_millis(5)));
         }
     }
+
+    pub(super) fn begin_shutdown(&mut self) {
+        self.abort();
+        self.receiver.take();
+        self.sender.take();
+        self.interrupt();
+    }
 }
 
 impl Drop for NativeToolWorkerIo {
     fn drop(&mut self) {
-        self.abort();
-        self.receiver.take();
-        self.sender.take();
+        self.begin_shutdown();
         loop {
             self.interrupt();
             if self.join_finished() {

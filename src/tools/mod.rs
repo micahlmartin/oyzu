@@ -21,7 +21,7 @@ pub use worker::{
     ToolWorkerReceiver, ToolWorkerRequestContext, ToolWorkerSender, ToolWorkerSession,
 };
 #[cfg(windows)]
-pub use worker::{WindowsToolWorkerJob, WindowsToolWorkerProcess};
+pub use worker::{WindowsToolWorkerJob, WindowsToolWorkerLifecycle, WindowsToolWorkerProcess};
 mod store;
 pub use store::InstallationLease;
 pub use store::LeaseRecovery;

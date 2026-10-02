@@ -1306,6 +1306,27 @@ worker protocol.
 
 ### Worker-side operation session
 
+On Windows, `WindowsToolWorkerLifecycle::new(process, io)` joins ownership of an
+already-created process and its control channel. The trusted caller must associate
+the matching endpoint; this constructor does not authenticate their relationship.
+Use `control()` for protocol I/O and `try_wait()` for the initial process status.
+`shutdown(absolute_cleanup_deadline)` permanently denies further control access,
+interrupts both I/O directions, terminates and observes the job, then attempts I/O
+joining even if process cleanup failed. Both phases use the same deadline.
+Success returns the native initial-process exit code and confirms job-wide exit
+and joined threads. Failure retains ownership for another shutdown attempt;
+`TOOL_WORKER_PROCESS_CLEANUP_FAILED`, `TOOL_WORKER_CONTROL_CLEANUP_FAILED` or
+`TOOL_WORKER_CLEANUP_FAILED` preserve the relevant causes. A retry never reopens
+the protocol. Synchronous native calls are not preempted by this deadline.
+
+Dropping the lifecycle interrupts I/O and releases the process/job owner before
+the I/O owner joins its threads. Job close requests descendant termination;
+only explicit successful shutdown confirms process cleanup. Drop may still wait
+if native I/O cancellation fails to complete. Native tests cover descendants
+holding both control pipes, exhausted-budget retry, denial of protocol reuse and
+drop cleanup with a live transport peer. This Windows-only composition adds no
+backend dispatch, launch authorization, bootstrap protocol or Unix supervisor.
+
 For bounded synchronous collection of an already-started native I/O operation,
 `NativeToolWorkerIo::wait_receive_frame(deadline)` and `wait_send(deadline)` use
 an absolute `std::time::Instant`. They check expiry before polling and before

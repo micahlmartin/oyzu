@@ -2383,3 +2383,31 @@ all-target Clippy, formatting and all nine real CLI task scenarios subsequently
 passed. Documentation and diff checks also passed. Run 37039123362 at 010fd62
 has now completed successfully on all three native hosts; new deadline-wait
 coverage still requires its own native run.
+
+## Checkpoint 158: joint Windows process and control cleanup
+
+WindowsToolWorkerLifecycle now owns an already-created worker and its matching
+control I/O. Cleanup closes protocol access, interrupts pending I/O, attempts
+job termination and attempts I/O joining even if process cleanup fails. One
+absolute deadline covers both phases; a failure retains ownership for retry.
+Explicit success confirms job-wide exit, the initial exit code and joined threads.
+Drop interrupts I/O and releases process/job ownership before joining I/O; this
+requests termination but does not report confirmed process cleanup.
+
+The native descendant-held-pipe scenario now uses this lifecycle owner, and a
+new test verifies drop cleanup with a running same-image process and live peer.
+The initial Windows GNU full library run passed (164 passed, four ignored).
+Integration checks and the follow-up expired-budget retry test remain pending
+at this checkpoint. Documentation and diff checks passed. No new dependency,
+license alternative, wire field or launch authorization was introduced.
+
+The preceding absolute-deadline change at 17455e0 passed focused worker CI on
+Windows, macOS and Linux in run 37039629532. This does not cover the new lifecycle
+composition. Product bootstrap, typed payloads, actual backend dispatch, Unix
+process supervision and full OEP-0003 acceptance remain unfinished.
+
+Checkpoint 158 verification completion: the full locked Rust suite, strict
+all-target Clippy, formatting and nine CLI task scenarios passed. After adding
+the expired-budget retry assertion and renaming the drop test, the focused native
+process suite passed (five tests, one subprocess fixture ignored) and formatting
+passed again. Documentation and diff checks passed; new lifecycle CI is pending.
