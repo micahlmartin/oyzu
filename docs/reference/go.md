@@ -14,7 +14,7 @@ oyzu build
 oyzu inspect dist
 ```
 
-Development tasks use provisioned `go` and `gofmt`. The implicit tasks include dependency installation, compile, test, vet, formatting and formatting checks. `oyzu run format` modifies source; builds use `format-check`, whose native `gofmt -l` output must be empty. Native go.work members supply the package patterns for development build/test/vet commands. Direct task execution currently does not produce a collected `dist/` report bundle.
+Development tasks use provisioned `go` and `gofmt`. The implicit tasks include dependency installation, compile, test, vet, formatting and formatting checks. `oyzu run format` modifies source; builds use `format-check`, whose native `gofmt -l` output must be empty. Native go.work members supply the package patterns for development build/test/vet commands. Direct tests produce the test-only evidence described below; other development tasks do not produce a collected build bundle.
 
 Captured builds require Docker and this explicitly provisioned Linux amd64 toolchain:
 
@@ -25,6 +25,20 @@ docker build -f tooling/images/go.Dockerfile -t oyzu-toolchain/go:1.24-mod0.25.0
 The image extends `golang:1.24-bookworm` with the owned module packaging adapter linked against checksum-locked `golang.org/x/mod` 0.25.0. Dependency downloads occur in this provisioning step, not in project build execution. The image retains the upstream BSD license notice. Native local checks use Go 1.24.13 on Windows; new cross-host module packaging checks and isolated library builds are wired into CI but still require revision-specific confirmation.
 
 This changes the default Go image from the base Go distribution. Custom `--image go=<image>` profiles must now include `oyzu-go-modulezip` as well as the existing compiler/native tools. Oyzu never downloads a missing image or adapter. Image content identity enters the build evidence. A missing executable fails preparation; it does not disable library packaging silently.
+
+## Direct test evidence
+
+`oyzu run test` instruments the implicit `go test ./...` command with `-json`, a fresh `-coverprofile` destination and `-count=1`. Native Go owns test discovery and compilation. Oyzu converts its JSON events to JUnit and retains the native coverage profile under `dist/`, with digests and summaries in the manifest. Statement coverage does not claim branch or line coverage. Packages with no tests retain an honest zero-test summary; native Go may succeed in that case. Missing/malformed reports and configured coverage thresholds can still fail the invocation.
+
+For a `go.work` root, native workspace metadata selects contained member package patterns and the invocation combines their actual test events and coverage. Members outside the task root fail. Forward selectors through `oyzu run test -- -run TestGreeting`; forwarded arguments go only to the requested task. The default disables reuse of Go's cached test results, while Go may still reuse its native compilation cache.
+
+The shared collector normalizes JUnit before `post_test`, exposing `OYZU_TEST_REPORT` and `OYZU_COVERAGE_REPORT` to hooks. Final validation and capture follow the hook, so report transformations are retained. Invalid native event streams or preexisting normalized outputs remain failures even if a hook subsequently writes valid XML. A failed test skips its success-only post hook and retains available evidence.
+
+Exact `argv = ["go", "test", "./..."]` and `run = "go test ./..."` overrides receive the same instrumentation. Other custom bodies remain unchanged and must write their required JUnit and Go coverage reports. An explicit coverage declaration can redirect the native profile; an explicit JUnit declaration selects file-based reporting and requires the custom task or hook to produce that XML. The default Go command itself emits JSON, not JUnit. Declared paths must be fresh; see [direct report binding](direct-tests.md).
+
+This workflow needs a provisioned Go compiler and available dependencies, without Docker or a platform account. Host execution retains native environment/network behavior; use existing dependencies and native `GOPROXY=off`, `GOSUMDB=off`, `GOTOOLCHAIN=local` settings when verifying an offline fixture. It is not an isolated build, does not produce application artifacts and confers no publishing authority. [Direct test evidence](direct-tests.md) describes host provenance, output preservation, errors and recovery.
+
+`python tooling/test-go-direct.py --cli <compiled-oyzu-path> --go <native-go-path>` exercises real modules and workspaces, report inspection, test selection, failures, skips, empty suites, hooks, thresholds and custom-command obligations. CI runs it with provisioned Go 1.24.13 after compiling the CLI on each host. Current local and cross-host results are recorded separately in [implementation status](../implementation-status.md).
 
 ## Preparation and execution
 

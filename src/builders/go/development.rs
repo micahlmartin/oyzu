@@ -17,10 +17,9 @@ struct Member {
 }
 
 pub(super) fn command(task: &Task) -> Result<Option<super::super::DevelopmentCommand>> {
-    if task.provider != "go"
-        || !task.cwd.join("go.work").is_file()
-        || !matches!(task.argv.as_slice(), [go, op, pattern] if go == "go" && matches!(op.as_str(), "build" | "test" | "vet") && pattern == "./...")
-    {
+    let native = matches!(task.argv.as_slice(), [go, op, pattern] if task.provider == "go" && go == "go" && matches!(op.as_str(), "build" | "test" | "vet") && pattern == "./...");
+    let reporting = matches!(task.argv.as_slice(), [go, op, json, coverage, count, pattern] if go == "go" && op == "test" && json == "-json" && coverage.starts_with("-coverprofile=") && count == "-count=1" && pattern == "./...");
+    if !task.cwd.join("go.work").is_file() || !(native || reporting) {
         return Ok(None);
     }
     let path = task
@@ -63,7 +62,7 @@ pub(super) fn command(task: &Task) -> Result<Option<super::super::DevelopmentCom
     if patterns.is_empty() {
         bail!("Go workspace has no modules");
     }
-    let mut argv = task.argv[..2].to_vec();
+    let mut argv = task.argv[..task.argv.len() - 1].to_vec();
     argv.extend(patterns);
     // Let Go derive the workspace from its own cwd spelling. Go 1.24 otherwise
     // treats Windows verbatim prefixes / symlink aliases as different module

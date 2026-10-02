@@ -7,7 +7,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | [Configuration](configuration.md) | Runnable walkthrough, commands, settings/defaults, cascades/profiles, file locations, editing, administrative enforcement, recovery and deferred authentication |
 | [Build bundles](build-bundles.md) | Workspace locking, staging, history, destination-change checks, failure evidence and recovery limits |
 | [Build tasks](build-tasks.md) | Builder stages, cross-target prerequisites, hooks, private workspace ownership, report gates and failure behavior |
-| [Direct test reports](direct-tests.md) | Node and Python host test-only bundles, native output preservation, hook/report failure gates and explicit provenance limits |
+| [Direct test reports](direct-tests.md) | Node, Python and Go host test-only bundles, native output preservation, hook/report failure gates and explicit provenance limits |
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |
 | [pnpm builds](pnpm.md) | Frozen registry archive capture, native installation, implicit tasks, snapshot packages, provenance and current compatibility limits |
 | [Yarn Classic builds](yarn.md) | Native lock parsing, captured registry archives, offline mirror installation, reports, snapshot packaging and compatibility limits |

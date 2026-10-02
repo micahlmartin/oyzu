@@ -181,6 +181,7 @@ jobs:
           "$PYTHON" tooling/test-python-reporting.py
           "$PYTHON" tooling/test-python-direct.py --cli "$CLI"
           "$PYTHON" tooling/test-direct-test-bundles.py --cli "$CLI"
+          "$PYTHON" tooling/test-go-direct.py --cli "$CLI"
       - name: Execute compiled CLI against real task scenarios
         shell: bash
         run: |

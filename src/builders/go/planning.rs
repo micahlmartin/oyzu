@@ -1,7 +1,7 @@
 use super::{metadata::Metadata, preparation};
 use crate::builders::{
     semver_snapshot, ArtifactKind, ArtifactSpec, BuilderPlan, CommandSpec, PlanningContext,
-    ReportFormat, ReportSpec, TaskPlan,
+    TaskPlan,
 };
 use anyhow::{Context, Result};
 
@@ -120,22 +120,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
         &format!("-coverprofile=/out/{id}/reports/coverage.out"),
     ]);
     test.argv.extend(metadata.patterns.clone());
-    test.reports = vec![
-        ReportSpec {
-            format: ReportFormat::Junit,
-            filename: "junit.xml",
-            source: crate::reports::ReportSource::GoTestEvents,
-            name: None,
-            input: None,
-        },
-        ReportSpec {
-            format: ReportFormat::GoCover,
-            filename: "coverage.out",
-            source: crate::reports::ReportSource::File,
-            name: None,
-            input: None,
-        },
-    ];
+    test.reports = super::testing::reports(crate::reports::ReportSource::GoTestEvents);
     plan.tasks.insert("test".into(), test);
     let mut lint = TaskPlan::command(&["go", "vet"]);
     lint.argv.extend(metadata.patterns);

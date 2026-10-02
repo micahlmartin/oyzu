@@ -16,7 +16,7 @@ pub(crate) struct Locations<'a> {
 
 struct Pending<'a> {
     action: &'a Value,
-    stdout: PathBuf,
+    prepared: Vec<Result<()>>,
     index: usize,
 }
 
@@ -35,11 +35,10 @@ impl<'a> Collector<'a> {
         }
     }
     pub fn defer(&mut self, action: &'a Value, stdout: PathBuf, index: usize) -> Result<()> {
-        if action["reports"]
+        let intents = action["reports"]
             .as_array()
-            .context("missing report intents")?
-            .is_empty()
-        {
+            .context("missing report intents")?;
+        if intents.is_empty() {
             return Ok(());
         }
         let boundary = action["extensions"]["oyzu.dev/collect-after"]
@@ -51,7 +50,13 @@ impl<'a> Collector<'a> {
             .or_default()
             .push(Pending {
                 action,
-                stdout,
+                // Normalize native event streams before hooks can consume the
+                // report. Retain failures; a hook cannot repair invalid events
+                // by replacing them with an unrelated successful report.
+                prepared: intents
+                    .iter()
+                    .map(|intent| prepare(action, intent, &self.locations, &stdout))
+                    .collect(),
                 index,
             });
         Ok(())
@@ -60,16 +65,18 @@ impl<'a> Collector<'a> {
         let mut completed = Vec::new();
         for pending in self.pending.remove(boundary).unwrap_or_default() {
             let mut collected = Vec::new();
-            for intent in pending.action["reports"]
+            for (intent, prepared) in pending.action["reports"]
                 .as_array()
                 .context("missing report intents")?
+                .iter()
+                .zip(pending.prepared)
             {
                 collected.extend(collect(
                     pending.action,
                     intent,
                     self.source_digest,
                     &self.locations,
-                    &pending.stdout,
+                    prepared,
                 )?);
             }
             completed.push((pending.index, collected));
@@ -98,12 +105,44 @@ impl CollectedReport {
     }
 }
 
-pub(crate) fn collect(
+fn report_input(action: &Value, id: &str, path: &str) -> Result<reports::Input> {
+    Ok(action["extensions"]["oyzu.dev/report-inputs"]
+        .get(id)
+        .map(|v| serde_json::from_value(v.clone()))
+        .transpose()?
+        .unwrap_or(reports::Input {
+            root: reports::Root::Output,
+            path: path.into(),
+        }))
+}
+
+fn prepare(action: &Value, intent: &Value, locations: &Locations<'_>, stdout: &Path) -> Result<()> {
+    let id = intent["id"].as_str().context("missing report id")?;
+    let source: reports::ReportSource = action["extensions"]["oyzu.dev/report-sources"]
+        .get(id)
+        .map(|value| serde_json::from_value(value.clone()))
+        .transpose()?
+        .unwrap_or_default();
+    if source == reports::ReportSource::File {
+        return Ok(());
+    }
+    let path = action["extensions"]["oyzu.dev/report-paths"][id]
+        .as_str()
+        .context("missing report path")?;
+    let input = report_input(action, id, path)?;
+    if !matches!(input.root, reports::Root::Output) || input.path != path {
+        bail!("native events require their assigned output destination");
+    }
+    safe_report_parent(locations.output, path)?;
+    reports::materialize(source, stdout, &locations.output.join(path))
+}
+
+fn collect(
     action: &Value,
     intent: &Value,
     source_digest: &Value,
     locations: &Locations<'_>,
-    stdout: &Path,
+    prepared: Result<()>,
 ) -> Result<Vec<CollectedReport>> {
     let id = intent["id"].as_str().context("missing report id")?;
     let path = action["extensions"]["oyzu.dev/report-paths"][id]
@@ -113,26 +152,8 @@ pub(crate) fn collect(
     let record = json!({"id":id,"action":action["id"],"target":action["target"],
         "kind":intent["kind"],"format":format,"status":"invalid","summary":{}});
     let selection = (|| -> Result<(reports::Input, Vec<String>)> {
-        let input: reports::Input = action["extensions"]["oyzu.dev/report-inputs"]
-            .get(id)
-            .map(|v| serde_json::from_value(v.clone()))
-            .transpose()?
-            .unwrap_or(reports::Input {
-                root: reports::Root::Output,
-                path: path.into(),
-            });
-        let source: reports::ReportSource = action["extensions"]["oyzu.dev/report-sources"]
-            .get(id)
-            .map(|value| serde_json::from_value(value.clone()))
-            .transpose()?
-            .unwrap_or_default();
-        if source != reports::ReportSource::File {
-            if !matches!(input.root, reports::Root::Output) {
-                bail!("native events require an output destination");
-            }
-            safe_report_parent(locations.output, path)?;
-            reports::materialize(source, stdout, &locations.output.join(path))?;
-        }
+        prepared?;
+        let input = report_input(action, id, path)?;
         let root = match input.root {
             reports::Root::Output => locations.output,
             reports::Root::Workspace => locations.workspace,
@@ -227,7 +248,7 @@ mod tests {
                 output: out,
                 bundle,
             },
-            &out.join("stdout"),
+            Ok(()),
         )
         .unwrap()
         .remove(0)
@@ -345,6 +366,69 @@ mod tests {
         );
         assert_ne!(reports[0].record["id"], reports[1].record["id"]);
         collector.ensure_finished().unwrap();
+    }
+
+    #[test]
+    fn native_reports_exist_before_hooks_and_are_not_regenerated_after_them() {
+        for failure in [None, Some("invalid-events"), Some("existing-report")] {
+            let out = tempfile::tempdir().unwrap();
+            let bundle = tempfile::tempdir().unwrap();
+            let source = json!("sha256:source");
+            let action = json!({"id":"app:test","target":"app","reports":[{"id":"tests","kind":"test","format":"junit"}],"extensions":{
+                "oyzu.dev/collect-after":"app:post_test",
+                "oyzu.dev/report-paths":{"tests":"junit.xml"},
+                "oyzu.dev/report-sources":{"tests":"go-test-events"}
+            }});
+            let stdout = out.path().join("stdout");
+            fs::write(
+                &stdout,
+                if failure == Some("invalid-events") {
+                    "not JSON"
+                } else {
+                    r#"{"Package":"example/app","Test":"TestGreeting","Action":"pass"}"#
+                },
+            )
+            .unwrap();
+            let path = out.path().join("junit.xml");
+            if failure == Some("existing-report") {
+                fs::write(&path, "preexisting bytes").unwrap();
+            }
+            let mut collector = Collector::new(
+                Locations {
+                    workspace: out.path(),
+                    output: out.path(),
+                    bundle: bundle.path(),
+                },
+                &source,
+            );
+            collector.defer(&action, stdout, 0).unwrap();
+            if failure.is_none() {
+                assert_eq!(reports::junit_summary(&path).unwrap()["passed"], 1);
+            } else if failure == Some("existing-report") {
+                assert_eq!(fs::read_to_string(&path).unwrap(), "preexisting bytes");
+            }
+            // A hook may transform a valid normalized report, but cannot erase
+            // the failure to obtain valid native evidence in the first place.
+            fs::write(
+                &path,
+                "<testsuite><testcase><skipped/></testcase></testsuite>",
+            )
+            .unwrap();
+            assert!(collector.finish("app:test").unwrap().is_empty());
+            let mut completed = collector.finish("app:post_test").unwrap();
+            let report = completed.remove(0).1.remove(0);
+            assert_eq!(report.failed(), failure.is_some());
+            if failure.is_none() {
+                assert_eq!(report.record["summary"]["skipped"], 1);
+                assert_eq!(
+                    report.record["digest"],
+                    snapshot::file_digest(&path).unwrap()
+                );
+            } else {
+                assert_eq!(report.record["status"], "invalid");
+            }
+            collector.ensure_finished().unwrap();
+        }
     }
 
     #[test]

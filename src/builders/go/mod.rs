@@ -3,6 +3,7 @@ mod metadata;
 mod packaging;
 mod planning;
 mod preparation;
+mod testing;
 use crate::builders::task::insert;
 use crate::builders::{Builder, Descriptor};
 use crate::model::Target;
@@ -27,6 +28,13 @@ static RUNTIME: &[super::RuntimeFile] = &[
 ];
 
 impl Builder for Go {
+    fn development_test(
+        &self,
+        target: &Target,
+        task: &crate::model::Task,
+    ) -> Result<Option<super::TaskPlan>> {
+        Ok(testing::development(target, task))
+    }
     fn development_command(
         &self,
         task: &crate::model::Task,
