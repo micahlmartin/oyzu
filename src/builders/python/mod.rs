@@ -2,6 +2,7 @@ mod acquisition;
 mod application;
 mod detection;
 mod discovery;
+mod distribution_app;
 mod legacy;
 mod planning;
 mod quality;
@@ -68,6 +69,10 @@ impl Builder for Python {
             RuntimeFile {
                 name: "python-app.py",
                 contents: include_str!("runtime/application.py"),
+            },
+            RuntimeFile {
+                name: "python-distribution-app.py",
+                contents: include_str!("runtime/distribution_app.py"),
             },
             RuntimeFile {
                 name: "python-legacy.py",

@@ -22,7 +22,7 @@ def verify(root, base, invoke, validate, source_files, verified):
         invoke(project,'build')
         manifest = validate(project/'dist')
         assert manifest['status'] == 'succeeded' and source_files(project) == before
-        assert {a['name'] for a in manifest['artifacts']} == {'wheel','sdist'}
+        assert {a['name'] for a in manifest['artifacts']} == {'wheel','sdist','application'}
         assert all('.dev0+g' in a['version'] for a in manifest['artifacts'])
         tests = next(r for r in manifest['reports'] if r['kind']=='test')
         assert tests['summary']['passed'] == 2

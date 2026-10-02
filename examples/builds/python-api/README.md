@@ -38,6 +38,8 @@ Native commands document the underlying ecosystem workflow. They are supporting 
 
 ## Contract and limitations
 
+The implemented baseline now emits a snapshot console application `.pyz`, wheel and source distribution, with archive-source JUnit/coverage and quality gates. See [Python applications](../../../docs/reference/python-applications.md) for prerequisites and pure-Python limits. Multiple declared scripts fail with an ambiguity diagnostic; an explicit selection override and optional container assembly remain pending. Revision-specific acceptance evidence is tracked in implementation status rather than inferred from this example's presence.
+
 Acceptance criteria: PLAN-01, BUILDER-04, BUILDER-05. See the [design catalog](../../../docs/examples.md) and [scenario input](scenario.json).
 
 

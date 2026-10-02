@@ -1,4 +1,4 @@
-"""Requirements-only application archives; no invented distribution metadata."""
+"""Application archive lifecycle shared by source and distribution applications."""
 import hashlib
 import csv
 import importlib.util
@@ -60,19 +60,37 @@ def build(dependencies):
     stage = STATE/'application'
     stage.mkdir(exist_ok=False)
     packages = runtime_packages(dependencies)
+    install_runtime(packages, dependencies, stage)
+    sources = copy_sources(stage)
+    if not (stage/'__main__.py').exists():
+        if not (stage/'app.py').is_file():
+            raise ValueError('Application entrypoint requires app.py or __main__.py')
+        (stage/'__main__.py').write_text('import runpy\nrunpy.run_module("app", run_name="__main__")\n', encoding='utf-8')
+    write_archive(stage, sources, packages)
+
+
+def pure_wheel(wheel):
+    with zipfile.ZipFile(wheel) as archive:
+        metadata = [p for p in archive.namelist() if p.count('/') == 1 and p.endswith('.dist-info/WHEEL')]
+        if len(metadata) != 1 or 'Root-Is-Purelib: true' not in archive.read(metadata[0]).decode():
+            raise ValueError('Application zip archives require pure Python wheels; native application layout integration is pending')
+
+
+def install_runtime(packages, dependencies, stage):
     wheels = []
     for package in packages:
         name = package['file']
         if not portable(name) or '/' in name or not name.endswith('.whl'):
             raise ValueError('Invalid captured application wheel')
         wheel = dependencies/'wheels'/name
-        with zipfile.ZipFile(wheel) as archive:
-            metadata = [p for p in archive.namelist() if p.count('/') == 1 and p.endswith('.dist-info/WHEEL')]
-            if len(metadata) != 1 or 'Root-Is-Purelib: true' not in archive.read(metadata[0]).decode():
-                raise ValueError('Application zip archives require pure Python runtime dependencies; native application layout integration is pending')
+        pure_wheel(wheel)
         wheels.append(str(wheel))
     if wheels:
         runtime('python.py', 'adapter.py').run([sys.executable, '-I', '-m', 'pip', '--isolated', 'install', '--no-index', '--no-deps', '--no-compile', '--target', str(stage), *wheels])
+    remove_local_provenance(stage)
+
+
+def remove_local_provenance(stage):
     # pip's local-wheel provenance contains temporary acquisition paths. Retain
     # upstream package metadata but remove that installer-only file and its row.
     for origin in stage.glob('*.dist-info/direct_url.json'):
@@ -83,6 +101,9 @@ def build(dependencies):
         origin.unlink()
         with record.open('w', newline='', encoding='utf-8') as output:
             csv.writer(output).writerows(rows)
+
+
+def copy_sources(stage):
     sources = []
     total = 0
     for directory, children, files in os.walk('.'):
@@ -112,11 +133,12 @@ def build(dependencies):
                 compile(path.read_bytes(), name, 'exec')
                 sources.append(name)
             shutil.copyfile(path, destination)
-    if not (stage/'__main__.py').exists():
-        if not (stage/'app.py').is_file():
-            raise ValueError('Application entrypoint requires app.py or __main__.py')
-        (stage/'__main__.py').write_text('import runpy\nrunpy.run_module("app", run_name="__main__")\n', encoding='utf-8')
+    return sources
+
+
+def write_archive(stage, sources, packages, **facts):
     metadata = {'kind':'python-application', 'version':os.environ['OYZU_VERSION'], 'sourceDigest':os.environ['OYZU_SOURCE_DIGEST'], 'sourceFiles':sorted(sources), 'runtimePackages':[p['id'] for p in packages]}
+    metadata.update(facts)
     (stage/MANIFEST).write_text(json.dumps(metadata, sort_keys=True)+'\n', encoding='utf-8')
     total = 0
     names = set()

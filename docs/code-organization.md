@@ -78,6 +78,8 @@ Reusable operations take their necessary inputs explicitly. Avoid hidden depende
 
 Java managers share `builders/java/quality` for native lint/format defaults and its owned Java runtime adapter; native Maven/Gradle/Ant lifecycles remain in their manager modules. Task scheduling and artifact gates stay in the shared engine.
 
+Python distribution applications extend the native package plan through `builders/python/distribution_app`. The owned runtime assembles native wheel payloads and console metadata; `runtime/application.py` owns shared archive writing, archive-source testing and packaging checks for both requirements and distribution applications. Collection and task scheduling remain engine responsibilities.
+
 The internal builder development-task hook may resolve a typed command (arguments and required environment) after an explicit `oyzu run` request. Static discovery never calls it. Native invocation context stays with the builder; the shared task runner launches the resulting command. Captured builds use prepared facts instead. `BuilderPlan.fixed_env` declares captured toolchain facts and input locations that effective task environments must preserve; the shared planner checks these after applying overrides.
 
 ### Boundaries across implementation languages

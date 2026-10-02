@@ -242,7 +242,7 @@ def test_acquired_dependency_and_offline_boundary():
         for task in ['lint', 'format-check']:
             assert next(a for a in python_manifest['actions'] if a['id']==f'api:{task}')['status']=='succeeded'
         invoke(python_project,"inspect","dist")
-        assert {a["name"] for a in python_manifest["artifacts"]}=={"wheel","sdist"}
+        assert {a["name"] for a in python_manifest["artifacts"]}=={"wheel","sdist","application"}
         for artifact in python_manifest["artifacts"]:
             assert ".dev0+g" in artifact["version"]
             path=python_project / "dist" / artifact["path"]
@@ -251,6 +251,15 @@ def test_acquired_dependency_and_offline_boundary():
                     member=next(n for n in archive.namelist() if n.endswith('.dist-info/METADATA'))
                     assert email.message_from_bytes(archive.read(member))["Version"]==artifact["version"]
                     assert 'api/__init__.py' in archive.namelist()
+            elif artifact["name"]=="application":
+                with zipfile.ZipFile(path) as archive:
+                    facts=json.loads(archive.read('oyzu-application.json'))
+                    assert facts['version']==artifact['version']
+                    assert facts['entrypoint']=={'name':'oyzu-example-api','value':'api:main'}
+                    assert facts['sourceFiles']==['api/__init__.py']
+                    assert facts['runtimePackages']==['packaging/24.2']
+                    assert '__main__.py' in archive.namelist()
+                    assert not any(n.startswith(('_pytest/', 'setuptools/', 'tests/')) for n in archive.namelist())
             else:
                 with tarfile.open(path) as archive:
                     assert all(m.mtime==0 for m in archive.getmembers())
@@ -266,7 +275,7 @@ def test_acquired_dependency_and_offline_boundary():
         assert all(p['digest'].startswith('sha256:') for p in dependency['packages'])
         rebuilt=invoke(python_project,"build")
         assert {a['name']:a['digest'] for a in rebuilt['artifacts']}=={a['name']:a['digest'] for a in python_manifest['artifacts']}
-        verified.append("Python: broker acquisition, captured dependency closure, offline wheel/sdist builds, snapshot metadata, native tests/coverage and repeatable artifacts")
+        verified.append("Python: broker acquisition, offline wheel/sdist and console application archive, archive-source tests/coverage, runtime-only dependencies and repeatable snapshot artifacts")
 
         with metadata_path.open('a') as metadata_file:
             metadata_file.write('\n[tool.coverage.report]\nfail_under=100\n')

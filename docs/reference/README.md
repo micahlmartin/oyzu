@@ -8,6 +8,7 @@ This is the entry point for current functionality documentation. Maintain featur
 | [npm workspaces](npm-workspaces.md) | Native member builds, composed quality tasks, snapshot packages, report ownership, prerequisites and remaining limits |
 | [Node quality](node-quality.md) | ESLint/Prettier/Biome selection, provisioning, read-only checks, explicit formatting, scopes and failure behavior |
 | [Python testing](python-testing.md) | Native pytest collection, root/configured suites, manager commands, report preparation, no-tests outcomes and evidence limits |
+| [Python applications](python-applications.md) | Native-wheel console archives, runtime dependencies, snapshot artifacts, archive-source tests and format limits |
 | [Helm charts](helm.md) | Local chart dependencies, snapshot packaging, native unittest discovery, independent JUnit reports, baseline integrity and remaining limits |
 | [Go builds](go.md) | Native workspace tasks, applications, module snapshot zip/mod/info artifacts, projected local dependencies, reports and remaining limits |
 | [Rust builds](rust.md) | Captured crates.io inputs, Cargo workspaces, native feature-gated binary selection, compiler-message artifacts, snapshot crates and JUnit/coverage |
