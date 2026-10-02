@@ -278,4 +278,6 @@ These sources inform our engineering choices; their contribution policies are no
 
 `reports::Intent` owns the mandatory report fields serialized into a plan. Native bindings, explicit task reports and derived image assertions use the same typed constructor; packing code must not hand-build partial report-intent JSON. The schema-field regression stays beside the report contract, and native acceptance validates complete emitted plans.
 
+`executor/worker::normalize_context` owns fixed input timestamps and executable-intent permissions for private native transport copies. It uses the executor's existing export epoch for source, definitions, materialized artifacts and prepared stores, before native commands can observe copy-time metadata. It never normalizes live source trees or removes installer-generated metadata.
+
 `executor/dependency_context` validates and privately stages an exact prepared subtree for the single `dependencies` BuildKit context. It uses shared snapshot containment/identity/limits and never chooses a manager, acquires packages or resolves configuration. Adapters remain responsible for native layout, credential exclusion and compatibility; `executor/worker` owns native mounting and cleanup. See the [transport boundary](container-assembly.md#prepared-dependency-context-transport).

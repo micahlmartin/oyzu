@@ -6,6 +6,8 @@ offline; this is native protocol verification, not broker/isolation acceptance.
 import argparse
 import importlib.util
 import os
+import json
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -24,6 +26,29 @@ def run(argv, *, success=True):
     result = subprocess.run(argv, capture_output=True, text=True, timeout=300)
     assert (result.returncode == 0) == success, (argv, result.stdout, result.stderr)
     return result
+
+
+def verify_uv_replay(root, store):
+    # Native protocol probe for the worker's fixed input-mtime contract.
+    # The Rust unit/worker checks exercise actual product normalization.
+    trees = []
+    for index in range(2):
+        copied = root / f'uv-store-{index}'
+        shutil.copytree(store, copied)
+        for path in copied.rglob('*'):
+            os.utime(path, (315532800, 315532800))
+        site = root / f'uv-site-{index}'
+        run(['uv', 'pip', 'install', '--python', sys.executable, '--no-cache',
+             '--target', str(site), '--no-deps', '--require-hashes', '--no-index',
+             '--find-links', str(copied), '-r', str(copied / 'requirements.txt')])
+        run([sys.executable, '-I', '-B', '-S', '-c',
+             "import sys; sys.path.insert(0,sys.argv[1]); import six; assert six.__version__=='1.17.0'", str(site)])
+        metadata, = site.glob('*.dist-info/uv_cache.json')
+        assert json.loads(metadata.read_text(encoding='utf-8'))['timestamp'] == {
+            'secs_since_epoch': 315532800, 'nanos_since_epoch': 0}
+        trees.append({p.relative_to(site).as_posix(): p.read_bytes() for p in site.rglob('*') if p.is_file()})
+    assert trees[0] == trees[1], 'native uv replay embedded varying metadata in installed files'
+    print('uv: fixed-input-time offline installs retain native metadata and identical installed bytes', flush=True)
 
 
 def verify(manager):
@@ -59,6 +84,8 @@ def verify(manager):
             install = [sys.executable, '-I', '-m', 'pip', '--isolated', 'install', '--no-index', '--no-deps', '--no-compile', '--require-hashes', '--find-links', str(store), '-r', str(manifest)]
             run([*install, '--target', str(site)])
             run([sys.executable, '-I', '-B', '-S', '-c', "import sys; sys.path.insert(0,sys.argv[1]); import six; assert six.__version__=='1.17.0'; assert six.__file__.startswith(sys.argv[1])", str(site)])
+            if manager == 'uv':
+                verify_uv_replay(root, store)
             wheel, = store.glob('*.whl')
             wheel.write_bytes(wheel.read_bytes() + b'tampered')
             rejected = run([*install, '--target', str(root / 'rejected')], success=False)

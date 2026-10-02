@@ -158,25 +158,47 @@ fn write_definition(
 }
 
 fn normalize_context(root: &Path) -> Result<()> {
-    // The source contract records executable intent, not the host user's umask,
-    // ownership or setuid bits. Normalize only our private transport copy.
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        for entry in walkdir::WalkDir::new(root) {
-            let entry = entry?;
-            let mode = if entry.file_type().is_dir()
-                || entry.metadata()?.permissions().mode() & 0o111 != 0
-            {
+    // Identity records bytes and executable intent, not host umask or copy time.
+    // Normalize private inputs before RUN can observe their metadata; export-time
+    // timestamp rewriting cannot repair timestamps embedded in generated files.
+    let epoch =
+        std::time::UNIX_EPOCH + Duration::from_secs(super::BUILDKIT_SOURCE_DATE_EPOCH.parse()?);
+    for entry in walkdir::WalkDir::new(root).contents_first(true) {
+        let entry = entry?;
+        let metadata = fs::symlink_metadata(entry.path())?;
+        let redirected = metadata.file_type().is_symlink();
+        #[cfg(windows)]
+        let redirected = {
+            use std::os::windows::fs::MetadataExt;
+            redirected || metadata.file_attributes() & 0x400 != 0
+        };
+        if redirected || !(metadata.is_file() || metadata.is_dir()) {
+            bail!("private context contains an unsupported file type");
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = if metadata.is_dir() || metadata.permissions().mode() & 0o111 != 0 {
                 0o755
             } else {
                 0o644
             };
             fs::set_permissions(entry.path(), fs::Permissions::from_mode(mode))?;
         }
+        let mut options = fs::OpenOptions::new();
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            // Attribute-only access also handles read-only files; backup
+            // semantics permits a directory handle without changing its ACL.
+            options.access_mode(0x100).custom_flags(0x02000000);
+        }
+        #[cfg(not(windows))]
+        options.read(true);
+        options
+            .open(entry.path())?
+            .set_times(fs::FileTimes::new().set_accessed(epoch).set_modified(epoch))?;
     }
-    #[cfg(not(unix))]
-    let _ = root;
     Ok(())
 }
 
@@ -196,9 +218,9 @@ fn capture_image_store(root: &Path, image: &super::ImageInput, destination: &Pat
     if captured.digest != image.tree_digest {
         bail!("captured image store changed after planning");
     }
-    normalize_context(destination)?;
     // buildctl initializes a local content store even for read-only use.
     fs::create_dir(destination.join("ingest"))?;
+    normalize_context(destination)?;
     Ok(())
 }
 
@@ -590,6 +612,55 @@ mod tests {
         assert!(
             capture_context(source.path(), linked.path(), ".", &[], &["alias".into()]).is_err()
         );
+    }
+
+    #[test]
+    fn private_contexts_have_fixed_file_and_directory_times_without_source_mutation() {
+        let source = tempfile::tempdir().unwrap();
+        fs::create_dir_all(source.path().join("nested")).unwrap();
+        let file = source.path().join("nested/package.whl");
+        fs::write(&file, "native package bytes").unwrap();
+        let before = snapshot::inspect_tree(source.path()).unwrap().digest;
+        let epoch = std::time::UNIX_EPOCH
+            + Duration::from_secs(super::super::BUILDKIT_SOURCE_DATE_EPOCH.parse().unwrap());
+        let output = tempfile::tempdir().unwrap();
+        for index in 0..2 {
+            let input_time = epoch + Duration::from_secs(12345 + index);
+            fs::File::options()
+                .write(true)
+                .open(&file)
+                .unwrap()
+                .set_modified(input_time)
+                .unwrap();
+            let destination = output.path().join(format!("copy-{index}"));
+            snapshot::capture_prepared(source.path(), &destination).unwrap();
+            #[cfg(windows)]
+            {
+                let copied_file = destination.join("nested/package.whl");
+                let mut permissions = fs::metadata(&copied_file).unwrap().permissions();
+                permissions.set_readonly(true);
+                fs::set_permissions(&copied_file, permissions).unwrap();
+            }
+            normalize_context(&destination).unwrap();
+            for entry in walkdir::WalkDir::new(&destination) {
+                assert_eq!(
+                    entry.unwrap().metadata().unwrap().modified().unwrap(),
+                    epoch
+                );
+            }
+            assert_eq!(snapshot::inspect_tree(&destination).unwrap().digest, before);
+            assert_eq!(fs::metadata(&file).unwrap().modified().unwrap(), input_time);
+            assert_eq!(
+                snapshot::inspect_tree(source.path()).unwrap().digest,
+                before
+            );
+            #[cfg(windows)]
+            {
+                let copied_file = destination.join("nested/package.whl");
+                fs::set_permissions(&copied_file, fs::metadata(&file).unwrap().permissions())
+                    .unwrap();
+            }
+        }
     }
 
     #[test]

@@ -21,6 +21,7 @@ fn named_dependency_context_is_exact_readonly_offline_and_reproducible() {
     fs::create_dir(&source).unwrap();
     let payload = b"captured package fixture bytes";
     fs::write(store.join("fixture-package.txt"), payload).unwrap();
+    fs::write(source.join("source.txt"), payload).unwrap();
     fs::write(
         prepared.join("private-not-exported"),
         b"UNEXPORTED_CONTEXT_SIBLING_9cfecb",
@@ -36,13 +37,13 @@ fn named_dependency_context_is_exact_readonly_offline_and_reproducible() {
         &["oyzu-fixture/alpine:amd64".into()],
     )
     .unwrap();
-    let dockerfile = format!("FROM {}\nRUN --mount=type=bind,from=dependencies,target=/packages cat /packages/fixture-package.txt > /mounted.txt && test ! -e /packages/private-not-exported && if touch /packages/write-probe 2>/dev/null; then exit 1; fi\nCOPY --from=dependencies fixture-package.txt /copied.txt\n", images[0].name);
+    let dockerfile = format!("FROM {}\nCOPY source.txt /source.txt\nRUN --mount=type=bind,from=dependencies,target=/packages cat /packages/fixture-package.txt > /mounted.txt && stat -c %Y /packages/fixture-package.txt /packages /source.txt > /times.txt && test ! -e /packages/private-not-exported && if touch /packages/write-probe 2>/dev/null; then exit 1; fi\nCOPY --from=dependencies fixture-package.txt /copied.txt\n", images[0].name);
     fs::write(source.join("Dockerfile"), dockerfile).unwrap();
     let source_before = snapshot::inspect_tree(&source).unwrap().digest;
     let prepared_before = snapshot::inspect_tree(&prepared).unwrap().digest;
     let mode: Mode = serde_json::from_value(json!({
         "kind":"buildkit", "output":"image.tar", "image_name":"oyzu/dependency-context:fixture",
-        "context_files":[], "dockerfile_digest":snapshot::file_digest(&source.join("Dockerfile")).unwrap(),
+        "context_files":["source.txt"], "dockerfile_digest":snapshot::file_digest(&source.join("Dockerfile")).unwrap(),
         "apparmor_profile":std::env::var("OYZU_TEST_RECIPE_APPARMOR_PROFILE").expect("provision the test AppArmor profile"),
         "images":images,
         "dependency_context":{"store":"contexts/packages", "tree_digest":snapshot::inspect_tree(&store).unwrap().digest, "platform":platform}
@@ -60,6 +61,15 @@ fn named_dependency_context_is_exact_readonly_offline_and_reproducible() {
     }
     let mut identities = Vec::new();
     for attempt in 0..2 {
+        let input_time = std::time::UNIX_EPOCH + Duration::from_secs(1_800_000_000 + attempt);
+        for path in [store.join("fixture-package.txt"), source.join("source.txt")] {
+            fs::File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(input_time)
+                .unwrap();
+        }
         let output = root.path().join(format!("output-{attempt}"));
         fs::create_dir(&output).unwrap();
         let stdout = root.path().join(format!("{attempt}.stdout"));
@@ -126,15 +136,28 @@ fn named_dependency_context_is_exact_readonly_offline_and_reproducible() {
                 assert!(!contents
                     .windows(b"UNEXPORTED_CONTEXT_SIBLING_9cfecb".len())
                     .any(|w| w == b"UNEXPORTED_CONTEXT_SIBLING_9cfecb"));
-                if matches!(name.as_str(), "mounted.txt" | "copied.txt") {
+                if matches!(name.as_str(), "mounted.txt" | "copied.txt" | "source.txt") {
                     assert_eq!(contents, payload);
+                    found.insert(name);
+                } else if name == "times.txt" {
+                    assert_eq!(
+                        contents,
+                        format!("{}\n", executor::BUILDKIT_SOURCE_DATE_EPOCH)
+                            .repeat(3)
+                            .as_bytes()
+                    );
                     found.insert(name);
                 }
             }
         }
         assert_eq!(
             found,
-            BTreeSet::from(["copied.txt".into(), "mounted.txt".into()])
+            BTreeSet::from([
+                "copied.txt".into(),
+                "mounted.txt".into(),
+                "source.txt".into(),
+                "times.txt".into()
+            ])
         );
     }
     assert_eq!(identities[0], identities[1]);
