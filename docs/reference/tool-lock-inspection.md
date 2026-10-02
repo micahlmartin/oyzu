@@ -792,7 +792,7 @@ foreign-target verification also passed with networking disabled. Updated native
 CI confirmation is tracked separately in the
 [tool-management status](../tool-management-status.md).
 
-### Draft tool-selection grant payload fixtures
+### Draft tool-selection grants
 
 `docs/contracts/tools-v1/selection-grant.schema.json` defines a proposed closed
 payload shape for a future compact signed grant. The fixture files under
@@ -810,11 +810,39 @@ resolve cannot share an operation list with execution, and offline-enabled grant
 list only activate/exec/build. Times are proposed whole Unix UTC seconds. These
 are new draft wire choices, not an accepted or deployed service contract.
 
-This schema does not verify a JWS, compare a response with an authenticated request,
-check current policy or enforce expiry. The required future runtime must use pinned
-Ed25519 keys with the tool protocol's exact `alg=EdDSA` header, reject duplicate JSON
-keys, bind every identity and operation, enforce the 60-second online/900-second
-offline caps, and maintain monotonic expiry and invalidation in agent memory.
-The existing configuration-policy verifier uses a different `alg=Ed25519` header
-and policy audience; it must not be loosened or directly treated as a tool-grant
-verifier. No tool-selection authorizer or grant-backed launch path is enabled.
+The schema alone checks shape. The initial Rust `VerifiedToolGrant::verify`
+library API additionally verifies compact JWS signatures against a caller-supplied
+pinned Ed25519 key map and exact `ToolGrantContext`. The caller must obtain keys,
+issuer/tenant/subject, request/context identity, policy revision, revocation epoch
+and selection digest independently from authenticated agent state. Supplying these
+values from the token or project would defeat their binding. This API does not
+authenticate its caller or fetch keys, contact an authorizer or authorize a launch.
+
+Only `alg=EdDSA` is accepted, with a nonempty `kid` and optional
+`typ=oyzu-tool-selection+jws`; other headers, duplicate JSON and unknown payload
+fields fail. Limits are 128 KiB per token, 8 KiB decoded header, 64 KiB decoded
+payload and 256 trusted keys. Existing strict JSON depth/entry bounds also apply.
+The configuration-policy verifier retains its different `alg=Ed25519` header
+and policy audience unchanged.
+
+Call `verify(token, keys, context, unix_seconds, Instant::now())` on online
+receipt, then `check(context, unix_seconds, Instant::now(), offline)` before each
+use. Signed ordinary lifetimes cannot exceed 60 seconds. Offline-enabled grants
+permit only activate/exec/build and cannot exceed 900 seconds. Online receipt and
+online use are limited to the first 60 seconds of either kind of grant. Offline
+use requires its explicit flag and the same live object; no restart persistence
+is provided. Fixed monotonic deadlines use the remaining signed time at receipt,
+so neither mode changes nor wall-clock movement extend validity.
+
+Changed context bindings, expiry, backwards wall-clock movement beyond five
+seconds or monotonic reversal permanently invalidate the instance. An operation
+outside the signed list is denied. `invalidate()` handles explicit invalidation;
+the owning agent must call it on logout, key/policy changes and uncertain resume.
+Those notifications are not wired yet. Recovery requires a fresh online grant,
+never editing project/lock data or retrying a permanently invalidated instance.
+Tokens and verified objects have no persistence API and errors omit token data.
+
+The implementation uses portable Rust clocks/cryptography; focused tests use
+synthetic signatures and the shared valid/invalid payload fixtures. This remains
+an initial library boundary, with no deployed service interoperability, agent
+lifecycle integration or grant-backed launch path. The protocol remains a draft.

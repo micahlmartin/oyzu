@@ -3,6 +3,8 @@
 //! authority. Backend admission and current policy remain separate gates.
 mod backend;
 mod edit;
+mod grant;
+pub use grant::{ToolGrantContext, ToolGrantOperation, VerifiedToolGrant};
 mod lock;
 mod requests;
 mod selection;

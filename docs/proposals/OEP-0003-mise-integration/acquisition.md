@@ -227,6 +227,13 @@ authorize offline local exec/activation/build for at most 15 minutes. These are
 proposed conservative release caps, not benchmark-derived claims; policy may
 shorten but cannot lengthen them in v1. Offline acquisition is always denied.
 
+The initial verifier interprets these draft caps as follows: an offline-enabled
+payload may span at most 900 seconds, but online receipt and online use remain
+limited to its first 60 seconds (or its earlier signed expiry). Later offline use
+requires the same live verified object. Receipt fixes both monotonic deadlines
+from the remaining signed time; changing modes never renews either deadline.
+These wire/lifetime choices still require maintainer and service-contract review.
+
 Keep grants only in agent memory in v1. Bind wall-clock validity to a monotonic
 deadline when received; backwards wall-clock jumps beyond five seconds invalidate
 the context. Agent restart, suspend/resume with uncertain clock, logout, changed

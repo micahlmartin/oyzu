@@ -1390,3 +1390,28 @@ Tool signature verification, request/context binding, lifetime enforcement, agen
 lifecycle and runtime/schema agreement remain unimplemented; unsigned fixtures
 are not grants. Contract/reference documentation and the implementation sequence
 now state the exact boundary. Documentation checks passed.
+
+## Checkpoint 110: initial signed tool-grant verifier
+
+TM-01/TM-09 now have a first-party compact EdDSA verifier using the existing
+cryptography dependencies. It rejects unknown/duplicate fields, unpinned keys,
+bad signatures, mismatched caller-supplied context and unauthorized operations.
+Signed lifetime caps and fixed remaining-time monotonic deadlines bound online
+and explicitly allowed offline use. Binding changes, clock rollback/reversal,
+expiry and explicit invalidation cannot revive the same instance. No token or
+verified-object persistence API is provided. Existing configuration-policy
+signature behavior is unchanged.
+
+Five focused tests passed on Windows and Linux, including shared valid/invalid
+schema fixtures, tampering, wrong keys/identities, operation separation, expiry,
+rollback and late receipt. Full Windows locked tests, strict all-target Clippy,
+formatting and all nine CLI task scenarios passed; the added focused cases were
+also rerun after the full suite. Linux strict all-target Clippy passed with
+networking disabled. Schema and documentation checks passed. Native macOS checks
+for this increment remain pending.
+
+Caller context/key authentication, agent invalidation notifications, authorizer
+interoperability and actual launch integration remain absent. The documented
+interpretation of the draft 60-second online/900-second offline windows still
+requires maintainer/service-contract review. These checks neither complete
+MISE-11 nor approve the production mise dependency or distribution obligations.

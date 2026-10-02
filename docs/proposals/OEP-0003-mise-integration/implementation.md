@@ -21,8 +21,11 @@ invalid-shape fixtures checked by the schema validator and Rust runtime. A draft
 backend descriptor schema and shape fixtures now encode the specified identity
 fields; bounded Rust parsing, shared shape tests and canonical identity inspection
 are implemented. Compiled descriptor admission remains outstanding. The selection-grant signed-payload schema now has synthetic shape fixtures,
-including offline-operation and resolve-only restrictions; signature, context and
-monotonic lifecycle enforcement remain unimplemented. The worker schema remains
+including offline-operation and resolve-only restrictions. Initial Rust EdDSA
+signature verification, exact caller-supplied context binding and in-memory
+wall/monotonic expiry checks are implemented with shared shape fixtures. Trusted
+agent context/key provisioning, lifecycle notifications, authorizer interoperability
+and grant-backed launch remain unimplemented. The worker schema remains
 outstanding.
 
 TM-03 now has a first frozen selection boundary: given an already resolved

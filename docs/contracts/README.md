@@ -7,7 +7,7 @@ They use their own format fields and must not be treated as stable public APIs.
 | --- | --- |
 | [Archive layout](tools-v1/archive-layout.schema.json) | Data-only candidate finalization for tar, tar.gz, raw single-file artifacts and bounded ZIP32; optional prefix removal, dot payload subtree and explicit Unix executable paths. The broader schema vocabulary includes tar.xz, which the runtime currently rejects. |
 | [Receipt](tools-v1/receipt.schema.json) | Candidate receipt parsing and whole-selection/content verification, including exact locked identities and dependency ownership. A matching receipt does not authorize execution. |
-| [Selection grant](tools-v1/selection-grant.schema.json) | Draft signed-payload shape and synthetic fixtures only; no product signature verifier, issuer, policy decision or execution authority. |
+| [Selection grant](tools-v1/selection-grant.schema.json) | Draft payload shape, shared synthetic fixtures and initial Rust signature/context/expiry verification; authenticated agent integration, issuer and execution authority remain absent. |
 | [Backend descriptor](tools-v1/backend-descriptor.schema.json) | Bounded descriptor parsing and canonical identity inspection. A structurally valid descriptor is not compiled backend admission or legal approval. |
 
 Run `python tooling/check-tool-contracts.py` with Python 3.11+ and the pinned
@@ -17,8 +17,9 @@ Rust tests also exercise the relevant fixture corpora, then enforce semantic
 requirements the schemas do not express: sorted sets, portable path components,
 UTF-8 byte bounds, locked identity binding, content integrity and filesystem rules.
 The schema checker performs no downloads, materialization or execution and cannot
-qualify a backend. The worker schema remains outstanding. Grant signature, binding, time/lifecycle
-verification and runtime/schema agreement remain unimplemented.
+qualify a backend. The worker schema remains outstanding. Grant runtime tests
+cover synthetic signatures, bindings, expiry and shared shape fixtures; agent
+lifecycle notifications and service interoperability remain unimplemented.
 
 See the [tool reference](../reference/tool-lock-inspection.md) for runtime limits,
 usage, failures and measured qualification. In particular, archive expansion
