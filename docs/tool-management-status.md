@@ -1544,3 +1544,27 @@ abort cannot interrupt a syscall or retract in-flight bytes. Actual OS deadlines
 transport shutdown, inherited descriptor/Windows handle restrictions, worker
 payload admission, backend dispatch and executor containment remain unfinished.
 The reference documents these caller obligations; this does not complete TM-05.
+
+## Checkpoint 116: native private control-channel allocation
+
+The worker transport factory now creates two connected endpoints using a Unix
+socketpair or two Windows anonymous pipes, with no stdin/stdout, public socket
+name, listening port or environment capability. It checks close-on-exec/non-
+inheritable flags on every returned native handle. Endpoints can be consumed
+into separately owned reader/writer halves for shared-budget framing; borrowed
+native handle traits support future explicit supervisor integration. No new
+crate dependency or external executable was added.
+
+Windows passed 13 focused worker tests, the full locked suite, strict all-target
+Clippy, formatting and all nine CLI scenarios. Linux passed 14 focused tests and
+strict all-target Clippy with networking disabled. The new native test transfers
+a 2 MiB JSON body both ways and verifies peer closure invalidates both framing
+halves; the factory checks non-inheritance during allocation. Documentation/diff
+checks passed. Native macOS verification remains pending.
+
+Allocation is not a running or isolated worker. Process image validation,
+restricted child inheritance, inherited-channel authentication, OS deadlines,
+pending-I/O interruption, dispatch and executor containment remain unimplemented.
+The test watchdog bounds only the harness. The reference, code map and OEP
+runtime/implementation pages distinguish this native allocation foundation from
+complete TM-05 acceptance.

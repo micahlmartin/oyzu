@@ -95,11 +95,14 @@ budget and uses the shared strict JSON parser's additional 10,000-entry ceiling.
 These conservative draft limits require protocol review with typed payloads.
 The codec alone admits JSON objects; the separate exchange validates closed outer
 envelopes and supervisor-side response correlation. Operation-specific admission,
-private transport, worker lifecycle and deadline enforcement remain separate work.
+process channel inheritance, worker lifecycle and deadline enforcement remain separate work.
 The framing API also supports separately owned read/write halves with shared
 atomic accounting and terminal state; a pending response read must not prevent
 the supervisor sending cancel. OS transport shutdown is still required to
 interrupt blocked I/O when the operation deadline or cancellation grace expires.
+The native allocation foundation creates non-inheritable Unix socketpair or
+Windows anonymous-pipe endpoints. Process creation and explicit restricted
+inheritance remain unimplemented; allocation alone is not worker isolation.
 
 Envelope fields are `protocol = "oyzu.tool-worker/1"`, `request_id` (UUID),
 `operation` (`resolve`, `prepare`, `environment`, `executable`),

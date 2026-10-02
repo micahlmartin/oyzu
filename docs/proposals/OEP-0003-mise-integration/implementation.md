@@ -36,10 +36,14 @@ an underlying syscall; OS deadlines/shutdown remain a supervisor obligation.
 An initial supervisor-side exchange validates closed outer requests, binds one
 terminal response to its request/context and discards success after cancellation.
 Payloads remain explicitly untrusted. It does not yet implement operation-specific
-payload admission, private OS transport, worker-side lifecycle, deadlines,
+payload admission, process channel inheritance, worker-side lifecycle, deadlines,
 worker dispatch or containment. The shared strict JSON parser imposes
 an additional 10,000-entry bound. See the current
 [framing reference](../../reference/tool-lock-inspection.md#internal-worker-control-framing).
+The native channel factory now allocates checked non-inheritable Unix socketpair
+or Windows anonymous-pipe endpoints and separates their read/write ownership.
+It does not create processes, restrict inherited process handles or enforce
+deadlines; large-frame/peer-close tests do not complete worker qualification.
 
 TM-07 now has a first command lookup on held installation leases: it borrows
 typed native/interpreter metadata from the receipt snapshot verified at lease

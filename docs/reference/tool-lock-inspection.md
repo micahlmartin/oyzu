@@ -922,8 +922,9 @@ network connections or credentials are created by the codec itself.
 Framing success is not envelope admission. `ToolWorkerExchange`, described below,
 adds closed outer envelopes and response correlation; operation-specific payload
 admission and worker-side dispatch remain unimplemented. Private
-OS channel creation, handshake/operation deadlines, embedded backend dispatch and
-executor containment are also absent. Tests exercise fragmented reads/writes,
+process channel inheritance, handshake/operation deadlines, embedded backend dispatch
+and executor containment are also absent. The native allocation API below creates
+local endpoints only. Tests exercise fragmented reads/writes,
 exact frame bounds, combined budgets, invalid/truncated JSON and terminal errors;
 they do not qualify a running worker or complete TM-05.
 
@@ -931,6 +932,38 @@ Concurrent tests additionally hold a receive pending while sending cancellation,
 then check shared abort and budget exhaustion. A Unix-only test exchanges control
 frames over a real close-on-exec socketpair. It does not launch a process, verify
 inherited descriptor restrictions or establish Windows handle-list support.
+
+### Native private worker endpoints
+
+`native_tool_worker_channel()` creates two connected `NativeToolWorkerEndpoint`
+values without stdin/stdout, an environment token, a filesystem socket name or a
+listening network port. Unix uses a socketpair, with duplicate descriptors for
+independent read/write ownership. Windows uses two anonymous pipes through the
+existing standard-library [pipe API](https://doc.rust-lang.org/std/io/fn.pipe.html).
+No new crate dependency or executable is added. Creation checks `FD_CLOEXEC` on
+Unix or absence of `HANDLE_FLAG_INHERIT` on Windows and fails if any returned
+handle is inheritable. Dropping an endpoint closes its owned handles.
+
+An endpoint implements `Read + Write` for sequential framing. Its `split()`
+consumes it and returns `NativeToolWorkerReader` and `NativeToolWorkerWriter`
+without additional duplication. Pass those to `split_tool_worker_channel` for
+concurrent framing with a shared budget. The halves expose borrowed native
+descriptors/handles through `AsFd` or `AsHandle` for future explicit supervisor
+inheritance and cancellation; they do not transfer ownership or reopen a name.
+
+This API allocates blocking transports. It does not spawn a worker, authenticate
+an inherited channel, configure a Windows process handle list, install an OS
+deadline, interrupt pending I/O or contain backend code. A dropped peer produces
+EOF, which framing treats as terminal failure. A blocked read/write with a live
+peer still requires supervisor-owned OS cancellation/deadline enforcement.
+The factory must not be presented as a deadline-bounded production worker.
+
+Windows and Linux tests transfer a 2 MiB JSON payload in both directions using
+the native factory and framed split transport, then verify peer-close failure
+propagates to both framing halves. Creation itself checks non-inheritance.
+The test watchdog bounds the test harness, not production I/O. macOS uses the
+Unix implementation but native verification of this increment remains pending.
+Cross-process inheritance and same-binary worker dispatch are still unimplemented.
 
 ### Worker exchange correlation
 

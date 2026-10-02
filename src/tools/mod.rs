@@ -15,8 +15,9 @@ pub use edit::{ToolLockChange, ToolLockChangeKind, ToolLockEdit, ToolLockProposa
 pub use requests::{project_tool_requests, ToolRequestIdentity};
 pub use selection::{select_for_tool_requests, select_locked_environment};
 pub use worker::{
-    split_tool_worker_channel, ToolWorkerChannel, ToolWorkerExchange, ToolWorkerOperation,
-    ToolWorkerOutcome, ToolWorkerReceiver, ToolWorkerSender,
+    native_tool_worker_channel, split_tool_worker_channel, NativeToolWorkerEndpoint,
+    NativeToolWorkerReader, NativeToolWorkerWriter, ToolWorkerChannel, ToolWorkerExchange,
+    ToolWorkerOperation, ToolWorkerOutcome, ToolWorkerReceiver, ToolWorkerSender,
 };
 mod store;
 pub use store::InstallationLease;
