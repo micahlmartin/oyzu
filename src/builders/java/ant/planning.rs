@@ -54,7 +54,13 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
     );
     plan.stages.push("archive");
     plan.tasks.insert("archive".into(), archive);
-    for stage in ["build", "test", "lint", "format-check"] {
+    plan.tasks.insert(
+        "test".into(),
+        super::reporting::test(&context.target.name, &plan.version),
+    );
+    plan.fixed_env
+        .insert("OYZU_VERSION".into(), plan.version.clone());
+    for stage in ["build", "lint", "format-check"] {
         if let Some(task) = context
             .target
             .tasks
