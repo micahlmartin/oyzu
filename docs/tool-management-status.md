@@ -312,3 +312,33 @@ TM-02/05/06 remain partial. Actual metadata and publisher verification, conversi
 of the facts into a reviewed admitted layout, native archive parity, production
 source import and worker wiring are not implemented. No separate mise executable
 was built or invoked. The full OEP goal and licensing/release gates remain open.
+
+## Checkpoint 54: native boundary qualification and dependency evidence
+
+Fork revision `3552b5d03111f6d3143233dbebb94a8368110a9e` passed strict
+library/example Clippy and all six embedding scenarios on native Windows, macOS
+and Linux in [run 36971369051](https://github.com/oyzuai/mise/actions/runs/36971369051).
+This supersedes checkpoint 53's pending native result, without qualifying actual
+tool acquisition, installation or a production dependency.
+
+The fork now includes a bounded offline Cargo graph/notice evidence collector.
+The first Linux target collection observed 955 packages, including normal/build
+closures and preserving all declared license expressions. Its source worktree
+was reported as modified; this is exploratory review input, not a release SBOM.
+All rows remain unreviewed. Windows ran 19 compliance tests with one unavailable
+symlink case skipped; Linux passed all five new graph tests, including that case.
+The existing inventory remains consistent at 37 inputs and 1,109 unreviewed lock
+records. No dependency or upstream notice changed.
+
+Oyzu CI [run 36971417416](https://github.com/micahlmartin/oyzu/actions/runs/36971417416)
+passed its Windows build job but failed macOS archive-test setup and Linux Cargo
+doctest setup. The archive fixture now resolves its temporary parent before
+opening the deliberately no-follow store boundary. The doctest harness preserves
+the Cargo proxy filename rather than resolving it to `rustup`. Neither fix relaxes
+production checks. Linux passed the anchored-writer regression and real Cargo
+doctest conformance after these corrections; native macOS requalification remains
+required. The full OEP implementation and licensing review remain unfinished.
+
+The corrected Oyzu source passed the full Windows GNU Rust 1.94 test suite,
+strict all-target Clippy, formatting and all nine real CLI task scenarios.
+Documentation structure passed for 149 Markdown files; it is not runtime proof.

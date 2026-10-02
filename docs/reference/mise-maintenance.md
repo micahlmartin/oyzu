@@ -93,3 +93,15 @@ This builds the linked conformance example, not a mise CLI. Current candidate
 results and remaining native gates belong in implementation status. Oyzu still
 has no production dependency on this API and no automatic installation command;
 the source import, licensing and release gates remain separate.
+
+## Candidate dependency review evidence
+
+The fork provides an offline, target-filtered Cargo evidence collector in
+`tooling/compliance/cargo_graph.py`. Its [usage and limitations](https://github.com/oyzuai/mise/blob/codex/oyzu-embedding/compliance/README.md#candidate-cargo-evidence)
+describe required caches, target filters, dependency edges, notice hashes and
+provenance. Use it to prepare @micahlmartin's review of the proposed dependency
+graph. It preserves declared license alternatives and unknowns; it cannot approve
+an import, select legal terms or clear a distribution. All rows remain unreviewed.
+Cargo metadata may unify development features and does not prove which native or
+generated code ships. The actual compiled graph, notice packaging and applicable
+source-delivery obligations remain separate release evidence.

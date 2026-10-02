@@ -112,6 +112,8 @@ It does not acquire bytes, authorize a backend, execute anything, write a receip
 or publish an installation. Failed staging must be discarded by the caller.
 
 Source and staging paths must have physical, non-symlink ancestors. The source
+path must therefore use the physical temporary directory on systems where a
+temporary-directory ancestor is an alias (for example macOS `/var`). The source
 must be a regular file; no-follow opens reject symlinks and special files before
 reads. The source is copied through a bounded buffer into a private unnamed file while
 checking its locked identity. Extraction reads that verified file, never a

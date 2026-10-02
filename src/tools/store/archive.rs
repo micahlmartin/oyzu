@@ -334,9 +334,12 @@ mod tests {
     fn anchored_writer_does_not_follow_replaced_parent_or_existing_link() {
         use std::os::unix::fs::symlink;
         let temporary = tempfile::tempdir().unwrap();
-        let root = temporary.path().join("root");
-        let moved = temporary.path().join("moved");
-        let outside = temporary.path().join("outside");
+        // macOS temporary paths can contain the /var -> /private/var alias.
+        // Resolve the fixture parent before exercising the no-follow boundary.
+        let parent = temporary.path().canonicalize().unwrap();
+        let root = parent.join("root");
+        let moved = parent.join("moved");
+        let outside = parent.join("outside");
         std::fs::create_dir(&root).unwrap();
         std::fs::create_dir(&outside).unwrap();
         let directory = Directory::open(&root).unwrap();

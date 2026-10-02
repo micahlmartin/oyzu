@@ -17,7 +17,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cargo', default='cargo')
     args = parser.parse_args()
-    cargo = str(Path(shutil.which(args.cargo) or args.cargo).resolve())
+    # Rustup selects its proxy from argv[0]; resolving cargo's symlink to
+    # rustup changes the command being tested on Unix installations.
+    cargo = os.path.abspath(shutil.which(args.cargo) or args.cargo)
     with tempfile.TemporaryDirectory(prefix='oyzu Rust doctests ') as temporary:
         base = Path(temporary)
         project = base/'project'
