@@ -109,6 +109,11 @@ def verify(root, base, invoke, validate, source_files, verified):
         rebuilt = invoke(project, 'build')
         assert {a['name']:a['digest'] for a in rebuilt['artifacts']} == {a['name']:a['digest'] for a in manifest['artifacts']}, 'Cargo artifacts were not repeatable'
         verified.append(f'{example}: native workspace resolution, snapshot versions, offline build/test/clippy/fmt, JUnit, delivered binary, verified crate archives and repeatability')
+        docs = [r for r in manifest['reports'] if r['path'].endswith('/doctest.xml')]
+        if example=='rust-workspace':
+            assert len(docs)==1 and docs[0]['summary']['passed']==2
+        else:
+            assert not docs, 'binary-only packages must not invent doctest invocations'
 
     project = base/'rust-library'
     shutil.copytree(root/'examples/builds/rust-workspace/project/core', project)
@@ -164,6 +169,19 @@ def verify(root, base, invoke, validate, source_files, verified):
     assert changed['digest'] != previous['digest']
     assert run_binary(project, changed) == 'Hello, changed input!'
     verified.append('Cargo build-script input changes alter the delivered binary; workspace proc macro executes offline')
+
+    good = library.read_text()
+    library.write_text(good.replace('!example_core::greeting().is_empty()', 'example_core::greeting().is_empty()'))
+    before = source_files(project)
+    invoke(project,'build',success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts'] and source_files(project)==before
+    docs = next(r for r in failed['reports'] if r['path'].endswith('/doctest.xml'))
+    assert docs['summary']['failed']==1 and docs['summary']['passed']==1
+    assert next(a for a in failed['actions'] if a['id']=='project:test')['status']=='failed'
+    assert next(r for r in failed['reports'] if r['path'].endswith('/junit.xml'))['summary']['failed']==0
+    library.write_text(good)
+    verified.append('Cargo doctest failure blocks artifacts even when nextest succeeds; per-package invocation JUnit retains failures independently without claiming doctest coverage')
 
     project = base/'rust-app'
     source = project/'src/main.rs'

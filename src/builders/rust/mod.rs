@@ -33,6 +33,10 @@ impl Builder for Rust {
                 name: "rust-build.py",
                 contents: include_str!("runtime/build.py"),
             },
+            RuntimeFile {
+                name: "rust-doctest.py",
+                contents: include_str!("runtime/doctest.py"),
+            },
         ]
     }
 

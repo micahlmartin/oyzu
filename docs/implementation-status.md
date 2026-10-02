@@ -1,28 +1,15 @@
-# Builder implementation status
+# Implementation status
 
-## Separate mise reuse experiment
+## Tool-management objective
 
-The [implementation-ready OEP-0003 draft](proposals/OEP-0003-mise-integration/README.md)
-now defines the proposed production architecture and work packages from these
-findings. It remains a draft. The maintainer subsequently authorized staged
-implementation on 2026-10-02; the production checkpoint below distinguishes
-delivered contracts from remaining integration and release gates.
+Full OEP-0003 implementation is authorized and in progress. Initial lock/store
+contracts and a candidate public-fork library boundary exist; production tool
+installation, execution and shell activation are not complete. The dedicated
+[tool-management status](tool-management-status.md) preserves the experiment,
+implementation checkpoints, exact qualification evidence and remaining gates.
+This separate journal lets builder and tool implementation evolve independently.
 
-The authorized [mise experiment](proposals/OEP-0003-mise-integration/experiment.md)
-investigates tool management separately from the builder objective below.
-Its harness is outside the production Rust crate. The unmodified pinned mise
-library compiles on Linux, but the compile-only external configuration probe
-fails because its discovery-free constructor is private. The completed patched
-experiment passes 31 Linux and 28 native Windows cases with real Node tools,
-Oyzu-owned TOML/locks, shell lifecycle, exec, shims and a synthetic proxy route.
-The [expanded qualification](proposals/OEP-0003-mise-integration/qualification.md)
-adds native macOS, representative core/Aqua/npm backends and the actual public
-broker and Docker executor. Linux passes 36 cases and macOS 35; Windows retains
-child-cleanup and file-shim argument failures. Cached lock-digest binding fails,
-and scripted acquisition is contained but not successfully brokered. The report
-recommends conditional library reuse through an Oyzu-owned adapter, not production
-readiness. No installation, shell or managed backend capability is claimed for
-the shipped Oyzu CLI.
+## Builder objective
 
 The active objective is the complete builder system, all applicable sample scenarios passing through real Oyzu behavior, snapshot artifacts, and CI that builds the CLI before running scenario verification. Tool installation is excluded. The checkpoints below do not redefine completion around a subset.
 
@@ -662,70 +649,6 @@ The complete Rust suite, Clippy, rustfmt, CLI build, existing task/hook scenario
 
 This does not complete EX-020 or the full builder goal. Member task groups, affected/duplicate-target selection, broader framework inheritance, standalone development-task dist/report collection, other package-manager workspaces and remaining builder scenarios still require work. Native local verification does not prove Linux sandbox execution; no local container engine is available.
 
-## Mise production implementation: first contracts (2026-10-02)
-
-The maintainer authorized staged OEP-0003 implementation and designated
-@micahlmartin as technical and licensing decision owner. Draft PR
-[4](https://github.com/micahlmartin/oyzu/pull/4) contains the proposal, historical
-qualification and the first production lock-identity component. Ownership does
-not record a completed license audit or approve a particular shipped graph.
-
-`oyzu tools inspect-lock` now performs bounded format-2 structure, record identity
-and platform dependency-graph validation and computes complete selection digests.
-It rejects cycles, dangling or ambiguous closures, unknown fields, malformed
-digests, duplicate records and verification-subject mismatches. Inspection does
-not authorize execution, prove installed content, resolve current configuration
-or validate backend-specific options. See the [reference](reference/tool-lock-inspection.md).
-TM-01 remains partial: production schemas, remaining contracts and integration
-are still required. No production mise dependency, installer, activation or exec
-path is enabled by this change.
-
-Local Rust 1.94 Windows GNU verification passed: 152 tests, two preexisting
-ignored tests, strict all-target Clippy, and nine real CLI task scenarios. Ten
-new unit tests and one compiled-CLI test cover lock failures and a separately
-computed canonical identity vector. MSVC could not run locally because its
-linker is absent; existing CI covers native Windows/macOS/Linux and its results
-must be inspected separately. These checks do not qualify the mise runtime.
-
-The [upstream observer](reference/mise-maintenance.md) passed three unit tests and
-a real public GitHub observation. The observed latest stable release was
-`v2026.10.0` at `bc11f90c74eba23bf0d7350efb540e62fb7d9ffd`; the public fork head
-was `b1b8d3e4aed6a0a610fdd1d845df11da470afd08`. The report correctly marked the
-production pin absent. The weekly workflow is authored but not scheduled live
-until merged into main. Patch provenance, advisory triage, owner approval gates,
-branch protection, first source import approval and full qualification remain
-outstanding. Do not interpret an observation job's green status as release approval.
-
-## OEP-0003 payload identity and no-follow observation (2026-10-02)
-
-TM-04 now has native handle-based payload observation under `src/tools/store`.
-Unix reads use directory-relative no-follow opens; Windows retains ancestor
-handles without delete sharing and rejects reparse-point file/directory opens.
-The scanner includes directory entries, streams content digests, records internal
-symlinks and resolves their chains without following them on disk. Outside
-hardlinks, escaping/dangling/cyclic links, special files, portable-name violations
-and case collisions fail. This is not yet the extractor, receipt validator,
-transaction manager or lease/prune system. The full goal remains active.
-
-Lock inspection now computes recursive installation keys in addition to selection
-keys. Tests show a dependency artifact change invalidates both the dependency and
-its parent, while adding another platform leaves existing platform keys unchanged.
-The public `tools inspect-tree` command exercises the production observation path;
-[its reference](reference/tool-lock-inspection.md#payload-tree-observation) states
-bounds, errors, no-mutation behavior and the same-user concurrency limitation.
-
-Windows GNU Rust 1.94 passed the full suite (159 tests, two preexisting ignored),
-strict all-target Clippy and formatting. In a Linux Docker runner with Rust 1.94,
-19 tool unit tests, the compiled tree-inspection CLI test and strict all-target
-Clippy passed. Linux tests include actual relative symlinks, special files and a
-root-directory replacement proving held reads do not redirect. Windows tests
-prove replacement is denied while an ancestor handle is held. Native macOS/MSVC
-qualification of this new change is pending the PR jobs. The already-locked libc
-package is now a direct Unix dependency for native descriptor operations; its
-local crate declaration is MIT OR Apache-2.0. No package version was upgraded and
-no first-party license or distribution approval was selected by this change.
-
-
 ## Checkpoint 39: native Biome quality and workspace link identity
 
 Node builders now execute inferred Biome lint and formatting through the same owned quality adapter used by development tasks and captured builds. Existing `biome.json`/`biome.jsonc` evidence selects the tool; no Oyzu configuration is needed. npm workspaces compose member Biome checks with native scripts and other default checkers. The provisioned quality toolchain pins Biome 2.5.15 and its native platform packages using an npm-generated lock. Installed project tools retain precedence; missing declared tools fail without a download fallback. Usage, versions, native configuration, scope, effects and recovery are documented in the [Node quality reference](reference/node-quality.md).
@@ -836,188 +759,16 @@ The Linux captured suite now requires two snapshot artifacts, retained subchart 
 
 The explicitly invoked provisioner now admits downloads up to 128 MiB and reports oversize separately from digest mismatch. Fresh downloads of both complete assets passed their original pinned SHA-256 checks locally. This verifies acquisition of the pinned macOS bytes, not macOS execution; native execution still needs CI confirmation. The [Docker quality reference](reference/docker-quality.md) records the provisioning limit. Other jobs in that run were still active when the failure was investigated and were not restarted.
 
-## Checkpoint 48: verified archive staging and fork embedding boundary
+## Checkpoint 48: stable Cargo doctest gates and separate invocation evidence
 
-OEP-0003 TM-04 now includes tar/gzip materialization into empty caller-owned
-staging. Locked archive size/SHA-256 are verified into an unnamed private file
-before extraction. Writes use the native no-follow handle layer, new files cannot
-overwrite existing entries, links are created after regular writes, and the
-complete tree is inspected before returning. Entry, file, expansion, depth,
-extension and aggregate path/target limits fail closed. Raw tar iteration bounds
-GNU extension allocation. Publication, receipts, leases and acquisition remain
-unimplemented; this is not a working `oyzu install` command. ZIP/PAX, archive
-hardlinks and Windows symlink layouts are unsupported. See the
-[materialization contract](reference/tool-lock-inspection.md#archive-materialization-foundation).
+Rust preparation layout version 4 retains Cargo's native doctest-enabled target field. Planning selects only enabled workspace packages and adds native doctest execution to the implicit test body. Nextest, coverage generation and doctests retain independent outcomes; a doctest failure cannot be replaced by successful nextest or coverage results. Binary-only packages do not receive an invented doctest invocation. The builder-owned Python adapter uses stable Cargo, removes stale report output and records failure/launch-error outcomes independently for each selected package.
 
-On Windows GNU Rust 1.94, the full suite passed (164 tests; two existing worker
-fixtures ignored), along with strict all-target Clippy, formatting and all nine
-real CLI task scenarios. Four archive integration tests cover byte verification,
-empty staging, traversal/aliases, collisions, special files, GNU bounds, gzip
-corruption and expansion bombs. Linux Docker Rust 1.94 passed six archive
-integration tests (including internal/escaping/cyclic symlinks and nonblocking
-rejection of FIFO/symlink archive sources), a native writer
-test that replaces a held root and attempts an existing-link write, and strict
-all-target Clippy. These are store algorithm tests, not backend installation
-acceptance. No new dependency or copied third-party implementation was added.
+The named required `doctest.xml` report explicitly counts Cargo package invocations, not individual documentation examples. Its bounded native diagnostics and scope properties make that distinction inspectable. Doctest coverage is not claimed; Cobertura still measures nextest execution. Direct development `oyzu run test` retains Cargo's existing native behavior. The [Rust reference](reference/rust.md), ownership map and EX-022 doctest example describe the commands, report semantics, timeout, migration and remaining limits.
 
-[Fork draft PR 2](https://github.com/oyzuai/mise/pull/2) now contains a single-use
-embedding context with private roots, no config discovery, mandatory supplied
-HTTP transport, denied direct-client access, immutable settings reloads,
-frontend-owned shims and verbatim PATH composition. On Linux Rust 1.95 its five
-fresh-process scenarios and library/example Clippy passed. The fifth scenario
-uses mise's actual Node parser/resolver with fixture catalog metadata, resolving
-`22` to `22.15.0`; it is not a real download/install test. Fourteen compliance
-regressions passed and the existing 1,109 lock records remain unreviewed. The
-native three-host workflow is running on candidate `c404d20b2`; native results
-must be inspected before claiming qualification. The compliance CI correctly
-requires @micahlmartin's current-head review; owner assignment does not satisfy
-that review. Oyzu still has no production mise Cargo dependency.
+Windows verification with Rust 1.94.0 passed real workspace doctests, assertion failures, compile failures, independent package outcomes, stale-report replacement after a missing executable and source immutability. The local GNU runtime needed its existing self-contained linker setting in `RUSTDOCFLAGS` as well as `RUSTFLAGS`; the first native attempt failed linking and was not treated as a product success. The full Rust suite, Clippy, rustfmt, CLI compilation, compiled-CLI task/hook scenarios, documentation and all 58 example structure checks passed. CI adds the native doctest probe on all three hosts. The captured Linux suite requires doctest failures to block artifacts while nextest succeeds and retains independent reports; that new isolated behavior awaits CI confirmation.
 
-The prior Oyzu [CI run 36964551092](https://github.com/micahlmartin/oyzu/actions/runs/36964551092)
-passed all three CLI builds and macOS/Linux task jobs, but Windows failed during
-native npm workspace acquisition with an invalid root dependency on
-`@oyzu-example/shared`. That failure remains unresolved; local archive checks
-do not establish that the whole draft PR is green. Full OEP-0003 implementation,
-licensing approval and end-to-end qualification remain outstanding.
+### Confirmed earlier captured-build evidence
 
-## Checkpoint 49: locked selection receipt/content matching
+[Run 36967080170](https://github.com/micahlmartin/oyzu/actions/runs/36967080170) completed successfully at `51464a9a934636fbfd8357b0ae3904d4d339a03a`, including all three CLI builds/task suites and Linux worker/captured-build jobs. Downloaded evidence artifact `11211123390` contains 141 bundles: 74 successful and 67 negative-case failures. Local schema/digest validation checked 128 artifacts and all 261 retained report files across 273 report records. The remaining report records represent absent evidence in failure cases rather than files whose digests were verified.
 
-TM-04 now validates closed format-1 receipts against every installation in a
-selected format-2 closure and freshly hashes all payloads through native held
-directory handles. It compares the complete verification record, source artifact
-size/digest, layout/backend identities, direct dependency installation keys and
-caller-trusted installer release identity. No installed-version shortcut or
-mtime cache is accepted. Typed entrypoints, interpreter paths, prefix arguments
-and environment paths must resolve inside the selected self/direct-dependency
-payloads; command/environment case collisions and literal PATH replacement fail.
-The library returns a content-bound selection digest, not an execution grant.
-The [receipt contract](reference/tool-lock-inspection.md#receiptcontent-verification-foundation)
-documents limits, initial resolved record syntax and the missing admission,
-schema, publication and lease layers. This is partial TM-01/04 and MISE-07 evidence.
-
-The full Windows GNU Rust 1.94 suite passed before the final additional receipt
-regressions; all six final receipt integration tests then passed on Windows and
-Linux Docker Rust 1.94, with strict all-target Clippy and Windows formatting.
-Linux also passed all 20 tool unit tests. Cases include every bound receipt
-identity, duplicate/unknown fields, absent receipts, changed archive identity
-with unchanged version, typed interpreter/argument containment, current payload
-tampering and dependency-only tampering. Fixtures contain ordinary synthetic
-files and execute nothing; they do not qualify a real backend installation.
-All nine compiled CLI task scenarios and documentation structure checks passed.
-
-The fork's candidate `c404d20b2` passed its native Linux library/conformance job
-in [run 36966809734](https://github.com/oyzuai/mise/actions/runs/36966809734).
-Windows and macOS had passed the library Clippy step and were running the
-conformance step when inspected. Those pending results are not inferred passes.
-The compliance review gate still awaits the owner's recorded decision.
-
-## Checkpoint 50: atomic installation publication and cooperative leases
-
-TM-04 now publishes verified candidate installations through native no-replace
-directory moves, after validating the entire selected closure. Permanent,
-lexically ordered per-installation OS mutation locks serialize publishers;
-shared kernel leases are acquired before releasing those locks. Existing
-committed content is rehashed and never overwritten, including corrupt entries.
-Receipts must be single-link regular files and installation roots contain only
-the payload and receipt. Publication is atomic per installation, not across an
-entire closure. The [store contract](reference/tool-lock-inspection.md#publication-and-os-lease-foundation)
-states platform durability limits and caller responsibilities.
-
-Windows GNU and Linux Docker Rust 1.94 passed all 11 receipt/publication tests
-(plus one ignored child fixture invoked by the process tests), including two
-separate publishers, shared lease contention, forced owner termination, invalid
-staging and rejection of linked receipts. The native no-replace unit test passed
-on both hosts. The full Windows suite, strict all-target Clippy and all nine
-compiled CLI task scenarios passed during this increment; the final additional
-receipt cases were then rerun on both hosts with strict Clippy. Formatting and
-documentation structure checks passed. macOS publication is not yet qualified.
-
-This is a library foundation, not a working install or execution flow. Operation
-journals, recovery, workspace/session references, pruning, backend layout
-admission, receipt authoring and supervised child-tree lifetime integration are
-still outstanding. A lease establishes cooperative liveness, not authorization
-or protection from another process running as the same user.
-
-Fork [run 36967923522](https://github.com/oyzuai/mise/actions/runs/36967923522)
-passed Linux library/conformance checks. macOS failed because the cleared child
-environment acquired `__CF_USER_TEXT_ENCODING`; the diagnostic prints variable
-names only. A macOS-specific exception is being validated. Windows remained
-pending when inspected. These results do not establish native qualification or
-licensing approval; @micahlmartin owns both technical and licensing decisions.
-
-## Checkpoint 51: verified blob cache and direct extraction handoff
-
-TM-04 now streams exact locked bytes into a private snapshot, atomically publishes
-content-addressed blobs without replacement, and fully rehashes cache hits. A
-hit never consumes the acquisition reader; corruption fails without fallback.
-Per-blob OS locks serialize publishers. The returned read-only snapshot does not
-alias the cache, and the extractor consumes it without reopening the cache path.
-The existing archive entrypoint shares the same bounded verifier. Extraction and
-final tree observation now retain the same held native directory root.
-See the [blob contract](reference/tool-lock-inspection.md#verified-blob-cache-and-extraction-handoff).
-
-Windows GNU Rust 1.94 passed the full Rust suite, strict all-target Clippy,
-formatting and all nine compiled CLI task scenarios. The final eight Windows
-blob tests passed after adding process-termination coverage. Linux Docker Rust
-1.94 passed nine blob tests (including redirected roots/symlinks), all six archive
-tests and strict all-target Clippy. One ignored child fixture is explicitly run
-by the process tests. Checks cover exact/truncated/oversized/wrong bytes, short
-and interrupted reads, stream errors, cache tampering, external hardlinks,
-cross-process contention, termination mid-copy, publication collision cleanup
-and extraction after mutation of the original cache file. Documentation structure
-checks passed. These are real store operations on synthetic content, not backend
-installation or complete MISE-05/13 qualification.
-
-The cache bounds bytes and memory, but transport timeouts/cancellation belong to
-the broker. Interrupted processes can leave unselected staging; journals,
-recovery/quarantine/prune and full power-loss testing are unfinished. Publisher
-verification, admitted layout finalization and production worker wiring remain
-separate gates. No dependency or third-party code was added.
-
-The prior fork run 36967923522 completed with Windows and Linux passing and the
-documented macOS failure. Candidate `e896fe0f9` contains the narrow macOS fix;
-[run 36969203910](https://github.com/oyzuai/mise/actions/runs/36969203910)
-has passed Linux while Windows/macOS remain running. The source-integration and
-release gates remain open; the full OEP is not implemented.
-
-## Checkpoint 52: data-only layout finalization and candidate receipts
-
-TM-01/04/05 now have an initial finite archive-layout record, its draft format-1
-JSON Schema and a data-only staging finalizer. The finalizer binds the complete
-canonical plan to a caller-trusted admission digest and the selected lock's
-layout/backend/platform/blob identities. It strips an optional archive prefix,
-applies tighter extraction limits, checks required paths, resolves typed
-self/direct-dependency references and authors a canonical candidate receipt.
-The complete selected closure is still reverified before atomic publication.
-Neither operation edits the lock or executes payload code. See the
-[finalizer contract](reference/tool-lock-inspection.md#data-only-candidate-finalization).
-
-The end-to-end store test now streams a synthetic archive into the blob cache,
-finalizes it into a receipt-bearing candidate, publishes under OS locks/leases,
-and verifies the committed selection against unchanged lock bytes. Windows GNU
-Rust 1.94 passed the full Rust suite, strict all-target Clippy, formatting and all
-nine compiled CLI task scenarios. The final seven layout tests passed on Windows
-and eight on Linux Docker Rust 1.94, with strict Clippy on both. Linux additionally
-checks contained and escaping symlinks after prefix stripping. Earlier archive
-and blob regressions also passed after the extractor refactor.
-
-The schema checker passed with pinned `jsonschema==4.25.1`: one valid layout and
-17 invalid shape mutations shared with the Rust finalizer tests. A dedicated CI
-job now runs this shape check; native Rust checks exercise runtime semantics.
-Schema validity alone proves no content integrity, admission or execution result.
-Documentation checks passed. No production dependency or upstream code was added.
-
-Supported finalizer transforms remain tar/tar.gz with optional strip-prefix,
-root payload and no executable overrides. ZIP/xz/raw, subtree projection,
-executable overrides, compiled descriptors, backend-generated plans, publisher
-verification, worker/broker wiring and backend parity remain unfinished. These
-synthetic archives are never represented as real installed Node versions and
-are never executed. The full OEP acceptance matrix remains open.
-
-Fork candidate `e896fe0f9d75f1a4f544b6ee92ffbdbc4f33f496` passed library/example
-Clippy and all five fresh-process boundary checks on native Windows, macOS and
-Linux in [run 36969203910](https://github.com/oyzuai/mise/actions/runs/36969203910).
-This resolves the macOS runtime-variable failure. It qualifies only that current
-library boundary, including the fixture-backed real Node catalog parser; it does
-not qualify native installations, distribution licensing or a release.
-
+The retained scenario summary and bundles confirm native Go library module artifacts, Helm root unittest reports, snapshot-baseline rejection and the other exercised build cases at that revision. This supersedes their earlier pending-CI notes. It does not prove the later Cargo registry/feature, Docker quality, Helm subchart or doctest increments, nor all 58 complete authored scenarios. The later [run 36970442288](https://github.com/micahlmartin/oyzu/actions/runs/36970442288) has separately passed native Docker quality steps on macOS and Windows, confirming the complete-asset provisioning fix; its overall task/captured-build jobs were still active when checked.

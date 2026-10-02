@@ -61,6 +61,8 @@ jobs:
         run: cargo build --locked --release
       - name: Native Cargo artifact message contract
         run: python tooling/test-rust-artifacts.py
+      - name: Native Cargo doctest conformance
+        run: python tooling/test-rust-doctests.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: oyzu-${{ matrix.os }}
