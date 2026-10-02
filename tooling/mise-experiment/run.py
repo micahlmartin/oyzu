@@ -10,6 +10,7 @@ from pathlib import Path
 import platform
 import queue
 import shutil
+import signal
 import statistics
 import subprocess
 import threading
@@ -58,6 +59,7 @@ def main():
     parser.add_argument("--work", required=True, type=Path)
     parser.add_argument("--provision", action="store_true")
     parser.add_argument("--network-isolated", action="store_true")
+    parser.add_argument("--windows-shim-mode", choices=("file", "hardlink"), default="file")
     args = parser.parse_args()
     work = args.work.resolve()
     work.mkdir(parents=True, exist_ok=True)
@@ -76,6 +78,7 @@ def main():
         "harness_lf_sha256": {name: hashlib.sha256((harness / name).read_bytes().replace(b"\r\n", b"\n")).hexdigest()
                               for name in ("spike.rs", "embedding.patch", "run.py", "shell-test.sh", "shell-test.ps1")},
         "network_isolated": args.network_isolated,
+        "windows_shim_mode": args.windows_shim_mode if os.name == "nt" else None,
         "build_profile": "dev (unoptimized)",
     }
     inventory = json.loads((work / "archives" / f"inventory-{host()[0]}-{host()[1]}.json").read_text())
@@ -134,10 +137,12 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     route = f"http://127.0.0.1:{server.server_port}/ok"
     base_env = dict(os.environ, OYZU_SPIKE_STATE=str(run_root / "state"), OYZU_SPIKE_ROUTE=route)
+    if os.name == "nt":
+        base_env["OYZU_SPIKE_WINDOWS_SHIM_MODE"] = args.windows_shim_mode
 
     def call(*command, cwd=None, env=None, code=0):
         completed = subprocess.run([str(binary), *command], cwd=cwd or run_root, env=env or base_env,
-                                   text=True, capture_output=True, timeout=180)
+                                   text=True, encoding="utf-8", capture_output=True, timeout=180)
         if completed.returncode != code:
             raise AssertionError(f"{command}: exit {completed.returncode}, expected {code}\n{completed.stdout}\n{completed.stderr}")
         return completed.stdout.strip()
@@ -213,6 +218,69 @@ dependencies = []
         record(f"exec-{version}", lambda p=p, version=version: equal(call("exec", "--", "node", "--version", cwd=p), "v"+version))
     record("exec-arguments", lambda: equal(json.loads(call("exec", "--", "node", "-e", "console.log(JSON.stringify(process.argv.slice(1)))", "--", "a b", "single'quote", 'double"quote', "$literal", cwd=a)), ["a b", "single'quote", 'double"quote', "$literal"]))
     record("exec-exit-status", lambda: call("exec", "--", "node", "-e", "process.exit(37)", cwd=a, code=37))
+    edge_arguments = ["", "caf\u00e9\u96ea", "C:\\ends\\", "literal &|<>^()%! text"]
+    record("exec-argument-edge-cases", lambda: equal(json.loads(call("exec", "--", "node", "-e",
+           "console.log(JSON.stringify(process.argv.slice(1)))", "--", *edge_arguments, "line\nbreak", cwd=a)),
+           [*edge_arguments, "line\nbreak"]))
+
+    def unusual_project_path():
+        unusual = run_root / "project space caf\u00e9\u96ea"
+        unusual.mkdir()
+        for name in ("oyzu.toml", "oyzu.lock"):
+            (unusual / name).write_bytes((a / name).read_bytes())
+        equal(call("exec", "--", "node", "--version", cwd=unusual), "v" + VERSIONS[0])
+        equal(json.loads(call("exec", "--", "node", "-e", "console.log(JSON.stringify(process.cwd()))", cwd=unusual)), str(unusual))
+        equal((unusual / "oyzu.lock").read_bytes(), original_locks[0])
+        return "spaces and Unicode in project directory; exact cwd and unchanged lock"
+    record("project-path-edge-cases", unusual_project_path)
+    def linked_project_path():
+        linked = run_root / "linked-project"
+        kind = "symlink"
+        try:
+            linked.symlink_to(a, target_is_directory=True)
+        except OSError:
+            if os.name != "nt":
+                raise
+            subprocess.run(["cmd", "/c", "mklink", "/J", str(linked), str(a)],
+                           check=True, capture_output=True, text=True)
+            kind = "junction"
+        equal(call("exec", "--", "node", "--version", cwd=linked), "v" + VERSIONS[0])
+        equal((linked / "oyzu.lock").read_bytes(), original_locks[0])
+        return {"kind": kind, "selection": "locked Node", "lock_unchanged": True}
+    record("linked-project-path", linked_project_path)
+
+    def termination():
+        heartbeat = run_root / "termination-heartbeat"
+        script = ("const fs=require('fs');const p=" + json.dumps(str(heartbeat)) + ";"
+                  "fs.writeFileSync(p,'ready');console.log(process.pid);"
+                  "setInterval(()=>fs.writeFileSync(p,String(Date.now())),50)")
+        process = subprocess.Popen([str(binary), "exec", "--", "node", "-e", script], cwd=a,
+                                   env=base_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   text=True, encoding="utf-8")
+        tool_pid = None
+        try:
+            ready = queue.Queue()
+            threading.Thread(target=lambda: ready.put(process.stdout.readline()), daemon=True).start()
+            tool_pid = int(ready.get(timeout=15).strip())
+            process.terminate()
+            process.wait(timeout=15)
+            time.sleep(.3)
+            before = heartbeat.read_bytes()
+            time.sleep(.3)
+            assert heartbeat.read_bytes() == before, "tool survived frontend termination (cleaned up by harness)"
+            return {"frontend_pid_equals_tool_pid": process.pid == tool_pid, "heartbeat_stopped": True}
+        finally:
+            if process.poll() is None:
+                process.kill()
+                process.wait(timeout=10)
+            if tool_pid is not None and tool_pid != process.pid:
+                try:
+                    os.kill(tool_pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+            process.stdout.close()
+            process.stderr.close()
+    record("frontend-termination-stops-tool", termination)
     if os.name != "nt":
         record("non-utf8-environment-hook", lambda: call("hook-env", "-s", "bash", cwd=a,
                                                        env=dict(base_env, OYZU_INVALID=os.fsdecode(b"\xff"))) and "hook emitted successfully")
@@ -295,7 +363,8 @@ dependencies = []
                 child.wait(timeout=10)
     record("active-version-independence", active_version)
     record("reshim", lambda: call("reshim", cwd=a))
-    shim = Path(base_env["OYZU_SPIKE_STATE"]) / "data" / "shims" / ("node.cmd" if os.name == "nt" else "node")
+    shim_name = ("node.exe" if args.windows_shim_mode == "hardlink" else "node.cmd") if os.name == "nt" else "node"
+    shim = Path(base_env["OYZU_SPIKE_STATE"]) / "data" / "shims" / shim_name
 
     def shim_run():
         output = subprocess.check_output([str(shim), "--version"], cwd=b, env=base_env, text=True, timeout=60).strip()
@@ -310,6 +379,11 @@ dependencies = []
         return equal(json.loads(output), expected)
 
     record("shim-arguments", shim_arguments)
+    def shim_argument_edges():
+        output = subprocess.check_output([str(shim), "-e", "console.log(JSON.stringify(process.argv.slice(1)))", "--", *edge_arguments],
+                                         cwd=b, env=base_env, text=True, encoding="utf-8", timeout=60)
+        return equal(json.loads(output), edge_arguments)
+    record("shim-argument-edge-cases", shim_argument_edges)
     record("shim-exit-status", lambda: equal(subprocess.run([str(shim), "-e", "process.exit(37)"],
                                                            cwd=b, env=base_env, capture_output=True, timeout=60).returncode, 37))
 

@@ -264,6 +264,63 @@ def main():
             project, environment = previous_project, previous_environment
     case("broker-aqua-jq-install-exec", aqua_install)
 
+    def npm_install():
+        nonlocal project, environment
+        previous_project, previous_environment = project, environment
+        project = Path("/workspace/npm-project")
+        project.mkdir()
+        package = config["prettier"]
+        (project / "oyzu.toml").write_text('[tools]\nnode = "22.14.0"\nprettier = "3.5.3"\n')
+        node_lock = original_lock.decode().replace('request = "22"', 'request = "22.14.0"')
+        package_lock = original_lock.decode().replace('format = 1\n', '').replace('core:node', 'npm:prettier')
+        package_lock = package_lock.replace('request = "22"', 'request = "3.5.3"').replace('22.14.0', '3.5.3')
+        package_lock = package_lock.replace(config["sha256"], package["sha256"]).replace('node-fixture', 'npm-fixture')
+        node_size = tomllib.loads(original_lock.decode())["tool"][0]["distribution"][0]["size"]
+        package_lock = package_lock.replace(f'size = {node_size}', f'size = {package["size"]}').replace('dependencies = []', 'dependencies = ["core:node"]')
+        lock = node_lock + '\n' + package_lock
+        (project / "oyzu.lock").write_text(lock)
+        artifacts = project / "artifact-routes.json"
+        artifacts.write_text(json.dumps({
+            "node-fixture:sha256:" + config["sha256"]: bridge + "/node/v22.14.0/" + config["node"]["name"],
+            "npm-fixture:sha256:" + package["sha256"]: bridge + "/npm/prettier/-/prettier-3.5.3.tgz"}))
+        environment = dict(previous_environment, OYZU_SPIKE_STATE="/tmp/mise-npm", OYZU_SPIKE_ROUTE=bridge,
+                           OYZU_SPIKE_ARTIFACTS=str(artifacts), OYZU_SPIKE_NPM_NATIVE="1",
+                           OYZU_SPIKE_BACKENDS=json.dumps({"prettier": "npm:prettier"}),
+                           npm_config_registry=bridge + "/npm/", npm_config_audit="false", npm_config_fund="false")
+        try:
+            call("install")
+            before = len(server.requests)
+            assert call("exec", "--", "prettier", "--version") == "3.5.3"
+            assert call("exec", "--", "node", "--version") == "v22.14.0"
+            npm_version = call("exec", "--", "npm", "--version")
+            assert len(server.requests) == before
+            assert (project / "oyzu.lock").read_text() == lock
+            for bad_lock in (lock.replace('dependencies = []', 'dependencies = ["npm:prettier"]', 1),
+                             lock.replace('dependencies = ["core:node"]', 'dependencies = ["core:missing"]')):
+                (project / "oyzu.lock").write_text(bad_lock)
+                result = subprocess.run([binary, "exec", "--", "prettier", "--version"], cwd=project,
+                                        env=environment, capture_output=True, text=True, timeout=30)
+                assert result.returncode != 0 and "missing or cyclic" in result.stderr, result.stderr
+                assert len(server.requests) == before
+            (project / "oyzu.lock").write_text(lock.replace(package["sha256"], "0" * 64))
+            route_map = json.loads(artifacts.read_text())
+            route_map["npm-fixture:sha256:" + "0" * 64] = route_map["npm-fixture:sha256:" + package["sha256"]]
+            artifacts.write_text(json.dumps(route_map))
+            # Force a fresh package installation while retaining the unchanged
+            # locked Node dependency. The deliberately false digest must reach
+            # the upstream checksum verifier, not fail just on route lookup.
+            shutil.rmtree("/tmp/mise-npm/data/installs/prettier/3.5.3")
+            result = subprocess.run([binary, "install"], cwd=project, env=environment,
+                                    capture_output=True, text=True, timeout=90)
+            assert result.returncode != 0 and "checksum" in result.stderr.lower(), result.stderr
+            (project / "oyzu.lock").write_text(lock)
+            return {"native_npm_version": npm_version, "frozen_execution": True,
+                    "missing_and_cyclic_dependencies_rejected_without_acquisition": True,
+                    "bad_package_digest_rejected": result.stderr.strip()}
+        finally:
+            project, environment = previous_project, previous_environment
+    case("broker-native-npm-tool-install-exec", npm_install)
+
     def credential_error():
         info, body = fetch(config["origin"] + "approved/node/error")
         assert info["status"] == 401

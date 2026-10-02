@@ -1,5 +1,6 @@
 """Provision real, independently verified backend fixtures outside the repo."""
 import argparse
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -97,6 +98,32 @@ def main():
                            sha256=jq_digest, size=jq_archive.stat().st_size,
                            release_sha256=hashlib.sha256(jq_release).hexdigest(),
                            checksums_sha256=hashlib.sha256(jq_checksums).hexdigest())
+    plugin_pin = "a75b761963d8e6eda1a185c73476da8a75b8d300"
+    plugin_url = "https://codeload.github.com/asdf-community/asdf-golang/tar.gz/" + plugin_pin
+    plugin_archive = destination / ("asdf-golang-" + plugin_pin + ".tar.gz")
+    if not plugin_archive.exists():
+        subprocess.run(["curl", "--fail", "--silent", "--show-error", "--location",
+                        plugin_url, "--output", str(plugin_archive)], check=True)
+    import tarfile
+    with tarfile.open(plugin_archive) as package:
+        license_text = package.extractfile("asdf-golang-" + plugin_pin + "/LICENSE").read()
+    assert b"MIT License" in license_text and b"Kenny Parnell" in license_text
+    inventory["asdf-golang"] = dict(filename=plugin_archive.name, pin=plugin_pin, url=plugin_url,
+                                    sha256=hashlib.sha256(plugin_archive.read_bytes()).hexdigest(),
+                                    license_sha256=hashlib.sha256(license_text).hexdigest())
+    npm_metadata = subprocess.check_output(["curl", "--fail", "--silent", "--show-error",
+                                           "https://registry.npmjs.org/prettier/3.5.3"])
+    npm = json.loads(npm_metadata)
+    npm_archive = destination / "prettier-3.5.3.tgz"
+    if not npm_archive.exists():
+        subprocess.run(["curl", "--fail", "--silent", "--show-error", "--location",
+                        npm["dist"]["tarball"], "--output", str(npm_archive)], check=True)
+    npm_bytes = npm_archive.read_bytes()
+    assert "sha512-" + base64.b64encode(hashlib.sha512(npm_bytes).digest()).decode() == npm["dist"]["integrity"]
+    (destination / "prettier-metadata.json").write_bytes(npm_metadata)
+    inventory["prettier"] = dict(filename=npm_archive.name, version="3.5.3", url=npm["dist"]["tarball"],
+                                 sha256=hashlib.sha256(npm_bytes).hexdigest(), size=len(npm_bytes),
+                                 integrity=npm["dist"]["integrity"], metadata_sha256=hashlib.sha256(npm_metadata).hexdigest())
     (destination / "inventory-linux-x64.json").write_text(json.dumps(inventory, indent=2))
     print(json.dumps(inventory, indent=2))
 

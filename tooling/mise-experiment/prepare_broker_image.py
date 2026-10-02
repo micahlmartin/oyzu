@@ -18,7 +18,7 @@ def main():
     context = args.context.resolve()
     assert not context.is_relative_to(root), "keep generated image context outside the repository"
     context.mkdir(parents=True, exist_ok=True)
-    for name in ("broker_bridge.py", "broker_worker.py", "UPSTREAM-LICENSE.txt", "dependency-licenses.json"):
+    for name in ("broker_bridge.py", "broker_worker.py", "script_worker.py", "UPSTREAM-LICENSE.txt", "dependency-licenses.json"):
         shutil.copyfile(here / name, context / name)
     shutil.copyfile(here / "Broker.Dockerfile", context / "Dockerfile")
     shutil.copyfile(root / "src/broker/runtime/transport.py", context / "broker_transport.py")

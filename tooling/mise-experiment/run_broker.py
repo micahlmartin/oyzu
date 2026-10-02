@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--driver", type=Path, required=True)
     parser.add_argument("--work", type=Path, required=True)
     parser.add_argument("--image", default="oyzu-mise-broker-qualification:local")
+    parser.add_argument("--worker", choices=("broker_worker.py", "script_worker.py"), default="broker_worker.py")
     args = parser.parse_args()
     here = Path(__file__).resolve().parent
     repository = here.parents[1]
@@ -28,7 +29,7 @@ def main():
         "production_source_lf_sha256": {str(p.relative_to(repository)).replace("\\", "/"): canonical_hash(p)
                                          for p in source_files if p.is_file()},
         "harness_lf_sha256": {p.name: canonical_hash(p) for p in
-                              [here / name for name in ("run_broker.py", "broker_worker.py", "broker_bridge.py", "spike.rs", "embedding.patch")]},
+                              [here / name for name in ("run_broker.py", "broker_worker.py", "script_worker.py", "broker_bridge.py", "spike.rs", "embedding.patch")]},
         "driver_sha256": hashlib.sha256(args.driver.read_bytes()).hexdigest(),
         "image": json.loads(subprocess.check_output(["docker", "image", "inspect", args.image], text=True))[0]["Id"],
     }
@@ -67,6 +68,14 @@ def main():
     assert hashlib.sha256(jq_archive.read_bytes()).hexdigest() == jq["sha256"]
     assert hashlib.sha256(jq_release).hexdigest() == jq["release_sha256"]
     assert hashlib.sha256(jq_checksums).hexdigest() == jq["checksums_sha256"]
+    plugin = backend_inventory["asdf-golang"]
+    plugin_archive = args.work / "backend-archives" / plugin["filename"]
+    assert hashlib.sha256(plugin_archive.read_bytes()).hexdigest() == plugin["sha256"]
+    prettier = backend_inventory["prettier"]
+    prettier_archive = args.work / "backend-archives" / prettier["filename"]
+    prettier_metadata = (args.work / "backend-archives/prettier-metadata.json").read_bytes()
+    assert hashlib.sha256(prettier_archive.read_bytes()).hexdigest() == prettier["sha256"]
+    assert hashlib.sha256(prettier_metadata).hexdigest() == prettier["metadata_sha256"]
     requests = []
 
     class Origin(http.server.BaseHTTPRequestHandler):
@@ -115,6 +124,12 @@ def main():
                 status, body = 200, jq_checksums
             elif self.path == "/approved/jq/api/repos/jqlang/jq/releases/tags/jq-1.7.1":
                 status, body = 200, jq_release
+            elif self.path == "/approved/asdf/plugin.tar.gz":
+                status, body = 200, plugin_archive.read_bytes()
+            elif self.path == "/approved/npm/prettier/3.5.3":
+                status, body = 200, prettier_metadata
+            elif self.path == "/approved/npm/prettier/-/prettier-3.5.3.tgz":
+                status, body = 200, prettier_archive.read_bytes()
             else:
                 status, body = 404, b"not found"
             self.send_response(status)
@@ -146,8 +161,8 @@ def main():
                   "unavailable": origin + "approved/node/unavailable/",
                   "go": origin + "approved/go/", "java": origin + "approved/java/",
                   "python": origin + "approved/python/", "tuf": "https://tuf-repo-cdn.sigstore.dev/",
-                  "jq": origin + "approved/jq/"},
-                  "go": go, "java": java, "python": python, "jq": jq,
+                  "jq": origin + "approved/jq/", "asdf": origin + "approved/asdf/", "npm": origin + "approved/npm/"},
+                  "go": go, "java": java, "python": python, "jq": jq, "plugin": plugin, "prettier": prettier, "node": item,
                   "sha256": item["sha256"], "egress_ip": positive["ip"], "egress_port": server.server_port}
         (root / "workspace/worker.json").write_text(json.dumps(worker))
         configuration = {
@@ -158,8 +173,10 @@ def main():
                         {"id": "java-fixture", "base": origin + "approved/java/", "authorization": "Bearer " + canary},
                         {"id": "python-fixture", "base": origin + "approved/python/", "authorization": "Bearer " + canary},
                         {"id": "jq-fixture", "base": origin + "approved/jq/", "authorization": "Bearer " + canary},
+                        {"id": "asdf-plugin-fixture", "base": origin + "approved/asdf/", "authorization": "Bearer " + canary},
+                        {"id": "npm-fixture", "base": origin + "approved/npm/", "authorization": "Bearer " + canary},
                         {"id": "sigstore-public-tuf", "base": "https://tuf-repo-cdn.sigstore.dev/", "authorization": None}],
-            "argv": ["python3", "/opt/qualification/broker_worker.py"],
+            "argv": ["python3", "/opt/qualification/" + args.worker],
             "env": {"PYTHONDONTWRITEBYTECODE": "1"}, "timeout_seconds": 600,
             "name": "oyzu-broker-" + uuid.uuid4().hex[:12],
         }

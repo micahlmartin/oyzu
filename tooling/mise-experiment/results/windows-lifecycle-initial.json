@@ -1,0 +1,318 @@
+{
+  "host": "Windows-11-10.0.26200-SP0",
+  "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+  "binary_sha256": "9e4bfb51c4e824228c4ec33e14f4ce62755d464e3c7ae08774c9cc79f4f8f6d0",
+  "harness_sha256": {
+    "spike.rs": "b24b2c9a63ed5c8cb8d0eabf717f16b5327fdabd6305744e2c3c4ceea92f75ad",
+    "embedding.patch": "3c34f6679260402df790fbd994c91b37858f74bae4ec023e2537de319814376b",
+    "run.py": "2d28700a4f16bc5f346165f83d1d455afc836c5ccff739ba5c8b5e7a464e380a",
+    "shell-test.sh": "0cfff0c759c181dc00c8a17674d515d64a69a87de9e703d9fe72853ae397a50c",
+    "shell-test.ps1": "7cd7f49bc641a4e5aea4d4feba654b198138d659b33b69f537b565f93c6a5002"
+  },
+  "harness_lf_sha256": {
+    "spike.rs": "b24b2c9a63ed5c8cb8d0eabf717f16b5327fdabd6305744e2c3c4ceea92f75ad",
+    "embedding.patch": "3c34f6679260402df790fbd994c91b37858f74bae4ec023e2537de319814376b",
+    "run.py": "2d28700a4f16bc5f346165f83d1d455afc836c5ccff739ba5c8b5e7a464e380a",
+    "shell-test.sh": "0cfff0c759c181dc00c8a17674d515d64a69a87de9e703d9fe72853ae397a50c",
+    "shell-test.ps1": "7cd7f49bc641a4e5aea4d4feba654b198138d659b33b69f537b565f93c6a5002"
+  },
+  "network_isolated": false,
+  "windows_shim_mode": "hardlink",
+  "build_profile": "dev (unoptimized)",
+  "results": [
+    {
+      "case": "activation-does-not-install",
+      "status": "passed",
+      "detail": "locked tool is not installed",
+      "seconds": 0.062
+    },
+    {
+      "case": "backend-version-resolution",
+      "status": "passed",
+      "detail": "22.14.0",
+      "seconds": 0.063
+    },
+    {
+      "case": "backend-metadata-to-oyzu-lock",
+      "status": "passed",
+      "detail": {
+        "format": 1,
+        "tool": [
+          {
+            "id": "core:node",
+            "request": "22",
+            "version": "22.14.0",
+            "backend_digest": "git:da0db43e9398b46bafa95232014708a51120e731",
+            "distribution": [
+              {
+                "platform": "windows-x64",
+                "digest": "sha256:55b639295920b219bb2acbcfa00f90393a2789095b7323f79475c9f34795f217",
+                "size": 34906389,
+                "source_id": "node-fixture",
+                "verification": "fixture-sha256",
+                "dependencies": []
+              }
+            ]
+          }
+        ]
+      },
+      "seconds": 0.14
+    },
+    {
+      "case": "real-backend-install-a",
+      "status": "passed",
+      "detail": {
+        "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+        "versions": [
+          "22.14.0"
+        ],
+        "paths": [
+          "E:\\CodexData\\scratch\\oyzu-mise-fixtures\\run-1790908124276277500\\state\\data\\installs\\node\\22.14.0"
+        ],
+        "platform": "windows-x64",
+        "settings_mirror": "http://127.0.0.1:52877/ok/"
+      },
+      "seconds": 7.969
+    },
+    {
+      "case": "real-backend-install-b",
+      "status": "passed",
+      "detail": {
+        "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+        "versions": [
+          "24.0.0"
+        ],
+        "paths": [
+          "E:\\CodexData\\scratch\\oyzu-mise-fixtures\\run-1790908124276277500\\state\\data\\installs\\node\\24.0.0"
+        ],
+        "platform": "windows-x64",
+        "settings_mirror": "http://127.0.0.1:52877/ok/"
+      },
+      "seconds": 6.594
+    },
+    {
+      "case": "exec-22.14.0",
+      "status": "passed",
+      "detail": "v22.14.0",
+      "seconds": 0.094
+    },
+    {
+      "case": "exec-24.0.0",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.094
+    },
+    {
+      "case": "exec-arguments",
+      "status": "passed",
+      "detail": [
+        "a b",
+        "single'quote",
+        "double\"quote",
+        "$literal"
+      ],
+      "seconds": 0.141
+    },
+    {
+      "case": "exec-exit-status",
+      "status": "passed",
+      "detail": "",
+      "seconds": 0.125
+    },
+    {
+      "case": "exec-argument-edge-cases",
+      "status": "passed",
+      "detail": [
+        "",
+        "caf\u00e9\u96ea",
+        "C:\\ends\\",
+        "literal &|<>^()%! text",
+        "line\nbreak"
+      ],
+      "seconds": 0.125
+    },
+    {
+      "case": "project-path-edge-cases",
+      "status": "passed",
+      "detail": "spaces and Unicode in project directory; exact cwd and unchanged lock",
+      "seconds": 0.25
+    },
+    {
+      "case": "linked-project-path",
+      "status": "passed",
+      "detail": {
+        "kind": "junction",
+        "selection": "locked Node",
+        "lock_unchanged": true
+      },
+      "seconds": 0.203
+    },
+    {
+      "case": "frontend-termination-stops-tool",
+      "status": "failed",
+      "detail": "tool survived frontend termination (cleaned up by harness)",
+      "seconds": 0.765
+    },
+    {
+      "case": "ambient-mise-cannot-override-oyzu",
+      "status": "passed",
+      "detail": "v22.14.0:22",
+      "seconds": 0.157
+    },
+    {
+      "case": "nested-directory-selection",
+      "status": "passed",
+      "detail": "v22.14.0",
+      "seconds": 0.125
+    },
+    {
+      "case": "nested-project-overrides-parent",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.125
+    },
+    {
+      "case": "shell-pwsh",
+      "status": "passed",
+      "detail": "two independent shells: entry, switch, exit, PATH and user edits",
+      "seconds": 1.891
+    },
+    {
+      "case": "cached-policy-denial",
+      "status": "passed",
+      "detail": "policy denies locked version",
+      "seconds": 0.062
+    },
+    {
+      "case": "acquisition-corrupt-denied",
+      "status": "passed",
+      "detail": "checksum mismatch",
+      "seconds": 0.094
+    },
+    {
+      "case": "acquisition-redirect-denied",
+      "status": "passed",
+      "detail": "route denied",
+      "seconds": 0.094
+    },
+    {
+      "case": "acquisition-missing-denied",
+      "status": "passed",
+      "detail": "precompiled node archive not found",
+      "seconds": 0.078
+    },
+    {
+      "case": "unavailable-proxy-denied",
+      "status": "passed",
+      "detail": "",
+      "seconds": 2.094
+    },
+    {
+      "case": "redirect-target-never-contacted",
+      "status": "passed",
+      "detail": false,
+      "seconds": 0.0
+    },
+    {
+      "case": "concurrent-install",
+      "status": "passed",
+      "detail": [
+        [
+          "22.14.0"
+        ],
+        [
+          "22.14.0"
+        ]
+      ],
+      "seconds": 6.875
+    },
+    {
+      "case": "active-version-independence",
+      "status": "passed",
+      "detail": "Node 22 stayed active while another invocation selected Node 24",
+      "seconds": 0.218
+    },
+    {
+      "case": "reshim",
+      "status": "passed",
+      "detail": "",
+      "seconds": 3.563
+    },
+    {
+      "case": "shim-without-activation",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.125
+    },
+    {
+      "case": "shim-arguments",
+      "status": "passed",
+      "detail": [
+        "a b",
+        "single'quote",
+        "double\"quote",
+        "$literal"
+      ],
+      "seconds": 0.125
+    },
+    {
+      "case": "shim-argument-edge-cases",
+      "status": "passed",
+      "detail": [
+        "",
+        "caf\u00e9\u96ea",
+        "C:\\ends\\",
+        "literal &|<>^()%! text"
+      ],
+      "seconds": 0.125
+    },
+    {
+      "case": "shim-exit-status",
+      "status": "passed",
+      "detail": 37,
+      "seconds": 0.14
+    },
+    {
+      "case": "frozen-lock-and-file-ownership",
+      "status": "passed",
+      "detail": "Oyzu locks unchanged; no generated mise project files",
+      "seconds": 0.0
+    },
+    {
+      "case": "hook-timings",
+      "status": "passed",
+      "detail": {
+        "cold_mise_cache_ms": 77.64270000006945,
+        "first_ms": 70.72020000032353,
+        "repeated_p50_ms": 81.33785000063654,
+        "repeated_p95_ms": 91.16759999960777,
+        "scope": "empty mise cache then repeated hooks; fresh process per hook; OS filesystem caches not evicted; not an upstream performance comparison"
+      },
+      "seconds": 1.797
+    },
+    {
+      "case": "paired-in-process-benchmark",
+      "status": "passed",
+      "detail": {
+        "samples": 50,
+        "core_p50_us": 9247,
+        "core_p95_us": 13775,
+        "adapter_p50_us": 10983,
+        "adapter_p95_us": 13733,
+        "scope": "same process and installed toolchain: upstream environment/diff versus those calls plus Oyzu TOML/lock adapter; no standalone mise executable"
+      },
+      "seconds": 1.094
+    }
+  ],
+  "requests": [
+    "/ok/index.json",
+    "/ok/v22.14.0/SHASUMS256.txt",
+    "HEAD /ok/v22.14.0/node-v22.14.0-win-x64.zip",
+    "/ok/v22.14.0/node-v22.14.0-win-x64.zip",
+    "/ok/v24.0.0/node-v24.0.0-win-x64.zip",
+    "/corrupt/v22.14.0/node-v22.14.0-win-x64.zip",
+    "/redirect/v22.14.0/node-v22.14.0-win-x64.zip",
+    "/missing/v22.14.0/node-v22.14.0-win-x64.zip",
+    "/ok/v22.14.0/node-v22.14.0-win-x64.zip"
+  ]
+}

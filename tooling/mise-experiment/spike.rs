@@ -1,5 +1,11 @@
 //! Independent experimental frontend. Upstream behavior is linked, not copied.
-use std::{collections::BTreeMap, env, fs, path::PathBuf, process::Command, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    env, fs,
+    path::PathBuf,
+    process::Command,
+    sync::Arc,
+};
 
 use eyre::{Result, bail, ensure};
 use mise::{
@@ -107,6 +113,14 @@ fn initialize() -> Result<()> {
     }
     mise::config::settings::set_loader(mise::config::settings::load_defaults);
     let mut settings = (*mise::config::settings::load_defaults()?).clone();
+    #[cfg(windows)]
+    if let Ok(mode) = env::var("OYZU_SPIKE_WINDOWS_SHIM_MODE") {
+        ensure!(
+            matches!(mode.as_str(), "file" | "hardlink"),
+            "unsupported qualification shim mode"
+        );
+        settings.windows_shim_mode = mode;
+    }
     settings.node.compile = Some(false);
     settings.node.gpg_verify = Some(false); // Experiment uses independently locked SHA-256.
     settings.node.corepack = false;
@@ -118,6 +132,9 @@ fn initialize() -> Result<()> {
     settings.go.default_packages_file = state.join("no-default-go-packages");
     settings.python.compile = Some(false);
     settings.python.default_packages_file = Some(state.join("no-default-python-packages"));
+    if env::var("OYZU_SPIKE_NPM_NATIVE").as_deref() == Ok("1") {
+        settings.npm.package_manager = mise::config::settings::NpmPackageManager::Npm;
+    }
     if let Ok(route) = env::var("OYZU_SPIKE_ROUTE") {
         settings.go.download_mirror = route.trim_end_matches('/').to_owned();
     }
@@ -180,123 +197,162 @@ async fn selected(config: &Arc<Config>, install: bool) -> Result<(Toolset, EnvMa
         return Ok((ts, EnvMap::new()));
     };
     ensure!(
-        project.tools.len() == 1,
-        "experiment currently requires one explicit tool"
+        !project.tools.is_empty(),
+        "experiment requires explicit tools"
     );
-    let (name, request) = project.tools.iter().next().unwrap();
-    let identity = backend_identity(name)?;
     let lock: Lock = toml::from_str(&fs::read_to_string(directory.join("oyzu.lock"))?)?;
     ensure!(
-        lock.format == 1 && lock.tool.len() == 1,
+        lock.format == 1 && lock.tool.len() == project.tools.len(),
         "unsupported lock format or tool count"
     );
-    let locked = &lock.tool[0];
-    ensure!(
-        locked.id == identity && locked.request == *request,
-        "lock/config identity mismatch"
-    );
-    ensure!(
-        locked.backend_digest == format!("git:{PIN}"),
-        "backend pin mismatch"
-    );
-    ensure!(
-        env::var("OYZU_SPIKE_DENY_VERSION").ok().as_ref() != Some(&locked.version),
-        "policy denies locked version, including cached installs"
-    );
-    let ba = Arc::new(BackendArg::new(name.clone(), Some(identity.clone())));
-    let tr = ToolRequest::new(ba, &locked.version, ToolSource::Argument)?;
-    let backend = tr.backend()?;
-    let platform = backend.get_platform_key();
-    let distribution = locked
-        .distribution
-        .iter()
-        .find(|d| d.platform == platform)
-        .ok_or_else(|| eyre::eyre!("lock has no distribution for {platform}"))?;
-    ensure!(
-        distribution.dependencies.is_empty(),
-        "unsupported acquisition route/dependencies"
-    );
-    ensure!(
-        distribution.verification == "fixture-sha256" && distribution.size > 0,
-        "missing verification evidence"
-    );
-    let digest = distribution
-        .digest
-        .strip_prefix("sha256:")
-        .ok_or_else(|| eyre::eyre!("digest algorithm"))?;
-    ensure!(
-        digest.len() == 64 && digest.chars().all(|c| c.is_ascii_hexdigit()),
-        "invalid digest"
-    );
-    let mut tv = ToolVersion::new(tr.clone(), locked.version.clone());
-    let os = if cfg!(windows) {
-        "win"
-    } else if cfg!(target_os = "macos") {
-        "darwin"
-    } else {
-        "linux"
-    };
-    let arch = if cfg!(target_arch = "aarch64") {
-        "arm64"
-    } else {
-        "x64"
-    };
-    let ext = if cfg!(windows) { "zip" } else { "tar.gz" };
-    if install {
-        let route = env::var("OYZU_SPIKE_ROUTE")?;
-        let url = if let Ok(manifest) = env::var("OYZU_SPIKE_ARTIFACTS") {
-            let artifacts: BTreeMap<String, String> =
-                serde_json::from_str(&fs::read_to_string(manifest)?)?;
-            artifacts
-                .get(&format!(
-                    "{}:{}",
-                    distribution.source_id, distribution.digest
-                ))
-                .cloned()
-                .ok_or_else(|| {
-                    eyre::eyre!("locked distribution is not in approved artifact routes")
-                })?
+    let mut pending: Vec<_> = project.tools.iter().collect();
+    let mut ready = BTreeSet::new();
+    while !pending.is_empty() {
+        let mut candidate = None;
+        for (index, (name, _)) in pending.iter().enumerate() {
+            let identity = backend_identity(name)?;
+            let locked = lock
+                .tool
+                .iter()
+                .find(|tool| tool.id == identity)
+                .ok_or_else(|| eyre::eyre!("missing locked tool {identity}"))?;
+            let request = ToolRequest::new(
+                Arc::new(BackendArg::new((*name).clone(), Some(identity))),
+                &locked.version,
+                ToolSource::Argument,
+            )?;
+            let platform = request.backend()?.get_platform_key();
+            let distribution = locked
+                .distribution
+                .iter()
+                .find(|d| d.platform == platform)
+                .ok_or_else(|| eyre::eyre!("lock has no distribution for {platform}"))?;
+            if distribution
+                .dependencies
+                .iter()
+                .all(|dependency| ready.contains(dependency))
+            {
+                candidate = Some(index);
+                break;
+            }
+        }
+        let index =
+            candidate.ok_or_else(|| eyre::eyre!("locked dependency is missing or cyclic"))?;
+        let (name, request) = pending.remove(index);
+        let identity = backend_identity(name)?;
+        let locked = lock.tool.iter().find(|tool| tool.id == identity).unwrap();
+        ensure!(
+            locked.id == identity && locked.request == *request,
+            "lock/config identity mismatch"
+        );
+        ensure!(
+            locked.backend_digest == format!("git:{PIN}"),
+            "backend pin mismatch"
+        );
+        ensure!(
+            env::var("OYZU_SPIKE_DENY_VERSION").ok().as_ref() != Some(&locked.version),
+            "policy denies locked version, including cached installs"
+        );
+        let ba = Arc::new(BackendArg::new(name.clone(), Some(identity.clone())));
+        let mut tr = ToolRequest::new(ba, &locked.version, ToolSource::Argument)?;
+        let backend = tr.backend()?;
+        let platform = backend.get_platform_key();
+        let distribution = locked
+            .distribution
+            .iter()
+            .find(|d| d.platform == platform)
+            .ok_or_else(|| eyre::eyre!("lock has no distribution for {platform}"))?;
+        ensure!(
+            distribution.verification == "fixture-sha256" && distribution.size > 0,
+            "missing verification evidence"
+        );
+        let digest = distribution
+            .digest
+            .strip_prefix("sha256:")
+            .ok_or_else(|| eyre::eyre!("digest algorithm"))?;
+        ensure!(
+            digest.len() == 64 && digest.chars().all(|c| c.is_ascii_hexdigit()),
+            "invalid digest"
+        );
+        if identity.starts_with("npm:") {
+            // npm's backend consumes its checksum option, not PlatformInfo's URL.
+            // Reuse that verifier while keeping the expected digest in Oyzu's lock.
+            let mut options = tr.options();
+            options.opts.insert(
+                "checksum".into(),
+                toml::Value::String(distribution.digest.clone()),
+            );
+            tr.set_options(options);
+        }
+        let mut tv = ToolVersion::new(tr.clone(), locked.version.clone());
+        let os = if cfg!(windows) {
+            "win"
+        } else if cfg!(target_os = "macos") {
+            "darwin"
+        } else {
+            "linux"
+        };
+        let arch = if cfg!(target_arch = "aarch64") {
+            "arm64"
+        } else {
+            "x64"
+        };
+        let ext = if cfg!(windows) { "zip" } else { "tar.gz" };
+        if install {
+            let route = env::var("OYZU_SPIKE_ROUTE")?;
+            let url = if let Ok(manifest) = env::var("OYZU_SPIKE_ARTIFACTS") {
+                let artifacts: BTreeMap<String, String> =
+                    serde_json::from_str(&fs::read_to_string(manifest)?)?;
+                artifacts
+                    .get(&format!(
+                        "{}:{}",
+                        distribution.source_id, distribution.digest
+                    ))
+                    .cloned()
+                    .ok_or_else(|| {
+                        eyre::eyre!("locked distribution is not in approved artifact routes")
+                    })?
+            } else {
+                ensure!(
+                    identity == "core:node" && distribution.source_id == "node-fixture",
+                    "backend requires host-supplied artifact routes"
+                );
+                format!(
+                    "{}/v{v}/node-v{v}-{os}-{arch}.{ext}",
+                    route.trim_end_matches('/'),
+                    v = locked.version
+                )
+            };
+            tv.lock_platforms.insert(
+                platform,
+                PlatformInfo {
+                    url: Some(url),
+                    checksum: Some(distribution.digest.clone()),
+                    size: Some(distribution.size),
+                    ..Default::default()
+                },
+            );
+            let context = InstallContext {
+                config: config.clone(),
+                ts: Arc::new(ts.clone()),
+                pr: Arc::new(Quiet),
+                force: false,
+                dry_run: false,
+                explicit_yes: true,
+                locked: true,
+                before_date: None,
+                dependency_context: Default::default(),
+            };
+            tv = backend.install_version(context, tv).await?;
         } else {
             ensure!(
-                identity == "core:node" && distribution.source_id == "node-fixture",
-                "backend requires host-supplied artifact routes"
+                backend.is_version_installed(config, &tv, true),
+                "locked tool is not installed; activation does not install"
             );
-            format!(
-                "{}/v{v}/node-v{v}-{os}-{arch}.{ext}",
-                route.trim_end_matches('/'),
-                v = locked.version
-            )
-        };
-        tv.lock_platforms.insert(
-            platform,
-            PlatformInfo {
-                url: Some(url),
-                checksum: Some(distribution.digest.clone()),
-                size: Some(distribution.size),
-                ..Default::default()
-            },
-        );
-        let context = InstallContext {
-            config: config.clone(),
-            ts: Arc::new(ts.clone()),
-            pr: Arc::new(Quiet),
-            force: false,
-            dry_run: false,
-            explicit_yes: true,
-            locked: true,
-            before_date: None,
-            dependency_context: Default::default(),
-        };
-        tv = backend.install_version(context, tv).await?;
-    } else {
-        ensure!(
-            backend.is_version_installed(config, &tv, true),
-            "locked tool is not installed; activation does not install"
-        );
-    }
-    ts.add_version(tr);
-    for list in ts.versions.values_mut() {
-        list.versions = vec![tv.clone()];
+        }
+        ts.add_version(tr.clone());
+        ts.versions.get_mut(tr.ba()).unwrap().versions = vec![tv];
+        ready.insert(identity);
     }
     Ok((ts, project.env))
 }

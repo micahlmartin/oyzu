@@ -1,0 +1,290 @@
+{
+  "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+  "binary_sha256": "0a97bb821dc1548ed7b41d5281d5d21f9fed71edc305148b8657e0e6a0e1d505",
+  "harness_sha256": {
+    "spike.rs": "f82ee39d45e0aeec4533a0264dc98a3d66c5306d8bf987d90676b4941a864be3",
+    "embedding.patch": "3c34f6679260402df790fbd994c91b37858f74bae4ec023e2537de319814376b",
+    "run.py": "54a75208a483396312fb36aca3df9f95a6f8a28a049fe30b90212ee2d471c494",
+    "shell-test.sh": "0cfff0c759c181dc00c8a17674d515d64a69a87de9e703d9fe72853ae397a50c",
+    "shell-test.ps1": "7cd7f49bc641a4e5aea4d4feba654b198138d659b33b69f537b565f93c6a5002"
+  },
+  "harness_lf_sha256": {
+    "spike.rs": "f82ee39d45e0aeec4533a0264dc98a3d66c5306d8bf987d90676b4941a864be3",
+    "embedding.patch": "3c34f6679260402df790fbd994c91b37858f74bae4ec023e2537de319814376b",
+    "run.py": "54a75208a483396312fb36aca3df9f95a6f8a28a049fe30b90212ee2d471c494",
+    "shell-test.sh": "0cfff0c759c181dc00c8a17674d515d64a69a87de9e703d9fe72853ae397a50c",
+    "shell-test.ps1": "7cd7f49bc641a4e5aea4d4feba654b198138d659b33b69f537b565f93c6a5002"
+  },
+  "network_isolated": false,
+  "build_profile": "dev (unoptimized)",
+  "results": [
+    {
+      "case": "activation-does-not-install",
+      "status": "passed",
+      "detail": "locked tool is not installed",
+      "seconds": 0.031
+    },
+    {
+      "case": "backend-version-resolution",
+      "status": "passed",
+      "detail": "22.14.0",
+      "seconds": 0.062
+    },
+    {
+      "case": "backend-metadata-to-oyzu-lock",
+      "status": "passed",
+      "detail": {
+        "format": 1,
+        "tool": [
+          {
+            "id": "core:node",
+            "request": "22",
+            "version": "22.14.0",
+            "backend_digest": "git:da0db43e9398b46bafa95232014708a51120e731",
+            "distribution": [
+              {
+                "platform": "macos-arm64",
+                "digest": "sha256:e9404633bc02a5162c5c573b1e2490f5fb44648345d64a958b17e325729a5e42",
+                "size": 47035396,
+                "source_id": "node-fixture",
+                "verification": "fixture-sha256",
+                "dependencies": []
+              }
+            ]
+          }
+        ]
+      },
+      "seconds": 0.097
+    },
+    {
+      "case": "real-backend-install-a",
+      "status": "passed",
+      "detail": {
+        "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+        "versions": [
+          "22.14.0"
+        ],
+        "paths": [
+          "/Users/runner/work/_temp/mise-fixtures/run-1790907071914652000/state/data/installs/node/22.14.0/bin"
+        ],
+        "platform": "macos-arm64",
+        "settings_mirror": "http://127.0.0.1:49194/ok/"
+      },
+      "seconds": 6.01
+    },
+    {
+      "case": "real-backend-install-b",
+      "status": "passed",
+      "detail": {
+        "upstream": "da0db43e9398b46bafa95232014708a51120e731",
+        "versions": [
+          "24.0.0"
+        ],
+        "paths": [
+          "/Users/runner/work/_temp/mise-fixtures/run-1790907071914652000/state/data/installs/node/24.0.0/bin"
+        ],
+        "platform": "macos-arm64",
+        "settings_mirror": "http://127.0.0.1:49194/ok/"
+      },
+      "seconds": 4.303
+    },
+    {
+      "case": "exec-22.14.0",
+      "status": "passed",
+      "detail": "v22.14.0",
+      "seconds": 0.052
+    },
+    {
+      "case": "exec-24.0.0",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.046
+    },
+    {
+      "case": "exec-arguments",
+      "status": "passed",
+      "detail": [
+        "a b",
+        "single'quote",
+        "double\"quote",
+        "$literal"
+      ],
+      "seconds": 0.096
+    },
+    {
+      "case": "exec-exit-status",
+      "status": "passed",
+      "detail": "",
+      "seconds": 0.062
+    },
+    {
+      "case": "non-utf8-environment-hook",
+      "status": "passed",
+      "detail": "hook emitted successfully",
+      "seconds": 0.032
+    },
+    {
+      "case": "ambient-mise-cannot-override-oyzu",
+      "status": "passed",
+      "detail": "v22.14.0:22",
+      "seconds": 0.088
+    },
+    {
+      "case": "nested-directory-selection",
+      "status": "passed",
+      "detail": "v22.14.0",
+      "seconds": 0.058
+    },
+    {
+      "case": "nested-project-overrides-parent",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.055
+    },
+    {
+      "case": "shell-bash",
+      "status": "passed",
+      "detail": "two independent shells: entry, switch, exit, PATH and user edits",
+      "seconds": 0.431
+    },
+    {
+      "case": "shell-zsh",
+      "status": "passed",
+      "detail": "two independent shells: entry, switch, exit, PATH and user edits",
+      "seconds": 0.498
+    },
+    {
+      "case": "cached-policy-denial",
+      "status": "passed",
+      "detail": "policy denies locked version",
+      "seconds": 0.031
+    },
+    {
+      "case": "acquisition-corrupt-denied",
+      "status": "passed",
+      "detail": "checksum mismatch",
+      "seconds": 0.107
+    },
+    {
+      "case": "acquisition-redirect-denied",
+      "status": "passed",
+      "detail": "route denied",
+      "seconds": 0.082
+    },
+    {
+      "case": "acquisition-missing-denied",
+      "status": "passed",
+      "detail": "precompiled node archive not found",
+      "seconds": 0.081
+    },
+    {
+      "case": "unavailable-proxy-denied",
+      "status": "passed",
+      "detail": "",
+      "seconds": 0.046
+    },
+    {
+      "case": "redirect-target-never-contacted",
+      "status": "passed",
+      "detail": false,
+      "seconds": 0.0
+    },
+    {
+      "case": "concurrent-install",
+      "status": "passed",
+      "detail": [
+        [
+          "22.14.0"
+        ],
+        [
+          "22.14.0"
+        ]
+      ],
+      "seconds": 4.653
+    },
+    {
+      "case": "active-version-independence",
+      "status": "passed",
+      "detail": "Node 22 stayed active while another invocation selected Node 24",
+      "seconds": 0.144
+    },
+    {
+      "case": "reshim",
+      "status": "passed",
+      "detail": "",
+      "seconds": 0.042
+    },
+    {
+      "case": "shim-without-activation",
+      "status": "passed",
+      "detail": "v24.0.0",
+      "seconds": 0.051
+    },
+    {
+      "case": "shim-arguments",
+      "status": "passed",
+      "detail": [
+        "a b",
+        "single'quote",
+        "double\"quote",
+        "$literal"
+      ],
+      "seconds": 0.098
+    },
+    {
+      "case": "shim-exit-status",
+      "status": "passed",
+      "detail": 37,
+      "seconds": 0.069
+    },
+    {
+      "case": "frozen-lock-and-file-ownership",
+      "status": "passed",
+      "detail": "Oyzu locks unchanged; no generated mise project files",
+      "seconds": 0.001
+    },
+    {
+      "case": "hook-timings",
+      "status": "passed",
+      "detail": {
+        "cold_mise_cache_ms": 25.37987499999872,
+        "first_ms": 32.27833299990834,
+        "repeated_p50_ms": 29.893270499997016,
+        "repeated_p95_ms": 39.42454200000611,
+        "scope": "empty mise cache then repeated hooks; fresh process per hook; OS filesystem caches not evicted; not an upstream performance comparison"
+      },
+      "seconds": 0.679
+    },
+    {
+      "case": "paired-in-process-benchmark",
+      "status": "passed",
+      "detail": {
+        "samples": 50,
+        "core_p50_us": 2208,
+        "core_p95_us": 5222,
+        "adapter_p50_us": 2554,
+        "adapter_p95_us": 5704,
+        "scope": "same process and installed toolchain: upstream environment/diff versus those calls plus Oyzu TOML/lock adapter; no standalone mise executable"
+      },
+      "seconds": 0.305
+    }
+  ],
+  "requests": [
+    "/ok/index.json",
+    "/ok/v22.14.0/SHASUMS256.txt",
+    "HEAD /ok/v22.14.0/node-v22.14.0-darwin-arm64.tar.gz",
+    "/ok/v22.14.0/node-v22.14.0-darwin-arm64.tar.gz",
+    "/ok/v24.0.0/node-v24.0.0-darwin-arm64.tar.gz",
+    "/corrupt/v22.14.0/node-v22.14.0-darwin-arm64.tar.gz",
+    "/redirect/v22.14.0/node-v22.14.0-darwin-arm64.tar.gz",
+    "/missing/v22.14.0/node-v22.14.0-darwin-arm64.tar.gz",
+    "/ok/v22.14.0/node-v22.14.0-darwin-arm64.tar.gz"
+  ],
+  "ci": {
+    "run": 36953659752,
+    "artifact": 11205018271,
+    "commit": "1fa895982a9a184c5c01cb8f83c8a1b871ac38ae",
+    "url": "https://github.com/micahlmartin/oyzu/actions/runs/36953659752"
+  }
+}

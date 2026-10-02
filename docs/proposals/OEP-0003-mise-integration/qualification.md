@@ -1,6 +1,7 @@
 # Expanded mise qualification
 
-Status: authorized work in progress; no new backend or enforcement claim yet.
+Status: authorized qualification in progress; measured outcomes below are not
+claims of shipping product support.
 This extends the completed [Node experiment](experiment.md) following the
 maintainer request to qualify broader backends, macOS and production broker/
 network enforcement. Existing passing results remain evidence for their original
@@ -129,8 +130,10 @@ The expanded Rust frontend and HTTP patch built and passed the experiment's
 Clippy/format checks on Linux (with the previously documented upstream
 `collapsible_match` lint exception). The [Linux Node regression](../../../tooling/mise-experiment/results/linux-expanded-core-regression.json)
 again passes all 31 cases. The [native Windows regression](../../../tooling/mise-experiment/results/windows-expanded-core-regression.json)
-passes all 28 existing cases against the expanded frontend. The macOS rerun is
-still in progress; its earlier result applies to the earlier recorded source.
+passes all 28 existing cases against the expanded frontend. The [expanded native macOS run](../../../tooling/mise-experiment/results/macos-expanded-core-regression.json)
+passes all 30 existing cases at commit `1fa895982a9a184c5c01cb8f83c8a1b871ac38ae`
+([CI run 36953659752](https://github.com/micahlmartin/oyzu/actions/runs/36953659752),
+artifact `11205018271`). Normalized harness hashes match that executed commit.
 
 ### Python provenance evidence
 
@@ -169,6 +172,76 @@ The [initial jq test](../../../tooling/mise-experiment/results/production-broker
 installed successfully but failed on an invalid test expression. Parenthesizing
 the arithmetic corrected the harness; no backend code was changed for that fix.
 
+### Scripted acquisition boundary
+
+The [real asdf plugin test](../../../tooling/mise-experiment/results/production-broker-asdf-denial.json)
+fetches the unchanged Go plugin at commit
+`a75b761963d8e6eda1a185c73476da8a75b8d300` through the production broker, verifies
+its recorded archive digest and preserves its MIT license. Mise invokes its real
+`bin/download` script. Curl exits with code 6 inside the offline worker; no Go
+archive request crosses the bridge, the lock remains unchanged and subsequent
+execution reports the tool is not installed.
+
+This is a **negative containment result**, not successful scripted acquisition.
+The plugin's hard-coded curl URL does not use mise's HTTP replacement setting.
+The asdf backend also explicitly declares that lockfile URLs do not apply to its
+scripted downloads. Successful corporate acquisition, binding downloaded bytes
+to the Oyzu lock digest, and recording the plugin identity inside the Oyzu lock
+remain open. The host fixture's separately pinned plugin does not prove those
+requirements.
+
+### Native npm backend and locked tool dependencies
+
+The [native npm run](../../../tooling/mise-experiment/results/production-broker-npm-linux.json)
+passes 24 cases, including Prettier 3.5.3 installed by mise's real npm backend and
+the native npm CLI from Node 22.14.0. Both tools appear in Oyzu TOML and
+`oyzu.lock`; the package distribution declares its dependency on `core:node`.
+The experimental adapter orders selected tools by those locked dependencies and
+passes the installed dependency toolset to upstream installation APIs.
+
+Npm's backend uses its checksum option rather than `PlatformInfo`'s download URL.
+The adapter supplies the digest from Oyzu's lock to that existing verifier. The
+registry bridge preserves upstream version/dependency/integrity declarations
+while adapting the tarball transport URL to its broker route. Evidence records
+both original and delivered metadata digests. No npm credential enters the
+worker and neither a mise configuration nor a mise lockfile is introduced.
+
+The [negative-check expansion](../../../tooling/mise-experiment/results/production-broker-npm-negative-linux.json)
+records npm 10.9.2, frozen Node/Prettier execution without acquisition, rejection
+of missing and cyclic tool dependencies, and a real checksum mismatch rejected
+before package installation. The [Linux dependency-adapter regression](../../../tooling/mise-experiment/results/linux-dependency-regression.json)
+passes all 34 then-current cases. Prettier has no transitive npm package
+dependencies: this does not qualify arbitrary npm graphs, lifecycle downloads,
+scoped registries or other native package managers. Multi-tool locks in this case
+come from independently provisioned metadata; automatic multi-tool lock creation
+is not implemented by the spike.
+
+### Platform edge cases
+
+The [Linux edge run](../../../tooling/mise-experiment/results/linux-platform-edges.json)
+passes 34 cases, adding empty/Unicode/trailing-backslash/metacharacter arguments
+and project directories containing spaces and Unicode. Direct execution also
+preserves a newline argument. The [Windows edge run](../../../tooling/mise-experiment/results/windows-platform-edges-initial.json)
+passes 30 of 31 cases: direct execution and unusual project paths pass, but the
+generated `.cmd` shim drops `^` and `!` from one argument. This failure is retained;
+the earlier narrow shim result must not be read as general argument fidelity.
+The [native hardlink-mode run](../../../tooling/mise-experiment/results/windows-hardlink-platform-edges.json)
+passes all 31 Windows cases, including the argument that the `.cmd` shim changed.
+The experiment selects upstream's existing hardlink mode; it does not introduce
+a replacement parser or invoke a separate mise executable. That mode requires a
+compatible same-volume layout and is not a qualified cross-volume or frontend
+upgrade solution. The additional edge cases still require native macOS execution.
+
+The [Linux lifecycle run](../../../tooling/mise-experiment/results/linux-lifecycle.json)
+passes 36 cases, including selection through a symlink and termination of the
+executing tool when the frontend PID is terminated. The [Windows lifecycle run](../../../tooling/mise-experiment/results/windows-lifecycle-initial.json)
+passes 32 of 33 cases in hardlink mode: junction-based selection passes, but
+terminating the frontend leaves its Node child running. A continuing heartbeat
+proves the child survived; the harness then terminates that fixture child.
+The prototype's Windows `Command::status` path therefore does not yet provide
+process-tree cleanup. This is separate from the production Docker executor's
+worker isolation and must not be described as qualified native cancellation.
+
 ### Outbound-path inventory started
 
 Pinned-source inspection already shows why additional backends need independent
@@ -181,4 +254,4 @@ qualification rather than inheriting the Node result:
 | Core Python | Precompiled installation has lock-integrity and provenance-verification branches | Genuine and invalid attestations exercised through the broker; version discovery remains open |
 | Aqua registry | Registry is baked into the pinned source from `aquaproj/aqua-registry` commit `de88b84179743a8f44ad9f279a9dc4522e25f371`; locked asset names are checked against that registry | Real jq acquisition and frozen execution pass; other verification modes remain open |
 | Script/plugin backend | `asdf-community/asdf-golang` at `a75b761963d8e6eda1a185c73476da8a75b8d300` invokes curl against a hard-coded HTTPS archive/checksum URL; mise's asdf backend explicitly delegates downloads to scripts | Pin plugin code separately; test native-client containment and binding to the Oyzu distribution digest |
-| Native package-manager backend | Pending inventory | Capture dependency resolution and lifecycle downloads through approved routes |
+| Native package-manager backend | Explicit native npm mode uses Node/npm from the locked dependency toolset; checksum is a backend option, not a locked URL | Prettier install, execution and bad-digest rejection pass; arbitrary package graphs and lifecycle downloads remain unqualified |
