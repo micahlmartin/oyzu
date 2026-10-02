@@ -24,3 +24,5 @@ Image variants retain their own platform identities even if their content digest
 Negative cases cover overlapping paths, escaping symlinks, ignored explicit inputs, and a producer becoming platform-dependent. Supporting commands are `node --test` and `node build.mjs` from project/frontend. Native success does not validate Oyzu materialization.
 
 Acceptance: PLAN-07, PLAN-08, BUILDER-07. See [scenario.json](scenario.json) and the [shared contract](../../MATERIALIZATION.md). Implementation remains pending.
+
+The engine now has [directory integrity and copying support](../../../docs/reference/directory-artifacts.md). This does not complete this example: native frontend output selection, evidence of platform independence and the two-platform image matrix still need integration and actual build acceptance. The authored project and its expected outcomes remain unchanged.

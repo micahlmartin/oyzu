@@ -1,5 +1,5 @@
 //! Execute a resolved plan and collect outcome records without ecosystem dispatch.
-use super::{bundle::capture_output, collection, materialization};
+use super::{bundle::capture_output, collection, directory, materialization};
 use crate::{builders, dependencies, executor, records, snapshot};
 use anyhow::{bail, Context, Result};
 use serde_json::{json, Value};
@@ -237,6 +237,9 @@ pub(super) fn execute_plan(
                     .filter(|v| v["producer"] == id)
                 {
                     let capture = (|| -> Result<Value> {
+                        if intent["kind"] == "directory" {
+                            return directory::capture(&outputs[target], bundle, intent);
+                        }
                         let path = intent["path"].as_str().context("missing artifact path")?;
                         let file = capture_output(&outputs[target], bundle, path)?;
                         let mut artifact = intent.clone();

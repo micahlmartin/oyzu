@@ -33,6 +33,8 @@ Configuration enforcement admits both captured builds and development task seque
 
 Build planning owns action dependency edges: actions that mutate one target workspace remain sequenced, explicit target dependencies wait for the producer's final action, and materialization retains its producer edges. Unrelated targets do not acquire ordering edges merely because their records are adjacent. `build/scheduling` owns bounded ready-action admission and worker batches; `build/execution` owns private target workspaces/output roots and ordered collection. A deferred report failure also fails its collection boundary before dependent actions are admitted. Plans freeze the smallest root/target jobs ceiling, and execution never rereads settings.
 
+`build/directory` owns directory artifact inventories and integrity checks used by collection, bundle inspection and materialization. `snapshot` owns their shared bounded tree traversal/identity, with a read-only inventory operation that applies the same rules as copying. Artifact traversal never applies source exclusions. Native output selection remains a builder responsibility; directory content alone does not establish platform independence.
+
 Existing broad public modules, dynamic records and partially combined responsibilities are migration work, not a pattern to copy blindly. Improve the relevant boundary with the feature being changed; preserve observable behavior and avoid unrelated repository-wide rewrites.
 
 ## Interfaces that earn their place

@@ -133,6 +133,10 @@ pub fn inspect(root: &Path) -> Result<Value> {
             .as_array()
             .context("missing bundle records")?
         {
+            if field == "artifacts" && item["kind"] == "directory" {
+                super::directory::verify(root, item)?;
+                continue;
+            }
             if field == "artifacts"
                 && matches!(item["kind"].as_str(), Some("oci-image" | "oci-index"))
                 && item["path"].as_str().is_none()

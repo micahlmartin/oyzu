@@ -41,7 +41,25 @@ def validate(bundle):
         records[name] = value
     for artifact in records["manifest"]["artifacts"] + records["manifest"]["reports"]:
         if "path" in artifact:
-            assert digest(bundle / artifact["path"]) == artifact["digest"]
+            path = bundle / artifact['path']
+            if artifact.get('kind') == 'directory':
+                entries = artifact['entries']
+                assert [e['path'] for e in entries] == sorted(p.relative_to(path).as_posix() for p in path.rglob('*'))
+                for entry in entries:
+                    member = path/entry['path']
+                    assert not member.is_symlink()
+                    if entry['kind'] == 'file':
+                        assert member.is_file() and digest(member) == entry['digest']
+                        assert member.stat().st_size == entry['size']
+                    else:
+                        assert member.is_dir() and entry['size'] == 0
+                # Entry keys are ASCII and numbers are bounded integers; this
+                # encoding matches JCS for this deliberately narrow record.
+                encoded = json.dumps(entries, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
+                assert 'sha256:'+hashlib.sha256(b'oyzu.tree.v1alpha1\0'+encoded).hexdigest() == artifact['digest']
+                assert sum(e['size'] for e in entries) == artifact['size']
+            else:
+                assert digest(path) == artifact["digest"]
     return records["manifest"]
 SUITES = ('core', 'node', 'python', 'go', 'rust', 'java', 'helm', 'docker')
 # Registration retains the existing full-run order. A suite is only a selection

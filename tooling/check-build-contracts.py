@@ -107,6 +107,15 @@ def semantics(kind, value):
             if artifact["target"] not in targets or producer is None or producer["target"] != artifact["target"]:
                 errors.add("references")
             portable(artifact["path"])
+            if kind == 'manifest' and artifact['kind'] == 'directory':
+                entries = artifact['entries']
+                names = [entry['path'] for entry in entries]
+                if names != sorted(names) or len({name.casefold() for name in names}) != len(names):
+                    errors.add('paths')
+                for entry in entries:
+                    portable(entry['path'])
+                if sum(entry['size'] for entry in entries) != artifact['size']:
+                    errors.add('artifacts')
             if artifact["path"].casefold() in paths:
                 errors.add("paths")
             paths.add(artifact["path"].casefold())

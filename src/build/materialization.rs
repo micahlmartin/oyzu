@@ -85,8 +85,8 @@ pub(super) fn plan(
                     format!("{} requires an explicit artifact selection", mapping.from)
                 })?
         };
-        if artifact["kind"] != "file" {
-            bail!("materialization requires a supported file artifact");
+        if !matches!(artifact["kind"].as_str(), Some("file" | "directory")) {
+            bail!("materialization requires a supported file or directory artifact");
         }
         let producer_platform = images
             .get(&mapping.from)
@@ -124,17 +124,23 @@ pub(super) fn apply(
         {
             bail!("materialization producer did not succeed");
         }
-        let source = safe_file(
-            bundle,
-            artifact["path"]
-                .as_str()
-                .context("missing producer artifact path")?,
-        )?;
+        let is_directory = artifact["kind"] == "directory";
+        let source = if is_directory {
+            super::directory::verify(bundle, artifact)?
+        } else {
+            safe_file(
+                bundle,
+                artifact["path"]
+                    .as_str()
+                    .context("missing producer artifact path")?,
+            )?
+        };
         let expected = artifact["digest"]
             .as_str()
             .context("missing producer artifact digest")?;
-        if snapshot::file_digest(&source)? != expected
-            || Some(fs::metadata(&source)?.len()) != artifact["size"].as_u64()
+        if !is_directory
+            && (snapshot::file_digest(&source)? != expected
+                || Some(fs::metadata(&source)?.len()) != artifact["size"].as_u64())
         {
             bail!("materialization producer artifact failed integrity verification");
         }
@@ -158,18 +164,22 @@ pub(super) fn apply(
             }
         }
         destination.push(parts.last().unwrap());
-        let mut incoming = fs::File::open(&source)?;
-        let mut output = fs::OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&destination)?;
-        std::io::copy(&mut incoming, &mut output)?;
-        output.flush()?;
-        output.sync_all()?;
-        if snapshot::file_digest(&destination)? != expected {
-            bail!("materialized artifact changed while copying");
+        if is_directory {
+            super::directory::copy(&source, &destination, artifact)?;
+        } else {
+            let mut incoming = fs::File::open(&source)?;
+            let mut output = fs::OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&destination)?;
+            std::io::copy(&mut incoming, &mut output)?;
+            output.flush()?;
+            output.sync_all()?;
+            if snapshot::file_digest(&destination)? != expected {
+                bail!("materialized artifact changed while copying");
+            }
+            fs::set_permissions(&destination, incoming.metadata()?.permissions())?;
         }
-        fs::set_permissions(&destination, incoming.metadata()?.permissions())?;
         receipts.push(json!({"artifact":input["artifact"],"producer":input["producer"],"path":relative,"digest":expected,"size":artifact["size"]}));
     }
     Ok(receipts)
@@ -246,6 +256,58 @@ mod tests {
             reference_reports(&mut receipts, bundle.path(), &artifacts, &actions, &reports)
                 .is_err()
         );
+    }
+
+    #[test]
+    fn directory_copies_are_flat_complete_independent_and_verified() {
+        let out = tempfile::tempdir().unwrap();
+        let bundle = tempfile::tempdir().unwrap();
+        let workspace = tempfile::tempdir().unwrap();
+        fs::create_dir_all(out.path().join("site/assets/empty")).unwrap();
+        fs::write(out.path().join("site/index.html"), "hello").unwrap();
+        let artifact = super::super::directory::capture(out.path(), bundle.path(), &json!({
+            "id":"frontend/primary", "producer":"frontend:package", "kind":"directory", "path":"site"
+        })).unwrap();
+        let actions = vec![json!({"id":"frontend:package","status":"succeeded"})];
+        let inputs = vec![
+            json!({"kind":"artifact","artifact":"frontend/primary","producer":"frontend:package","mount":"context/site"}),
+        ];
+        let artifacts = vec![artifact];
+        let receipts = apply(
+            workspace.path(),
+            bundle.path(),
+            &inputs,
+            &artifacts,
+            &actions,
+        )
+        .unwrap();
+        assert_eq!(receipts[0]["digest"], artifacts[0]["digest"]);
+        assert_eq!(
+            fs::read(workspace.path().join("context/site/index.html")).unwrap(),
+            b"hello"
+        );
+        assert!(workspace.path().join("context/site/assets/empty").is_dir());
+        assert!(!workspace.path().join("context/site/site").exists());
+        assert!(apply(
+            workspace.path(),
+            bundle.path(),
+            &inputs,
+            &artifacts,
+            &actions
+        )
+        .is_err());
+        fs::write(
+            workspace.path().join("context/site/index.html"),
+            "consumer changed",
+        )
+        .unwrap();
+        super::super::directory::verify(bundle.path(), &artifacts[0]).unwrap();
+        let other = tempfile::tempdir().unwrap();
+        let failed = vec![json!({"id":"frontend:package","status":"failed"})];
+        assert!(apply(other.path(), bundle.path(), &inputs, &artifacts, &failed).is_err());
+        fs::write(bundle.path().join("site/extra"), "not recorded").unwrap();
+        assert!(apply(other.path(), bundle.path(), &inputs, &artifacts, &actions).is_err());
+        assert!(!other.path().join("context").exists());
     }
 
     #[test]

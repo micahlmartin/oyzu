@@ -257,6 +257,13 @@
         "ociDigest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "entries": {
+          "type": "array",
+          "maxItems": 100000,
+          "items": {
+            "$ref": "#/$defs/treeEntry"
+          }
         }
       },
       "required": [
@@ -272,6 +279,30 @@
         "digest",
         "size"
       ],
+      "if": {"properties": {"kind": {"const": "directory"}}},
+      "then": {"required": ["entries"]},
+      "else": {"not": {"required": ["entries"]}},
+      "additionalProperties": false
+    },
+    "treeEntry": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*[\\\\:])[^\\x00-\\x1f]+$"
+        },
+        "kind": {"enum": ["file", "directory"]},
+        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "size": {"type": "integer", "minimum": 0, "maximum": 10737418240},
+        "executable": {"type": "boolean"}
+      },
+      "required": ["path", "kind", "size", "executable"],
+      "if": {"properties": {"kind": {"const": "file"}}},
+      "then": {"required": ["digest"]},
+      "else": {
+        "not": {"required": ["digest"]},
+        "properties": {"size": {"const": 0}, "executable": {"const": false}}
+      },
       "additionalProperties": false
     },
     "diagnostic": {

@@ -91,6 +91,59 @@ fn inspector_rejects_modified_artifact_and_path_escape() {
 }
 
 #[test]
+fn inspector_verifies_directory_inventory_without_modifying_the_bundle() {
+    let root = tempfile::tempdir().unwrap();
+    let output = tempfile::tempdir().unwrap();
+    fs::write(output.path().join("index.html"), "hello").unwrap();
+    fs::create_dir(output.path().join("empty")).unwrap();
+    let tree = snapshot::capture(output.path(), &root.path().join("site")).unwrap();
+    records::write(&root.path().join("envelope.json"), &json!({})).unwrap();
+    let mut manifest = json!({"kind":"build-manifest","status":"failed","planPath":null,
+        "envelopePath":"envelope.json","envelopeDigest":snapshot::file_digest(&root.path().join("envelope.json")).unwrap(),
+        "artifacts":[{"kind":"directory","path":"site","size":5,"digest":tree.digest,"entries":tree.entries}],"reports":[]});
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert_eq!(build::inspect(root.path()).unwrap(), manifest);
+    let inspected = std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("inspect")
+        .arg(root.path())
+        .output()
+        .unwrap();
+    assert!(
+        inspected.status.success(),
+        "{}",
+        String::from_utf8_lossy(&inspected.stderr)
+    );
+    assert_eq!(
+        serde_json::from_slice::<Value>(&inspected.stdout).unwrap(),
+        manifest
+    );
+    assert_eq!(
+        fs::read(root.path().join("site/index.html")).unwrap(),
+        b"hello"
+    );
+    manifest["artifacts"][0]["size"] = json!(6);
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert!(build::inspect(root.path()).is_err());
+    manifest["artifacts"][0]["size"] = json!(5);
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    fs::write(root.path().join("site/new.html"), "extra").unwrap();
+    assert!(build::inspect(root.path()).is_err());
+    assert!(!std::process::Command::new(env!("CARGO_BIN_EXE_oyzu"))
+        .arg("inspect")
+        .arg(root.path())
+        .output()
+        .unwrap()
+        .status
+        .success());
+    fs::remove_file(root.path().join("site/new.html")).unwrap();
+    fs::remove_dir(root.path().join("site/empty")).unwrap();
+    assert!(build::inspect(root.path()).is_err());
+    manifest["artifacts"][0]["path"] = json!("../site");
+    records::write(&root.path().join("manifest.json"), &manifest).unwrap();
+    assert!(build::inspect(root.path()).is_err());
+}
+
+#[test]
 fn semantic_digest_canonicalizes_unicode_property_order() {
     let value = json!({"\u{e000}":1,"\u{10000}":2});
     let bytes = serde_json_canonicalizer::to_string(&value).unwrap();
