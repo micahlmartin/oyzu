@@ -27,7 +27,10 @@ pub(crate) trait Builder: Sync {
     fn detect(&self, path: &Path) -> Option<&'static str>;
     fn discover(&self, target: &mut Target) -> Result<()>;
 
-    /// Whether dependency preparation may contact an upstream broker.
+    /// Whether public broker acquisition is unavoidable for this builder.
+    /// False admits offline preparation only; conditional package providers
+    /// must enforce configuration again before any broker access. It does not
+    /// grant network authority (see dependencies::context).
     fn acquisition_requires_network(&self) -> bool {
         true
     }
@@ -61,6 +64,14 @@ pub(crate) trait Builder: Sync {
 
     fn prepare(&self, _context: PreparationContext<'_>) -> Result<Option<Prepared>> {
         Ok(None)
+    }
+
+    /// Offline stores this ecosystem can prepare for another builder. Providers
+    /// own native resolution/layout; shared composition owns policy admission.
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        &[]
     }
 
     /// Admit an artifact target before preparation. The default requires native
@@ -144,6 +155,8 @@ pub(crate) struct PreparationContext<'a> {
     /// The admitted owner's immutable snapshot. Adapters may consume registered
     /// values but must never resolve sources or recompute defaults here.
     pub configuration: &'a crate::config::resolve::EffectiveConfig,
+    /// Optional provider selector from the frozen target inventory, not TOML.
+    pub dependency_selector: Option<&'a str>,
     pub target: &'a Target,
     pub destination: &'a Path,
     pub image: &'a Image,

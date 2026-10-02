@@ -162,6 +162,11 @@ pub fn run_selected_with_options(
                 )?;
                 if let Some(prepared) = builder.prepare(builders::PreparationContext {
                     configuration: workspace.target_configuration(&id)?,
+                    dependency_selector: workspace
+                        .declarations
+                        .targets
+                        .get(&id)
+                        .and_then(|d| d.dependencies.as_deref()),
                     target,
                     destination: &destination,
                     image: &resolved[&id],

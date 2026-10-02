@@ -8,6 +8,7 @@ mod toolchains;
 mod validation;
 mod worker;
 use anyhow::{bail, Context, Result};
+pub(crate) use dependency_context::DependencyContext;
 pub(crate) use images::export_image;
 pub(crate) use mode::{ImageInput, Mode, Profile, BUILDKIT_SOURCE_DATE_EPOCH};
 pub(crate) use recipe::{Base as ImageBase, Copy as ImageCopy, Recipe as ImageRecipe};

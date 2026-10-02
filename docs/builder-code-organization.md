@@ -8,6 +8,8 @@ Provisioned base-image capture and its native converter live under `dependencies
 
 `PreparationContext.configuration` is a required reference to the owner's resolved snapshot. Consume registered settings from that snapshot before effects; do not reread TOML/environment inputs or recompute setting defaults. Missing build snapshots fail at the composition boundary, including inferred projects that have no configuration files. Defaults are established once by configuration resolution.
 
+Builders may register native offline-store providers through `dependency_providers`. The consumer is shared `dependencies/context` composition; Docker does not import Python internals. Providers define a native manifest match, required tools, preparation operation and relative store directory. Python's first pip provider reuses wheel resolution and inventory while excluding build/test/quality roots. Unsupported ecosystems still participate in ambiguity detection, and explicit selection never bypasses policy or runtime checks. This is an internal contract, not a public plugin ABI or a promise of all-manager integration.
+
 This describes the current Rust implementation structure. The behavioral design remains in [OEP-0014](proposals/OEP-0014-builders-and-examples/implementation.md), with acquisition in [OEP-0017](proposals/OEP-0017-dependency-acquisition/README.md). This refactor does not make unimplemented builder profiles complete; see [implementation status](implementation-status.md).
 
 ## Ownership

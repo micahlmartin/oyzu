@@ -19,6 +19,8 @@ impl Builder for Docker {
         configuration::register(registry)
     }
     fn acquisition_requires_network(&self) -> bool {
+        // Captured bases are local. Optional package stores are separately
+        // admitted by dependencies::context before their broker is started.
         false
     }
     fn executor_profile(&self) -> crate::executor::Profile {

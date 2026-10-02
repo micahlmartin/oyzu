@@ -52,18 +52,49 @@ pub(super) fn prepare(context: PreparationContext<'_>) -> Result<Prepared> {
         },
         &metadata.image_references()?,
     )?;
+    let dependency_context = if let Some(base) = metadata.dependency_base()? {
+        let captured_base = images
+            .iter()
+            .find(|image| image.reference == base)
+            .context("missing captured dependency consumer base")?;
+        // Resolve the already captured immutable config, never a tag that may
+        // have changed since base acquisition. Retain the requested name as evidence.
+        let mut runtime = executor::resolve_for(&captured_base.config, executor::Profile::Process)?;
+        runtime.reference = base.clone();
+        let captured = crate::dependencies::context::prepare(&context, &runtime)?;
+        captured.validate(
+            &base,
+            &images,
+            context.target_platform,
+            context.source_digest,
+        )?;
+        Some(captured)
+    } else {
+        if context.dependency_selector.is_some() {
+            bail!(
+                "dependencies selector requires an external Dockerfile context named dependencies"
+            );
+        }
+        None
+    };
     // Host provisioning is explicit, and the selected boundary is part of the
     // prepared record/plan. Never change host security settings during a build.
     let tree = snapshot::capture_prepared(context.destination, &control.path().join("frozen"))?;
     let version = fs::read_to_string(context.destination.join("manager-version.txt"))?;
     let platform = json!({"os":context.image.os,"arch":context.image.arch});
-    let record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
+    let mut record = json!({"schemaVersion":"v1alpha1","kind":"dependency-snapshot",
         "adapter":{"id":"docker/local-context","digest":snapshot::file_digest(&std::env::current_exe()?)?,"layoutVersion":"5"},
         "manager":{"id":"buildkit","version":version.trim(),"digest":context.image.digest,"platform":platform},
         "sourceDigest":context.source_digest,"lockDigests":[],"targetPlatform":context.target_platform,"packages":[],"preparedTree":tree.digest,
         "extensions":{"oyzu.dev/docker":{"metadata":metadata,"images":images,"imageSource":"provisioned-daemon","apparmorProfile":apparmor,"dockerfileDigest":snapshot::file_digest(&context.target.path.join("Dockerfile"))?,
             "quality":{"hadolint":fs::read_to_string(context.destination.join("linter-version.txt"))?.trim(),
                 "dockerfmt":fs::read_to_string(context.destination.join("formatter-version.txt"))?.trim()}}}});
+    if let Some(captured) = dependency_context {
+        record["packages"] = captured.snapshot["packages"].clone();
+        record["lockDigests"] = captured.snapshot["lockDigests"].clone();
+        record["extensions"]["oyzu.dev/docker"]["dependencyContext"] =
+            serde_json::to_value(captured)?;
+    }
     Ok(Prepared {
         root: context.destination.into(),
         digest: records::digest("oyzu.dependencies.v1alpha1", &record)?,

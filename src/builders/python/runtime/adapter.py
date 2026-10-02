@@ -30,9 +30,9 @@ def project():
     return tomllib.loads(path.read_text()) if path.exists() else {}
 
 
-def requirement_lines(locked=()):
+def requirement_lines(locked=(), runtime_only=False):
     """Keep native requirement constraints/hashes; disallow source-route overrides."""
-    data = project()
+    data = {} if runtime_only else project()
     from pip._vendor.packaging.requirements import Requirement
     inputs = []
     purposes = {}
@@ -46,7 +46,7 @@ def requirement_lines(locked=()):
             purposes[name] = purpose
     for item in data.get('project',{}).get('dependencies',[]):
         add(item,'runtime')
-    package_project = Path('pyproject.toml').exists() or Path('setup.py').exists() or Path('setup.cfg').exists()
+    package_project = not runtime_only and (Path('pyproject.toml').exists() or Path('setup.py').exists() or Path('setup.cfg').exists())
     for item in data.get('build-system',{}).get('requires',['setuptools==80.9.0','wheel==0.45.1'] if package_project else []):
         add(item,'build')
     # Native pytest discovers tests at execution, including configured/root paths.
@@ -70,12 +70,12 @@ def requirement_lines(locked=()):
             add(declaration,'runtime')
         # Native pip independently validates source-owned hashes in a second pass.
     locked_names = {re.sub(r'[-_.]+', '-', Requirement(item).name).lower() for item in locked}
-    for item in defaults:
+    for item in ([] if runtime_only else defaults):
         name = re.sub(r'[-_.]+', '-', Requirement(item).name).lower()
         if name not in purposes and name not in locked_names:
             add(item, 'test' if name.startswith('pytest') else 'build')
     quality = {'ruff': '0.11.13', 'black': '25.1.0', 'flake8': '7.3.0'}
-    selected = {os.environ.get('OYZU_PYTHON_LINTER', 'ruff'), os.environ.get('OYZU_PYTHON_FORMATTER', 'ruff')}
+    selected = set() if runtime_only else {os.environ.get('OYZU_PYTHON_LINTER', 'ruff'), os.environ.get('OYZU_PYTHON_FORMATTER', 'ruff')}
     if not selected <= quality.keys():
         raise ValueError('Unsupported Python quality tool selection')
     for name in sorted(selected):
@@ -169,7 +169,7 @@ def locked_export(manager, destination):
         Exporter(poetry,NullIO()).only_groups(groups).with_urls(False).export('requirements.txt',destination.parent,destination.name)
 
 
-def acquire():
+def acquire(runtime_only=False):
     manager=os.environ.get('OYZU_PYTHON_MANAGER','pip')
     constraint_args=[]
     constraints=[]
@@ -188,7 +188,7 @@ def acquire():
             constraints.append(declaration)
         Path('/out/constraints.txt').write_text('\n'.join(constraints)+'\n')
         constraint_args=['-c','/out/constraints.txt']
-    requirements,purposes=requirement_lines(constraints)
+    requirements,purposes=requirement_lines(constraints, runtime_only=runtime_only)
     # Include native groups, including legacy Poetry requirements, as roots.
     requirements.extend(constraints)
     server=ThreadingHTTPServer(('127.0.0.1',0),Bridge)
@@ -198,7 +198,8 @@ def acquire():
     # The bridge waits up to 55s for the broker (whose upstream timeout is 45s).
     # pip's 15s default otherwise abandons healthy in-flight work and queues retries.
     args=[sys.executable,'-I','-m','pip','--isolated','download','--timeout','120','--retries','2','--only-binary=:all:','--no-cache-dir','--disable-pip-version-check','--dest','/out/wheels','--index-url',index,'--trusted-host','127.0.0.1']
-    run(args+constraint_args+requirements)
+    if requirements:
+        run(args+constraint_args+requirements)
     if manager in {'uv','poetry'}:
         run(args+['--no-deps','--require-hashes','-r',str(export)])
     if Path('requirements.txt').exists():
@@ -358,6 +359,8 @@ def package():
 if __name__=='__main__':
     if sys.argv[1]=='acquire':
         acquire()
+    elif sys.argv[1]=='acquire-runtime':
+        acquire(runtime_only=True)
     elif sys.argv[1]=='prepare':
         prepare()
     elif sys.argv[1]=='build':

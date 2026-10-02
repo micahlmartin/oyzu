@@ -15,6 +15,7 @@ import time
 
 from jsonschema import Draft202012Validator, FormatChecker
 from build_scenarios import baselines, ant, concurrency, docker, go, gradle, helm, jest, materialization, maven, mocha, node, node_application, node_managers, node_matrix, node_preflight, node_quality, node_workspaces, python_application, python_container, python_legacy, python_quality, python_testing, rust, vitest
+from build_scenarios import docker_dependencies
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -79,6 +80,7 @@ CASES = (
     ('go', 'go', go.verify),
     ('core', 'materialization', materialization.verify),
     ('docker', 'docker', docker.verify),
+    ('docker', 'docker-dependencies', docker_dependencies.verify),
     ('docker', 'node-application', node_application.verify),
     ('java', 'maven', maven.verify),
     ('java', 'gradle', gradle.verify),

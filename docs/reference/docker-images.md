@@ -108,4 +108,42 @@ Provisioned image capture is shared through `dependencies/images`; Dockerfile pa
 The first application `container: true` integration is [Python application packaging](python-containers.md), whose default and override profiles passed Linux CI. It uses the internal [typed assembly boundary](../container-assembly.md) and shared captured-base acquisition. Additional runtime profiles, application-container matrices and startup smoke tests remain unfinished. Existing Dockerfile builds continue to use their captured source definition. The worker verifies the bytes actually staged for BuildKit against the planned digest, so a definition changed during copying is rejected rather than executed.
 
 
-The executor has an internal [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport), with native conformance verified in Linux CI. The Docker builder does not yet bind package-manager stores to it. `dependencies` acquisition and automatic named-context discovery remain unsupported; the executor work must not be interpreted as working EX-058 package installation or credential-policy integration.
+The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The first Docker package-manager integration is the experimental pip profile below; its end-to-end native CI result is pending. Other managers, private sources and full EX-058 credential-policy acceptance remain unfinished.
+
+## Offline pip dependency context (experimental)
+
+For a Docker target, an external context named `dependencies` requests a prepared package store. With a single Python ecosystem and `requirements.txt`, no dependency selector is needed. Select the Docker builder explicitly when the project also looks like an application:
+
+```yaml
+image:
+  uses: docker/image
+```
+
+```dockerfile
+FROM python:3.13-slim-bookworm
+WORKDIR /app
+COPY requirements.txt .
+RUN --mount=type=bind,from=dependencies,target=/dependencies pip install --no-index --no-cache-dir --no-compile --find-links=/dependencies -r requirements.txt
+COPY app.py .
+CMD ["python", "app.py"]
+```
+
+Supply application files with the Dockerfile's ordinary COPY instructions. `--no-compile` avoids installation-time bytecode timestamps in this example; arbitrary Dockerfile commands are not automatically made reproducible. A requirements entry such as `six==1.17.0` is resolved by pip inside the exact provisioned base image, using that image's Python, pip, ABI and platform. Preparation downloads binary wheels through Oyzu's scoped public-PyPI broker. It does not add application-build, test or quality tools to this runtime store. No project code or source build runs during resolution. The subsequent Docker build remains offline and installs from the captured store; Oyzu does not rewrite RUN commands.
+
+When other ecosystem manifests make automatic selection ambiguous, the finite override is:
+
+```yaml
+image:
+  uses: docker/image
+  dependencies: python/pip
+```
+
+This field is frozen build inventory, not an additional TOML precedence layer. The only implemented provider is currently `python/pip`, consuming `requirements.txt`. Unknown providers and missing native manifests fail explicitly. A selector without an external `dependencies` reference also fails. A Dockerfile stage actually named `dependencies` remains a native stage, not a package-store request. Other external names retain image-reference behavior.
+
+The base image must already exist locally and provide Python 3.11 or later with pip; the first native fixture uses Python 3.13. The worker and artifact platform must match for package preparation, even for a Dockerfile that only copies store files. Consumers using earlier named stages resolve to their original base. Multiple distinct consuming bases, `scratch` consumers and incompatible platforms fail rather than sharing an unchecked closure. Preparation resolves the already-captured immutable base config, not a tag that may have moved. Commands that subsequently change the interpreter or libraries in a stage remain the Dockerfile author's responsibility; the initial runtime binding does not prove compatibility after arbitrary stage mutations.
+
+The prepared dependency record retains wheel identities, digests, source/lock identities, actual interpreter version, pip version, immutable runtime config and a separate store-tree digest. Only the wheel subtree enters BuildKit's private named context; broker/control state stays outside it. The context is read-only by default for the shown native bind mount. Build output remains the normal versioned OCI archive with integrity/platform JUnit and Docker quality gates. Integrity evidence is not a release authorization or proof that a package's contents are trustworthy.
+
+The initial profile uses the existing public PyPI and Python-hosted-files routes. Direct URL requirements, alternate-index directives and source distributions are rejected. Native requirement constraints/hashes retain their existing pip validation. This preparation needs upstream availability; there is no persistent offline acquisition cache yet. Managed acquisition and enforced connector routes fail closed until approved connector bindings exist. No registry token is supplied to the image, build arguments or Dockerfile. This does not yet implement the private-registry canary and all-manager credential requirements of EX-058. Remote syntax frontends and secret mounts remain unsupported by the captured Docker profile.
+
+On failure, inspect the retained diagnostic and native logs, correct the manifest/provider or provisioned runtime, and start a new build. Preparation failures produce no action artifacts; failed offline RUN commands block packaging. The Linux Docker CI group provisions Python 3.13 and exercises native resolution/install/import, exact package/runtime evidence, versioned output, repeatability, implicit tasks, ambiguity/explicit selection and forbidden build-time network fetching. Its first native result remains pending; unit and adapter tests are narrower evidence.

@@ -40,6 +40,7 @@ if [[ "$mode" == provision ]]; then
     docker build --tag oyzu-toolchain/go:1.24-mod0.25.0 --file tooling/images/go.Dockerfile .
   fi
   if selected docker; then
+    docker pull python:3.13-slim-bookworm
     # The CI runner provisions binfmt/QEMU separately. These distinct tags keep
     # the native default images intact in both classic and containerd stores.
     docker build --platform linux/arm64 --tag oyzu-toolchain/go:1.24-mod0.25.0-linux-arm64 --file tooling/images/go.Dockerfile .

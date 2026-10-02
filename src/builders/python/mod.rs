@@ -1,5 +1,6 @@
 mod acquisition;
 mod application;
+mod dependency_context;
 mod detection;
 mod discovery;
 mod distribution_app;
@@ -52,6 +53,11 @@ impl Builder for Python {
     }
     fn prepare(&self, context: PreparationContext<'_>) -> Result<Option<Prepared>> {
         acquisition::prepare(context).map(Some)
+    }
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        &[&dependency_context::Pip]
     }
     fn plan(&self, context: PlanningContext<'_>) -> Result<BuilderPlan> {
         planning::plan(context)
