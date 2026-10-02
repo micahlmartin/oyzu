@@ -1064,6 +1064,51 @@ The test watchdog bounds the test harness, not production I/O. macOS uses the
 Unix implementation but native verification of this increment remains pending.
 Cross-process inheritance and same-binary worker dispatch are still unimplemented.
 
+### Interruptible native control I/O
+
+`NativeToolWorkerIo::new(endpoint)` takes ownership of one private native endpoint
+and wraps the existing shared framing budget. This experimental supervisor API
+provides one dedicated read thread and one dedicated write thread at most, with
+no frame queue. `start_receive()` and `start_send(owned_bytes)` begin a frame;
+`try_receive()` returns `None` while its read is pending and `try_send()` returns
+`false` while its write is pending. Completed operations are joined before results
+are returned. Another send can therefore deliver a cancel while a response read
+is blocked. A second start in the same direction before collecting completion
+fails with `TOOL_WORKER_IO_PENDING`; polling without a started operation fails
+with `TOOL_WORKER_IO_NOT_STARTED`.
+
+The existing 8 MiB frame, 32 MiB session and JSON shape limits still apply. Send
+input is validated before creating its thread; invalid input closes the operation.
+Results are untrusted JSON, not admitted worker responses or installation receipts.
+This API has no network, backend, filesystem configuration or process-spawn effects.
+
+The supervisor calls `shutdown(absolute_monotonic_deadline)` after cancellation,
+expiry or transport failure. It permanently closes framing, interrupts native I/O,
+discards racing results and joins both threads. Unix shuts down the retained socket;
+Windows repeatedly requests synchronous I/O cancellation against the owned,
+dedicated thread handles until completion is observed. Those threads never execute
+an unrelated operation or return to a thread pool. No peer closure is required.
+This follows Microsoft's [synchronous I/O cancellation guidance](https://learn.microsoft.com/en-us/windows/win32/fileio/canceling-pending-i-o-operations): requesting cancellation alone does not establish completion.
+
+`TOOL_WORKER_IO_SHUTDOWN_TIMEOUT` means cleanup is still incomplete: the owner
+retains pending threads and handles, permits another shutdown attempt and refuses
+all result retrieval or new I/O. Do not report successful cleanup or publish a
+result on this path. Dropping the owner also interrupts and joins; it can wait
+if the operating system fails to complete cancellation. It never deliberately
+detaches pending I/O threads. This is not a guarantee against a stuck OS driver.
+Shutdown uses at most 5 ms polling sleeps, shortened to the remaining deadline.
+
+Tests exercise simultaneous partial-frame read and backpressured write with a
+live peer, duplex request/cancel traffic, cancellation independent of another
+channel, discarded completed results, pending-operation rejection, joining on
+drop and retained ownership after cleanup timeout. Run
+`cargo test --locked --lib tools::worker::io`. Native process creation, image and
+channel authentication, process-tree termination, deadline scheduling and backend
+dispatch remain separate unfinished work. These tests do not establish those
+properties or authorize use of a backend.
+The six tests pass on Windows GNU with Rust 1.94 and Linux with Rust 1.95
+(network disabled); native macOS verification of this increment remains pending.
+
 ### Worker exchange correlation
 
 `ToolWorkerExchange::new(request_bytes)` checks a closed outer request: exact

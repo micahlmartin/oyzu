@@ -2187,3 +2187,30 @@ scenarios, documentation and diff checks pass. Ignored external-archive scenario
 were not run in this check. This identity binding does not authenticate channels,
 admit typed payloads or implement process supervision. Native spawn, OS deadlines,
 backend dispatch and full OEP-0003 integration remain unfinished.
+
+## Checkpoint 151: native worker I/O interruption and confirmed joining
+
+NativeToolWorkerIo now owns one pending frame per direction on dedicated threads,
+reusing the existing framing budget and closed state. A supervisor can send cancel
+while receiving. Shutdown closes admission, interrupts live native I/O and joins
+both threads before reporting I/O cleanup complete. Unix uses socket shutdown;
+Windows targets retained dedicated thread handles with CancelSynchronousIo until
+completion is observed. An elapsed cleanup deadline retains ownership and denies
+racing output; repeated shutdown is allowed. Drop interrupts and joins instead of
+detaching threads, and can wait if the OS does not complete cancellation.
+
+Six new tests pass on Windows GNU Rust 1.94 and Linux Rust 1.95 with network disabled:
+blocked read/write with the peer kept open, duplex cancellation traffic, isolation
+from an independent channel, racing-result discard and drop cleanup, invalid and
+pending operations, and ownership retention after cleanup timeout. Windows full
+cargo test --locked, strict all-target Clippy, formatting and nine real CLI task
+scenarios pass. Ignored external-archive tests were not run locally for this change.
+Documentation and diff checks pass. Reference, runtime and code-map pages describe
+ownership, failure recovery and limitations; the existing windows-sys dependency
+only gains its native I/O API feature, with no package/version or license change.
+
+The full cross-platform run 37030050394 remains active at prior commit 99b6b68;
+it does not test this increment. New native macOS validation is pending. Same-binary
+spawn, image/channel authentication, restricted inheritance, process-tree cleanup,
+deadline scheduling, typed payloads, backend dispatch and full OEP-0003 completion
+remain outstanding. Successful I/O shutdown does not prove a worker process exited.

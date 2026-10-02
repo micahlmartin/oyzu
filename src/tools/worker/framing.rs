@@ -15,7 +15,7 @@ const SESSION_BYTES: usize = 32 * 1024 * 1024;
 #[path = "duplex_tests.rs"]
 mod duplex_tests;
 
-struct Control {
+pub(super) struct Control {
     remaining: AtomicUsize,
     failed: AtomicBool,
 }
@@ -26,7 +26,7 @@ impl Control {
             failed: AtomicBool::new(false),
         }
     }
-    fn open(&self) -> Result<()> {
+    pub(super) fn open(&self) -> Result<()> {
         ensure!(
             !self.failed.load(Ordering::SeqCst),
             "TOOL_WORKER_CHANNEL_CLOSED"
@@ -42,7 +42,7 @@ impl Control {
             .map_err(|_| anyhow::anyhow!("TOOL_WORKER_CONTROL_LIMIT"))?;
         Ok(())
     }
-    fn abort(&self) {
+    pub(super) fn abort(&self) {
         self.failed.store(true, Ordering::SeqCst);
     }
     fn finish<V>(&self, result: Result<V>) -> Result<V> {
@@ -123,6 +123,9 @@ pub fn split_tool_worker_channel<R: Read, W: Write>(
     )
 }
 impl<R: Read> ToolWorkerReceiver<R> {
+    pub(super) fn control(&self) -> Arc<Control> {
+        Arc::clone(&self.control)
+    }
     pub fn receive(&mut self) -> Result<Value> {
         receive(&self.control, &mut self.transport)
     }

@@ -146,6 +146,17 @@ publication after cancellation, and no effect on a concurrent independent worker
 These are required implementation tests, not claims that process supervision is
 already implemented or that the draft has received maintainer acceptance.
 
+The native I/O owner now implements interruption separately from process creation.
+It retains at most one dedicated thread per direction, interrupts both directions
+on shutdown, and joins before declaring I/O cleanup complete. Unix uses socket
+shutdown; Windows targets the owned dedicated thread with synchronous cancellation
+and repeats until completion. Timeout preserves ownership and denies racing
+results; dropping the owner waits for completion rather than detaching threads.
+The supervisor must still schedule the deadline, terminate and observe the process
+tree, and handle incomplete cleanup. A successful I/O shutdown is not evidence
+that a worker or descendant exited. See the
+[current I/O contract](../../reference/tool-lock-inspection.md#interruptible-native-control-io).
+
 Envelope fields are `protocol = "oyzu.tool-worker/1"`, `request_id` (UUID),
 `operation` (`resolve`, `prepare`, `environment`, `executable`),
 `context_digest`, `backend_release_digest`, `target_platform`, `capabilities`

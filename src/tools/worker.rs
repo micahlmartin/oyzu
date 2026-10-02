@@ -4,6 +4,7 @@
 mod channel;
 mod exchange;
 mod framing;
+mod io;
 mod session;
 pub use channel::{
     native_tool_worker_channel, NativeToolWorkerEndpoint, NativeToolWorkerReader,
@@ -16,4 +17,5 @@ use framing::parse;
 pub use framing::{
     split_tool_worker_channel, ToolWorkerChannel, ToolWorkerReceiver, ToolWorkerSender,
 };
+pub use io::NativeToolWorkerIo;
 pub use session::ToolWorkerSession;

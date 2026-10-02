@@ -65,6 +65,13 @@ pub fn native_tool_worker_channel(
 }
 
 impl NativeToolWorkerEndpoint {
+    #[cfg(unix)]
+    pub(super) fn shutdown_handle(&self) -> io::Result<std::os::unix::net::UnixStream> {
+        let handle = self.reader.try_clone()?;
+        non_inherited(&handle)?;
+        Ok(handle)
+    }
+
     /// Consume the endpoint without duplicating handles. Pass these halves to
     /// split_tool_worker_channel for shared framing limits and failure state.
     pub fn split(self) -> (NativeToolWorkerReader, NativeToolWorkerWriter) {

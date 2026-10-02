@@ -34,7 +34,7 @@ httpdate = "1.0.3"
 [dev-dependencies]
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Memory"] }
+windows-sys = { version = "0.61", features = ["Win32_UI_Shell", "Win32_System_Com", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_Memory", "Win32_System_IO"] }
 keyring = { version = "3.6", features = ["windows-native"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
