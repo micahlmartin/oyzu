@@ -5,6 +5,7 @@ mod execution;
 mod materialization;
 mod planning;
 mod reporting;
+mod scheduling;
 
 use crate::{builders, discovery, records, snapshot};
 use anyhow::{bail, Context, Result};

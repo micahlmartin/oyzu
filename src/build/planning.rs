@@ -368,8 +368,16 @@ pub(super) fn plan_with_dependencies(
     if let Some(management) = managed {
         policy["extensions"]["oyzu.dev/configuration-policy"] = management.clone();
     }
+    // A nested target cannot raise the invocation's shared concurrency ceiling.
+    let jobs = workspace
+        .root_configuration
+        .iter()
+        .chain(workspace.configuration.values())
+        .filter_map(|config| config.get("build.jobs").and_then(Value::as_u64))
+        .min()
+        .unwrap_or(1);
     Ok(
-        json!({"schemaVersion":"v1alpha1","kind":"build-plan","source":{"treeDigest":source.digest,"commit":null,"dirty":true},"policy":policy,"tools":tools,"targets":target_records,"actions":planned,"artifacts":artifacts}),
+        json!({"schemaVersion":"v1alpha1","kind":"build-plan","extensions":{"oyzu.dev/execution":{"jobs":jobs}},"source":{"treeDigest":source.digest,"commit":null,"dirty":true},"policy":policy,"tools":tools,"targets":target_records,"actions":planned,"artifacts":artifacts}),
     )
 }
 
