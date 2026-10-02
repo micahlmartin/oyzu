@@ -730,3 +730,15 @@ and the remaining platforms/backends still require implementation and evidence.
 See [the reference](reference/tool-lock-inspection.md) for exact provisioning and
 execution commands. Normal tests report this externally provisioned case as
 ignored, never passed without its inputs.
+
+## Checkpoint 74: resolve the captured-build fixture failure
+
+The prior Helm failure was reproduced with native Helm 3.22.0: the subchart-only
+fixture omitted its child dependency declaration. The fixture now declares the
+contained child using an empty repository. The compiled CLI with the provisioned
+Linux Docker worker passed chart/rendered artifact production and both reports;
+a changed child assertion failed and prevented artifacts. Source preservation
+and bundle schemas/digests were checked in both cases. See builder
+[checkpoint 51](implementation-status.md#checkpoint-51-declare-the-fixtures-native-helm-child-dependency).
+The complete CI run remains unverified; this correction does not complete any
+remaining tool-management package.

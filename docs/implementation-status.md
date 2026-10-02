@@ -792,3 +792,29 @@ The new native conformance probe builds its own registry fixture with Cargo and 
 The [Rust reference](reference/rust.md) documents commands, limits, failure behavior and verification scope; the builder map identifies the packaging owner. [Run 36971869232](https://github.com/micahlmartin/oyzu/actions/runs/36971869232), for the preceding correction at `72bf7f7`, has passed all three CLI jobs and the worker contract, confirming Unix Cargo shim handling and native local-workspace packaging. Task/captured jobs were still live when checked and were not restarted.
 
 Final local checks passed the complete Rust suite (80 library tests, two intentional ignores, plus integration suites), Clippy with warnings denied, rustfmt, CLI compilation and compiled-CLI task scenarios. Documentation, all 58 example structures, the new variant's native rustfmt, changed Python syntax and workflow YAML checks passed. The CLI job now explicitly pins `RUSTUP_TOOLCHAIN=1.94.0` so native probes run with that toolchain even after changing into temporary projects outside the repository.
+
+## Checkpoint 51: declare the fixture's native Helm child dependency
+
+Captured-source run `36975364359` failed strict Helm lint because EX-028's
+subchart-only fixture contained `charts/child` without declaring it in the
+parent chart metadata. Child unittest assertions had passed; they did not prove
+that the complete chart was valid. Native Windows Helm 3.22.0 reproduced the
+same missing-dependency error before any change.
+
+The fixture now declares child 1.0.0 with an empty repository, selecting its
+already-contained unpacked chart. No Oyzu configuration, lint exemption or
+production adapter behavior changed. The example and Helm reference explain
+that suite discovery does not repair missing native dependency declarations.
+
+Windows native strict lint now passes. The compiled Windows CLI driving the
+explicitly provisioned Linux Helm 3.22.0/unittest 1.2.0 Docker toolchain passed
+the captured build with network-none, read-only root and dropped capabilities.
+Schema/digest checks validated both delivered artifacts and both retained test
+reports; the chart archive contains the child template and project sources were
+unchanged. Changing the child assertion to 99 then failed the build, retained
+failed test evidence and collected no artifacts, again without source mutation
+by the build. Documentation and all 58 example structure checks passed.
+
+This resolves the reproduced fixture failure locally. The complete captured
+suite and native CI at the corrected revision still need confirmation; this is
+not a claim that every authored scenario or OEP-0003 gate passes.

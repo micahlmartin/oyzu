@@ -27,6 +27,11 @@ This repository provisioning step downloads checksum-pinned Helm and unittest di
 
 ## Inference and native assertions
 
+Declare unpacked subcharts in the parent's native `Chart.yaml` dependencies. An
+empty `repository` selects the already-present `charts/<name>` directory. Suite
+discovery does not repair missing dependency declarations; native strict lint
+rejects inconsistent chart metadata even when the child assertions pass.
+
 Without native suites, the implicit test validates local rendering and values schemas for an application chart. A library chart uses strict native lint with subcharts, because it cannot be rendered as an installable application. Captured application rendering uses `helm template --dry-run=client`, an empty kubeconfig and no cluster access. This is chart validation, not a claim that a deployed application works.
 
 An immediate `tests/*_test.yaml` file under the selected chart or an unpacked subchart in `charts/<name>/` activates helm-unittest automatically. Nested unpacked subcharts are included even when the parent has no suite. Each traversed subchart must have a regular `Chart.yaml`; dot/underscore-prefixed chart directories are ignored. Discovery records the selected framework and suite evidence; Helm unittest owns YAML parsing, assertions, test selection and native results. Malformed YAML remains a native test failure, rather than being interpreted by a new Oyzu test language. Detection permits up to 128 suite files and 4096 inspected test/subchart-directory entries across the selected chart tree, at most 16 subchart levels, with bounded source reads. Nonportable paths, symlinked suites/directories and invalid source types fail discovery.
