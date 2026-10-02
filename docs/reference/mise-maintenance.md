@@ -276,6 +276,30 @@ merge revision `0d0cfce94bfd775ef95ee70090b22f367ee37458`. Independent verificat
 checked embedded/external report equality and every notice's raw/LF-normalized
 hash, size and package/path correspondence.
 
+Reproduce this check with Python 3.11+ from the Oyzu checkout, after downloading
+the named artifacts using `gh run download 36985298309 --repo oyzuai/mise --dir retained-notices`:
+
+```text
+python tooling/mise-upstream/verify_notices.py --artifacts retained-notices
+```
+
+The offline verifier uses the checked-in index by default; `--index PATH` selects
+a different trusted index. It compares report/archive hashes, clean source/target
+identity, every indexed notice and the missing-notice package list. It writes JSON
+to stdout without extracting files. Missing/malformed input, mismatches or approval
+flags fail with a nonzero exit. Retain failed inputs for investigation and reacquire
+original artifacts; do not change trusted hashes merely to silence a failure.
+Unrelated artifact directories are ignored. Archive input is bounded to 400 MiB;
+metadata/notice limits match the collector. The index is a trust input, not a
+signature, and success does not authenticate a replaced index or establish legal
+completeness. Output retains `legal_approval: false` and `release_ready: false`.
+
+Verification passed on Windows against all three retained native archives.
+Synthetic regression tests reject altered external bytes, embedded-report mismatch,
+hidden entries, inconsistent notice identities/counts and false approval flags.
+The upstream-observation workflow's existing test discovery includes these tests;
+it does not fetch the retained archives. Preserve those separately before CI expires.
+
 | Target | Candidate packages | Observed notice candidates | Packages without observed notices |
 | --- | ---: | ---: | ---: |
 | Darwin ARM64 | 952 | 1,501 | 98 |

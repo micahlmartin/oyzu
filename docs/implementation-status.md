@@ -929,3 +929,18 @@ Prepared layout version 4 records these required selection facts. Rust validates
 The EX-026 argument fixture now uses captured `TARGETARCH` to select an explicitly provisioned local image tag and asserts target-argument availability and the export epoch in native `RUN`. CI tags its Alpine fixture as `oyzu-fixture/alpine:amd64`; this is explicit acceptance provisioning, not a product pull or trust assertion. The early worker probe uses the same architecture-selection path. Native Hadolint/dockerfmt gates remain unchanged and pass the fixture. Linux execution still awaits CI.
 
 Windows native Go tests passed target architecture/variant/stage expansion, redeclaration, epoch override/scope, ambient-value independence, invalid facts and rejection of uncaptured worker arguments. Offline module verification/vet passed; the actual adapter command resolved the checked-in fixture and emitted the expected selection record. New dependency versions match BuildKit's platform dependency and preserve upstream notices through the existing toolchain-image process. Rust verification passed the full suite (87 library tests, two intentional ignores, plus integrations), Clippy with warnings denied, rustfmt, CLI compilation and compiled development-task checks. Documentation, example structure, acceptance inventory, Bash and changed Python syntax checks passed. Parsing alternate platforms in tests does not establish cross-platform execution. Earlier corrected-worker run 36979766211 and matrix run 36980050694 remain live; the complete builder/scenario goal remains active.
+
+## Mise integration checkpoint 84: repeatable retained-notice verification
+
+The first-party `tooling/mise-upstream/verify_notices.py` now reproduces candidate
+notice evidence checks against the checked-in target/hash index. It verifies all
+three retained native archives from run 36985298309 on Windows, including exact
+embedded report bytes, raw and normalized notice hashes, package/path correspondence,
+clean source identity, missing-notice identities and totals. It reads without
+extracting or acquiring anything and never changes approval status.
+
+Two regression tests with ten negative subcases pass, covering external tampering
+and internally inconsistent archives even when the archive hash is updated. The
+existing upstream workflow discovers the new tests. This is evidence integrity,
+not a source import approval, release audit or completed TM-02/TM-12. The maintenance
+reference documents invocation, bounds, trust inputs and failure recovery.
