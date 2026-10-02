@@ -1643,3 +1643,32 @@ checks. Its macOS Java step is running and Windows Java step remains pending.
 Those historical CI results do not verify this encoding change or prove native
 Linux/macOS Java execution. Production worker dispatch, OS deadlines, authenticated
 inheritance, full tool-management integration and licensing admission remain open.
+
+## Checkpoint 120: real Java catalog identity correction
+
+Bounded capture of the three public mise Java catalogs found the exact Temurin
+JDK record uses canonical version `temurin-21.0.6+7.0.LTS`, not the earlier
+synthetic store fixture spelling `temurin-21.0.6+7`. The fixture and manifest
+provisioner now use the actual catalog identity. Archive bytes, stripped directory
+and runtime build string are unchanged. Existing experimental manifests must be
+regenerated at a fresh path; no automatic alias or lock migration is introduced.
+
+The new java-catalog-evidence.json records each original catalog's size, SHA-256,
+record count, selected target, JDK identity, archive URL and declared checksum.
+All three observations were verified against retained original response bytes
+outside the checkout. The Windows checksum also agrees with the retained official
+Temurin release sidecar and tested archive. Linux/macOS target archives were not
+acquired, and this capture alone is not Rust backend replay or publisher proof.
+
+With the corrected version, real Java store qualification passes on Windows and
+Linux: 576 entries, publication and changed-lock denial/recovery, with actual
+compiler/runtime execution on Windows. Windows full locked tests, strict Clippy,
+formatting and nine CLI scenarios pass; Linux strict Clippy passes offline.
+Documentation and diff checks pass. The reference explains the distinct canonical,
+release, archive-directory and runtime spellings and the fixture update remedy.
+
+Historical CI run 37002649274 at 6d32382 has successful Ubuntu and macOS Build CLI
+jobs, including the real Java store case with the older synthetic version. Its
+Windows Java step remains running. These results do not verify this corrected
+identity on macOS or complete Java backend admission. Real metadata replay through
+the fork, publisher verification and production integration remain outstanding.

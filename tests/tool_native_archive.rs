@@ -109,7 +109,7 @@ fn real_java_zip_publication_parity_and_changed_lock_denial() -> anyhow::Result<
         fixture: "JAVA",
         canonical: "core:java",
         kind: "zip",
-        version: "temurin-21.0.6+7",
+        version: "temurin-21.0.6+7.0.LTS",
         digest: "sha256:897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259",
         size: 204643847,
         prefix: "jdk-21.0.6+7",

@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "scope": "public-java-catalog-observation",
+  "captured_at": "2026-10-02T11:56:23.784067+00:00",
+  "cases": [
+    {
+      "target": "linux/amd64/gnu",
+      "catalog_url": "https://mise-java.jdx.dev/jvm/ga/linux/x86_64.json",
+      "catalog_sha256": "sha256:3580aef456af77011e1a205669f0853cdc3dfc3b92f566af1f49496e05675042",
+      "catalog_size": 3239490,
+      "catalog_records": 6971,
+      "canonical_version": "temurin-21.0.6+7.0.LTS",
+      "runtime_version": "21.0.6+7-LTS",
+      "archive_kind": "tar.gz",
+      "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_linux_hotspot_21.0.6_7.tar.gz",
+      "declared_sha256": "sha256:a2650fba422283fbed20d936ce5d2a52906a5414ec17b2f7676dddb87201dbae"
+    },
+    {
+      "target": "darwin/arm64/native",
+      "catalog_url": "https://mise-java.jdx.dev/jvm/ga/macosx/aarch64.json",
+      "catalog_sha256": "sha256:e85bf94d15688d83563119b6edbccb2356fe4f23ba4e00efb09287dc9745b330",
+      "catalog_size": 2223253,
+      "catalog_records": 4814,
+      "canonical_version": "temurin-21.0.6+7.0.LTS",
+      "runtime_version": "21.0.6+7-LTS",
+      "archive_kind": "tar.gz",
+      "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_aarch64_mac_hotspot_21.0.6_7.tar.gz",
+      "declared_sha256": "sha256:4ef4083919126a3d93e603284b405c7493905497485a92b375f5d6c3e8f7e8f2"
+    },
+    {
+      "target": "windows/amd64/msvc",
+      "catalog_url": "https://mise-java.jdx.dev/jvm/ga/windows/x86_64.json",
+      "catalog_sha256": "sha256:fe3f3066016dbb8d2715594e56164ae6cc7188695c028664d65f17ad0a1a9e66",
+      "catalog_size": 2167225,
+      "catalog_records": 4675,
+      "canonical_version": "temurin-21.0.6+7.0.LTS",
+      "runtime_version": "21.0.6+7-LTS",
+      "archive_kind": "zip",
+      "archive_url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.6%2B7/OpenJDK21U-jdk_x64_windows_hotspot_21.0.6_7.zip",
+      "declared_sha256": "sha256:897c8eebb0f85a99ccecbd482ebae9a45d88c19d6077054f6529ebab49b6d259"
+    }
+  ],
+  "legal_approval": false,
+  "release_ready": false,
+  "limitations": [
+    "Catalog observation only; not Rust backend replay",
+    "Windows digest agrees with retained official release sidecar and qualified archive",
+    "Linux and macOS archive bytes not acquired or executed",
+    "No publisher signature or source/distribution approval"
+  ]
+}

@@ -840,7 +840,7 @@ cargo test --locked --test tool_native_archive real_java_zip_publication_parity_
 ```
 
 On PowerShell set the same variables with `$env:NAME='path'`. The synthetic
-`core:java` layout uses version `temurin-21.0.6+7`, strips `jdk-21.0.6+7`,
+`core:java` layout uses version `temurin-21.0.6+7.0.LTS`, strips `jdk-21.0.6+7`,
 preserves the complete payload including every legal file, declares `bin/java.exe`
 and `bin/javac.exe`, and supplies self-relative PATH and JAVA_HOME metadata.
 It retains the default 200:1 extraction bound. Independent inventory parity,
@@ -851,6 +851,16 @@ same lease, compiles a class with annotation processing disabled and runs it.
 The commands clear inherited environment/options, use private working/temp paths
 and an explicit classpath. They make no package-manager requests; this is not
 OS network containment or a product Java build integration.
+
+The locked tool version follows mise's catalog spelling, including `.0.LTS`;
+the archive directory, upstream release tag and runtime build have different
+spellings. The [captured catalog observations](../proposals/OEP-0003-mise-integration/java-catalog-evidence.json)
+bind the three public metadata responses by size/hash and record the exact JDK
+identity, URL and declared checksum. The Windows checksum agrees with the retained
+official release sidecar and archive. These observations are not backend replay
+or archive verification on the other targets. Older experimental manifests using
+`temurin-21.0.6+7` must be regenerated at a fresh output path with the helper;
+the fixture does not alias or silently migrate that synthetic identity.
 
 CI provisions the pinned archive separately on Windows, Linux and macOS.
 Provisioning needs public network access; the test runs from local fixtures.
