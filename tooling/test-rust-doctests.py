@@ -17,7 +17,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cargo', default='cargo')
     args = parser.parse_args()
-    cargo = str(Path(shutil.which(args.cargo) or args.cargo).resolve())
+    # Rustup dispatches by executable name. Make relative paths independent of
+    # the fixture cwd without following cargo symlinks into rustup/rustup-init.
+    cargo = os.path.abspath(shutil.which(args.cargo) or args.cargo)
     with tempfile.TemporaryDirectory(prefix='oyzu Rust doctests ') as temporary:
         base = Path(temporary)
         project = base/'project'
@@ -25,7 +27,7 @@ def main():
         env = {**os.environ, 'CARGO_TARGET_DIR':str(base/'target'), 'CARGO_NET_OFFLINE':'true'}
         metadata = subprocess.run([cargo,'metadata','--locked','--offline','--format-version','1'],
                                   cwd=project,env=env,capture_output=True,text=True,timeout=120)
-        assert metadata.returncode==0, metadata.stderr
+        assert metadata.returncode==0, (metadata.returncode, metadata.stdout, metadata.stderr)
         data = json.loads(metadata.stdout)
         packages = [p['name'] for p in data['packages'] if p['id'] in data['workspace_members']
                     and any(t['doctest'] for t in p['targets'])]
@@ -45,6 +47,11 @@ def main():
         before = {p.relative_to(project):p.read_bytes() for p in project.rglob('*') if p.is_file()}
         passed = run(True)
         assert passed.attrib['failures']=='0' and passed.attrib['errors']=='0'
+        if os.name != 'nt':
+            shim = base/'bin/cargo'
+            shim.parent.mkdir()
+            shim.symlink_to(cargo)
+            assert run(True, str(shim)).attrib['failures']=='0'
         source = project/'core/src/lib.rs'
         good = source.read_text()
         source.write_text(good.replace('!example_core::greeting().is_empty()', 'example_core::greeting().is_empty()'))
