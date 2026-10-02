@@ -354,9 +354,9 @@ The upstream platform/flavor/version ordering is unchanged. This is not a bound
 on total process memory or an artifact extraction limit.
 
 Linux passed the decoder regression, scoped strict library/example Clippy,
-formatting and 22 existing embedding scenarios. Three-platform validation is
-[run 37016853259](https://github.com/oyzuai/mise/actions/runs/37016853259), pending
-at this observation. Read-only upstream catalog observations on 2026-10-02 measured
+formatting and 22 existing embedding scenarios. Three-platform validation
+[run 37016853259](https://github.com/oyzuai/mise/actions/runs/37016853259)
+completed successfully on Windows, macOS and Linux at this fork revision. Read-only upstream catalog observations on 2026-10-02 measured
 195,798 decoded bytes for Linux amd64 GNU, 181,436 for macOS arm64 and 158,412 for
 Windows amd64 MSVC. They establish compatibility with this cap at that time;
 they are not retained provenance or a replay through the Python backend.

@@ -2006,3 +2006,16 @@ pass; current-head human review remains required by the separate CI gate.
 This is input-boundary work for TM-05/TM-06, not production Python tool selection,
 installation or completion of OEP-0003. No root Rust dependency or behavior changed.
 Documentation and diff checks pass.
+
+## Checkpoint 138: Python catalog boundary passes native CI
+
+Fork embedding run 37016853259 completed successfully on Windows, macOS and
+Linux at 23598b3db1df9f3f1f8e11c35a69a9bff1c5d7a2. All three jobs passed
+the Python gzip regression, formatting, strict library/example checks, existing
+fresh-process embedding scenarios and real Go/Java metadata replay. This replaces
+the pending native result in checkpoint 137 and the qualification companion.
+
+The separate sensitive-change human-review gate remains unresolved. These results
+do not approve distribution, establish Python selection/archive qualification or
+complete production integration. No root implementation changed. Documentation
+and diff checks pass; full OEP-0003 work remains active.
