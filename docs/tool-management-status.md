@@ -2486,3 +2486,29 @@ successfully on Linux; its original macOS real install/exec step passed while
 remaining checks were still running. Windows remained in its build step. The new
 frozen/which paths still need native Windows/macOS acceptance. Documentation and
 diff checks passed. Hardening remains reserved for future goals.
+
+## Checkpoint 161: restore locked Node tools offline from cached archives
+
+`install --offline` now prohibits metadata/artifact acquisition and requires a
+compatible lock plus a verified installation or its cached archive. Missing
+installations are materialized and published from the store-owned verified blob
+snapshot. Missing cache content produces an online-install remedy; corrupt cache
+content remains an error. Frozen installation does not commit a lock edit.
+This connects TM-03/04/07 offline functionality through real CLI commands.
+
+The retained Linux acceptance projects selected Node 22.15.0 and 22.14.0. Their
+installed trees were moved aside while preserving the actual downloaded archives.
+Under Docker `--network none`, both restored with `install --frozen --offline`,
+passed which/exec agreement, version, argument, cwd, environment and exit-status
+checks, retained byte-identical locks, and switched correctly using one mounted
+store. Offline install against an empty cache failed. Original trees remain in
+the acceptance workspace backup. No mock tools or archive substitutes were used.
+
+Windows GNU default locked tests, strict all-target Clippy, formatting and nine
+real CLI task scenarios passed. Linux feature-enabled strict all-target Clippy
+and formatting passed. The acceptance workflow now retains its projects and runs
+cached restoration on all three native hosts. Native restoration is pending.
+The earlier original install/exec flow at 73bb33d passed its real user scenario on
+Linux, Windows and macOS in run 37045134221; this does not prove the later offline
+features there. Detailed usage, restoration limits and measured platform evidence
+are maintained in the development reference. Hardening remains deferred.

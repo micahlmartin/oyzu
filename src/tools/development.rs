@@ -198,6 +198,7 @@ pub fn install(
     options: &config::session::Options,
     store: &Path,
     frozen: bool,
+    offline: bool,
 ) -> Result<i32> {
     let directory = directory.canonicalize()?;
     let (session, effective, request) = configuration(&directory, options)?;
@@ -207,8 +208,8 @@ pub fn install(
     );
     let lock_path = session.root.join("oyzu.lock");
     ensure!(
-        !frozen || lock_path.exists(),
-        "frozen install requires an existing oyzu.lock; run oyzu install first"
+        !(frozen || offline) || lock_path.exists(),
+        "frozen/offline install requires an existing oyzu.lock; run oyzu install online first"
     );
     let edit = super::ToolLockEdit::capture(&lock_path)?;
     let previous = if lock_path.exists() {
@@ -261,13 +262,6 @@ pub fn install(
             return Ok(0);
         }
     }
-    let mut fetcher = fetcher()?;
-    let response = fetcher.fetch(&metadata.archive.archive_url)?;
-    ensure!(
-        response.status == 200,
-        "Node archive acquisition returned {}",
-        response.status
-    );
     let digest = match &previous {
         Some(lock) => lock.tool[0]
             .distribution
@@ -283,6 +277,37 @@ pub fn install(
     };
     let layout = plan(&metadata.archive, &digest, &backend);
     let layout_digest = records::digest("oyzu.archive-layout.v1", &layout)?;
+    std::fs::create_dir_all(store)?;
+    let cached = if let Some(lock) = &previous {
+        let host = platform()?;
+        let distribution = lock.tool[0]
+            .distribution
+            .iter()
+            .find(|d| d.platform == host)
+            .context("locked host platform unavailable")?;
+        ensure!(
+            distribution.layout_digest == layout_digest,
+            "locked layout differs from current adapter"
+        );
+        super::store::cached(&std::path::absolute(store)?, &digest, distribution.size)?
+    } else {
+        None
+    };
+    let acquired = if cached.is_none() {
+        ensure!(
+            !offline,
+            "locked Node archive is not cached; run oyzu install online to acquire it"
+        );
+        let response = fetcher()?.fetch(&metadata.archive.archive_url)?;
+        ensure!(
+            response.status == 200,
+            "Node archive acquisition returned {}",
+            response.status
+        );
+        response.body
+    } else {
+        Vec::new()
+    };
     let key = records::digest(
         "oyzu.tool-record.v2",
         &json!({"id":"core:node","version":metadata.archive.version,"backend_digest":backend,"options":{}}),
@@ -309,7 +334,7 @@ pub fn install(
                 distribution: vec![lock::Distribution {
                     platform: platform()?.into(),
                     digest: digest.clone(),
-                    size: response.body.len() as u64,
+                    size: acquired.len() as u64,
                     source_id: "node-releases".into(),
                     artifact_id: metadata
                         .archive
@@ -338,13 +363,15 @@ pub fn install(
         distribution.layout_digest == layout_digest,
         "locked layout differs from current adapter"
     );
-    std::fs::create_dir_all(store)?;
-    let blob = super::cache_tool_blob(
-        store,
-        &mut std::io::Cursor::new(response.body),
-        &digest,
-        distribution.size,
-    )?;
+    let blob = match cached {
+        Some(blob) => blob,
+        None => super::cache_tool_blob(
+            store,
+            &mut std::io::Cursor::new(acquired),
+            &digest,
+            distribution.size,
+        )?,
+    };
     // Publication renames candidates atomically, so staging must share the
     // installation store's filesystem (including externally mounted stores).
     let staging_root = store.join("staging");
@@ -378,7 +405,9 @@ pub fn install(
         platform()?,
         &backend,
     )?;
-    edit.propose(&bytes)?.commit()?;
+    if !frozen {
+        edit.propose(&bytes)?.commit()?;
+    }
     println!("Installed node {}", metadata.archive.version);
     Ok(0)
 }

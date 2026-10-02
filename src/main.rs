@@ -32,6 +32,9 @@ enum Commands {
         /// Require an existing matching lock without resolving new versions.
         #[arg(long)]
         frozen: bool,
+        /// Use only existing locks, installations and cached archives.
+        #[arg(long)]
+        offline: bool,
         #[arg(long, default_value = ".oyzu/tools")]
         store: PathBuf,
     },
@@ -131,12 +134,17 @@ fn run() -> Result<i32> {
     };
     match &cli.command {
         #[cfg(feature = "mise-integration")]
-        Commands::Install { store, frozen } => {
+        Commands::Install {
+            store,
+            frozen,
+            offline,
+        } => {
             return oyzu::tools::development::install(
                 &directory,
                 &options,
                 &directory.join(store),
                 *frozen,
+                *offline,
             );
         }
         #[cfg(feature = "mise-integration")]

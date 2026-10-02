@@ -11,6 +11,8 @@ mod tree;
 
 pub(super) use archive::{materialize, materialize_blob};
 pub(super) use blob::cache;
+#[cfg(feature = "mise-integration")]
+pub(super) use blob::cached;
 pub use blob::VerifiedBlob;
 pub(super) use layout::stage;
 pub(super) use lease::recover;

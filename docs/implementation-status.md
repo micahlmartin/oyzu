@@ -11,8 +11,10 @@ This separate journal lets builder and tool implementation evolve independently.
 
 The opt-in standalone Node path now connects Oyzu TOML, the pinned mise library,
 lock creation, installation, frozen/repeat reuse and `exec`/`which`. Two real Node
-versions sharing a mounted store pass Linux user acceptance; native Windows and
-macOS product acceptance remains pending. See the
+versions sharing a mounted store pass Linux user acceptance, including restoration
+from cached archives with networking disabled. The original install/exec scenario
+also passed Windows and macOS at `73bb33d`; expanded offline/which acceptance on
+those hosts remains pending. See the
 [development reference](reference/tool-management-development.md) for its exact
 scope. This milestone does not complete the remaining OEP-0003 functionality.
 

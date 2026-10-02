@@ -35,6 +35,7 @@ Then run the feature-enabled binary:
 ```sh
 oyzu install
 oyzu install --frozen
+oyzu install --frozen --offline
 oyzu which node
 oyzu exec -- node --version
 oyzu exec -- node -e 'console.log(process.env.APP_MODE)'
@@ -62,10 +63,16 @@ than being silently replaced. A failed installation does not publish a new lock.
 `install --frozen` requires an existing compatible lock and never resolves a new
 version. Both ordinary and frozen installs reuse an already installed selection
 after verifying its receipt and contents; this path needs no network and leaves
-the lock unchanged. If the installation is absent, the locked archive is acquired
-from the configured public route. Restoring an absent installation solely from
-cached blobs is not implemented yet. A missing lock with `--frozen` fails before
-resolution; run ordinary `install` to create the initial lock.
+the lock unchanged. If the installation is absent, Oyzu first verifies the cached
+archive against the locked digest and size, then restores the installed tree.
+Only a missing archive requires acquisition from the public route; invalid cached
+content fails instead of silently downloading a replacement.
+
+`install --offline` forbids metadata and artifact networking. It requires an
+existing compatible lock and either a verified installation or its cached archive.
+Combine it with `--frozen` to explicitly prohibit lock edits. Missing locks or
+archives fail with an online-install remedy. Run ordinary `install` online to
+create the initial lock and acquire the required bytes.
 
 `which node` prints the absolute executable path selected by `exec`. It uses the
 same frozen configuration/lock matching and verified installation lookup, makes
@@ -78,7 +85,7 @@ directly, passes arguments without a command shell, applies configured environme
 values and prepends the installed binary directory to PATH. The lease is held
 until the direct child exits. Its exit status is returned. Exec performs no implicit
 installation and its metadata-facts lookup is local. Initial installation and
-acquisition of missing installed content require the network.
+acquisition of uncached content require the network.
 
 ## Scope and acceptance evidence
 
@@ -87,10 +94,13 @@ macOS arm64. On 2026-10-02, Linux amd64 under Rust 1.95 passed both versions,
 shared-store project switching, frozen/repeat installs, which/exec agreement,
 arguments, cwd, TOML environment, unchanged locks and exit status. The same
 projects then passed replay under Docker `--network none`. A separately mounted
-store also passed installation/publication. The original install/exec scenario
-at revision `73bb33d` passed on macOS arm64 in CI run `37045134221`; the expanded
-frozen/which scenario is not yet verified there. Windows integrated acceptance
-remains pending.
+store also passed installation/publication. Removing the installed trees while
+retaining their real archives then passed `install --frozen --offline` restoration
+and execution for both versions with networking disabled; an empty cache failed
+as expected and locks remained byte-identical. The original install/exec scenario
+at revision `73bb33d` passed on macOS arm64 and Windows amd64 in CI run
+`37045134221`; the expanded frozen/which/restoration scenarios are not yet
+verified on those hosts.
 
 Run the real user acceptance scenario with Python 3.11+ and public Node access:
 
@@ -108,9 +118,13 @@ Use `--workspace PATH` to retain these projects, then rerun with the same path a
 checks frozen and ordinary install reuse, `which`/`exec` executable agreement,
 unchanged locks and both project versions. `--offline-check` itself does not
 disable networking; the surrounding environment must enforce that condition.
+Add `--restore-cached` to move the retained installed trees to
+`WORKSPACE/installs-before-restore` and restore them through
+`install --frozen --offline`, then verify actual execution and empty-cache errors.
+Use this restoration check once per retained workspace; the backup is preserved.
 
 Remaining functional work includes other tools, aliases/native constraints,
-multi-tool and scoped updates, offline cached install, configured corporate
+multi-tool and scoped updates, configured corporate
 transport, managed selection, npm entrypoints, shims, activation and build handoff.
 Managed configuration is explicitly rejected by this standalone proof. Child
 stdio currently carries internal metadata; authenticated worker IPC, full process

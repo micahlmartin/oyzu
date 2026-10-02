@@ -50,7 +50,10 @@ jobs:
         run: cargo build --locked --features mise-integration --bin oyzu
       - name: Real Node install and execution
         timeout-minutes: 15
-        run: python tooling/test-tool-management.py --cli ${{ matrix.executable }}
+        run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
+      - name: Restore Node from cached archives in offline mode
+        timeout-minutes: 15
+        run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --offline-check --restore-cached
       - name: Check feature-enabled code
         run: cargo clippy --locked --features mise-integration --all-targets -- -D warnings
       - name: Formatting

@@ -97,6 +97,26 @@ pub(in crate::tools) fn cache(
     digest: &str,
     size: u64,
 ) -> Result<VerifiedBlob> {
+    cache_or_lookup(store, Some(source), digest, size)?.context("acquired blob unavailable")
+}
+
+/// Reverify cached content without acquisition. Only a missing blob returns
+/// None; invalid content remains an error. May create cache/lock directories.
+#[cfg(feature = "mise-integration")]
+pub(in crate::tools) fn cached(
+    store: &Path,
+    digest: &str,
+    size: u64,
+) -> Result<Option<VerifiedBlob>> {
+    cache_or_lookup(store, None, digest, size)
+}
+
+fn cache_or_lookup(
+    store: &Path,
+    source: Option<&mut dyn Read>,
+    digest: &str,
+    size: u64,
+) -> Result<Option<VerifiedBlob>> {
     validate(digest, size)?;
     let root = Directory::open(store).context("open blob store root")?;
     let blobs = root
@@ -119,7 +139,9 @@ pub(in crate::tools) fn cache(
                 "cached blob has external hardlinks"
             );
             // Corruption fails without reading the supplied acquisition stream.
-            return snapshot(&mut file, digest, size).context("cached blob is invalid");
+            return snapshot(&mut file, digest, size)
+                .map(Some)
+                .context("cached blob is invalid");
         }
         Err(error)
             if error
@@ -127,6 +149,9 @@ pub(in crate::tools) fn cache(
                 .is_some_and(|e| e.kind() == io::ErrorKind::NotFound) => {}
         Err(error) => return Err(error),
     }
+    let Some(source) = source else {
+        return Ok(None);
+    };
     let mut verified = snapshot(source, digest, size).context("verify acquired blob snapshot")?;
     let staging = root
         .create_directory("staging")
@@ -164,5 +189,5 @@ pub(in crate::tools) fn cache(
         return Err(error);
     }
     verified.rewind()?;
-    Ok(verified)
+    Ok(Some(verified))
 }
