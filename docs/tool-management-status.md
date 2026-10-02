@@ -448,3 +448,32 @@ Linux passed that regression, nine blob and 16 receipt/recovery tests, and stric
 all-target Clippy. Windows GNU Rust 1.94 passed its full suite, strict all-target
 Clippy, formatting and nine real CLI task scenarios. The earlier CI's downstream
 task/build jobs were skipped because of macOS failure, not counted as passes.
+
+## Checkpoint 59: Go archive facts and normal lease release
+
+Fork `8240083a4a5de152ce275609eff420cc9c7f0f8e` adds backend-owned Go
+archive facts for exact stable versions on the three initial targets. Shared
+upstream URL/layout helpers avoid an independent mirror/platform mapping. Linux
+Rust 1.95 strict library/example Clippy and all seven fresh-process conformance
+scenarios passed, including two Go versions, three targets, rejected inputs,
+backend URL parity and no transport calls. Native Go conformance is pending.
+No dependencies or notices changed. These facts do not prove catalog membership,
+archive availability, publisher verification, acquisition or installation parity.
+Oyzu still has no production mise dependency or distribution approval.
+
+Root run `36974290636`, macOS job `110734650915`, passes all six archive,
+nine blob and eight layout checks, including concurrent blob publication after
+checkpoint 58. Receipt testing then fails when an exclusive lock remains busy
+after both same-process shared leases are dropped. Normal destruction now
+explicitly unlocks owned leases after journal cleanup, so duplicated/inherited
+descriptors cannot prolong a completed supervisor lifetime. A Unix regression
+retains a duplicate descriptor across owner destruction and requires immediate
+exclusive acquisition. This addresses that mechanism; the native macOS rerun
+must confirm the observed failure is resolved. Forced-owner termination remains
+a separate kernel-release test.
+
+Final Windows GNU Rust 1.94 full tests, strict all-target Clippy, formatting and
+all nine compiled CLI task scenarios passed. Linux passed the duplicated-handle
+regression, all 16 receipt/recovery cases and strict all-target Clippy. Documentation
+structure passed. Fork run `36974808859` passes notice inventory and guard tests
+but fails its human-review gate; no approval is inferred from owner assignment.

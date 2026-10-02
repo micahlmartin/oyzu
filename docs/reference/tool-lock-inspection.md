@@ -244,7 +244,11 @@ IDs use PID, timestamp and a process-local counter, with exclusive creation and
 no-replace publication; they are not secrets or authorization tokens. Records
 contain no workspace paths, environment values or credentials.
 
-Ordinary lease destruction removes its own record before releasing kernel locks.
+Ordinary lease destruction removes its own record before explicitly unlocking its
+journal guard and installation leases. Explicit unlock prevents a transient
+fork-inherited descriptor from extending the completed supervisor lifetime;
+closing the handles remains the fallback if unlock fails. Callers must still retain
+the lease until the entire supervised child tree ends.
 Cleanup errors conservatively leave a stale record; destruction cannot report
 them to the caller. Forced termination can also leave a final record, and a crash
 during writing can leave a `.pending` file. Neither PID/timestamp nor a record's

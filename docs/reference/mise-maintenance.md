@@ -94,6 +94,26 @@ results and remaining native gates belong in implementation status. Oyzu still
 has no production dependency on this API and no automatic installation command;
 the source import, licensing and release gates remain separate.
 
+## Candidate Go archive facts
+
+The fork's experimental `Session::go_archive_facts(version, target)` uses Go's
+upstream artifact/mirror calculation and shared archive-root constant. Like Node,
+it requires immutable tool admission, full stable SemVer and one of
+`linux/amd64/gnu`, `darwin/arm64/native` or `windows/amd64/msvc`. Input limits are
+128 version bytes and 64 target bytes. It returns archive and `.sha256` sidecar
+locations, `tar.gz` or `zip`, the `go` strip prefix, `bin/go` or `bin/go.exe`,
+`bin` and a fresh-layout GOROOT of `.`. Legacy nested layouts and mutable GOPATH
+package installation are outside this interface. Older version spellings without
+a patch component are rejected rather than guessed.
+
+This operation performs no Git discovery, acquisition, installation or target
+execution. It does not prove catalog membership, artifact availability, digest
+authenticity or native layout parity. The OEP's brokered Go catalog adapter,
+verification, admitted plan conversion and native install tests remain missing.
+Corporate callers must map upstream locations to approved logical routes. The
+library conformance command above includes an isolated Go scenario covering two
+versions, all three targets, upstream URL parity and zero transport callbacks.
+
 ## Candidate dependency review evidence
 
 The fork provides an offline, target-filtered Cargo evidence collector in

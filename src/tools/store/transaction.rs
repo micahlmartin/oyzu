@@ -1,7 +1,7 @@
 //! Cooperative store transactions. Policy/layout admission precedes this layer.
 use super::{
     access::{Directory, Kind},
-    lease::Journal,
+    lease::{Journal, OwnedLease},
     receipt,
 };
 use crate::tools::lock::Lock;
@@ -21,7 +21,7 @@ pub struct InstallationLease {
     pub selection_digest: String,
     // Field drop order matters: remove the journal while kernel leases remain.
     journal: Journal,
-    _leases: Vec<File>,
+    _leases: Vec<OwnedLease>,
     _root: Directory,
 }
 
@@ -112,7 +112,7 @@ pub(in crate::tools) fn transact(
     for key in &keys {
         let file = locks.lock_file(&format!("{}.lease", &key[7..]))?;
         acquire(&file, deadline, true)?;
-        leases.push(file);
+        leases.push(OwnedLease(file));
     }
     let journal = Journal::create(&root, &digest, &keys)?;
     drop(held);

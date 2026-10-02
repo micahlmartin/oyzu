@@ -15,6 +15,17 @@ use std::{
 
 static NEXT: AtomicU64 = AtomicU64::new(0);
 
+/// An acquired installation lock owned by one supervisor lifetime. Explicit
+/// release prevents transient fork-inherited descriptors from extending it.
+pub(super) struct OwnedLease(pub(super) File);
+
+impl Drop for OwnedLease {
+    fn drop(&mut self) {
+        // Closing remains the fallback if explicit release fails.
+        let _ = self.0.unlock();
+    }
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct Record {
@@ -96,12 +107,33 @@ impl Drop for Journal {
         // The containing InstallationLease drops this field before releasing
         // kernel locks. Failed cleanup conservatively leaves a stale record.
         let _ = self.directory.remove_file(&format!("{}.json", self.id));
+        let _ = self._guard.unlock();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn normal_release_is_not_extended_by_a_duplicated_descriptor() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().canonicalize().unwrap();
+        let root = Directory::open(&path).unwrap();
+        let file = root.lock_file("lease").unwrap();
+        file.try_lock_shared().unwrap();
+        let duplicate = file.try_clone().unwrap();
+        let lease = OwnedLease(file);
+        let contender = root.lock_file("lease").unwrap();
+        assert!(matches!(
+            contender.try_lock(),
+            Err(std::fs::TryLockError::WouldBlock)
+        ));
+        drop(lease);
+        contender.try_lock().unwrap();
+        drop(duplicate);
+    }
 
     #[test]
     fn empty_record_is_protected_by_its_journal_lock() {
