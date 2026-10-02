@@ -442,3 +442,11 @@ graph. No dependency was added to either product. Transitive notice review,
 Linux/macOS verification, complete constraint conformance and resolver integration
 remain outstanding. Stable CPython admission must still be applied separately
 from specifier matching; passing prerelease matching cases does not admit them.
+
+The same locked candidate experiment also passes on Linux x86-64 with Rust 1.95.0.
+The candidate evidence now records 23 original top-level notice files from all
+11 resolved packages, including path/size/hash and an externally retained notice
+bundle digest. No package lacked a top-level notice candidate. This filename-based
+collection does not audit additional source notices, license exceptions, optional
+feature graphs or release obligations. No license alternative was selected and
+macOS qualification remains outstanding.
