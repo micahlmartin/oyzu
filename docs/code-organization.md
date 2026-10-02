@@ -34,7 +34,7 @@ Keep fields private when constructors enforce an invariant. Plain data records c
 
 Reusable operations take their necessary inputs explicitly. Avoid hidden dependence on process-global environment, current directory, clock or credentials. Pure resolution/planning consumes captured facts; effectful orchestration obtains those facts through declared capabilities. Builders must not create their own shortcut around acquisition, sandboxing or bundle collection.
 
-The internal builder development-task hook may resolve native arguments after an explicit `oyzu run` request. Static discovery never calls it. Captured builds use prepared facts instead. `BuilderPlan.fixed_env` declares captured toolchain facts that effective task environments must preserve; the shared planner checks these after applying overrides.
+The internal builder development-task hook may resolve a typed command (arguments and required environment) after an explicit `oyzu run` request. Static discovery never calls it. Native invocation context stays with the builder; the shared task runner launches the resulting command. Captured builds use prepared facts instead. `BuilderPlan.fixed_env` declares captured toolchain facts and input locations that effective task environments must preserve; the shared planner checks these after applying overrides.
 
 ## Reuse without coupling unrelated behavior
 

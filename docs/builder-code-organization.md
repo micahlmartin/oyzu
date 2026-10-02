@@ -35,11 +35,12 @@ src/
       runtime/reporting.py    # Installed-distribution pytest/coverage integration
     go/
       mod.rs                  # Go descriptor and static implicit tasks
-      development.rs          # Native workspace argument expansion only on explicit task run
+      development.rs          # Native workspace arguments/environment only on explicit task run
       metadata.rs             # Typed portable native facts and validation
       preparation.rs          # Shared isolated capture, toolchain and compiler evidence
       planning.rs             # Workspace checks and named snapshot binary artifacts
       runtime/metadata.go     # Native Go manifest/package inspection without running project code
+      runtime/acquisition.go  # Native Go proxy protocol, checksum admission and module cache capture
     rust/
       mod.rs                  # Cargo descriptor, discovery and interface implementation
       metadata.rs             # Typed native workspace metadata and version projection
@@ -102,6 +103,7 @@ Modules are private unless a public CLI/library entry point needs them. The `Bui
 | `descriptor` | Declare the builder IDs the adapter owns |
 | `detect` | Identify conventional native manifests without executing code |
 | `discover` | Read native metadata and declare implicit development tasks |
+| `development_command` | Resolve typed native arguments/environment during explicit development execution; never during static detection |
 | `executor_profile` | Select a finite engine-owned toolchain capability profile |
 | `toolchain` | Select the provisioned toolchain for the detected manager, or report unsupported integration |
 | `prepare` | Capture native dependencies through the scoped broker and executor; return an immutable-input record |
@@ -120,6 +122,8 @@ Native report intent can also identify a module and a contained file/glob under 
 Gradle uses the same interface with its own composite metadata and native initialization scripts. Included builds export their own evaluated models. Preparation captures repository files through the shared broker; the offline lifecycle resolves a local file repository with a fresh private Gradle home. Mutable daemon/dependency caches are not prepared inputs. Maven and Gradle share the Maven-layout file inventory. Node, Maven and Gradle share the Rust preparation lifecycle in `dependencies/preparation.rs`. That lifecycle owns temporary workspace cleanup, scoped broker lifetime, sandbox invocation and prepared-tree capture. Each manager supplies explicit commands, runtime assets, environment and source routes; native acquisition semantics, metadata validation and planning stay in its own adapter. No manager switch is needed in the shared lifecycle.
 
 Node captures lockfile-addressed npm registry tarballs and a deterministic inventory. Its adapter uses native `npm cache add` with a fresh temporary cache, then native `npm ci --offline` to validate and install; mutable npm cache indexes are not frozen inputs. Acquisition disables lifecycle scripts while the broker is mounted. Build execution seeds another private cache from the captured tarballs and runs native installation with lifecycle scripts enabled inside the network-isolated executor, without a broker mount. All source lockfiles remain untouched; snapshot version projection changes only the private execution copy.
+
+Go preparation uses a private native module cache and a loopback GOPROXY adapter that forwards requests through the engine's scoped spool. `broker/runtime/transport.go` owns the Go spool protocol client; the Go builder owns module URLs, native checksums and inventory. Native manifests/checksums must remain unchanged. Preparation captures the whole module tree and archive identities; actions mount it read-only with module downloads and VCS fetching disabled. Public-proxy acquisition is the initial source profile, with managed/private connectors still pending.
 
 The executor owns process invocation and sandbox flags. A builder's planned command does not grant a host mount, credentials or network access. The broker owns request validation and upstream authorization; each acquisition adapter supplies its configured source routes. Dependency-free adapters return no prepared snapshot. Discovery-only adapters return an explicit error for unimplemented build behavior.
 

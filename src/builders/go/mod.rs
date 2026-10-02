@@ -10,14 +10,27 @@ use std::path::Path;
 
 pub(super) struct Go;
 
-static RUNTIME: &[super::RuntimeFile] = &[super::RuntimeFile {
-    name: "go-metadata.go",
-    contents: include_str!("runtime/metadata.go"),
-}];
+static RUNTIME: &[super::RuntimeFile] = &[
+    super::RuntimeFile {
+        name: "go-metadata.go",
+        contents: include_str!("runtime/metadata.go"),
+    },
+    super::RuntimeFile {
+        name: "go-acquisition.go",
+        contents: include_str!("runtime/acquisition.go"),
+    },
+    super::RuntimeFile {
+        name: "broker-transport.go",
+        contents: include_str!("../../broker/runtime/transport.go"),
+    },
+];
 
 impl Builder for Go {
-    fn development_argv(&self, task: &crate::model::Task) -> Result<Option<Vec<String>>> {
-        development::argv(task)
+    fn development_command(
+        &self,
+        task: &crate::model::Task,
+    ) -> Result<Option<super::DevelopmentCommand>> {
+        development::command(task)
     }
     fn prepare(
         &self,

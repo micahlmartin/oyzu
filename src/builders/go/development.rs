@@ -16,7 +16,7 @@ struct Member {
     path: String,
 }
 
-pub(super) fn argv(task: &Task) -> Result<Option<Vec<String>>> {
+pub(super) fn command(task: &Task) -> Result<Option<super::super::DevelopmentCommand>> {
     if task.provider != "go"
         || !task.cwd.join("go.work").is_file()
         || !matches!(task.argv.as_slice(), [go, op, pattern] if go == "go" && matches!(op.as_str(), "build" | "test" | "vet") && pattern == "./...")
@@ -65,5 +65,10 @@ pub(super) fn argv(task: &Task) -> Result<Option<Vec<String>>> {
     }
     let mut argv = task.argv[..2].to_vec();
     argv.extend(patterns);
-    Ok(Some(argv))
+    // Let Go derive the workspace from its own cwd spelling. Go 1.24 otherwise
+    // treats Windows verbatim prefixes / symlink aliases as different module
+    // roots when an inherited absolute GOWORK uses another spelling. We already
+    // verified that this exact task root owns a go.work, so no ancestor is used.
+    let env = std::collections::BTreeMap::from([("GOWORK".into(), "auto".into())]);
+    Ok(Some(super::super::DevelopmentCommand { argv, env }))
 }

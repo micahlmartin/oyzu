@@ -21,9 +21,9 @@ pub(crate) trait Builder: Sync {
     fn detect(&self, path: &Path) -> Option<&'static str>;
     fn discover(&self, target: &mut Target) -> Result<()>;
 
-    /// Resolve native arguments only after an explicit development task run.
+    /// Resolve native arguments/environment only after an explicit development task run.
     /// Static discovery and captured build planning must never call this hook.
-    fn development_argv(&self, _task: &Task) -> Result<Option<Vec<String>>> {
+    fn development_command(&self, _task: &Task) -> Result<Option<DevelopmentCommand>> {
         Ok(None)
     }
 
@@ -66,6 +66,12 @@ pub(crate) trait Builder: Sync {
     ) -> Option<Vec<String>> {
         None
     }
+}
+
+/// Native invocation context resolved only for explicit development execution.
+pub(crate) struct DevelopmentCommand {
+    pub argv: Vec<String>,
+    pub env: BTreeMap<String, String>,
 }
 
 pub(crate) struct PreparationContext<'a> {
