@@ -83,7 +83,7 @@ There are at most 64 distinct image references, a 10 GiB transport/captured-tree
 
 Rebuild custom Docker toolchain images for the current metadata adapter, which requires explicit target-platform and epoch arguments, and for `oyzu-docker-images`. Prepared dependency layout version 5 requires `targetExecution` metadata and distinguishes tool execution from artifact target facts. Older metadata without that field fails rather than assuming no target execution. Regenerate captures/plans made by older adapters; missing or mismatched selection facts cannot silently acquire new defaults. Scratch-only plans still work with an empty image list and explicit selection facts. No project-file migration is required.
 
-This is an explicitly provisioned image-input profile. Registry acquisition through approved connectors, managed source authorization, package dependencies inside images, secret brokerage, Dockerfile-free application packaging, caching and full platform matrices remain required work. The existence of an image in a local daemon is not an enterprise trust or release-eligibility assertion.
+This is an explicitly provisioned image-input profile. Registry acquisition through approved connectors, managed source authorization, additional package-manager integrations, secret brokerage, additional Dockerfile-free application profiles, caching and full platform matrices remain required work. The existence of an image in a local daemon is not an enterprise trust or release-eligibility assertion.
 
 ## Verification
 
@@ -108,7 +108,7 @@ Provisioned image capture is shared through `dependencies/images`; Dockerfile pa
 The first application `container: true` integration is [Python application packaging](python-containers.md), whose default and override profiles passed Linux CI. It uses the internal [typed assembly boundary](../container-assembly.md) and shared captured-base acquisition. Additional runtime profiles, application-container matrices and startup smoke tests remain unfinished. Existing Dockerfile builds continue to use their captured source definition. The worker verifies the bytes actually staged for BuildKit against the planned digest, so a definition changed during copying is rejected rather than executed.
 
 
-The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The first Docker package-manager integrations are the experimental pip, uv and Poetry profiles below; their end-to-end native CI results are pending. Other ecosystems, private sources and full EX-058 credential-policy acceptance remain unfinished.
+The executor's [prepared dependency-context transport](../container-assembly.md#prepared-dependency-context-transport) has native conformance verified in Linux CI. The Docker package-manager integrations are the experimental Python and npm profiles below; their end-to-end native CI results are pending. Other managers, private sources and full EX-058 credential-policy acceptance remain unfinished.
 
 ## Offline pip dependency context (experimental)
 
@@ -167,3 +167,31 @@ The prepared dependency record retains wheel identities, digests, source/lock id
 The initial profile uses the existing public PyPI and Python-hosted-files routes. Direct URL requirements, alternate-index directives and source distributions are rejected. Native requirement constraints/hashes retain their existing pip validation. This preparation needs upstream availability; there is no persistent offline acquisition cache yet. Managed acquisition and enforced connector routes fail closed until approved connector bindings exist. No registry token is supplied to the image, build arguments or Dockerfile. This does not yet implement the private-registry canary and all-manager credential requirements of EX-058. Remote syntax frontends and secret mounts remain unsupported by the captured Docker profile.
 
 On failure, inspect the retained diagnostic and native logs, correct the manifest/provider or provisioned runtime, and start a new build. Preparation failures produce no action artifacts; failed offline RUN commands block packaging. The Linux Docker CI group provisions the three Python profiles and exercises native resolution/install/import, exact package/runtime evidence, versioned output, repeatability, implicit tasks, ambiguity/explicit selection, excluded development groups, lock-hash rejection and forbidden build-time network fetching. Its first native results remain pending. Provisioned Windows uv/Poetry probes have verified native export, unchanged locks, hashed offline installation/import, wheel-tamper rejection and stale-lock rejection; these narrower probes do not establish Docker isolation or container output.
+
+## Offline npm dependency context (experimental)
+
+`node/npm` exports verified registry tarballs using the Node builder's existing native locked acquisition. A Docker target with `package.json` and a v2/v3 `package-lock.json` or `npm-shrinkwrap.json` can infer this provider. Shrinkwrap takes precedence, as it does in npm. Multiple ecosystems require `dependencies: node/npm` in the target's build declaration. The shared runtime, platform, policy and context rules above also apply; the captured consumer base must already contain Node and npm. A declared `packageManager` must match that provisioned npm version, and native npm validates engine constraints. The tested profile uses npm 11.11.0 with Node 22 in CI fixtures and Node 24.14.1 in a Windows native probe.
+
+For the provisioned CI image, a complete Dockerfile example is:
+
+```dockerfile
+FROM oyzu-toolchain/node:npm11.11.0-node22
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN --mount=type=bind,from=dependencies,target=/dependencies \
+    for archive in /dependencies/*.tgz; do npm cache add "$archive" --offline --cache /tmp/npm-cache --ignore-scripts; done \
+    && npm ci --offline --cache /tmp/npm-cache --ignore-scripts --omit=dev --no-audit --no-fund \
+    && rm -rf /tmp/npm-cache
+COPY app.js .
+CMD ["node", "app.js"]
+```
+
+Use your already-provisioned compatible base instead of the CI image as appropriate. Copy all required workspace manifests/sources for a workspace install, and copy `npm-shrinkwrap.json` instead when using shrinkwrap. The shown glob expects at least one captured registry package; dependency-free projects can run native offline npm without seeding a store. No generated Dockerfile or automatic rewrite of RUN commands is involved.
+
+The store contains only `<sha256>.tgz` files. Preparation fetches all locked registry tarballs through the scoped public npm broker, validates SHA-512 lock integrity, and invokes native npm offline with lifecycle scripts disabled to reject stale locks and incompatible installations. Local workspace links stay in the source graph; native npm owns dependency resolution and installation layout. Development and optional packages are captured too, with their existing evidence purposes; this is an all-lock store rather than a runtime-only pruning resolver. The shown consumer decides to omit development installation through native `--omit=dev`. Acquisition does not execute project lifecycle scripts; the example also disables them during the offline build. Packages requiring lifecycle compilation need an explicitly provisioned compiler and a deliberate offline Dockerfile command.
+
+Only tarballs enter the named context. npm's temporary cache, logs, user/global configuration, acquisition workspace and broker state are not exported. The consumer seeds its own disposable cache and removes it in the same RUN instruction, avoiding both cache log timestamps and an extra cache layer. Native npm verifies the lock again during installation. Package names, versions, purposes, content hashes, lock/source identity, observed Node/npm versions and immutable base identity remain in `dist/dependencies/<target>.json`; the normal versioned OCI artifact, JUnit and Docker quality checks remain mandatory. This does not promise reproducibility for arbitrary lifecycle scripts or other Dockerfile commands.
+
+Missing/stale locks, unsupported lock versions, integrity failures, incompatible engines or a mismatched declared package manager fail preparation. Correct the native inputs or provisioned base and rebuild; preparation failures emit no actions/artifacts. The current public route is `https://registry.npmjs.org/`; private registries, VCS/direct non-registry sources, managed connector authorization and npm-specific credential canaries are not implemented. There is no persistent acquisition cache or internet fallback during execution. pnpm and Yarn have application-build acquisition adapters but are not yet registered Docker store providers.
+
+`tooling/test-npm-context.py` passed on Windows with actual npm 11.11.0/Node 24.14.1. It checks broker-transported product acquisition, script suppression, tarball-only export, two fresh offline cache/install operations, transitive runtime packages, omitted development installation, unchanged locks/store and rejected integrity. Its fixture transport does not prove the production broker's network isolation. The registered Linux `docker-npm-context` group additionally requires compiled-CLI preparation, actual offline RUN/import, exact resulting image files, package/runtime evidence, implicit tasks, OCI/JUnit/quality output, repeated identities and integrity rejection before actions. Its native result is pending; this is not full EX-058 acceptance.

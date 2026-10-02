@@ -41,6 +41,7 @@ if [[ "$mode" == provision ]]; then
   fi
   if selected docker; then
     docker pull python:3.13-slim-bookworm
+    npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-npm
     # The CI runner provisions binfmt/QEMU separately. These distinct tags keep
     # the native default images intact in both classic and containerd stores.
     docker build --platform linux/arm64 --tag oyzu-toolchain/go:1.24-mod0.25.0-linux-arm64 --file tooling/images/go.Dockerfile .
@@ -81,6 +82,7 @@ if [[ "$mode" == provision ]]; then
   fi
 else
   if selected docker; then
+    PATH="$PWD/tooling/images/node-npm/node_modules/.bin:$PATH" .ci-python/bin/python tooling/test-npm-context.py
     docker run --rm --pull=never --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python ghcr.io/astral-sh/uv:0.12.21-python3.12-trixie-slim tooling/test-python-context.py --manager uv
     docker run --rm --pull=never --mount type=bind,source="$PWD",target=/repository,readonly --workdir /repository --entrypoint python oyzu-toolchain/poetry:2.5.1-python3.12 tooling/test-python-context.py --manager poetry
   fi

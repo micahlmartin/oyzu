@@ -130,6 +130,11 @@ static RUNTIME: &[RuntimeFile] = &[
 ];
 
 impl Builder for Node {
+    fn dependency_providers(
+        &self,
+    ) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+        managers::dependency_providers()
+    }
     fn development_command(
         &self,
         task: &Task,

@@ -66,6 +66,11 @@ pub(super) fn get(id: &str) -> Result<&'static dyn Manager> {
         .ok_or_else(|| anyhow::anyhow!("unsupported Node manager {id}"))
 }
 
+pub(super) fn dependency_providers(
+) -> &'static [&'static dyn crate::dependencies::context::Provider] {
+    &[&npm::Npm]
+}
+
 pub(super) fn require_prepared(context: &PlanningContext<'_>) -> Result<()> {
     if context.dependencies.is_none() {
         bail!(

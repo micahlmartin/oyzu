@@ -6,9 +6,30 @@ use crate::{
     dependencies::Prepared,
     records,
 };
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 
 pub(super) struct Npm;
+// The same native locked acquisition serves application builds and Docker
+// consumers. Only verified registry tarballs cross the named-context boundary;
+// native cache/configuration and broker state are deliberately excluded.
+impl crate::dependencies::context::Provider for Npm {
+    fn id(&self) -> &'static str {
+        "node/npm"
+    }
+    fn tools(&self) -> &'static [&'static str] {
+        &["node", "npm"]
+    }
+    fn detect(&self, source: &std::path::Path) -> bool {
+        source.join("package.json").is_file() && preparation::lockfile(source).is_some()
+    }
+    fn store(&self) -> &'static str {
+        "tarballs"
+    }
+    fn prepare(&self, context: PreparationContext<'_>) -> Result<Prepared> {
+        preparation::prepare(context)?.context("npm preparation did not produce a captured store")
+    }
+}
+
 impl Manager for Npm {
     fn development_command(
         &self,

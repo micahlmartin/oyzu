@@ -65,12 +65,20 @@ fn provider_selection_preserves_ambiguity_and_managed_admission_before_effects()
         .unwrap()
         .to_string()
         .contains("unambiguous ecosystem"));
-    context.dependency_selector = Some("node/npm");
+    context.dependency_selector = Some("unregistered/provider");
     assert!(select(&context)
         .err()
         .unwrap()
         .to_string()
         .contains("not implemented"));
+    context.dependency_selector = Some("node/npm");
+    assert!(select(&context)
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("native manifest"));
+    fs::write(root.path().join("package-lock.json"), "{}").unwrap();
+    assert_eq!(select(&context).unwrap().id(), "node/npm");
     context.dependency_selector = Some("python/pip");
     assert_eq!(select(&context).unwrap().id(), "python/pip");
     let other = executor::Image {
