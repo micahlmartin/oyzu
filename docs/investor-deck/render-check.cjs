@@ -4,7 +4,7 @@ const {pathToFileURL}=require('node:url');
 fs.mkdirSync(path.join(__dirname,'screenshots'),{recursive:true});
 const {chromium}=require('playwright');
 (async()=>{
- const browser=await chromium.launch();
+ const browser=await chromium.launch({executablePath:process.env.CHROMIUM_EXECUTABLE_PATH || undefined});
  const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:1});
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto(pathToFileURL(path.join(__dirname,'index.html')).href);
