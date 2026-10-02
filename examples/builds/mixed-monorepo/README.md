@@ -23,6 +23,8 @@ The build YAML uses draft OEP syntax and contains only target intent/relationshi
 
 ## Native checks available now
 
+The first complete captured-build demonstration is registered as `mixed-monorepo` at the start of the `core` acceptance suite. It copies this project unchanged, runs the compiled CLI's task listing and one full build, then inspects all five targets' artifacts, reports and the Go-to-image materialization receipt. Follow [builder acceptance setup](../../../docs/reference/build-verification.md) to provision and run it. Linux captured acceptance is pending; the advanced cases below are not established by registering this check. The checked-in Go and JavaScript sources follow the implicit native formatter defaults so the first build can exercise the read-only quality gates.
+
 With the named toolchains already installed, run:
 
 ```text

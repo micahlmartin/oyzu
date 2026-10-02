@@ -21,6 +21,7 @@ from build_scenarios import docker_yarn_context
 from build_scenarios import docker_pnpm_context
 from build_scenarios import docker_go_context
 from build_scenarios import docker_rust_context
+from build_scenarios import mixed_monorepo
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -71,6 +72,7 @@ SUITES = ('core', 'dependencies', 'node', 'python', 'go', 'rust', 'java', 'helm'
 # Registration retains the existing full-run order. A suite is only a selection
 # of these checks; it cannot replace native outcomes or scenario expectations.
 CASES = (
+    ('core', 'mixed-monorepo', mixed_monorepo.verify),
     ('node', 'node-overrides', node.verify_overrides),
     ('core', 'concurrency', concurrency.verify),
     ('node', 'node-preflight', node_preflight.verify),

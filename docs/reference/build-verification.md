@@ -13,7 +13,7 @@ python tooling/check-build-suites.py
 
 The inventory check verifies unique registrations, conventional acceptance entry points, matching CI matrix coverage, compilation dependency and the aggregate gate. It neither provisions tools nor verifies native product behavior.
 
-For real builds, supply a compiled CLI and provision the required toolchains. Captured-build acceptance currently runs on Linux with Docker and the toolchain definitions in `tooling/images/`. Node/core/Docker/dependencies checks also use host Node 22/npm; Java native adapter checks require host JDK 17. The provisioning script uses network access to obtain test tooling and images. Go/Docker/Python/dependencies suites install the repository's explicit BuildKit AppArmor profile using `sudo apparmor_parser`; use a suitable Linux test machine. This is acceptance-fixture setup, not Oyzu's tool-installation feature or an implicit network fallback during a product build.
+For real builds, supply a compiled CLI and provision the required toolchains. Captured-build acceptance currently runs on Linux with Docker and the toolchain definitions in `tooling/images/`. Node/core/Docker/dependencies checks also use host Node 22/npm; Java native adapter checks require host JDK 17. The provisioning script uses network access to obtain test tooling and images. Core/Go/Docker/Python/dependencies suites install the repository's explicit BuildKit AppArmor profile using `sudo apparmor_parser`; use a suitable Linux test machine. This is acceptance-fixture setup, not Oyzu's tool-installation feature or an implicit network fallback during a product build.
 
 From the repository on that Linux test machine:
 
@@ -30,7 +30,7 @@ Omitting `--suite` selects `all` and retains the original full-run ordering. Pro
 
 | Suite | Included checks and toolchain dependencies |
 | --- | --- |
-| `core` | Concurrency, explicit target selection and dependency closure, cross-target task prerequisites and hook failures, Go-to-Node materialization, baseline Node/Go/Python artifacts, repeatability and isolation; includes npm, Go, pip, uv and Poetry tooling |
+| `core` | First the authored five-target mixed-monorepo build, then concurrency, explicit target selection and dependency closure, cross-target task prerequisites and hook failures, Go-to-Node materialization, baseline Node/Go/Python artifacts, repeatability and isolation; includes npm, Go, pip, uv, Poetry, Helm and Docker tooling |
 | `node` | Native overrides, dependency/preflight failures, npm/pnpm/Yarn, workspaces, lint/format, Jest, Vitest and Mocha |
 | `python` | Test/report defaults, application archives, legacy packaging and quality selection; includes native Python adapter probes |
 | `go` | Libraries, workspace/cgo, registry modules and selected multi-binary image assembly; includes Docker tooling |
@@ -41,6 +41,10 @@ Omitting `--suite` selects `all` and retains the original full-run ordering. Pro
 | `docker` | Dockerfile images, provisioned inputs, aliases, ARG defaults, quality, Go artifact assembly and Vite directory materialization; includes Go and npm/Node quality tooling |
 
 The catalog is owned by `tooling/test-build-scenarios.py`; native assertions remain in `tooling/build_scenarios/`. New conventional `verify(root, base, invoke, validate, source_files, verified)` entry points must be registered. Keep helper assertions with their owning group and update provisioning when a composition check needs another builder's toolchain. No production builder rules belong in this harness.
+
+The `core` suite starts with `mixed-monorepo`, the first complete EX-030 demonstration. It copies the checked-in project without changing its five-target `build.yaml`, lists grouped tasks and invokes one `oyzu build`. Assertions require successful build/test/lint/read-only-format stages for every target, Python wheel/sdist/application outputs, a Node application directory, a Go binary embedded byte-for-byte in the OCI image, and a versioned Helm chart plus rendered deployment. The manifest must retain JUnit for every target and application coverage for Python/Node/Go, and `oyzu inspect dist` must verify the bundle. Provision `core` as above with Helm and Docker included. The Linux captured result is pending; registration and native host checks do not establish a passing demonstration.
+
+EX-030's first proof is separate from its advanced negative cases, broader host qualification and proposed image-to-chart value binding. The current `depends_on: [image]` orders the chart after image packaging; it does not replace native chart values with the image digest. The check preserves that distinction and does not mark the entire authored scenario complete.
 
 The `dependencies` suite separates package-store integration from the Docker platform-matrix checks. Run it explicitly when changing providers:
 
