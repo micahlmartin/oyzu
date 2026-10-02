@@ -131,6 +131,25 @@ and macOS confirmation for this increment remains pending.
 
 ## Candidate Go archive facts
 
+The fork also exposes async `session.go_archive_metadata("1.24.13", target)`.
+It requires Go session admission and an exact canonical stable version before
+fetching the existing target-specific `.sha256` URL through the supplied transport.
+Targets remain Linux amd64 GNU, Darwin arm64 and Windows amd64 MSVC. It returns
+the same `GoArchiveFacts` plus `declared_sha256` with a `sha256:` prefix and
+lowercase hexadecimal digits. No archive bytes are downloaded or executed.
+
+The response must be at most 128 UTF-8 bytes and, after trimming surrounding
+whitespace, exactly 64 ASCII hexadecimal characters. Empty, malformed, multiple
+or oversized digests fail. A transport error propagates without public-network
+fallback; offline use requires a supplied transport serving retained metadata.
+The transport owns streaming bounds and timeouts before text decoding; this
+post-decoding check is not a streaming resource limit. No metadata cache is added.
+Declared hashes do not establish catalog membership, artifact size/content,
+publisher authentication or installation authority. This experimental API remains
+in the fork; the production Oyzu dependency and worker connection remain pending.
+Linux Rust 1.95 library/example Clippy and all thirteen fresh-process conformance
+scenarios passed for this increment; native Windows/macOS verification is pending.
+
 The fork's experimental `Session::go_archive_facts(version, target)` uses Go's
 upstream artifact/mirror calculation and shared archive-root constant. Like Node,
 it requires immutable tool admission, full stable SemVer and one of

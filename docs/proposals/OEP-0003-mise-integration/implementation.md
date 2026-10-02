@@ -51,6 +51,11 @@ Node target metadata additionally requires an exact archive entry in a checked
 SHA-256 manifest. That is declared metadata, not authenticated publisher evidence
 or proof of acquired artifact bytes/size.
 
+Go target metadata now has a candidate declared-checksum operation over the
+existing upstream target URL, with strict digest syntax and session admission.
+Go catalog selection, publisher verification and production worker integration
+remain outstanding; this does not complete TM-03 or TM-06.
+
 ## Dependency order and deliverables
 
 Each package is a reviewable change with an executable acceptance result. Do not

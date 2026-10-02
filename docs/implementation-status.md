@@ -944,3 +944,21 @@ and internally inconsistent archives even when the archive hash is updated. The
 existing upstream workflow discovers the new tests. This is evidence integrity,
 not a source import approval, release audit or completed TM-02/TM-12. The maintenance
 reference documents invocation, bounds, trust inputs and failure recovery.
+
+## Mise integration checkpoint 85: candidate Go checksum metadata
+
+The candidate fork exposes `Session::go_archive_metadata` using its existing Go
+archive facts and target-specific checksum URL. Backend/version/target admission
+precedes transport access. It accepts only a bounded single SHA-256 digest and
+returns declared metadata without artifact acquisition or execution. The owning
+maintenance reference documents response limits, offline requirements and the
+remaining catalog, publisher-verification and worker-integration gaps.
+
+A thirteenth fresh-process conformance scenario exercises all three initial target
+URLs, case normalization, malformed/multiple/oversized checksums and invalid inputs.
+Existing scenarios now check explicit transport denial and session admission for
+this method. Windows compliance tests passed (22 plus two symlink skips), and the
+factual dependency/notice inventory remained unchanged. Linux library/example
+Clippy and all thirteen executable conformance scenarios passed. Native
+Windows/macOS execution of this increment remains pending. This does not complete
+TM-03/TM-06 or authorize a production source import.
