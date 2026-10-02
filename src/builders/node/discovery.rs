@@ -6,6 +6,10 @@ use serde_json::Value;
 pub(super) fn discover(target: &mut Target) -> Result<()> {
     let profile = super::detection::detect(&target.path)?;
     let framework = profile.framework.selected().to_string();
+    target.discovery.insert("linter".into(), profile.linter);
+    target
+        .discovery
+        .insert("formatter".into(), profile.formatter);
     target
         .discovery
         .insert("test-framework".into(), profile.framework);
@@ -52,8 +56,9 @@ pub(super) fn discover(target: &mut Target) -> Result<()> {
             super::super::unavailable(target, "test", &format!("Detected {framework}; its implicit runner/report integration is not implemented yet"));
         }
     }
+    super::quality::discover(target);
     if manager == "npm" && value.get("workspaces").is_some() {
-        for name in ["build", "format-check", "format:check"] {
+        for name in ["build", "format:check"] {
             super::super::unavailable(
                 target,
                 name,

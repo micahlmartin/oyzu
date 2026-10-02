@@ -13,6 +13,8 @@ def verify(root, base, invoke, validate, source_files, verified):
     invoke(project, 'build')
     manifest = validate(project/'dist')
     assert manifest['status'] == 'succeeded' and before == source_files(project)
+    for stage in ['lint','format-check']:
+        assert next(a for a in manifest['actions'] if a['id'] == f'project:{stage}')['status'] == 'succeeded'
     assert len(manifest['artifacts']) == 2
     versions = {a['version'] for a in manifest['artifacts']}
     assert len(versions) == 1 and '-dev.g' in next(iter(versions))
@@ -39,4 +41,18 @@ def verify(root, base, invoke, validate, source_files, verified):
     tests = [r for r in failed['reports'] if r['kind'] == 'test']
     assert len(tests) == 2 and sum(t['summary']['failed'] for t in tests) == 1
     assert next(a for a in failed['actions'] if a['id'] == 'project:package')['status'] == 'blocked'
+    (project/'packages/shared/failing.test.mjs').unlink()
+    source = project/'packages/shared/index.mjs'
+    original = source.read_text()
+    source.write_text(original + '\nconst unused = 1;\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    assert next(a for a in failed['actions'] if a['id'] == 'project:lint')['status'] == 'failed'
+    source.write_text(original + '\nexport const additional=1;\n')
+    invoke(project, 'build', success=False)
+    failed = validate(project/'dist')
+    assert not failed['artifacts']
+    assert next(a for a in failed['actions'] if a['id'] == 'project:lint')['status'] == 'succeeded'
+    assert next(a for a in failed['actions'] if a['id'] == 'project:format-check')['status'] == 'failed'
     verified.append('EX-020 npm workspaces: isolated native link replay, per-member snapshot packages/JUnit/coverage, internal snapshot references, stable artifacts and failed-test package blocking; affected selection remains pending')

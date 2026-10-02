@@ -76,6 +76,7 @@ jobs:
           python tooling/test-node-acquisition.py
           python tooling/test-npm-workspaces.py
           python tooling/test-npm-workspace-build.py
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-pnpm
           npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-yarn
           python tooling/test-node-managers.py --pnpm-cli tooling/images/node-pnpm/node_modules/pnpm/bin/pnpm.cjs --yarn-cli tooling/images/node-yarn/node_modules/yarn/bin/yarn.js --tar-stream tooling/images/node-yarn/node_modules/tar-stream
@@ -87,10 +88,12 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then
             python tooling/test-go-metadata.py --cli cli/oyzu.exe
             python tooling/test-task-scenarios.py --cli cli/oyzu.exe
+            python tooling/test-node-quality.py --cli cli/oyzu.exe
           else
             chmod +x cli/oyzu
             python3 tooling/test-go-metadata.py --cli cli/oyzu
             python3 tooling/test-task-scenarios.py --cli cli/oyzu
+            python3 tooling/test-node-quality.py --cli cli/oyzu
           fi
 
   container-worker-contract:
@@ -142,6 +145,8 @@ jobs:
       - name: Provision native toolchain images and contract validator
         run: |
           docker pull node:22-bookworm-slim
+          docker build --tag oyzu-toolchain/node:quality tooling/images/node-quality
+          npm ci --ignore-scripts --no-audit --no-fund --prefix tooling/images/node-quality
           docker build --tag oyzu-toolchain/node:npm11.11.0-node22 tooling/images/node-npm
           docker build --tag oyzu-toolchain/node:pnpm10.11.0-node22 tooling/images/node-pnpm
           docker build --tag oyzu-toolchain/node:yarn1.22.22-node22 tooling/images/node-yarn

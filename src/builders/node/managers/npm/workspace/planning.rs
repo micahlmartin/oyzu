@@ -139,6 +139,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             );
         }
     }
+    crate::builders::node::quality::plan(context.target, &mut plan)?;
     Ok(plan)
 }
 
