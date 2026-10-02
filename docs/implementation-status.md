@@ -1292,3 +1292,18 @@ a false-negative observation path without importing mise or conferring admission
 Six maintenance regression tests passed, including alias/target wrong-source
 rejection, conflicting pins, unsupported overrides and orphan lock records.
 Detailed behavior and recovery are documented in the maintenance reference.
+
+## Mise integration checkpoint 98: native Go ZIP matrix confirmation
+
+Run `36993866491` at `ca32f4b82efd330b3b01911e643208a550189bbc` passed
+the full locked Rust test and strict Clippy steps plus both real Node and Go ZIP
+qualification steps on Windows, macOS and Linux. This resolves the native archive
+matrix uncertainty in checkpoint 93: all three hosts matched the 15,738 Go entries,
+published/verified the installation, and rejected the changed lock identity;
+Windows additionally ran the native version command. macOS/Linux tested the
+Windows payload as foreign-target data, not a native Go installation.
+
+This run predates checkpoint 96's GOROOT/compiler additions. Its remaining job
+steps were still running when checked, so the complete workflow is not claimed
+passing. The current reference now distinguishes this native archive evidence
+from later compiler tests and from still-missing production backend admission.

@@ -694,6 +694,11 @@ Windows qualification passed for all 15,738 entries, publication, changed-lock
 denial/recovery, native version execution, GOROOT lookup and compilation/execution
 of a standard-library program with the explicit 800:1 test layout.
 Linux foreign-target materialization, publication and changed-lock checks also passed
-with container networking disabled; it did not execute the Windows payload. Updated
-native CI remains pending. Passing this fixture does not establish product Go
-build/environment integration, other native targets, publisher signatures or end-to-end product installation.
+with container networking disabled; it did not execute the Windows payload.
+Native CI run [36993866491](https://github.com/micahlmartin/oyzu/actions/runs/36993866491)
+at `ca32f4b82efd330b3b01911e643208a550189bbc` passed both Node and Go archive
+steps on Windows, macOS and Linux. That revision verifies inventory, publication,
+changed-lock denial and Windows version execution; it predates the added Go build
+and GOROOT checks, whose native CI remains pending. These results do not establish
+product Go build/environment integration, other native Go archives, publisher
+signatures or end-to-end product installation.
