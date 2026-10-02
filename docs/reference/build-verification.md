@@ -31,7 +31,7 @@ Omitting `--suite` selects `all` and retains the original full-run ordering. Pro
 | Suite | Included checks and toolchain dependencies |
 | --- | --- |
 | `core` | First the authored five-target mixed-monorepo build, then concurrency, explicit target selection and dependency closure, cross-target task prerequisites and hook failures, Go-to-Node materialization, baseline Node/Go/Python artifacts, repeatability and isolation; includes npm, Go, pip, uv, Poetry, Helm and Docker tooling |
-| `node` | Native overrides, dependency/preflight failures, npm/pnpm/Yarn, workspaces, lint/format, Jest, Vitest and Mocha |
+| `node` | First the authored generated-source and test-owned service flows, then native overrides, dependency/preflight failures, npm/pnpm/Yarn, workspaces, lint/format, Jest, Vitest and Mocha |
 | `python` | Test/report defaults, application archives, legacy packaging and quality selection; includes native Python adapter probes |
 | `go` | Libraries, workspace/cgo, registry modules and selected multi-binary image assembly; includes Docker tooling |
 | `rust` | Native Cargo application/workspace/registry, packaging, tests and quality profiles |
@@ -45,6 +45,10 @@ The catalog is owned by `tooling/test-build-scenarios.py`; native assertions rem
 The `core` suite starts with `mixed-monorepo`, the first complete EX-030 demonstration. It copies the checked-in project without changing its five-target `build.yaml`, lists grouped tasks and invokes one `oyzu build`. Assertions require successful build/test/lint/read-only-format stages for every target, Python wheel/sdist/application outputs, a Node application directory, a Go binary embedded byte-for-byte in the OCI image, and a versioned Helm chart plus rendered deployment. The manifest must retain JUnit for every target and application coverage for Python/Node/Go, and `oyzu inspect dist` must verify the bundle. Provision `core` as above with Helm and Docker included. The Linux captured result is pending; registration and native host checks do not establish a passing demonstration.
 
 EX-030's first proof is separate from its advanced negative cases, broader host qualification and proposed image-to-chart value binding. The current `depends_on: [image]` orders the chart after image packaging; it does not replace native chart values with the image digest. The check preserves that distinction and does not mark the entire authored scenario complete.
+
+The `node` suite starts with two additional authored flows. `generated-source` runs EX-031 without a build file, requires a single native build stage, verifies both consumer tests and the generated module inside the snapshot package, then changes the schema and requires both tests to fail after regeneration. This proves the native generation-to-package flow when it passes; separate generator action identities and selective cache invalidation remain unfinished. `service-test` runs EX-044's real test-owned loopback HTTP server within the isolated test action, requires JUnit/coverage and the snapshot package, then closes the server before the request and requires a failed service test with no published artifacts. This is loopback within one action, not separately provisioned services or external network access. Service lifecycle descriptors and external-service reproducibility classification remain unfinished.
+
+Both new groups have pending captured Linux results. Their checked-in sources pass the compiled Windows CLI's native build/test/lint/format-check tasks with provisioned Node 24.14.1 and the shared quality toolchain. Linux CI provisions Node 22 and runs these groups after CLI compilation. Source formatting changes make the existing authored programs satisfy their native default formatter; neither project requires new Oyzu configuration.
 
 The `dependencies` suite separates package-store integration from the Docker platform-matrix checks. Run it explicitly when changing providers:
 

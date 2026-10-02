@@ -263,6 +263,8 @@ Captured-build acceptance has a separate test-only composition boundary: `toolin
 
 `tooling/provisioning.py` owns bounded download/retry behavior shared by explicit native CI provisioners. Each provisioner retains its asset selection, pinned digest verification and extraction/license handling. Docker toolchain definitions copy the same helper beside those scripts. This is test/toolchain infrastructure, not an alternative product acquisition path or tool installer.
 
+Within captured acceptance, `generated_source.py` owns EX-031's native generation/consumer/package proof and `service_test.py` owns EX-044's test-owned loopback service and unavailable-endpoint proof. They run first in the Node suite and assert actual CLI outputs; they do not implement missing cache or service orchestration behavior in the harness.
+
 ## Lessons from other projects
 
 These sources inform our engineering choices; their contribution policies are not Oyzu's AI-authorship policy.
