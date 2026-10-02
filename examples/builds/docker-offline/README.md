@@ -46,3 +46,5 @@ Acceptance criteria: EXEC-01, BUILDER-05. See the [design catalog](../../../docs
 
 
 Files such as `scenario.json` and sibling expectation data belong to the example harness, not to Oyzu project configuration. They define observable targets without inventing an implementation or a policy programming language.
+
+Standalone variants use native Dockerfmt defaults when they have no local `.editorconfig`. Validate them in an isolated directory so this repository's parent EditorConfig does not influence formatting. The native quality probe performs this check through the compiled CLI.

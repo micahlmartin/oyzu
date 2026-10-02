@@ -1,0 +1,2 @@
+# Fixture identity metadata is not a subchart.
+charts/*.tgz.sha256
