@@ -31,6 +31,12 @@ Native Node shims now retain the frontend image, validate their adjacent manifes
 and resolve frozen selection for each invocation. Active sessions retain the shim
 on PATH when a project is unavailable, so a declared Node command cannot silently
 fall back to a system installation. Native shim qualification remains in progress.
+Standalone administrative Node routes now connect explicit host TOML bindings to
+the existing broker for both mise metadata and archive acquisition. Linux acceptance
+on 2026-10-02 installed and executed real Node through an authenticated forwarding
+proxy, rejected missing/denied bindings without public fallback, and reused the
+frozen installation offline without proxy credentials. Managed agent grants remain
+unimplemented; this does not establish managed-network containment.
 
 ## Builder objective
 

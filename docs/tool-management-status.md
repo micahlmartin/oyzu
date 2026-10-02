@@ -2630,3 +2630,22 @@ passed. Windows/macOS shim evidence remains pending. Separately, original
 PowerShell activation/switching/deactivation at 83049fa passed in run 37050580618.
 Full shell lifecycle, shim pruning/command expansion, other tools and the rest of
 OEP-0003 remain open; hardening is reserved for future goals.
+
+## Checkpoint 166: real standalone Node proxy acquisition (2026-10-02)
+
+Administrative tools routes now select explicit host TOML connector bindings.
+The first-party acquisition adapter owns endpoint mapping and credential lookup;
+mise metadata uses the same host broker as archive downloads through the existing
+development worker channel. Project routes remain rejected by configuration.
+
+The real Linux acceptance runner forwarded public Node index, checksum and archive
+bytes through an authenticated loopback proxy, installed and executed Node 22.15.0,
+rejected missing bindings and denied authorization without public fallback, and
+reused the frozen installation offline without credentials or additional requests.
+No proxy endpoint or credential appeared in the lock. This is a standalone host
+binding proof, not managed grants, production proxy qualification or OS containment.
+
+Default Windows tests, strict clippy, formatting and nine real task scenarios passed.
+Feature-enabled Linux build, all-target strict clippy and formatting passed. Further
+hardening remains deferred; managed acquisition and the remaining OEP functional
+scope stay open. The detailed development reference owns usage and limitations.

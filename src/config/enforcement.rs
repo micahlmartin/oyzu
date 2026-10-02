@@ -3,6 +3,12 @@ use super::resolve::EffectiveConfig;
 use anyhow::{bail, Result};
 use serde_json::Value;
 pub(crate) fn execution_preflight(config: &EffectiveConfig, tools: &[&str]) -> Result<()> {
+    tool_eligibility(config, tools)?;
+    execution_routes(config)
+}
+
+/// Enforce configured tool eligibility independently of acquisition transport.
+pub(crate) fn tool_eligibility(config: &EffectiveConfig, tools: &[&str]) -> Result<()> {
     if let Some(allowed) = config.get("tools.allowed").and_then(Value::as_array) {
         for tool in tools {
             if !allowed.iter().any(|value| value.as_str() == Some(tool)) {
@@ -20,6 +26,10 @@ pub(crate) fn execution_preflight(config: &EffectiveConfig, tools: &[&str]) -> R
             }
         }
     }
+    Ok(())
+}
+
+fn execution_routes(config: &EffectiveConfig) -> Result<()> {
     if config
         .get("registries.routes")
         .and_then(Value::as_array)

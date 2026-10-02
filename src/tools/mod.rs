@@ -2,6 +2,8 @@
 //! Inspection is read-only; cache/publication mutations require caller admission.
 //! Grant checks and worker framing rely on independently trusted caller context;
 //! none of these library operations alone confers execution authority.
+#[cfg(feature = "mise-integration")]
+mod acquisition;
 mod backend;
 #[cfg(feature = "mise-integration")]
 pub mod development;

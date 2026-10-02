@@ -69,6 +69,9 @@ enum Commands {
         /// Resolve configured requirements again (currently node/core:node).
         #[arg(long, num_args = 0.., conflicts_with_all = ["frozen", "offline"])]
         update: Option<Vec<String>>,
+        /// Host-owned connector endpoints and authorization environment references.
+        #[arg(long)]
+        connector_bindings: Option<PathBuf>,
         #[arg(long, default_value = ".oyzu/tools")]
         store: PathBuf,
     },
@@ -205,6 +208,7 @@ fn run() -> Result<i32> {
             frozen,
             offline,
             update,
+            connector_bindings,
         } => {
             return oyzu::tools::development::install(
                 &directory,
@@ -213,6 +217,10 @@ fn run() -> Result<i32> {
                 *frozen,
                 *offline,
                 update.as_deref(),
+                connector_bindings
+                    .as_ref()
+                    .map(|path| directory.join(path))
+                    .as_deref(),
             );
         }
         #[cfg(feature = "mise-integration")]

@@ -1,22 +1,57 @@
 //! Opt-in standalone Node integration. Oyzu owns configuration, locks and storage;
 //! a fresh same-image child owns mise globals. Initial development transport uses
 //! child stdio; authenticated worker IPC and process hardening are future work.
+use super::acquisition::NodeAcquisition;
 use super::{lock, ToolCandidateRequest, ToolLaunch};
-use crate::{broker, config, records};
+use crate::{config, records};
 use anyhow::{ensure, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
     collections::BTreeMap,
     ffi::OsString,
-    io::Write,
+    io::{BufRead, Write},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::Arc,
 };
 
 const PIN: &str = "9290bcac695c8ff8a56760ccebd785d5062b459c";
-const SOURCE: &str = "https://nodejs.org/dist/";
+#[derive(Serialize, Deserialize)]
+enum WorkerReply {
+    Fetch(String),
+    Complete(serde_json::Value),
+}
+#[derive(Serialize, Deserialize)]
+enum TransportReply {
+    Response {
+        status: u16,
+        content_type: String,
+        body: Vec<u8>,
+    },
+    Error(String),
+}
+
+fn write_line(writer: &mut dyn Write, value: &impl Serialize) -> Result<()> {
+    serde_json::to_writer(&mut *writer, value)?;
+    writer.write_all(b"\n")?;
+    writer.flush()?;
+    Ok(())
+}
+fn read_line<T: serde::de::DeserializeOwned>(reader: &mut dyn BufRead) -> Result<T> {
+    let mut line = String::new();
+    ensure!(
+        reader.read_line(&mut line)? != 0,
+        "integration channel closed before response"
+    );
+    Ok(serde_json::from_str(&line)?)
+}
+fn complete(value: &impl Serialize) -> Result<()> {
+    write_line(
+        &mut std::io::stdout(),
+        &WorkerReply::Complete(serde_json::to_value(value)?),
+    )
+}
 
 #[derive(Serialize, Deserialize)]
 enum WorkerRequest {
@@ -56,9 +91,6 @@ struct Metadata {
     aliases: BTreeMap<String, String>,
 }
 
-fn fetcher() -> Result<broker::Fetcher> {
-    broker::Fetcher::new(vec![broker::Source::new("node-releases", SOURCE, None)?])
-}
 fn identity() -> Result<String> {
     records::digest(
         "oyzu.development-node-adapter.v1",
@@ -76,21 +108,40 @@ fn platform() -> Result<&'static str> {
 
 /// Internal child entrypoint. Call before creating any application thread.
 pub fn worker() -> Result<i32> {
-    let operation: WorkerRequest = serde_json::from_reader(std::io::stdin())?;
+    let operation: WorkerRequest = read_line(&mut std::io::stdin().lock())?;
     let state = tempfile::tempdir()?;
-    let transport: Arc<mise::embedding::HttpTransport> = Arc::new(|request| {
+    let exchange = Arc::new(std::sync::Mutex::new(()));
+    let transport: Arc<mise::embedding::HttpTransport> = Arc::new(move |request| {
+        let exchange = exchange.clone();
         Box::pin(async move {
             if request.method.as_str() != "GET" {
                 return Err(std::io::Error::other("metadata requires GET").into());
             }
             let url = request.url.to_string();
-            let response = tokio::task::spawn_blocking(move || fetcher()?.fetch(&url))
-                .await?
-                .map_err(|error| std::io::Error::other(error.to_string()))?;
+            let response = tokio::task::spawn_blocking(move || -> Result<TransportReply> {
+                let _guard = exchange
+                    .lock()
+                    .map_err(|_| anyhow::anyhow!("metadata exchange unavailable"))?;
+                write_line(&mut std::io::stdout(), &WorkerReply::Fetch(url))?;
+                read_line(&mut std::io::stdin().lock())
+            })
+            .await?
+            .map_err(|error| std::io::Error::other(error.to_string()))?;
+            let TransportReply::Response {
+                status,
+                content_type,
+                body,
+            } = response
+            else {
+                let TransportReply::Error(message) = response else {
+                    unreachable!()
+                };
+                return Err(std::io::Error::other(message).into());
+            };
             let response = http::Response::builder()
-                .status(response.status)
-                .header("content-type", response.content_type)
-                .body(response.body)?;
+                .status(status)
+                .header("content-type", content_type)
+                .body(body)?;
             Ok(reqwest_mise::Response::from(response))
         })
     });
@@ -139,7 +190,7 @@ pub fn worker() -> Result<i32> {
             } else {
                 template
             };
-            serde_json::to_writer(std::io::stdout(), &script)?;
+            complete(&script)?;
             return Ok(0);
         }
         WorkerRequest::Metadata(request) => request,
@@ -164,7 +215,7 @@ pub fn worker() -> Result<i32> {
             for key in remove {
                 script.push_str(&renderer.unset_env(&key));
             }
-            serde_json::to_writer(std::io::stdout(), &script)?;
+            complete(&script)?;
             return Ok(0);
         }
     };
@@ -198,19 +249,25 @@ pub fn worker() -> Result<i32> {
             aliases,
         }
     };
-    serde_json::to_writer(std::io::stdout(), &result)?;
+    complete(&result)?;
     Ok(0)
 }
 
-fn metadata(request: &Request) -> Result<Metadata> {
-    worker_call(&WorkerRequest::Metadata(Request {
-        request: request.request.clone(),
-        exact: request.exact.clone(),
-        target: request.target.clone(),
-    }))
+fn metadata(request: &Request, acquisition: Option<&mut NodeAcquisition>) -> Result<Metadata> {
+    worker_call(
+        &WorkerRequest::Metadata(Request {
+            request: request.request.clone(),
+            exact: request.exact.clone(),
+            target: request.target.clone(),
+        }),
+        acquisition,
+    )
 }
 
-fn worker_call<T: serde::de::DeserializeOwned>(request: &WorkerRequest) -> Result<T> {
+fn worker_call<T: serde::de::DeserializeOwned>(
+    request: &WorkerRequest,
+    mut acquisition: Option<&mut NodeAcquisition>,
+) -> Result<T> {
     let home = tempfile::tempdir()?;
     let mut command = Command::new(std::env::current_exe()?);
     command
@@ -230,14 +287,39 @@ fn worker_call<T: serde::de::DeserializeOwned>(request: &WorkerRequest) -> Resul
         }
     }
     let mut child = command.spawn()?;
-    child
-        .stdin
-        .take()
-        .context("worker input unavailable")?
-        .write_all(&serde_json::to_vec(request)?)?;
-    let output = child.wait_with_output()?;
-    ensure!(output.status.success(), "mise integration worker failed");
-    Ok(serde_json::from_slice(&output.stdout)?)
+    let mut input = child.stdin.take().context("worker input unavailable")?;
+    let mut output =
+        std::io::BufReader::new(child.stdout.take().context("worker output unavailable")?);
+    let result = (|| -> Result<T> {
+        write_line(&mut input, request)?;
+        loop {
+            match read_line(&mut output)? {
+                WorkerReply::Complete(value) => return Ok(serde_json::from_value(value)?),
+                WorkerReply::Fetch(url) => {
+                    let response = acquisition
+                        .as_deref_mut()
+                        .context("network is unavailable for this operation")
+                        .and_then(|acquisition| acquisition.fetch(&url));
+                    let reply = match response {
+                        Ok(response) => TransportReply::Response {
+                            status: response.status,
+                            content_type: response.content_type,
+                            body: response.body,
+                        },
+                        Err(error) => TransportReply::Error(error.to_string()),
+                    };
+                    write_line(&mut input, &reply)?;
+                }
+            }
+        }
+    })();
+    drop(input);
+    if result.is_err() {
+        let _ = child.kill();
+    }
+    let status = child.wait()?;
+    ensure!(status.success(), "mise integration worker failed");
+    result
 }
 
 fn configuration(
@@ -250,6 +332,8 @@ fn configuration(
 )> {
     let session = config::session::Session::open(directory, options)?;
     let effective = session.resolve(directory, false)?;
+    config::enforcement::tool_eligibility(&effective, &["node"])?;
+    NodeAcquisition::new(&effective, None)?;
     ensure!(
         effective.management.is_none(),
         "managed tool integration is not available in this standalone development proof"
@@ -290,6 +374,7 @@ pub fn install(
     frozen: bool,
     offline: bool,
     update: Option<&[String]>,
+    bindings: Option<&Path>,
 ) -> Result<i32> {
     ensure!(
         update.is_none() || !(frozen || offline),
@@ -305,6 +390,7 @@ pub fn install(
     }
     let directory = directory.canonicalize()?;
     let (session, effective, request) = configuration(&directory, options)?;
+    let mut acquisition = NodeAcquisition::new(&effective, bindings)?;
     ensure!(
         directory == session.root,
         "initial Node install supports the workspace root scope"
@@ -334,11 +420,14 @@ pub fn install(
         }
     }
     let previous = captured.as_ref().filter(|_| update.is_none());
-    let metadata = metadata(&Request {
-        request,
-        exact: previous.as_ref().map(|lock| lock.tool[0].version.clone()),
-        target: platform()?.into(),
-    })?;
+    let metadata = metadata(
+        &Request {
+            request,
+            exact: previous.as_ref().map(|lock| lock.tool[0].version.clone()),
+            target: platform()?.into(),
+        },
+        Some(&mut acquisition),
+    )?;
     let requests =
         super::project_tool_requests(&effective, &metadata.aliases, &BTreeMap::new(), &[])?;
     let profile = effective.profile.as_deref().unwrap_or("default");
@@ -408,7 +497,7 @@ pub fn install(
             !offline,
             "locked Node archive is not cached; run oyzu install online to acquire it"
         );
-        let response = fetcher()?.fetch(&metadata.archive.archive_url)?;
+        let response = acquisition.fetch(&metadata.archive.archive_url)?;
         ensure!(
             response.status == 200,
             "Node archive acquisition returned {}",
@@ -557,11 +646,14 @@ pub(super) fn installed_command(
         document.tool.len() == 1 && document.tool[0].id == "core:node",
         "initial exec supports a Node-only lock"
     );
-    let metadata = metadata(&Request {
-        request,
-        exact: Some(document.tool[0].version.clone()),
-        target: platform()?.into(),
-    })?;
+    let metadata = metadata(
+        &Request {
+            request,
+            exact: Some(document.tool[0].version.clone()),
+            target: platform()?.into(),
+        },
+        None,
+    )?;
     let requests =
         super::project_tool_requests(&effective, &metadata.aliases, &BTreeMap::new(), &[])?;
     let profile = effective.profile.as_deref().unwrap_or("default");
@@ -695,12 +787,15 @@ pub fn environment(
             .keys()
             .filter_map(|key| std::env::var(key).ok().map(|value| (key.clone(), value)))
             .collect();
-        let script: String = worker_call(&WorkerRequest::RenderEnvironment {
-            shell: shell.into(),
-            original,
-            desired,
-            remove: vec![],
-        })?;
+        let script: String = worker_call(
+            &WorkerRequest::RenderEnvironment {
+                shell: shell.into(),
+                original,
+                desired,
+                remove: vec![],
+            },
+            None,
+        )?;
         print!("{script}");
     } else {
         let values: BTreeMap<_, _> = environment.keys().map(|key| (key, "<redacted>")).collect();
@@ -739,10 +834,13 @@ pub(super) fn environment_key(name: &str) -> String {
 }
 
 pub(super) fn hooks(shell: &str, activate: bool) -> Result<String> {
-    worker_call(&WorkerRequest::Hooks {
-        shell: shell.into(),
-        activate,
-    })
+    worker_call(
+        &WorkerRequest::Hooks {
+            shell: shell.into(),
+            activate,
+        },
+        None,
+    )
 }
 
 pub(super) fn render_changes(
@@ -759,10 +857,13 @@ pub(super) fn render_changes(
             remove.push(key);
         }
     }
-    worker_call(&WorkerRequest::RenderEnvironment {
-        shell: shell.into(),
-        original,
-        desired,
-        remove,
-    })
+    worker_call(
+        &WorkerRequest::RenderEnvironment {
+            shell: shell.into(),
+            original,
+            desired,
+            remove,
+        },
+        None,
+    )
 }

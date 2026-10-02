@@ -12,6 +12,7 @@ on:
       - 'tooling/test-tool-updates.py'
       - 'tooling/test-tool-environment.py'
       - 'tooling/test-tool-activation.py'
+      - 'tooling/test-tool-proxy.py'
       - '.github/workflows/tool-management.yml'
   workflow_dispatch:
 
@@ -57,6 +58,9 @@ jobs:
       - name: Explicit Node version updates
         timeout-minutes: 15
         run: python tooling/test-tool-updates.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance"
+      - name: Real authenticated Node proxy acquisition
+        if: runner.os == 'Linux'
+        run: sudo python3 tooling/test-tool-proxy.py --cli "${{ github.workspace }}/${{ matrix.executable }}" --disposable-linux-host
       - name: Restore Node from cached archives in offline mode
         timeout-minutes: 15
         run: python tooling/test-tool-management.py --cli ${{ matrix.executable }} --workspace "${{ runner.temp }}/oyzu-user-acceptance" --offline-check --restore-cached

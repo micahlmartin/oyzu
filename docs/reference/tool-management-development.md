@@ -75,7 +75,8 @@ projects sharing installations, pass the same absolute `--store PATH` to both
 of version control. Each project selects its own locked version when executed.
 
 Installation requests metadata and the archive through Oyzu's existing HTTP
-fetcher, currently with the public `https://nodejs.org/dist/` route. It checks the
+host fetcher, using `https://nodejs.org/dist/` unless an administrative connector
+route applies (see below). It checks the
 archive against Node's declared SHA-256, derives the layout from mise, stages and
 publishes the installation, then commits the lock through the existing lock-edit
 transaction. The lock explicitly records digest-only verification; it does not
@@ -87,7 +88,7 @@ version. Both ordinary and frozen installs reuse an already installed selection
 after verifying its receipt and contents; this path needs no network and leaves
 the lock unchanged. If the installation is absent, Oyzu first verifies the cached
 archive against the locked digest and size, then restores the installed tree.
-Only a missing archive requires acquisition from the public route; invalid cached
+Only a missing archive requires acquisition from the selected route; invalid cached
 content fails instead of silently downloading a replacement.
 
 `install --offline` forbids metadata and artifact networking. It requires an
@@ -108,6 +109,76 @@ values and prepends the installed binary directory to PATH. The lease is held
 until the direct child exits. Its exit status is returned. Exec performs no implicit
 installation and its metadata-facts lookup is local. Initial installation and
 acquisition of uncached content require the network.
+
+## Standalone proxy acquisition
+
+Administrative `registries.routes` can select an opaque connector for Node.
+The existing protected `admin-settings.json` contract accepts this entry inside
+its `settings` object:
+
+```json
+"registries.routes": {
+  "locked": true,
+  "value": [{"protocol": "tools", "scope": "core:node", "connectorId": "corp-node"}]
+}
+```
+
+Routes remain administrative-only; they cannot appear in project TOML. Exact
+`node` or `core:node` scopes take precedence over `*`; specifying both exact
+aliases is ambiguous and fails. Other protocols do not route Node acquisition.
+`tools.allowed` is enforced before selecting or installing Node. Non-public
+`tools.catalogs` remain unsupported and fail without public fallback.
+
+Supply a host-owned TOML binding file explicitly to `install`:
+
+```toml
+format = 1
+[connectors.corp-node]
+base_url = "https://proxy.example/node/"
+authorization_env = "CORPORATE_NODE_AUTHORIZATION"
+```
+
+```sh
+oyzu install --connector-bindings /absolute/path/to/host-bindings.toml
+```
+
+Relative binding paths are resolved from the invocation directory (including
+`-C`). This file is not automatically discovered in a project. `base_url` must
+end in `/` and serve the Node distribution layout: `index.json`, versioned
+`SHASUMS256.txt` and archives. HTTPS is required except for loopback HTTP used by
+local proxies. `authorization_env` is optional and names a host environment
+variable containing the complete Authorization header value. Set that variable
+through your host credential provisioning; do not put credentials in project
+TOML, binding files or command arguments.
+
+Both mise metadata requests and archive acquisition use the host broker and the
+same binding. The mise child receives response bytes, not connector credentials
+or endpoints. Existing broker redirect admission applies. This is an explicit
+standalone development binding, not an agent-issued managed connector grant or
+an OS network containment claim. Managed mode is still rejected.
+
+Missing bindings, unavailable credential variables or denied requests fail;
+there is no retry against the public source. Correct the binding or authorization
+and rerun installation. Failed acquisition does not commit a new lock. Locks
+retain the logical `node-releases` source and content identity without transport
+endpoints or credentials. Frozen reuse and restoration from cached archives load
+no bindings and require no proxy credentials. A missing cached archive in offline
+mode fails without contacting the proxy.
+
+The real proxy acceptance runner forwards actual public Node metadata and archive
+bytes through an authenticated loopback proxy, installs and executes Node, checks
+missing/denied binding failures, then reuses the frozen installation offline.
+Run it only as root on a disposable Linux host; it temporarily provisions
+`/etc/oyzu/admin-settings.json`, refuses to overwrite an existing policy and removes
+its policy afterward:
+
+```sh
+python tooling/test-tool-proxy.py --cli PATH_TO_FEATURE_ENABLED_OYZU --disposable-linux-host
+```
+
+This scenario passed on Linux amd64 on 2026-10-02. Native Windows/macOS proxy
+acceptance remains pending; the shared implementation has not yet been qualified
+against a production corporate proxy.
 
 ## Environment inspection and shell application
 
@@ -295,8 +366,8 @@ and Windows amd64 at `1acb16f` in CI run `37048375166`; native macOS update
 acceptance remains pending.
 
 Remaining functional work includes other tools, aliases/native constraints,
-multi-tool and scoped updates, configured corporate
-transport, managed selection, npm entrypoints, shims, activation and build handoff.
+multi-tool and scoped updates, managed connector grants and selection, npm
+entrypoints, full shim/shell lifecycle qualification and build handoff.
 Managed configuration is explicitly rejected by this standalone proof. Child
 stdio currently carries internal metadata; authenticated worker IPC, full process
 tree cleanup and further hardening are deferred. Transitive notices/SBOM and
