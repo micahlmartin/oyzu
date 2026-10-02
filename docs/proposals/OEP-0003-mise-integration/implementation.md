@@ -53,8 +53,10 @@ or proof of acquired artifact bytes/size.
 
 Go target metadata now has a candidate declared-checksum operation over the
 existing upstream target URL, with strict digest syntax and session admission.
-Go catalog selection, publisher verification and production worker integration
-remain outstanding; this does not complete TM-03 or TM-06.
+Go additionally resolves supplied constraints against a bounded complete GitHub tag
+catalog using upstream parsing and shared Node/Go selection rules, without Git
+execution. Native directive discovery, publisher verification and production worker
+integration remain outstanding; this does not complete TM-03 or TM-06.
 
 ## Dependency order and deliverables
 

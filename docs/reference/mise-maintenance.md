@@ -131,6 +131,37 @@ and macOS confirmation for this increment remains pending.
 
 ## Candidate Go archive facts
 
+### Constrained catalog resolution
+
+The candidate fork's `session.resolve_go_version(request, native_constraints)`
+uses mise's backend catalog and the same admitted selector as Node. It supports
+exact stable versions, numeric prefixes, `latest` and upstream npm-compatible
+range expressions; all supplied constraints must match. For example, fixture tags
+`go1.24.13`, `go1.24.14` and `go1.25.0` select `1.24.13` for request `latest`
+with constraints `>=1.24` and `<1.24.14`. These are test values, not live recommendations.
+
+Embedded Go obtains complete tags using mise's existing GitHub parser over the
+supplied HTTP transport, rather than spawning Git. It retains Go prefix filtering,
+prerelease exclusion, deduplication and ordering. Pagination permits at most 1,000
+pages and 100,000 tags, rejects repeated URLs and denies next-page links that
+change the origin or introduce URL credentials before header creation/acquisition. A failed page fails the operation; a partial catalog is never returned.
+No commit-date requests are made. Response-byte limits and deadlines remain the
+transport's responsibility. Catalog results can use the session's private cache;
+there is no installed-tool or public aggregation-service fallback.
+
+Selector limits match Node: 256 constraints, 1,024 bytes per nonblank/control-free
+selector and 100,000 catalog versions of at most 128 bytes. Exact pins require
+catalog membership. Missing transport, conflicting constraints, unsupported request
+modes and absent/noncanonical stable versions fail. Older Go tags without three
+numeric version components are not admitted by this initial archive contract.
+The API does not discover `go.mod`/`go.work` directives, establish target availability
+or verify publishers. Production worker wiring remains outstanding.
+Linux Rust 1.95 passed all nineteen conformance scenarios, including six Go
+resolution cases covering successful constraints/cache and five denial modes.
+Native Windows/macOS verification for this increment remains pending.
+
+### Target metadata
+
 The fork also exposes async `session.go_archive_metadata("1.24.13", target)`.
 It requires Go session admission and an exact canonical stable version before
 fetching the existing target-specific `.sha256` URL through the supplied transport.
@@ -162,8 +193,8 @@ a patch component are rejected rather than guessed.
 
 This operation performs no Git discovery, acquisition, installation or target
 execution. It does not prove catalog membership, artifact availability, digest
-authenticity or native layout parity. The OEP's brokered Go catalog adapter,
-verification, admitted plan conversion and native install tests remain missing.
+authenticity or native layout parity. The OEP's production broker wiring, publisher verification, admitted plan conversion
+and native install tests remain missing.
 Corporate callers must map upstream locations to approved logical routes. The
 library conformance command above includes an isolated Go scenario covering two
 versions, all three targets, upstream URL parity and zero transport callbacks.

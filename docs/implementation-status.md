@@ -962,3 +962,23 @@ factual dependency/notice inventory remained unchanged. Linux library/example
 Clippy and all thirteen executable conformance scenarios passed. Native
 Windows/macOS execution of this increment remains pending. This does not complete
 TM-03/TM-06 or authorize a production source import.
+
+## Mise integration checkpoint 86: candidate Go constrained catalog resolution
+
+The fork now exposes admitted Go version selection using upstream tag parsing,
+Go version filtering/ordering and the shared Node/Go constrained selector. Embedded
+Go uses supplied HTTP pagination instead of its ordinary Git subprocess path.
+It requires exact-pin catalog membership and rejects partial/absent metadata,
+conflicting constraints, repeated/foreign-origin pagination and oversized catalogs.
+The bounded tag API is separate from ordinary upstream callers, whose pagination
+behavior is retained. No dependency or preserved notice changed.
+
+Six new fresh-process scenarios cover successful selection/cache and missing
+transport, cycles, foreign origins, 1,000-page and 100,000-tag bounds. Strict Linux
+library/example and utility-library Clippy passed after correcting an owned-handle
+compile error. All nineteen executable Linux conformance scenarios passed. Windows compliance tests
+passed with two platform symlink skips; inventory remains consistent. Native
+Windows/macOS results for this increment remain pending. Native constraint discovery,
+publisher verification, production worker wiring and full OEP acceptance remain
+outstanding. The maintenance reference documents inputs, limits, offline behavior
+and unsupported older Go version spellings.
