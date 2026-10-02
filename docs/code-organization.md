@@ -2,6 +2,8 @@
 
 This is repository-wide engineering guidance for contributors and coding agents. The concise rules live in [AGENTS.md](../AGENTS.md); the [contribution workflow](../CONTRIBUTING.md) explains how to apply them. Product direction and proposed future components live in [architecture](architecture.md). This map is not a claim that every intended subsystem or invariant is implemented.
 
+For a first change, [find its owner](#find-the-owner-first), use the [placement guide](#placing-a-new-extension), then follow the [small change workflow](#a-small-change-workflow). Consult [interface choices](#choosing-the-interface) or [reuse decisions](#reuse-without-coupling-unrelated-behavior) when the change crosses a boundary. The [upstream references](#lessons-from-other-projects) explain the precedents behind these choices; they are not additional contribution requirements.
+
 ## Find the owner first
 
 Oyzu currently uses one Rust package with a library and CLI binary. Modules establish boundaries now; separate crates are a later option when reuse, dependency isolation or distribution warrants them. A new ecosystem does not automatically need a new crate.
