@@ -2,6 +2,7 @@
 mod files;
 mod images;
 mod mode;
+mod recipe;
 mod toolchains;
 mod validation;
 mod worker;

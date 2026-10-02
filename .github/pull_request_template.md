@@ -13,7 +13,7 @@ For code changes, name the owning subsystem and any interface or shared-behavior
 Keep this proportional to the change. Address these questions where relevant:
 
 - **Ownership:** Which subsystem owns the rule, and what existing behavior is reused? For a new subsystem, link its responsibility comment and code-map entry.
-- **Boundary:** Which contract changes, and which implementations and consumers are affected? Explain why any new abstraction is needed; shared extractions should remove superseded copies.
+- **Boundary:** Which contract or dependency between subsystems changes, and which implementations and consumers are affected? Explain why any new abstraction or dependency direction is needed; shared extractions should remove superseded copies.
 - **Evidence:** Which observable behavior and failure cases verify the change? Report the actual checks below, including native integration and platform coverage where applicable.
 
 Use the [engineering guide](../docs/code-organization.md#review-boundaries-in-practice) for detailed review examples. Routine fixes do not require a new design document or an answer to every architectural question.

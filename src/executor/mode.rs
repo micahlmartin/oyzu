@@ -68,6 +68,8 @@ pub(crate) enum Mode {
         context_files: Vec<String>,
         apparmor_profile: String,
         dockerfile_digest: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        generated_recipe: Option<super::recipe::Recipe>,
         #[serde(default)]
         images: Vec<ImageInput>,
     },
@@ -150,6 +152,7 @@ impl Mode {
             context_files,
             apparmor_profile,
             dockerfile_digest,
+            generated_recipe,
             images,
         } = self
         {
@@ -177,6 +180,11 @@ impl Mode {
                     .all(|b| b.is_ascii_hexdigit())
             {
                 bail!("invalid captured Dockerfile identity");
+            }
+            if let Some(recipe) = generated_recipe {
+                if recipe.digest(images)? != *dockerfile_digest {
+                    bail!("generated image recipe differs from planned Dockerfile identity");
+                }
             }
             if !crate::snapshot::portable(output)
                 || output.contains('\\')
@@ -255,6 +263,7 @@ mod tests {
             context_files: vec![],
             apparmor_profile: "unconfined".into(),
             dockerfile_digest: format!("sha256:{}", "4".repeat(64)),
+            generated_recipe: None,
             images: vec![image, alias],
         };
         mode.validate().unwrap();

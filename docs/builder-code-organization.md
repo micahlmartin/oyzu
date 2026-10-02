@@ -2,6 +2,8 @@
 
 Apply the repository-wide [code organization rules](code-organization.md) alongside this ecosystem-specific guide.
 
+Dockerfile-free packaging is being implemented through a shared [container assembly boundary](container-assembly.md). Builders own runtime/ABI choices and successful application outputs; the executor owns the bounded generated definition and isolated worker. Do not introduce per-language Dockerfile writers or recompile the application during packaging. The `container: true` CLI integration remains unfinished.
+
 This describes the current Rust implementation structure. The behavioral design remains in [OEP-0014](proposals/OEP-0014-builders-and-examples/implementation.md), with acquisition in [OEP-0017](proposals/OEP-0017-dependency-acquisition/README.md). This refactor does not make unimplemented builder profiles complete; see [implementation status](implementation-status.md).
 
 ## Ownership

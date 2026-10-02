@@ -1,4 +1,6 @@
 //! Private rootless BuildKit worker. Application RUN never receives a host socket.
+#[cfg(test)]
+mod native_recipe;
 use super::files::{file, input, output_file};
 use super::{docker_path, run, Execution, Mode, Request};
 use crate::snapshot;
@@ -127,6 +129,32 @@ fn bind(command: &mut Command, source: &Path, destination: &str, readonly: bool)
     Ok(())
 }
 
+/// A definition belongs to private executor staging. Generated instructions are
+/// bound to their plan identity; a project Dockerfile is never rewritten.
+fn write_definition(
+    root: &Path,
+    definition: &Path,
+    digest: &str,
+    recipe: Option<&super::recipe::Recipe>,
+    images: &[super::ImageInput],
+) -> Result<()> {
+    let destination = definition.join("Dockerfile");
+    if destination.symlink_metadata().is_ok() {
+        bail!("private Dockerfile destination already exists");
+    }
+    if let Some(recipe) = recipe {
+        fs::write(&destination, recipe.render(images)?)?;
+    } else {
+        fs::copy(file(root, "Dockerfile")?, &destination)?;
+    }
+    // Verify the bytes actually handed to BuildKit, including a source change
+    // during copying. Neither an earlier check nor a declared hash suffices.
+    if snapshot::file_digest(&destination)? != digest {
+        bail!("Dockerfile changed after preflight; replan the captured definition");
+    }
+    Ok(())
+}
+
 fn normalize_context(root: &Path) -> Result<()> {
     // The source contract records executable intent, not the host user's umask,
     // ownership or setuid bits. Normalize only our private transport copy.
@@ -184,6 +212,7 @@ pub(super) fn execute(
         context_files,
         apparmor_profile,
         dockerfile_digest,
+        generated_recipe,
         images,
         ..
     } = mode
@@ -220,11 +249,13 @@ pub(super) fn execute(
         fs::create_dir(path)?;
     }
     capture_context(&root, &context, cwd, context_files, materialized)?;
-    let dockerfile = file(&root, "Dockerfile")?;
-    if snapshot::file_digest(&dockerfile)? != *dockerfile_digest {
-        bail!("Dockerfile changed after preflight; replan the captured definition");
-    }
-    fs::copy(dockerfile, definition.join("Dockerfile"))?;
+    write_definition(
+        &root,
+        &definition,
+        dockerfile_digest,
+        generated_recipe.as_ref(),
+        images,
+    )?;
     // Native ignore evaluation already selected source inputs. A separate
     // Dockerfile-local override keeps explicit artifact inputs present without
     // modifying the source-owned ignore files copied into the context.
@@ -358,6 +389,66 @@ pub(super) fn execute(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn generated_definitions_are_private_and_bound_to_their_actual_bytes() {
+        use crate::executor::recipe::{Base, Copy, Recipe};
+        let source = tempfile::tempdir().unwrap();
+        let definition = tempfile::tempdir().unwrap();
+        fs::write(source.path().join("Dockerfile"), "source-owned bytes").unwrap();
+        let recipe = Recipe {
+            base: Base::Scratch,
+            copies: vec![Copy {
+                source: "app".into(),
+                destination: "/app/app".into(),
+            }],
+            uid: 65532,
+            gid: 65532,
+            workdir: "/app".into(),
+            entrypoint: vec!["/app/app".into()],
+        };
+        let digest = recipe.digest(&[]).unwrap();
+        write_definition(
+            source.path(),
+            definition.path(),
+            &digest,
+            Some(&recipe),
+            &[],
+        )
+        .unwrap();
+        assert_eq!(
+            fs::read_to_string(source.path().join("Dockerfile")).unwrap(),
+            "source-owned bytes"
+        );
+        assert_eq!(
+            snapshot::file_digest(&definition.path().join("Dockerfile")).unwrap(),
+            digest
+        );
+        assert!(write_definition(
+            source.path(),
+            definition.path(),
+            &digest,
+            Some(&recipe),
+            &[]
+        )
+        .is_err());
+        let invalid = tempfile::tempdir().unwrap();
+        assert!(write_definition(
+            source.path(),
+            invalid.path(),
+            &format!("sha256:{}", "0".repeat(64)),
+            Some(&recipe),
+            &[]
+        )
+        .is_err());
+        let copied = tempfile::tempdir().unwrap();
+        let source_digest = snapshot::file_digest(&source.path().join("Dockerfile")).unwrap();
+        write_definition(source.path(), copied.path(), &source_digest, None, &[]).unwrap();
+        assert_eq!(
+            fs::read_to_string(copied.path().join("Dockerfile")).unwrap(),
+            "source-owned bytes"
+        );
+    }
 
     #[test]
     fn image_stores_are_contained_copied_and_bound_to_the_plan() {

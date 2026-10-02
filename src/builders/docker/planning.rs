@@ -89,6 +89,7 @@ pub(super) fn plan(context: PlanningContext<'_>) -> Result<BuilderPlan> {
             .as_str()
             .context("missing captured Dockerfile identity")?
             .into(),
+        generated_recipe: None,
         images,
     };
     plan.tasks.insert("build".into(), build);
