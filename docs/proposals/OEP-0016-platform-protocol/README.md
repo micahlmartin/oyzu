@@ -3,7 +3,7 @@ id: OEP-0016
 title: Public platform protocol and policy decisions
 status: draft
 implementation: not-started
-updated: 2026-10-01
+updated: 2026-10-03
 authors: [micahlmartin]
 reviewers: []
 requires: [OEP-0002, OEP-0010]

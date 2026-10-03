@@ -3,7 +3,7 @@ id: OEP-0010
 title: Connector and credential contracts
 status: draft
 implementation: not-started
-updated: 2026-10-01
+updated: 2026-10-03
 authors: [micahlmartin]
 reviewers: []
 requires: [OEP-0002]
