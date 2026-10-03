@@ -3,7 +3,7 @@ id: OEP-0016
 title: Public platform protocol and policy decisions
 status: draft
 implementation: not-started
-updated: 2026-10-01
+updated: 2026-10-03
 authors: [micahlmartin]
 reviewers: []
 requires: [OEP-0002, OEP-0010]
@@ -15,6 +15,8 @@ tracking-issue: null
 > Design draft for review. MUST and SHOULD express proposed normative requirements, not shipped behavior. Example syntax and protocol fields are provisional unless identified as an agreed product constraint.
 
 Implementation detail: [v1alpha1 implementation contract](implementation.md). This companion resolves the initial engineering defaults below; it remains draft, and does not imply maintainer acceptance or verified platform support. Where an older paragraph leaves an implementation choice open, the companion is the proposed initial resolution.
+
+The [account access context and permission-check companion](access-context.md) defines the proposed public membership context, safe checks and scoped-access administration slice. It remains draft and is separate from tool acquisition and credential-lease behavior.
 
 ## Problem and outcome
 

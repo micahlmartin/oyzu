@@ -3,7 +3,7 @@ id: OEP-0010
 title: Connector and credential contracts
 status: draft
 implementation: not-started
-updated: 2026-10-01
+updated: 2026-10-03
 authors: [micahlmartin]
 reviewers: []
 requires: [OEP-0002]
@@ -36,6 +36,10 @@ A connector describes its stable identifier, system/adapter type, approved endpo
 This is an illustrative contract, not a finalized wire schema. Credentials and internal endpoint details are tenant configuration, not public catalog contents.
 
 Policy selects connector plus repository plus allowed operation for tool acquisition, package reads, cache reads/writes, snapshot publishing, release publishing, and signing. Access to one does not imply access to the others.
+
+## Resource authorization boundary
+
+Membership context and permission-check semantics are owned by the [public access-context contract](../OEP-0016-platform-protocol/access-context.md). An active account membership or resource-access allow alone is not a connector-use lease. The connector/operation/purpose restrictions and credential lifecycle below remain separate; this link does not change their mechanics.
 
 ## Credential brokerage
 
