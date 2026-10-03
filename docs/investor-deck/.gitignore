@@ -1,0 +1,6 @@
+__pycache__/
+node_modules/
+screenshots/
+qa-results.json
+slide-content.json
+REVIEW-NOTES.txt

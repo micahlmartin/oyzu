@@ -1,0 +1,17 @@
+def clarify(slides, ico):
+    s=slides[0]
+    s['theme']='dark fc-cover'
+    s['body']='''<p class="fc-cover-bridge">Oyzu generates build, scan, and publish steps from application requirements and organizational policy. Teams don’t author or maintain the sequence.</p><div class="fc-cover-payoffs"><div><strong>One governed path</strong><span>from development to production.</span></div><div><strong>Delivery evolves through policy,</strong><span>not pipeline rewrites.</span></div><div><strong>Security and auditability</strong><span>built in.</span></div></div><div class="fc-cover-model" role="group" aria-label="Application teams declare intent. Organizations define policy. Oyzu delivers."><div class="fc-cover-inputs"><div><small>APPLICATION TEAMS</small><h2>Declare<br>intent.</h2></div><div><small>ORGANIZATIONS</small><h2>Define<br>policy.</h2></div></div><div class="fc-cover-join" aria-hidden="true"><span>↓</span></div><div class="fc-cover-result"><small>OYZU</small><strong>Delivers.</strong></div></div>'''
+    for phrase, icon in [('One governed path', 'code'), ('Delivery evolves through policy,', 'graph'), ('Security and auditability', 'policy')]:
+        s['body']=s['body'].replace('<div><strong>'+phrase, '<div>'+ico(icon)+'<strong>'+phrase)
+    s['body']='<p class="fc-cover-positioning">'+s['source']+'</p>'+s['body']
+    s['source']=''
+    s['notes']='Product vision: Oyzu generates delivery plans from application requirements and organizational policy. The working-foundation and funding slides distinguish current implementation evidence from intended capabilities.'
+    proof=next(x for x in slides if x['label']=='THE WORKING FOUNDATION')
+    proof['title']='The full delivery lifecycle.<br><em>A working build foundation.</em>'
+    proof['theme']='fc-lifecycle'
+    stages=[('Build','Resolve tools.<br>Produce artifacts.'),('Scan','Assess dependencies<br>and artifact risk.'),('Attest','Bind identity and<br>evidence to artifacts.'),('Publish','Deliver approved<br>artifacts and proof.'),('Verify','Check evidence and<br>delivery requirements.')]
+    proof['body']='''<div class="fc-stages">'''+''.join('<div><small>'+str(i+1).zfill(2)+'</small><h2>'+name+'</h2><p>'+desc+'</p></div>' for i,(name,desc) in enumerate(stages))+'''</div><div class="fc-evidence"><div><small>WORKING TODAY · DOCUMENTED NATIVE FIXTURES</small><h3>Build behavior with retained evidence.</h3><p>Passing tests retain artifacts and reports.<br>Assertion or coverage failures retain failure evidence.<br>Repeated qualified Yarn builds produced identical archive digests.</p><a href="https://github.com/micahlmartin/oyzu/actions/runs/36863353630">Inspect the historical CI evidence →</a></div><div><small>WHAT THIS ROUND ADVANCES</small><h3>Managed, governed publication.</h3><p>Central policy, evidence services and publication gates.<br>Broader delivery integrations build on that foundation.</p><b>One product owns the supported delivery mechanics.</b></div></div>'''
+    proof['source']='Lifecycle labels describe product capabilities, not CLI command names. Current proof is historical and scoped; funded milestones appear in the operating plan.'
+    proof['notes']+=' Replaces CLI syntax with an understandable lifecycle. Scan, attest, publish and verify labels are conceptual capability areas, not claims of shipped commands. Verify can gate multiple stages; the illustration is not a strict technical ordering.'
+    return slides
