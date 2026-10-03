@@ -26,6 +26,6 @@ The renderer creates screenshots and refreshes the full PDF. Rendering checks do
 
 Sources and claim boundaries are linked in slide footers and presenter notes. Brand attribution is recorded in [tool-logos/ATTRIBUTION.txt](tool-logos/ATTRIBUTION.txt). The founder photo comes from the public GitHub profile at https://github.com/micahlmartin.png. Logos indicate ecosystem examples, not endorsements or implemented partnerships.
 
-`investor_polish.py` and `investor_polish.css` provide the final investor-facing editorial pass and Appendix divider. The single PDF contains 20 pitch slides, one divider, and eight appendix slides.
+`investor_polish.py` and `investor_polish.css` provide the final investor-facing editorial pass and Appendix divider. The single PDF contains 35 slides, including the pitch, Appendix divider, comparisons and references.
 
 `competitor_comparisons.py` owns the five scenario-based appendix comparisons with Harness, GitLab, Bazel, Pants and Buck2. Official source links accompany each comparison. Implementation status remains on the working foundation slide.
