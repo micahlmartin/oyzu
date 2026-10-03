@@ -37,6 +37,10 @@ This is an illustrative contract, not a finalized wire schema. Credentials and i
 
 Policy selects connector plus repository plus allowed operation for tool acquisition, package reads, cache reads/writes, snapshot publishing, release publishing, and signing. Access to one does not imply access to the others.
 
+## Resource authorization boundary
+
+Membership context and permission-check semantics are owned by the [public access-context contract](../OEP-0016-platform-protocol/access-context.md). An active account membership or resource-access allow alone is not a connector-use lease. The connector/operation/purpose restrictions and credential lifecycle below remain separate; this link does not change their mechanics.
+
 ## Credential brokerage
 
 The agent authenticates a user/session to the platform. CI uses independently verified workload identity. The platform authorizes a narrow request and uses the connector's supported mechanism to obtain a short-lived, scoped upstream credential. Where direct OIDC federation is possible, it is preferred; OIDC is not assumed to work uniformly across every backend.

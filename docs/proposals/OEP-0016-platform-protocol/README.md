@@ -16,6 +16,8 @@ tracking-issue: null
 
 Implementation detail: [v1alpha1 implementation contract](implementation.md). This companion resolves the initial engineering defaults below; it remains draft, and does not imply maintainer acceptance or verified platform support. Where an older paragraph leaves an implementation choice open, the companion is the proposed initial resolution.
 
+The [account access context and permission-check companion](access-context.md) defines the proposed public membership context, safe checks and scoped-access administration slice. It remains draft and is separate from tool acquisition and credential-lease behavior.
+
 ## Problem and outcome
 
 A public CLI must remain usable independently while supporting a stable enterprise control-plane contract. Login, management state, entitlement, policy, and upstream authorization are different concepts and must not be conflated.
